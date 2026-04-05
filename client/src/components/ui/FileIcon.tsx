@@ -1,7 +1,13 @@
-// M6.1: File Icon — rich multi-color SVG icons by file type
+// M6.1: File Icon — Apple HIG-inspired app icons + file type icons
 // @see docs/phases/phase-6.md
 
 import type { FileEntryData } from '../../lib/api';
+import {
+  Gauge,
+  Activity,
+  Server,
+  Palette,
+} from 'lucide-react';
 
 interface FileIconProps {
   entry?: FileEntryData;
@@ -37,45 +43,64 @@ export function FileIcon({ entry, type, name, size = 'md', className = '', style
   return <FileSVG size={s.icon} category={category} ext={ext} className={className} style={style} />;
 }
 
-// ── Desktop App Icons ───────────────────────────────────
+// ── Desktop App Icons (Apple HIG-inspired) ───────────────
+// Design: "Embrace simplicity… express it with a minimal number of shapes.
+// Prefer a simple background, such as a solid color or gradient, that puts
+// emphasis on your primary design." — Apple Human Interface Guidelines
+//
+// Pattern: Gradient rounded-square background + centered Lucide glyph.
+// Colors: Apple system color palette (400→600 Tailwind, sober tones).
+
+/** Shared rounded-square base — subtle top-to-bottom gradient per Apple HIG */
+function AppIconBase({ size, fromColor, toColor, children }: {
+  size: number; fromColor: string; toColor: string; children: React.ReactNode;
+}) {
+  return (
+    <div style={{
+      width: size,
+      height: size,
+      borderRadius: size * 0.22,
+      background: `linear-gradient(180deg, ${fromColor} 0%, ${toColor} 100%)`,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+      boxShadow: `0 ${Math.max(1, size * 0.04)}px ${Math.max(2, size * 0.08)}px rgba(0,0,0,0.15), inset 0 ${Math.max(1, size * 0.02)}px 0 rgba(255,255,255,0.15)`,
+    }}>
+      {children}
+    </div>
+  );
+}
 
 export function DashboardIcon({ size = 48 }: { size?: number }) {
+  const sw = size <= 24 ? 2.25 : 1.75;
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none">
-      <rect x="2" y="2" width="44" height="44" rx="10" fill="url(#dash-bg)" />
-      <rect x="6" y="8" width="16" height="12" rx="3" fill="white" fillOpacity="0.25" />
-      <rect x="26" y="8" width="16" height="12" rx="3" fill="white" fillOpacity="0.2" />
-      <rect x="6" y="24" width="10" height="18" rx="3" fill="white" fillOpacity="0.3" />
-      <rect x="19" y="24" width="10" height="18" rx="3" fill="white" fillOpacity="0.2" />
-      <rect x="32" y="24" width="10" height="12" rx="3" fill="white" fillOpacity="0.25" />
-      <rect x="32" y="39" width="10" height="3" rx="1.5" fill="white" fillOpacity="0.15" />
-      <defs>
-        <linearGradient id="dash-bg" x1="2" y1="2" x2="46" y2="46">
-          <stop stopColor="#3b82f6" />
-          <stop offset="1" stopColor="#1d4ed8" />
-        </linearGradient>
-      </defs>
-    </svg>
+    <AppIconBase size={size} fromColor="#60A5FA" toColor="#2563EB">
+      <Gauge size={Math.round(size * 0.52)} color="white" strokeWidth={sw} />
+    </AppIconBase>
   );
 }
 
 export function FileExplorerIcon({ size = 48 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none">
-      {/* Folder back */}
-      <path d="M4 14C4 11.79 5.79 10 8 10H18L22 14H40C42.21 14 44 15.79 44 18V38C44 40.21 42.21 42 40 42H8C5.79 42 4 40.21 4 38V14Z" fill="url(#folder-back)" />
-      {/* Folder front */}
-      <path d="M4 20C4 18.34 5.34 17 7 17H41C42.66 17 44 18.34 44 20V38C44 40.21 42.21 42 40 42H8C5.79 42 4 40.21 4 38V20Z" fill="url(#folder-front)" />
-      {/* Shine */}
-      <path d="M4 20C4 18.34 5.34 17 7 17H41C42.66 17 44 18.34 44 20V22H4V20Z" fill="white" fillOpacity="0.15" />
+      {/* Back panel */}
+      <path d="M4 14C4 11.79 5.79 10 8 10H17.17C18.23 10 19.24 10.42 20 11.17L22.83 14H40C42.21 14 44 15.79 44 18V38C44 40.21 42.21 42 40 42H8C5.79 42 4 40.21 4 38V14Z" fill="url(#fex-back)" />
+      {/* Front panel */}
+      <path d="M3 21C3 19.34 4.34 18 6 18H42C43.66 18 45 19.34 45 21V38C45 40.76 42.76 43 40 43H8C5.24 43 3 40.76 3 38V21Z" fill="url(#fex-front)" />
+      {/* Gloss strip */}
+      <path d="M3 21C3 19.34 4.34 18 6 18H42C43.66 18 45 19.34 45 21V24H3V21Z" fill="white" fillOpacity="0.22" />
+      {/* Bottom shadow */}
+      <path d="M3 37V38C3 40.76 5.24 43 8 43H40C42.76 43 45 40.76 45 38V37C45 40 42.76 42 40 42H8C5.24 42 3 40 3 37Z" fill="black" fillOpacity="0.1" />
       <defs>
-        <linearGradient id="folder-back" x1="4" y1="10" x2="44" y2="42">
-          <stop stopColor="#f59e0b" />
-          <stop offset="1" stopColor="#d97706" />
+        <linearGradient id="fex-back" x1="24" y1="10" x2="24" y2="42" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#d97706" />
+          <stop offset="1" stopColor="#92400e" />
         </linearGradient>
-        <linearGradient id="folder-front" x1="4" y1="17" x2="44" y2="42">
+        <linearGradient id="fex-front" x1="24" y1="18" x2="24" y2="43" gradientUnits="userSpaceOnUse">
           <stop stopColor="#fbbf24" />
-          <stop offset="1" stopColor="#f59e0b" />
+          <stop offset="0.5" stopColor="#f59e0b" />
+          <stop offset="1" stopColor="#d97706" />
         </linearGradient>
       </defs>
     </svg>
@@ -85,20 +110,27 @@ export function FileExplorerIcon({ size = 48 }: { size?: number }) {
 export function TerminalIcon({ size = 48 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none">
-      <rect x="2" y="5" width="44" height="38" rx="8" fill="url(#term-bg)" />
-      {/* Title bar dots */}
-      <circle cx="10" cy="12" r="2" fill="#ef4444" fillOpacity="0.8" />
-      <circle cx="17" cy="12" r="2" fill="#eab308" fillOpacity="0.8" />
-      <circle cx="24" cy="12" r="2" fill="#22c55e" fillOpacity="0.8" />
-      {/* Prompt */}
-      <path d="M10 22L16 27L10 32" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-      <line x1="20" y1="32" x2="34" y2="32" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.6" />
-      {/* Cursor blink */}
-      <rect x="36" y="29" width="2" height="6" rx="1" fill="#4ade80" fillOpacity="0.8" />
+      <rect x="2" y="4" width="44" height="40" rx="8" fill="url(#term-bg)" />
+      <rect x="2" y="4" width="44" height="20" rx="8" fill="url(#term-gloss)" />
+      {/* Traffic lights */}
+      <circle cx="11" cy="12" r="2.5" fill="#ff5f57" />
+      <circle cx="18" cy="12" r="2.5" fill="#febc2e" />
+      <circle cx="25" cy="12" r="2.5" fill="#28c840" />
+      {/* Bold chevron prompt */}
+      <path d="M10 22L17 27.5L10 33" stroke="#4ade80" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+      {/* Cursor line */}
+      <rect x="21" y="30" width="14" height="3" rx="1.5" fill="#4ade80" fillOpacity="0.6" />
+      {/* Blinking cursor */}
+      <rect x="37" y="29" width="2.5" height="5" rx="1" fill="#4ade80" fillOpacity="0.9" />
       <defs>
-        <linearGradient id="term-bg" x1="2" y1="5" x2="46" y2="43">
-          <stop stopColor="#1a1a2e" />
-          <stop offset="1" stopColor="#0f172a" />
+        <linearGradient id="term-bg" x1="24" y1="4" x2="24" y2="44" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#232946" />
+          <stop offset="0.5" stopColor="#1a1f3a" />
+          <stop offset="1" stopColor="#0f1225" />
+        </linearGradient>
+        <linearGradient id="term-gloss" x1="24" y1="4" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+          <stop stopColor="white" stopOpacity="0.08" />
+          <stop offset="1" stopColor="white" stopOpacity="0" />
         </linearGradient>
       </defs>
     </svg>
@@ -106,31 +138,89 @@ export function TerminalIcon({ size = 48 }: { size?: number }) {
 }
 
 export function ThisPCIcon({ size = 48 }: { size?: number }) {
+  const s = size;
+  const p = (v: number) => (v / 48) * s; // proportional helper
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none">
-      {/* Monitor */}
-      <rect x="4" y="4" width="40" height="28" rx="4" fill="url(#pc-frame)" />
-      <rect x="7" y="7" width="34" height="22" rx="2" fill="#1e293b" />
-      {/* Screen content */}
-      <rect x="10" y="10" width="12" height="8" rx="1" fill="#3b82f6" fillOpacity="0.4" />
-      <rect x="25" y="10" width="12" height="4" rx="1" fill="#22c55e" fillOpacity="0.3" />
-      <rect x="25" y="16" width="8" height="2" rx="0.5" fill="#94a3b8" fillOpacity="0.3" />
-      <rect x="10" y="21" width="27" height="2" rx="0.5" fill="#94a3b8" fillOpacity="0.2" />
-      <rect x="10" y="25" width="20" height="2" rx="0.5" fill="#94a3b8" fillOpacity="0.15" />
-      {/* Stand */}
-      <path d="M18 34H30L32 40H16L18 34Z" fill="url(#pc-stand)" />
-      <rect x="14" y="40" width="20" height="3" rx="1.5" fill="#64748b" />
+    <svg width={s} height={s} viewBox={`0 0 ${s} ${s}`} fill="none">
+      {/* Screen body */}
+      <rect x={p(7)} y={p(8)} width={p(34)} height={p(22)} rx={p(2.5)}
+        fill="url(#thispc-screen)" stroke="#334155" strokeWidth={p(1.2)} />
+      {/* Screen glass */}
+      <rect x={p(9.5)} y={p(10.5)} width={p(29)} height={p(16.5)} rx={p(1.2)}
+        fill="url(#thispc-glass)" />
+      {/* Gloss highlight */}
+      <rect x={p(9.5)} y={p(10.5)} width={p(29)} height={p(7)} rx={p(1.2)}
+        fill="white" opacity={0.12} />
+      {/* Stand neck */}
+      <rect x={p(20)} y={p(30)} width={p(8)} height={p(5)} rx={p(0.5)}
+        fill="#475569" />
+      {/* Stand base */}
+      <ellipse cx={p(24)} cy={p(37)} rx={p(10)} ry={p(2.2)}
+        fill="#334155" />
+      <ellipse cx={p(24)} cy={p(36.4)} rx={p(10)} ry={p(2.2)}
+        fill="#64748B" />
+      {/* Screen content: small desktop grid dots */}
+      <rect x={p(13)} y={p(14)} width={p(4)} height={p(4)} rx={p(1)} fill="#60A5FA" opacity={0.85} />
+      <rect x={p(19.5)} y={p(14)} width={p(4)} height={p(4)} rx={p(1)} fill="#34D399" opacity={0.85} />
+      <rect x={p(26)} y={p(14)} width={p(4)} height={p(4)} rx={p(1)} fill="#FBBF24" opacity={0.85} />
+      <rect x={p(13)} y={p(20.5)} width={p(4)} height={p(4)} rx={p(1)} fill="#F87171" opacity={0.85} />
+      <rect x={p(19.5)} y={p(20.5)} width={p(4)} height={p(4)} rx={p(1)} fill="#A78BFA" opacity={0.85} />
+      <rect x={p(26)} y={p(20.5)} width={p(4)} height={p(4)} rx={p(1)} fill="#38BDF8" opacity={0.85} />
       <defs>
-        <linearGradient id="pc-frame" x1="4" y1="4" x2="44" y2="32">
-          <stop stopColor="#475569" />
-          <stop offset="1" stopColor="#334155" />
+        <linearGradient id="thispc-screen" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#94A3B8" />
+          <stop offset="100%" stopColor="#475569" />
         </linearGradient>
-        <linearGradient id="pc-stand" x1="18" y1="34" x2="30" y2="40">
-          <stop stopColor="#64748b" />
-          <stop offset="1" stopColor="#475569" />
+        <linearGradient id="thispc-glass" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#1E293B" />
+          <stop offset="100%" stopColor="#0F172A" />
         </linearGradient>
       </defs>
     </svg>
+  );
+}
+
+export function DockerIcon({ size = 48 }: { size?: number }) {
+  // Docker Moby logo (simple-icons, CC0). Original viewBox 0 0 24 24,
+  // path bounds ~0,3.4 to 24,19.6 (width 24, height ~16.2). Center it.
+  const scale = (size * 0.85) / 24; // fill 85% of the icon width
+  const pathH = 16.2 * scale;
+  const pathW = 24 * scale;
+  const tx = (size - pathW) / 2;
+  const ty = (size - pathH) / 2 - 3.4 * scale; // offset by path's top y
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} fill="none">
+      <g transform={`translate(${tx.toFixed(1)}, ${ty.toFixed(1)}) scale(${scale.toFixed(3)})`}>
+        <path d="M13.983 11.078h2.119a.186.186 0 00.186-.185V9.006a.186.186 0 00-.186-.186h-2.119a.185.185 0 00-.185.185v1.888c0 .102.083.185.185.185m-2.954-5.43h2.118a.186.186 0 00.186-.186V3.574a.186.186 0 00-.186-.185h-2.118a.185.185 0 00-.185.185v1.888c0 .102.082.185.185.185m0 2.716h2.118a.187.187 0 00.186-.186V6.29a.186.186 0 00-.186-.185h-2.118a.185.185 0 00-.185.185v1.887c0 .102.082.185.185.186m-2.93 0h2.12a.186.186 0 00.184-.186V6.29a.185.185 0 00-.185-.185H8.1a.185.185 0 00-.185.185v1.887c0 .102.083.185.185.186m-2.964 0h2.119a.186.186 0 00.185-.186V6.29a.185.185 0 00-.185-.185H5.136a.186.186 0 00-.186.185v1.887c0 .102.084.185.186.186m5.893 2.715h2.118a.186.186 0 00.186-.185V9.006a.186.186 0 00-.186-.186h-2.118a.185.185 0 00-.185.185v1.888c0 .102.082.185.185.185m-2.93 0h2.12a.185.185 0 00.184-.185V9.006a.185.185 0 00-.184-.186h-2.12a.185.185 0 00-.184.185v1.888c0 .102.083.185.185.185m-2.964 0h2.119a.185.185 0 00.185-.185V9.006a.185.185 0 00-.184-.186h-2.12a.186.186 0 00-.186.186v1.887c0 .102.084.185.186.185m-2.92 0h2.12a.185.185 0 00.184-.185V9.006a.185.185 0 00-.184-.186h-2.12a.185.185 0 00-.184.185v1.888c0 .102.082.185.185.185M23.763 9.89c-.065-.051-.672-.51-1.954-.51-.338.001-.676.03-1.01.087-.248-1.7-1.653-2.53-1.716-2.566l-.344-.199-.226.327c-.284.438-.49.922-.612 1.43-.23.97-.09 1.882.403 2.661-.595.332-1.55.413-1.744.42H.751a.751.751 0 00-.75.748 11.376 11.376 0 00.692 4.062c.545 1.428 1.355 2.48 2.41 3.124 1.18.723 3.1 1.137 5.275 1.137.983.003 1.963-.086 2.93-.266a12.248 12.248 0 003.823-1.389c.98-.567 1.86-1.288 2.61-2.136 1.252-1.418 1.998-2.997 2.553-4.4h.221c1.372 0 2.215-.549 2.68-1.009.309-.293.55-.65.707-1.046l.098-.288Z" fill="#2496ED"/>
+      </g>
+    </svg>
+  );
+}
+
+export function TaskManagerIcon({ size = 48 }: { size?: number }) {
+  const sw = size <= 24 ? 2.25 : 1.75;
+  return (
+    <AppIconBase size={size} fromColor="#4ADE80" toColor="#16A34A">
+      <Activity size={Math.round(size * 0.52)} color="white" strokeWidth={sw} />
+    </AppIconBase>
+  );
+}
+
+export function ServicesIcon({ size = 48 }: { size?: number }) {
+  const sw = size <= 24 ? 2.25 : 1.75;
+  return (
+    <AppIconBase size={size} fromColor="#818CF8" toColor="#4F46E5">
+      <Server size={Math.round(size * 0.52)} color="white" strokeWidth={sw} />
+    </AppIconBase>
+  );
+}
+
+export function SettingsIcon({ size = 48 }: { size?: number }) {
+  const sw = size <= 24 ? 2.25 : 1.75;
+  return (
+    <AppIconBase size={size} fromColor="#F0ABFC" toColor="#C026D3">
+      <Palette size={Math.round(size * 0.52)} color="white" strokeWidth={sw} />
+    </AppIconBase>
   );
 }
 
@@ -139,17 +229,19 @@ export function ThisPCIcon({ size = 48 }: { size?: number }) {
 export function FolderSVG({ size, className, style }: { size: number; className?: string; style?: React.CSSProperties }) {
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
-      <path d="M4 14C4 11.79 5.79 10 8 10H18L22 14H40C42.21 14 44 15.79 44 18V38C44 40.21 42.21 42 40 42H8C5.79 42 4 40.21 4 38V14Z" fill="url(#fld-back)" />
-      <path d="M4 20C4 18.34 5.34 17 7 17H41C42.66 17 44 18.34 44 20V38C44 40.21 42.21 42 40 42H8C5.79 42 4 40.21 4 38V20Z" fill="url(#fld-front)" />
-      <path d="M4 20C4 18.34 5.34 17 7 17H41C42.66 17 44 18.34 44 20V22H4V20Z" fill="white" fillOpacity="0.12" />
+      <path d="M4 14C4 11.79 5.79 10 8 10H17.17C18.23 10 19.24 10.42 20 11.17L22.83 14H40C42.21 14 44 15.79 44 18V38C44 40.21 42.21 42 40 42H8C5.79 42 4 40.21 4 38V14Z" fill="url(#fld-back)" />
+      <path d="M3 21C3 19.34 4.34 18 6 18H42C43.66 18 45 19.34 45 21V38C45 40.76 42.76 43 40 43H8C5.24 43 3 40.76 3 38V21Z" fill="url(#fld-front)" />
+      <path d="M3 21C3 19.34 4.34 18 6 18H42C43.66 18 45 19.34 45 21V24H3V21Z" fill="white" fillOpacity="0.22" />
+      <path d="M3 37V38C3 40.76 5.24 43 8 43H40C42.76 43 45 40.76 45 38V37C45 40 42.76 42 40 42H8C5.24 42 3 40 3 37Z" fill="black" fillOpacity="0.1" />
       <defs>
-        <linearGradient id="fld-back" x1="4" y1="10" x2="44" y2="42">
-          <stop stopColor="#f59e0b" />
-          <stop offset="1" stopColor="#d97706" />
+        <linearGradient id="fld-back" x1="24" y1="10" x2="24" y2="42" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#d97706" />
+          <stop offset="1" stopColor="#92400e" />
         </linearGradient>
-        <linearGradient id="fld-front" x1="4" y1="17" x2="44" y2="42">
+        <linearGradient id="fld-front" x1="24" y1="18" x2="24" y2="43" gradientUnits="userSpaceOnUse">
           <stop stopColor="#fbbf24" />
-          <stop offset="1" stopColor="#f59e0b" />
+          <stop offset="0.5" stopColor="#f59e0b" />
+          <stop offset="1" stopColor="#d97706" />
         </linearGradient>
       </defs>
     </svg>

@@ -130,7 +130,7 @@ export function Desktop() {
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div
-          className="absolute inset-0 bottom-12 overflow-hidden select-none"
+          className="absolute inset-0 bottom-13 overflow-hidden select-none"
           onClick={() => closeStartMenu()}
         >
       {/* Wallpaper with branded watermark */}

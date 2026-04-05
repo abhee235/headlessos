@@ -4,9 +4,6 @@
 import { useDesktopStore } from '../../store/window-store';
 import { useAppStore } from '../../store/app-store';
 import {
-  LayoutDashboard,
-  FolderOpen,
-  TerminalSquare,
   Wifi,
   WifiOff,
   Monitor,
@@ -19,10 +16,8 @@ import {
   PinOff,
   Sun,
   Moon,
-  Paintbrush,
   ChevronUp,
 } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import {
   ContextMenu,
@@ -37,32 +32,43 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import {
+  DashboardIcon,
+  FileExplorerIcon,
+  TerminalIcon,
+  DockerIcon,
+  TaskManagerIcon,
+  ServicesIcon,
+  SettingsIcon,
+  ThisPCIcon,
+} from '@/components/ui/FileIcon';
 
 // ─── Pinned app definitions ─────────────────────────────────────────────────
 
 interface PinnedApp {
   id: string;
   label: string;
-  Icon: LucideIcon;
+  IconComponent: React.ComponentType<{ size?: number }>;
 }
 
 const PINNED_APPS: PinnedApp[] = [
-  { id: 'dashboard', label: 'Dashboard', Icon: LayoutDashboard },
-  { id: 'files', label: 'File Explorer', Icon: FolderOpen },
-  { id: 'terminal', label: 'Terminal', Icon: TerminalSquare },
-  { id: 'docker', label: 'Docker', Icon: Box },
-  { id: 'taskmanager', label: 'Task Manager', Icon: Activity },
-  { id: 'settings', label: 'Settings', Icon: Paintbrush },
+  { id: 'dashboard', label: 'Dashboard', IconComponent: DashboardIcon },
+  { id: 'files', label: 'File Explorer', IconComponent: FileExplorerIcon },
+  { id: 'terminal', label: 'Terminal', IconComponent: TerminalIcon },
+  { id: 'docker', label: 'Docker', IconComponent: DockerIcon },
+  { id: 'taskmanager', label: 'Task Manager', IconComponent: TaskManagerIcon },
+  { id: 'settings', label: 'Settings', IconComponent: SettingsIcon },
 ];
 
-const ALL_APP_ICONS: Record<string, LucideIcon> = {
-  dashboard: LayoutDashboard,
-  files: FolderOpen,
-  terminal: TerminalSquare,
-  taskmanager: Activity,
-  settings: Paintbrush,
-  docker: Box,
-  services: Server,
+const ALL_APP_ICONS: Record<string, React.ComponentType<{ size?: number }>> = {
+  dashboard: DashboardIcon,
+  files: FileExplorerIcon,
+  terminal: TerminalIcon,
+  taskmanager: TaskManagerIcon,
+  settings: SettingsIcon,
+  docker: DockerIcon,
+  services: ServicesIcon,
+  thispc: ThisPCIcon,
 };
 
 // ─── Clock ───────────────────────────────────────────────────────────────────
@@ -76,22 +82,24 @@ function Clock() {
   }, []);
 
   const timeStr = time.toLocaleTimeString([], {
-    hour: '2-digit',
+    hour: 'numeric',
     minute: '2-digit',
+    hour12: true,
   });
   const dateStr = time.toLocaleDateString([], {
-    month: 'short',
     day: 'numeric',
+    month: 'short',
+    year: 'numeric',
   });
 
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <div className="flex flex-col items-center justify-center px-2.5 h-9 rounded-md hover:bg-foreground/5 cursor-default transition-colors select-none">
-          <span className="text-[11px] text-foreground/80 font-medium leading-tight tabular-nums">
+        <div className="flex flex-col items-end justify-center px-3 h-9 rounded-md hover:bg-foreground/5 cursor-default transition-colors select-none">
+          <span className="text-[11.5px] text-foreground/90 font-semibold leading-tight tabular-nums tracking-tight text-uppercase">
             {timeStr}
           </span>
-          <span className="text-[10px] text-foreground/40 leading-tight">
+          <span className="text-[10px] text-foreground/55 font-medium leading-tight tracking-wide">
             {dateStr}
           </span>
         </div>
@@ -120,9 +128,9 @@ function ThemeToggle() {
           onClick={toggleTheme}
         >
           {theme === 'dark' ? (
-            <Sun className="w-4 h-4 text-foreground/55" />
+            <Sun className="w-4 h-4 text-foreground/80" />
           ) : (
-            <Moon className="w-4 h-4 text-foreground/55" />
+            <Moon className="w-4 h-4 text-foreground/80" />
           )}
         </button>
       </TooltipTrigger>
@@ -144,7 +152,7 @@ function SystemTray() {
     <div className="absolute right-1 flex items-center">
       {/* Chevron (overflow) */}
       <button className="flex items-center justify-center w-8 h-9 rounded-md hover:bg-foreground/5 transition-colors">
-        <ChevronUp className="w-3.5 h-3.5 text-foreground/40" />
+        <ChevronUp className="w-3.5 h-3.5 text-foreground/60" />
       </button>
 
       {/* Theme */}
@@ -155,9 +163,9 @@ function SystemTray() {
         <TooltipTrigger asChild>
           <div className="flex items-center justify-center w-9 h-9 rounded-md hover:bg-foreground/5 cursor-default transition-colors">
             {isConnected ? (
-              <Wifi className="w-4 h-4 text-foreground/55" />
+              <Wifi className="w-4 h-4 text-foreground/80" />
             ) : (
-              <WifiOff className="w-4 h-4 text-foreground/30" />
+              <WifiOff className="w-4 h-4 text-foreground/40" />
             )}
           </div>
         </TooltipTrigger>
@@ -231,9 +239,9 @@ export function Taskbar() {
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
-        <div className="absolute bottom-0 left-0 right-0 h-12 z-9999 flex items-center justify-center bg-background/80 dark:bg-background/70 backdrop-blur-2xl backdrop-saturate-150 border-t border-foreground/6 shadow-[0_-2px_8px_0_rgba(0,0,0,0.06)]">
+        <div className="absolute bottom-0 left-0 right-0 h-13 z-9999 flex items-center justify-center bg-background/80 dark:bg-background/70 backdrop-blur-2xl backdrop-saturate-150 border-t border-foreground/6 shadow-[0_-2px_8px_0_rgba(0,0,0,0.06)]">
           {/* ── Center: Start + Pinned Apps + Running extras ── */}
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center gap-2">
             {/* Start */}
             <Tooltip>
               <TooltipTrigger asChild>
@@ -251,12 +259,30 @@ export function Taskbar() {
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
-                    className="w-4.5 h-4.5"
+                    className="w-5 h-5"
                   >
-                    <rect x="2" y="2" width="9" height="9" rx="1.5" fill="#0078d4" />
-                    <rect x="13" y="2" width="9" height="9" rx="1.5" fill="#0078d4" opacity="0.7" />
-                    <rect x="2" y="13" width="9" height="9" rx="1.5" fill="#0078d4" opacity="0.7" />
-                    <rect x="13" y="13" width="9" height="9" rx="1.5" fill="#0078d4" opacity="0.4" />
+                    <defs>
+                      <linearGradient id="win-tl" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor="#55B4F1" />
+                        <stop offset="100%" stopColor="#1B7FCC" />
+                      </linearGradient>
+                      <linearGradient id="win-tr" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor="#5EC96E" />
+                        <stop offset="100%" stopColor="#37A44C" />
+                      </linearGradient>
+                      <linearGradient id="win-bl" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor="#F0734B" />
+                        <stop offset="100%" stopColor="#D94A2A" />
+                      </linearGradient>
+                      <linearGradient id="win-br" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor="#FBCE42" />
+                        <stop offset="100%" stopColor="#E8AE10" />
+                      </linearGradient>
+                    </defs>
+                    <rect x="2" y="2" width="9" height="9" rx="2" fill="url(#win-tl)" />
+                    <rect x="13" y="2" width="9" height="9" rx="2" fill="url(#win-tr)" />
+                    <rect x="2" y="13" width="9" height="9" rx="2" fill="url(#win-bl)" />
+                    <rect x="13" y="13" width="9" height="9" rx="2" fill="url(#win-br)" />
                   </svg>
                 </button>
               </TooltipTrigger>
@@ -289,15 +315,7 @@ export function Taskbar() {
                           } ${!isConnected && !isOpen ? 'opacity-40' : ''}`}
                           onClick={() => handleAppClick(app.id, win ?? undefined)}
                         >
-                          <app.Icon
-                            className={`w-4.5 h-4.5 transition-colors ${
-                              isFocused
-                                ? 'text-foreground/85'
-                                : isOpen
-                                  ? 'text-foreground/70'
-                                  : 'text-foreground/50'
-                            }`}
-                          />
+                          <app.IconComponent size={32} />
                           {/* Indicator pill */}
                           {isOpen && (
                             <span
@@ -317,7 +335,7 @@ export function Taskbar() {
                   </ContextMenuTrigger>
                   <ContextMenuContent>
                     <ContextMenuItem className="text-xs font-medium pointer-events-none">
-                      <app.Icon className="w-4 h-4 mr-2 opacity-50" />
+                      <span className="mr-2 opacity-50"><app.IconComponent size={16} /></span>
                       {app.label}
                     </ContextMenuItem>
                     <ContextMenuSeparator />
@@ -354,7 +372,7 @@ export function Taskbar() {
 
             {/* ── Non-pinned running windows ── */}
             {unpinnedWindows.map((win) => {
-              const Icon = ALL_APP_ICONS[win.appId] ?? LayoutDashboard;
+              const Icon = ALL_APP_ICONS[win.appId] ?? DashboardIcon;
               const isFocused = win.focused && !win.minimized;
 
               return (
@@ -378,7 +396,7 @@ export function Taskbar() {
                             })
                           }
                         >
-                          <Icon className="w-4.5 h-4.5 text-foreground/70" />
+                          <Icon size={20} />
                           {!win.minimized && (
                             <span
                               className={`absolute bottom-0.75 left-1/2 -translate-x-1/2 rounded-full transition-all duration-200 ${
@@ -397,7 +415,7 @@ export function Taskbar() {
                   </ContextMenuTrigger>
                   <ContextMenuContent>
                     <ContextMenuItem className="text-xs font-medium pointer-events-none">
-                      <Icon className="w-4 h-4 mr-2 opacity-50" />
+                      <span className="mr-2 opacity-50"><Icon size={16} /></span>
                       {win.title}
                     </ContextMenuItem>
                     <ContextMenuSeparator />

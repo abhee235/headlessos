@@ -1,25 +1,26 @@
-// M6.6: Start Menu — Glassmorphic two-column layout with rich gradient icons
+// M6.6: Start Menu — Glassmorphic two-column layout with rich SVG app icons
 // @see docs/phases/phase-6.md
 
 import { useDesktopStore } from '../../store/window-store';
 import { useAppStore } from '../../store/app-store';
 import {
-  LayoutDashboard,
-  FolderOpen,
-  TerminalSquare,
   Search,
   Power,
-  Activity,
-  Box,
-  Cog,
-  Paintbrush,
   ChevronRight,
   User,
   Plug,
   Unplug,
 } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+import {
+  DashboardIcon,
+  FileExplorerIcon,
+  TerminalIcon,
+  DockerIcon,
+  TaskManagerIcon,
+  ServicesIcon,
+  SettingsIcon,
+} from '@/components/ui/FileIcon';
 
 // ─── Greeting ────────────────────────────────────────────────────────────────
 
@@ -35,107 +36,32 @@ function getGreeting(): string {
 interface AppEntry {
   id: string;
   label: string;
-  Icon: LucideIcon;
-  gradient: string;
-  shadow: string;
+  IconComponent: React.ComponentType<{ size?: number }>;
 }
 
 const PINNED_APPS: AppEntry[] = [
-  {
-    id: 'dashboard',
-    label: 'Dashboard',
-    Icon: LayoutDashboard,
-    gradient: 'from-blue-500 to-indigo-600',
-    shadow: 'shadow-blue-500/25 dark:shadow-blue-400/15',
-  },
-  {
-    id: 'files',
-    label: 'Files',
-    Icon: FolderOpen,
-    gradient: 'from-amber-400 to-orange-500',
-    shadow: 'shadow-amber-500/25 dark:shadow-amber-400/15',
-  },
-  {
-    id: 'terminal',
-    label: 'Terminal',
-    Icon: TerminalSquare,
-    gradient: 'from-emerald-500 to-teal-600',
-    shadow: 'shadow-emerald-500/25 dark:shadow-emerald-400/15',
-  },
-  {
-    id: 'taskmanager',
-    label: 'Tasks',
-    Icon: Activity,
-    gradient: 'from-violet-500 to-purple-600',
-    shadow: 'shadow-violet-500/25 dark:shadow-violet-400/15',
-  },
-  {
-    id: 'docker',
-    label: 'Docker',
-    Icon: Box,
-    gradient: 'from-cyan-500 to-blue-600',
-    shadow: 'shadow-cyan-500/25 dark:shadow-cyan-400/15',
-  },
-  {
-    id: 'services',
-    label: 'Services',
-    Icon: Cog,
-    gradient: 'from-orange-500 to-rose-500',
-    shadow: 'shadow-orange-500/25 dark:shadow-orange-400/15',
-  },
-  {
-    id: 'settings',
-    label: 'Personalize',
-    Icon: Paintbrush,
-    gradient: 'from-fuchsia-500 to-pink-600',
-    shadow: 'shadow-fuchsia-500/25 dark:shadow-fuchsia-400/15',
-  },
+  { id: 'dashboard', label: 'Dashboard', IconComponent: DashboardIcon },
+  { id: 'files', label: 'Files', IconComponent: FileExplorerIcon },
+  { id: 'terminal', label: 'Terminal', IconComponent: TerminalIcon },
+  { id: 'taskmanager', label: 'Tasks', IconComponent: TaskManagerIcon },
+  { id: 'docker', label: 'Docker', IconComponent: DockerIcon },
+  { id: 'services', label: 'Services', IconComponent: ServicesIcon },
+  { id: 'settings', label: 'Personalize', IconComponent: SettingsIcon },
 ];
 
 interface RecentEntry {
   label: string;
   sub: string;
-  Icon: LucideIcon;
-  gradient: string;
+  IconComponent: React.ComponentType<{ size?: number }>;
 }
 
 const RECENTLY_USED: RecentEntry[] = [
-  {
-    label: 'System Overview',
-    sub: '2 min ago',
-    Icon: LayoutDashboard,
-    gradient: 'from-blue-500 to-indigo-600',
-  },
-  {
-    label: 'Docker Containers',
-    sub: '15 min ago',
-    Icon: Box,
-    gradient: 'from-cyan-500 to-blue-600',
-  },
-  {
-    label: 'Server Logs',
-    sub: '1 hour ago',
-    Icon: TerminalSquare,
-    gradient: 'from-emerald-500 to-teal-600',
-  },
-  {
-    label: 'Service Status',
-    sub: 'Yesterday',
-    Icon: Cog,
-    gradient: 'from-orange-500 to-rose-500',
-  },
-  {
-    label: 'File Browser',
-    sub: 'Yesterday',
-    Icon: FolderOpen,
-    gradient: 'from-amber-400 to-orange-500',
-  },
-  {
-    label: 'Task Manager',
-    sub: '2 days ago',
-    Icon: Activity,
-    gradient: 'from-violet-500 to-purple-600',
-  },
+  { label: 'System Overview', sub: '2 min ago', IconComponent: DashboardIcon },
+  { label: 'Docker Containers', sub: '15 min ago', IconComponent: DockerIcon },
+  { label: 'Server Logs', sub: '1 hour ago', IconComponent: TerminalIcon },
+  { label: 'Service Status', sub: 'Yesterday', IconComponent: ServicesIcon },
+  { label: 'File Browser', sub: 'Yesterday', IconComponent: FileExplorerIcon },
+  { label: 'Task Manager', sub: '2 days ago', IconComponent: TaskManagerIcon },
 ];
 
 // ─── Start Menu ──────────────────────────────────────────────────────────────
@@ -213,7 +139,7 @@ export function StartMenu() {
       onClick={(e) => e.stopPropagation()}
     >
       {/* ── Search bar ── */}
-      <div className="px-5 pt-5 pb-2">
+      <div className="px-5 pt-6 pb-8">
         <div className="flex items-center gap-3 px-4 py-2 bg-black/3 dark:bg-white/5 rounded-full border border-transparent focus-within:border-primary/30 focus-within:ring-2 focus-within:ring-primary/10 transition-all">
           <Search className="w-4 h-4 text-foreground/40 shrink-0" />
           <input
@@ -253,10 +179,8 @@ export function StartMenu() {
                 onClick={() => handleOpenApp(app.id, app.label)}
                 disabled={!isConnected}
               >
-                <div
-                  className={`w-11 h-11 rounded-[14px] bg-linear-to-br ${app.gradient} flex items-center justify-center shadow-lg ${app.shadow} transition-transform duration-150 group-hover:scale-110 group-active:scale-100`}
-                >
-                  <app.Icon className="w-5.5 h-5.5 text-white drop-shadow-sm" />
+                <div className="transition-transform duration-150 group-hover:scale-110 group-active:scale-100">
+                  <app.IconComponent size={44} />
                 </div>
                 <span className="text-[11px] text-foreground/60 font-semibold leading-tight text-center truncate w-full group-hover:text-foreground/90 transition-colors">
                   {app.label}
@@ -281,17 +205,15 @@ export function StartMenu() {
             {RECENTLY_USED.map((item) => (
               <button
                 key={item.label}
-                className={`group flex items-center gap-3 px-2.5 py-2 rounded-xl transition-all text-left ${
+                className={`group flex items-center gap-3 px-2 py-1.5 rounded-xl transition-all text-left ${
                   isConnected
                     ? 'hover:bg-black/5 dark:hover:bg-white/8 cursor-pointer'
                     : 'opacity-40 cursor-not-allowed'
                 }`}
                 disabled={!isConnected}
               >
-                <div
-                  className={`w-8 h-8 rounded-[10px] bg-linear-to-br ${item.gradient} flex items-center justify-center shrink-0 shadow-md`}
-                >
-                  <item.Icon className="w-4 h-4 text-white" />
+                <div className="shrink-0">
+                  <item.IconComponent size={32} />
                 </div>
                 <div className="min-w-0">
                   <p className="text-[12px] text-foreground/75 font-semibold truncate group-hover:text-foreground transition-colors">
@@ -310,8 +232,8 @@ export function StartMenu() {
       {/* ── Footer: user + server status ── */}
       <div className="flex items-center justify-between px-5 py-2.5 border-t border-separator">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-linear-to-br from-primary/90 to-primary/50 flex items-center justify-center shadow-md shadow-primary/15">
-            <User className="w-4.5 h-4.5 text-primary-foreground" />
+          <div className="w-9 h-9 rounded-full bg-linear-to-br from-blue-400 to-indigo-500 flex items-center justify-center shadow-sm shadow-blue-500/25">
+            <User className="w-4 h-4 text-white" strokeWidth={2.25} />
           </div>
           <div>
             <p className="text-[13px] font-bold text-foreground/90 tracking-tight">
