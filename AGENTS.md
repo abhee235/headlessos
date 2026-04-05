@@ -224,6 +224,53 @@ const plan: ExecutionPlan = {
 - On command failure → try `fallbackCommands` (e.g., `ip addr` → `ifconfig`)
 - Future: ReAct Agent mode for complex multi-step tasks (ADR-014, backlog)
 
+### Output Cache (ADR — M4.7)
+
+Hash-based caching layer that prevents redundant parsing when terminal output hasn't changed between polls.
+
+```typescript
+import { OutputCache } from '../cache/output-cache.js';
+
+// Cache is integrated into ParsingPipeline automatically.
+// Pipeline checks cache before parsing, stores result after parsing.
+// Dashboard auto-refresh (30s) benefits most — same output = cache hit.
+
+// Manual invalidation on disconnect:
+outputCache.invalidateServer(serverId);
+
+// Stats available via GET /api/stats/llm:
+const stats = outputCache.getStats();
+// { totalEntries, hits, misses, hitRate, memoryBytes }
+```
+
+- Cache key: `hash(serverId + command + rawOutput)`
+- Default TTL: 60 seconds (configurable per command)
+- Invalidated on server disconnect or when raw output changes
+- Stats exposed through LLM Usage Stats endpoint (M4.8)
+
+### LLM Usage Tracking (M4.8)
+
+All LLM calls are tracked for cost monitoring and optimization:
+
+```typescript
+// Automatically recorded by ParsingPipeline after every LLM call.
+// GET /api/stats/llm returns:
+{
+  totalCalls: number,
+  totalInputTokens: number,
+  totalOutputTokens: number,
+  estimatedCostUsd: number,
+  averageLatencyMs: number,
+  callsByModel: Record<string, number>,
+  callsByCommand: Record<string, number>,
+  cache: CacheStats
+}
+```
+
+- Track tokens, cost, latency per LLM call
+- Per-model pricing for cost estimates
+- Cache hit rate shows optimization effectiveness
+
 ---
 
 ## 8. Frontend Patterns

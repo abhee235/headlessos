@@ -1,14 +1,16 @@
-// M6.1: Desktop — high-quality desktop with rich SVG icons and wallpaper
+// M6.1 + M5.6c: Desktop — high-quality desktop with rich SVG icons, wallpaper, and wired context menus
 // @see docs/phases/phase-6.md
 
 import { useCallback, useState, useRef, useEffect } from 'react';
 import { useDesktopStore } from '../../store/window-store';
 import { useAppStore } from '../../store/app-store';
+import { usePreferencesStore, type DesktopIconSize, type DesktopSortBy } from '../../store/preferences-store';
 import {
   DashboardIcon,
   FileExplorerIcon,
   TerminalIcon,
   ThisPCIcon,
+  ServerAdminIcon,
 } from '../ui/FileIcon';
 import {
   ContextMenu,
@@ -29,16 +31,18 @@ import {
   File,
   RefreshCw,
   LayoutGrid,
-  List,
   SortAsc,
   Info,
   Paintbrush,
   Activity,
   Box,
   Server,
+  Shield,
+  Check,
 } from 'lucide-react';
 import { Wallpaper } from './Wallpaper';
 import { createDirectory, writeFile } from '../../lib/api';
+import { toast } from 'sonner';
 
 interface DesktopIcon {
   id: string;
@@ -66,6 +70,12 @@ const DESKTOP_ICONS: DesktopIcon[] = [
     label: 'Terminal',
     IconComponent: TerminalIcon,
   },
+  {
+    id: 'desktop-serveradmin',
+    appId: 'serveradmin',
+    label: 'Server Admin',
+    IconComponent: ServerAdminIcon,
+  },
 ];
 
 export function Desktop() {
@@ -75,6 +85,15 @@ export function Desktop() {
   const servers = useAppStore(s => s.servers);
   const activeServer = servers.find(s => s.id === activeServerId);
   const isConnected = activeServer?.state?.status === 'connected';
+
+  // Desktop preferences
+  const desktopIconSize = usePreferencesStore(s => s.desktopIconSize);
+  const desktopSortBy = usePreferencesStore(s => s.desktopSortBy);
+  const setDesktopIconSize = usePreferencesStore(s => s.setDesktopIconSize);
+  const setDesktopSortBy = usePreferencesStore(s => s.setDesktopSortBy);
+
+  // About dialog state
+  const [aboutOpen, setAboutOpen] = useState(false);
 
   // New Folder / New File dialog state
   const [creatingType, setCreatingType] = useState<'file' | 'folder' | null>(null);
@@ -125,6 +144,25 @@ export function Desktop() {
     openWindow(icon.appId, activeServerId, icon.label, icon.appId);
   };
 
+  // Desktop icon sizing
+  const iconSizeMap: Record<DesktopIconSize, { box: string; icon: number; text: string }> = {
+    small:  { box: 'w-[64px] h-[72px]', icon: 32, text: 'text-[10px]' },
+    medium: { box: 'w-[80px] h-[88px]', icon: 44, text: 'text-[11px]' },
+    large:  { box: 'w-[96px] h-[104px]', icon: 56, text: 'text-[12px]' },
+  };
+  const iconStyle = iconSizeMap[desktopIconSize];
+
+  // Sort desktop icons
+  const sortedIcons = [...DESKTOP_ICONS].sort((a, b) => {
+    if (desktopSortBy === 'name') return a.label.localeCompare(b.label);
+    if (desktopSortBy === 'type') return a.appId.localeCompare(b.appId);
+    return 0; // 'date' — keep original order
+  });
+
+  const handleRefresh = () => {
+    toast.success('Desktop refreshed');
+  };
+
   return (
     <>
     <ContextMenu>
@@ -138,12 +176,12 @@ export function Desktop() {
 
       {/* Desktop Icons */}
       <div className="relative z-10 flex flex-col flex-wrap gap-2 p-5 h-full content-start">
-        {DESKTOP_ICONS.map(icon => (
+        {sortedIcons.map(icon => (
           <button
             key={icon.id}
             className={`
               flex flex-col items-center justify-center gap-1.5
-              w-[80px] h-[88px] rounded-2xl
+              ${iconStyle.box} rounded-2xl
               transition-all duration-200 ease-out
               hover:bg-white/[0.10] active:bg-white/[0.15]
               hover:shadow-lg hover:shadow-black/[0.05]
@@ -155,9 +193,9 @@ export function Desktop() {
             title={isConnected ? icon.label : 'Connect to a server first'}
           >
             <div className="transition-transform duration-200 ease-out group-hover:scale-110 group-hover:-translate-y-1 group-active:scale-95 drop-shadow-lg">
-              <icon.IconComponent size={44} />
+              <icon.IconComponent size={iconStyle.icon} />
             </div>
-            <span className="text-[11px] text-white/90 font-medium leading-tight text-center drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] line-clamp-2 px-1">
+            <span className={`${iconStyle.text} text-white/90 font-medium leading-tight text-center drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] line-clamp-2 px-1`}>
               {icon.label}
             </span>
           </button>
@@ -199,9 +237,18 @@ export function Desktop() {
             View
           </ContextMenuSubTrigger>
           <ContextMenuSubContent>
-            <ContextMenuItem>Large Icons</ContextMenuItem>
-            <ContextMenuItem>Medium Icons</ContextMenuItem>
-            <ContextMenuItem>Small Icons</ContextMenuItem>
+            <ContextMenuItem onClick={() => setDesktopIconSize('large')}>
+              {desktopIconSize === 'large' && <Check className="w-3 h-3 mr-2" />}
+              Large Icons
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => setDesktopIconSize('medium')}>
+              {desktopIconSize === 'medium' && <Check className="w-3 h-3 mr-2" />}
+              Medium Icons
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => setDesktopIconSize('small')}>
+              {desktopIconSize === 'small' && <Check className="w-3 h-3 mr-2" />}
+              Small Icons
+            </ContextMenuItem>
           </ContextMenuSubContent>
         </ContextMenuSub>
 
@@ -211,9 +258,18 @@ export function Desktop() {
             Sort by
           </ContextMenuSubTrigger>
           <ContextMenuSubContent>
-            <ContextMenuItem>Name</ContextMenuItem>
-            <ContextMenuItem>Type</ContextMenuItem>
-            <ContextMenuItem>Date Modified</ContextMenuItem>
+            <ContextMenuItem onClick={() => setDesktopSortBy('name')}>
+              {desktopSortBy === 'name' && <Check className="w-3 h-3 mr-2" />}
+              Name
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => setDesktopSortBy('type')}>
+              {desktopSortBy === 'type' && <Check className="w-3 h-3 mr-2" />}
+              Type
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => setDesktopSortBy('date')}>
+              {desktopSortBy === 'date' && <Check className="w-3 h-3 mr-2" />}
+              Date Modified
+            </ContextMenuItem>
           </ContextMenuSubContent>
         </ContextMenuSub>
 
@@ -237,7 +293,7 @@ export function Desktop() {
 
         <ContextMenuSeparator />
 
-        <ContextMenuItem>
+        <ContextMenuItem onClick={handleRefresh}>
           <RefreshCw className="w-4 h-4 mr-2 opacity-60" />
           Refresh
           <ContextMenuShortcut>F5</ContextMenuShortcut>
@@ -270,12 +326,20 @@ export function Desktop() {
           Services
         </ContextMenuItem>
 
+        <ContextMenuItem
+          disabled={!isConnected}
+          onClick={() => activeServerId && openWindow('serveradmin', activeServerId, 'Server Admin', 'serveradmin')}
+        >
+          <Shield className="w-4 h-4 mr-2 opacity-60" />
+          Server Admin
+        </ContextMenuItem>
+
         <ContextMenuItem onClick={() => openWindow('settings', '', 'Settings', 'settings')}>
           <Paintbrush className="w-4 h-4 mr-2 opacity-60" />
           Personalize
         </ContextMenuItem>
 
-        <ContextMenuItem>
+        <ContextMenuItem onClick={() => setAboutOpen(true)}>
           <Info className="w-4 h-4 mr-2 opacity-60" />
           About HeadlessOS
         </ContextMenuItem>
@@ -318,6 +382,36 @@ export function Desktop() {
           {createBusy ? 'Creating…' : 'Create'}
         </Button>
       </AppWindow.Footer>
+    </AppWindow>
+
+    {/* About HeadlessOS dialog */}
+    <AppWindow
+      open={aboutOpen}
+      onOpenChange={setAboutOpen}
+      title="About HeadlessOS"
+      icon={Info}
+      size="xs"
+      width={420}
+      height={280}
+    >
+      <AppWindow.Body>
+        <div className="flex flex-col items-center gap-4 py-4 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+            <Server className="w-8 h-8 text-white" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-foreground">HeadlessOS</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">Version 0.1.0</p>
+          </div>
+          <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
+            A localhost web app that connects to Linux servers via SSH, runs commands,
+            parses output using LLMs, and renders a visual desktop UI.
+          </p>
+          <div className="text-xs text-muted-foreground/60 space-y-0.5">
+            <p>React 19 · Fastify 5 · xterm.js · ssh2 · Zod</p>
+          </div>
+        </div>
+      </AppWindow.Body>
     </AppWindow>
     </>
   );

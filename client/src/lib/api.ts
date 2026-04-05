@@ -476,3 +476,126 @@ export async function fetchServiceLogs(
     `/servers/${serverId}/services/${encodeURIComponent(serviceName)}/logs?lines=${lines}`,
   );
 }
+
+// ── Server Admin ────────────────────────────────────────
+
+export interface NetworkInfo {
+  ports: Array<{ protocol: string; localAddress: string; localPort: number; process: string; pid?: number }>;
+  routes: Array<{ destination: string; gateway?: string; interface: string; metric?: number; scope?: string; protocol?: string }>;
+  dns: { nameservers: string[]; searchDomains: string[] };
+  connections: Array<{ protocol: string; localAddress: string; localPort: number; remoteAddress: string; remotePort: number; state: string; process?: string; pid?: number }>;
+}
+
+export interface FirewallStatus {
+  available: boolean;
+  active: boolean;
+  rules: Array<{ number: number; to: string; action: string; from: string }>;
+  message?: string;
+}
+
+export interface SecurityInfo {
+  users: Array<{ username: string; uid: number; gid: number; home: string; shell: string; description?: string }>;
+  sessions: Array<{ user: string; terminal: string; loginTime: string; remoteHost?: string }>;
+  loginHistory: Array<{ user: string; terminal: string; remoteHost: string; loginTime: string; logoutTime: string; duration?: string }>;
+  sshConfig: { port: string; permitRootLogin: string; passwordAuthentication: string; pubkeyAuthentication: string; maxAuthTries: string; x11Forwarding: string };
+  fail2ban: { available: boolean; jails?: string[]; message?: string };
+}
+
+export interface WebServerInfo {
+  available: boolean;
+  sites: Array<{ name: string; enabled: boolean }>;
+  configTest?: { success: boolean; output: string };
+  sslCertificates: Array<{ domain: string; expiry: string; issuer: string; daysRemaining: number }>;
+  message?: string;
+}
+
+export interface PackageInfo {
+  available: boolean;
+  totalInstalled: number;
+  upgradable: Array<{ name: string; currentVersion: string; newVersion: string; architecture?: string }>;
+  message?: string;
+}
+
+export interface CronInfo {
+  jobs: Array<{ schedule: string; command: string; source: string; description?: string }>;
+}
+
+export interface LogInfo {
+  source: 'journal' | 'dmesg' | 'syslog';
+  entries: Array<{ timestamp?: string; unit?: string; priority?: string; message: string }>;
+}
+
+export interface StorageInfo {
+  dirSizes: Array<{ path: string; size: string }>;
+  mounts: Array<{ target: string; source: string; fstype: string; options?: string }>;
+  swap: Array<{ name: string; type: string; size: string; used: string; priority: number }>;
+}
+
+export async function fetchNetworkInfo(serverId: string): Promise<{ success: boolean; data?: NetworkInfo; error?: string }> {
+  return request(`/servers/${serverId}/admin/network`);
+}
+
+export async function fetchFirewallStatus(serverId: string): Promise<{ success: boolean; data?: FirewallStatus; error?: string }> {
+  return request(`/servers/${serverId}/admin/firewall`);
+}
+
+export async function addFirewallRule(
+  serverId: string,
+  rule: { port: number; protocol: 'tcp' | 'udp'; action: 'allow' | 'deny' },
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  return request(`/servers/${serverId}/admin/firewall`, {
+    method: 'POST',
+    body: JSON.stringify(rule),
+  });
+}
+
+export async function deleteFirewallRule(
+  serverId: string,
+  ruleNumber: number,
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  return request(`/servers/${serverId}/admin/firewall/${ruleNumber}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function toggleFirewall(
+  serverId: string,
+  enable: boolean,
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  return request(`/servers/${serverId}/admin/firewall/toggle`, {
+    method: 'POST',
+    body: JSON.stringify({ enable }),
+  });
+}
+
+export async function fetchSecurityInfo(serverId: string): Promise<{ success: boolean; data?: SecurityInfo; error?: string }> {
+  return request(`/servers/${serverId}/admin/security`);
+}
+
+export async function fetchWebServerInfo(serverId: string): Promise<{ success: boolean; data?: WebServerInfo; error?: string }> {
+  return request(`/servers/${serverId}/admin/webserver`);
+}
+
+export async function fetchPackageInfo(serverId: string): Promise<{ success: boolean; data?: PackageInfo; error?: string }> {
+  return request(`/servers/${serverId}/admin/packages`);
+}
+
+export async function fetchCronInfo(serverId: string): Promise<{ success: boolean; data?: CronInfo; error?: string }> {
+  return request(`/servers/${serverId}/admin/cron`);
+}
+
+export async function fetchLogInfo(
+  serverId: string,
+  opts?: { source?: 'journal' | 'dmesg' | 'syslog'; unit?: string; lines?: number },
+): Promise<{ success: boolean; data?: LogInfo; error?: string }> {
+  const params = new URLSearchParams();
+  if (opts?.source) params.set('source', opts.source);
+  if (opts?.unit) params.set('unit', opts.unit);
+  if (opts?.lines) params.set('lines', String(opts.lines));
+  const qs = params.toString();
+  return request(`/servers/${serverId}/admin/logs${qs ? `?${qs}` : ''}`);
+}
+
+export async function fetchStorageInfo(serverId: string): Promise<{ success: boolean; data?: StorageInfo; error?: string }> {
+  return request(`/servers/${serverId}/admin/storage`);
+}

@@ -39,6 +39,14 @@ export const APPS: AppDefinition[] = [
     singleInstance: true,
     refreshInterval: 10_000,
   },
+  {
+    id: 'serveradmin',
+    name: 'Server Admin',
+    icon: 'Shield',
+    description: 'Network, firewall, security, packages, cron, logs, storage',
+    requiredTools: [],
+    singleInstance: true,
+  },
 ];
 
 export function getAppById(id: string): AppDefinition | undefined {

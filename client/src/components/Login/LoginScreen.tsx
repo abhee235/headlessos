@@ -162,6 +162,12 @@ export function LoginScreen() {
 
             {/* Server avatars */}
             <div className="flex flex-wrap justify-center gap-6 max-w-lg">
+              {loadingServers && servers.length === 0 && (
+                <div className="flex items-center gap-2 text-white/40">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span className="text-sm">Loading servers…</span>
+                </div>
+              )}
               {servers.map(srv => (
                 <ServerAvatar
                   key={srv.id}

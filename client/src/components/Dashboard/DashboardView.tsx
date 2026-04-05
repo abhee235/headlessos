@@ -98,7 +98,22 @@ export function DashboardView({ serverId }: DashboardViewProps) {
     );
   }
 
-  if (!data) return null;
+  if (!data) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <RefreshCw className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+          <p className="text-sm text-muted-foreground">No dashboard data available</p>
+          <button
+            onClick={() => loadData()}
+            className="mt-3 px-3 py-1.5 text-xs bg-secondary hover:bg-accent text-secondary-foreground rounded"
+          >
+            Refresh
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

@@ -26,7 +26,7 @@ export interface StepResult {
   stepId: string;
   success: boolean;
   data?: unknown;
-  parsedBy?: 'deterministic' | 'llm';
+  parsedBy?: 'deterministic' | 'llm' | 'cache';
   error?: string;
   latencyMs: number;
   command: string;       // The command that actually succeeded
@@ -162,6 +162,7 @@ export class CommandOrchestrator extends BaseService {
             command,
             execResult.stdout,
             step.schema,
+            serverId,
           );
 
           return {

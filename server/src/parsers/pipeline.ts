@@ -1,10 +1,13 @@
 // M1.3: Parsing Pipeline
 // @see docs/phases/phase-1.md
+// M4.7: Integrated with OutputCache for hash-based caching
 
 import type { ZodSchema } from 'zod';
 import stripAnsi from 'strip-ansi';
 import { BaseService } from '../services/base-service.js';
 import type { LLMProvider, ParseResult } from '../llm/provider.js';
+import type { OutputCache } from '../cache/output-cache.js';
+import type { LLMUsageTracker } from '../llm/usage-tracker.js';
 
 export interface DeterministicParser<T = unknown> {
   name: string;
@@ -15,21 +18,32 @@ export interface DeterministicParser<T = unknown> {
 
 export interface PipelineResult<T> {
   data: T;
-  parsedBy: 'deterministic' | 'llm';
+  parsedBy: 'deterministic' | 'llm' | 'cache';
   latencyMs: number;
   tokensUsed?: { input: number; output: number };
+  model?: string;
 }
 
 export class ParsingPipeline extends BaseService {
   private deterministicParsers = new Map<string, DeterministicParser>();
   private llmProvider: LLMProvider | null = null;
+  private outputCache: OutputCache | null = null;
+  private usageTracker: LLMUsageTracker | null = null;
 
   protected async _init(): Promise<void> {
-    // LLM provider will be set after LLM service initializes
+    // LLM provider and cache will be set after their services initialize
   }
 
   setLLMProvider(provider: LLMProvider): void {
     this.llmProvider = provider;
+  }
+
+  setCache(cache: OutputCache): void {
+    this.outputCache = cache;
+  }
+
+  setUsageTracker(tracker: LLMUsageTracker): void {
+    this.usageTracker = tracker;
   }
 
   registerParser(parser: DeterministicParser): void {
@@ -38,8 +52,20 @@ export class ParsingPipeline extends BaseService {
     }
   }
 
-  async parse<T>(command: string, rawOutput: string, schema: ZodSchema<T>): Promise<PipelineResult<T>> {
+  async parse<T>(command: string, rawOutput: string, schema: ZodSchema<T>, serverId?: string): Promise<PipelineResult<T>> {
     const start = Date.now();
+
+    // Step 0: Check cache (if serverId provided)
+    if (serverId && this.outputCache) {
+      const cached = this.outputCache.get<T>(serverId, command, rawOutput);
+      if (cached !== null) {
+        return {
+          data: cached,
+          parsedBy: 'cache',
+          latencyMs: Date.now() - start,
+        };
+      }
+    }
 
     // Step 1: Strip ANSI escape codes
     const cleaned = stripAnsi(rawOutput);
@@ -50,6 +76,12 @@ export class ParsingPipeline extends BaseService {
       try {
         const rawResult = parser.parse(cleaned);
         const validated = schema.parse(rawResult) as T;
+
+        // Cache the result
+        if (serverId && this.outputCache) {
+          this.outputCache.set(serverId, command, rawOutput, validated);
+        }
+
         return {
           data: validated,
           parsedBy: 'deterministic',
@@ -72,11 +104,29 @@ export class ParsingPipeline extends BaseService {
       schema,
     });
 
+    // Cache the LLM result
+    if (serverId && this.outputCache) {
+      this.outputCache.set(serverId, command, rawOutput, llmResult.data);
+    }
+
+    // Track LLM usage
+    if (this.usageTracker) {
+      this.usageTracker.recordCall({
+        command,
+        model: llmResult.model,
+        inputTokens: llmResult.tokensUsed.input,
+        outputTokens: llmResult.tokensUsed.output,
+        latencyMs: Date.now() - start,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     return {
       data: llmResult.data,
       parsedBy: 'llm',
       latencyMs: Date.now() - start,
       tokensUsed: llmResult.tokensUsed,
+      model: llmResult.model,
     };
   }
 

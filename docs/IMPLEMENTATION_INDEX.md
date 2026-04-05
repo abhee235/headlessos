@@ -13,6 +13,8 @@
 | Phase 3 | Docker + Processes + Services | Week 3 | Not started | [phase-3.md](phases/phase-3.md) |
 | Phase 4 | Deterministic parsers + caching | Week 4 | Not started | [phase-4.md](phases/phase-4.md) |
 | Phase 5 | Polish, security, testing | Week 5 | Not started | [phase-5.md](phases/phase-5.md) |
+| Phase 6 | Desktop UI system | Week 6-7 | In progress | [phase-6.md](phases/phase-6.md) |
+| Phase 7 | System settings + Server Admin | Week 8 | In progress | [phase-7.md](phases/phase-7.md) |
 
 ## Task ID System
 
@@ -33,7 +35,9 @@ Phase 0 (Foundation)
         ├── Phase 2 (Dashboard + Files)
         │     └── Phase 3 (Docker + Processes + Services)
         │           └── Phase 4 (Deterministic parsers + caching)
-        └── Phase 5 (Security + Testing + Polish) ← can start in parallel with Phase 4
+        ├── Phase 5 (Security + Testing + Polish) ← can start in parallel with Phase 4
+        ├── Phase 6 (Desktop UI System) ← can start after Phase 3
+        └── Phase 7 (System Settings + Server Admin) ← depends on Phase 1 + Phase 6
 ```
 
 ## Quick Links

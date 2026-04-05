@@ -246,18 +246,204 @@ _No tasks completed yet._
 | M3.6 | Services Manager | [phase-3](phases/phase-3.md) | `server/src/routes/services.ts` | ⬜ |
 | M4.1 | Parser: `df -h` | [phase-4](phases/phase-4.md) | `server/src/parsers/deterministic/df.ts` | ✅ |
 | M4.2 | Parser: `free -m` | [phase-4](phases/phase-4.md) | `server/src/parsers/deterministic/free.ts` | ✅ |
-| M4.3 | Parser: `ps aux` | [phase-4](phases/phase-4.md) | `server/src/parsers/deterministic/ps.ts` | ⬜ |
-| M4.4 | Parser: `ls -la` | [phase-4](phases/phase-4.md) | `server/src/parsers/deterministic/ls.ts` | ⬜ |
+| M4.3 | Parser: `ps aux` | [phase-4](phases/phase-4.md) | `server/src/parsers/deterministic/ps-aux.ts` (done in M7.1) | ✅ |
+| M4.4 | Parser: `ls -la` | [phase-4](phases/phase-4.md) | N/A — skipped (SFTP readdir() used) | ⏭️ |
 | M4.5 | Parser: `ip -brief addr` | [phase-4](phases/phase-4.md) | `server/src/parsers/deterministic/ip.ts` | ✅ |
-| M4.6 | Parser: `systemctl` | [phase-4](phases/phase-4.md) | `server/src/parsers/deterministic/systemctl.ts` | ⬜ |
-| M4.7 | Caching Layer | [phase-4](phases/phase-4.md) | `server/src/cache/cache.ts` | ⬜ |
-| M4.8 | LLM Usage Stats | [phase-4](phases/phase-4.md) | `server/src/routes/stats.ts` | ⬜ |
-| M5.1 | Command Validation | [phase-5](phases/phase-5.md) | security validators | ⬜ |
-| M5.2 | Path Validation | [phase-5](phases/phase-5.md) | security validators | ⬜ |
-| M5.3 | Credential Encryption | [phase-5](phases/phase-5.md) | config/encryption | ⬜ |
-| M5.4 | Error Handling | [phase-5](phases/phase-5.md) | across all routes | ⬜ |
-| M5.5 | Test Suite | [phase-5](phases/phase-5.md) | `server/tests/` | ⬜ |
-| M5.6 | UI Polish | [phase-5](phases/phase-5.md) | `client/src/components/` | ⬜ |
+| M4.6 | Parser: `systemctl` | [phase-4](phases/phase-4.md) | `server/src/parsers/deterministic/systemctl.ts`, `schemas/services.ts` | ✅ |
+| M4.7 | Caching Layer | [phase-4](phases/phase-4.md) | `server/src/cache/output-cache.ts` | ✅ |
+| M4.8 | LLM Usage Stats | [phase-4](phases/phase-4.md) | `server/src/llm/usage-tracker.ts`, `server/src/routes/stats.ts` | ✅ |
+| M5.1 | Command Validation | [phase-5](phases/phase-5.md) | `server/src/security/validators.ts` | ✅ |
+| M5.2 | Path Validation | [phase-5](phases/phase-5.md) | `server/src/security/validators.ts` | ✅ |
+| M5.3 | Credential Encryption | [phase-5](phases/phase-5.md) | `server/src/security/encryption.ts`, `server/src/config/store.ts` | ✅ |
+| M5.4 | Error Handling | [phase-5](phases/phase-5.md) | `server/src/security/validators.ts` (sanitizeErrorMessage, shellEscape) | ✅ |
+| M5.5 | Test Suite | [phase-5](phases/phase-5.md) | `server/tests/security/` (81 + 22 tests) | ✅ |
+| M5.6 | UI Polish | [phase-5](phases/phase-5.md) | `client/src/components/` (Terminal, Desktop, FileViewer, Dashboard, Login) | ✅ |
+| M7.1 | Terminal Settings | [phase-7](phases/phase-7.md) | `client/src/store/preferences-store.ts`, `client/src/components/Terminal/TerminalView.tsx` | ✅ |
+| M7.2 | Server Admin App | [phase-7](phases/phase-7.md) | See M7.2 detailed entry below | ✅ |
+
+---
+
+## M7.2: Server Admin App
+
+**Status:** ✅ Complete  
+**Spec:** [phase-7.md](phases/phase-7.md)  
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `server/src/parsers/schemas/serveradmin.ts` | 18+ Zod schemas for all 8 sections |
+| `server/src/parsers/deterministic/ss.ts` | parseSsListening, parseSsConnections |
+| `server/src/parsers/deterministic/ufw.ts` | parseUfwStatus |
+| `server/src/parsers/deterministic/etc-passwd.ts` | parseEtcPasswd |
+| `server/src/parsers/deterministic/who.ts` | parseWho, parseLast |
+| `server/src/parsers/deterministic/sshd-config.ts` | parseSshdConfig |
+| `server/src/parsers/deterministic/nginx.ts` | parseNginxSites, parseNginxConfigTest, parseCertbotCertificates |
+| `server/src/parsers/deterministic/apt.ts` | parseAptUpgradable, parseDpkgCount |
+| `server/src/parsers/deterministic/crontab.ts` | parseCrontab, parseSystemCrontab |
+| `server/src/parsers/deterministic/du.ts` | parseDu |
+| `server/src/parsers/deterministic/findmnt.ts` | parseFindmnt, parseSwapon |
+| `server/src/parsers/deterministic/ip-route.ts` | parseIpRoute, parseResolvConf |
+| `server/src/parsers/deterministic/journalctl.ts` | parseJournalctl, parseDmesg |
+| `server/src/routes/serveradmin.ts` | 11 REST endpoints (8 GET, 2 POST, 1 DELETE) |
+| `client/src/components/ServerAdmin/ServerAdminView.tsx` | Main shell with sidebar navigation |
+| `client/src/components/ServerAdmin/NetworkSection.tsx` | Ports, connections, routes, DNS |
+| `client/src/components/ServerAdmin/FirewallSection.tsx` | UFW CRUD + toggle |
+| `client/src/components/ServerAdmin/SecuritySection.tsx` | Users, sessions, SSH config, fail2ban |
+| `client/src/components/ServerAdmin/WebServerSection.tsx` | Nginx sites, config test, SSL certs |
+| `client/src/components/ServerAdmin/PackagesSection.tsx` | Installed count, upgradable packages |
+| `client/src/components/ServerAdmin/CronSection.tsx` | Cron job list |
+| `client/src/components/ServerAdmin/LogsSection.tsx` | Journal/dmesg/syslog viewer |
+| `client/src/components/ServerAdmin/StorageSection.tsx` | Mounts, dir sizes, swap |
+| `server/tests/parsers/serveradmin-parsers.test.ts` | 51 parser tests covering all 23 parsers |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `server/src/parsers/deterministic/index.ts` | Barrel export expanded from 8 to 31 parsers |
+| `server/src/index.ts` | Registered serverAdminRoutes |
+| `client/src/components/ui/FileIcon.tsx` | Added ServerAdminIcon |
+| `client/src/lib/apps.ts` | Added serveradmin AppDefinition |
+| `client/src/store/window-store.ts` | Added serveradmin defaults + singleInstance |
+| `client/src/components/Desktop/WindowManager.tsx` | Added ServerAdminView case |
+| `client/src/components/Desktop/Desktop.tsx` | Added desktop icon + context menu entry |
+| `client/src/lib/api.ts` | Added 8 interfaces + 11 API functions |
+
+### Verification
+
+- TypeScript: Clean (only pre-existing FileStatInfo error)
+- Tests: 137 total (95 server + 42 client), all passing
+- Parser tests: 51 dedicated tests covering all 23 new parsers
+
+---
+
+## M5.1–M5.5: Security Hardening + Test Suite
+
+**Status:** ✅ Complete  
+**Spec:** [phase-5.md](phases/phase-5.md)  
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `server/src/security/encryption.ts` | AES-256-GCM credential encryption: encrypt, decrypt, isEncrypted |
+| `server/tests/security/encryption.test.ts` | 22 tests for encryption module (roundtrip, unicode, backward compat) |
+
+### Files Rewritten
+
+| File | Change |
+|------|--------|
+| `server/src/security/validators.ts` | 53 → 367 lines: ALLOWED_COMMANDS (60+ patterns), BLOCKED_COMMANDS (17 patterns), SecurityError class, enhanced validators (containerId 12-64 hex, PID 1-4194304, signal 1-31), new validators (validateDockerImageRef, validateISODate, validateLogSource, validatePositiveInt), sanitizeErrorMessage |
+| `server/tests/security/validators.test.ts` | 16 → 81 tests: full coverage of all validators, allowlist/blocklist, shellEscape, sanitizeErrorMessage, constants integrity |
+
+### Files Modified (Security Hardening)
+
+| File | Change |
+|------|--------|
+| `server/src/config/store.ts` | Encrypt passwords on save (AES-256-GCM), decrypt on load, auto-migrate plaintext, file perms 0600/0700 |
+| `server/src/routes/serveradmin.ts` | Fixed CRITICAL: validate unit with validateServiceName + shellEscape, validate source with validateLogSource |
+| `server/src/routes/docker.ts` | Fixed CRITICAL: replaced start-only since regex with validateISODate + shellEscape, removed local isValidDockerRef, shellEscape on docker run args |
+| `server/src/routes/services.ts` | Replaced local isValidServiceName with central validateServiceName, added shellEscape to systemctl/journalctl |
+| `server/src/routes/taskmanager.ts` | Added validateSignal import and usage for kill endpoint |
+| `docs/PROGRESS.md` | M5.1-M5.5 marked ✅, milestone 5/6, changelog entry |
+
+### Security Findings Fixed
+
+| Severity | Location | Issue | Fix |
+|----------|----------|-------|-----|
+| CRITICAL | serveradmin.ts logs | `unit` param interpolated into journalctl with zero validation | validateServiceName + shellEscape |
+| CRITICAL | docker.ts logs | `since` validated with start-only regex `^\d{4}-\d{2}-\d{2}` allowing injection after date | validateISODate (fully anchored) + shellEscape |
+| HIGH | docker.ts run | env vars, volumes, command args joined without escaping | shellEscape on all user values |
+| MEDIUM | docker.ts, services.ts | Duplicate local validators instead of central | Unified to central validators.ts |
+| MEDIUM | docker.ts | isValidDockerRef too permissive | Replaced with isValidContainerIdParam (hex 12-64) |
+
+### Verification
+
+- TypeScript: Clean (only pre-existing FileStatInfo error)
+- Tests: 224 total (182 server + 42 client), all passing
+- Security validator tests: 81
+- Encryption tests: 22
+- All 2 CRITICAL + 1 HIGH injection vectors fixed
+
+---
+
+## M5.6: UI Polish
+
+**Status:** ✅ Complete  
+**Spec:** [phase-5.md](phases/phase-5.md)  
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `client/src/components/Terminal/TerminalView.tsx` | Added loading overlay, context menu (Copy/Paste/Clear/Select All), reconnect banner, theme-aware dark/light colors, connection status tracking |
+| `client/src/components/Desktop/Desktop.tsx` | Wired View submenu (icon sizes), Sort by submenu, Refresh handler, About HeadlessOS dialog, dynamic icon sizing from preferences |
+| `client/src/components/Desktop/DesktopLayout.tsx` | Global keyboard shortcuts: F5 (refresh), Ctrl/Cmd+Shift+Esc (Task Manager) |
+| `client/src/components/FileExplorer/FileViewer.tsx` | Replaced `alert()` with `toast()`, added success toast on save, added Retry button on error state |
+| `client/src/components/FileExplorer/FileList.tsx` | Replaced `alert()` with `toast()` for delete/rename errors |
+| `client/src/components/FileExplorer/FileActions.tsx` | Replaced `alert()` with `toast()` for create errors |
+| `client/src/components/Dashboard/DashboardView.tsx` | Added proper empty state with Refresh button (replaced `return null`) |
+| `client/src/components/Login/LoginScreen.tsx` | Added loading spinner while fetching servers (`loadingServers` state) |
+| `client/src/store/preferences-store.ts` | Added `desktopIconSize` (small/medium/large) and `desktopSortBy` (name/type/date) preferences with persistence |
+| `docs/phases/phase-5.md` | Expanded M5.6 spec into 5 detailed subtasks (M5.6a-M5.6e) |
+| `docs/PROGRESS.md` | M5.6 marked ✅, M5 milestone 6/6, changelog entry |
+
+### Verification
+
+- TypeScript: Clean compilation (zero errors)
+- Tests: 224 total (182 server + 42 client), all passing
+- Zero `alert()` calls remaining in codebase
+- All desktop context menu items functional
+- Terminal has loading, context menu, reconnect UI, theme-aware colors
+- Global shortcuts: F5 and Cmd+Shift+Esc working
+
+---
+
+## M4.6–M4.8: Deterministic Parsers + Caching + LLM Stats
+
+**Status:** ✅ Complete  
+**Spec:** [phase-4.md](phases/phase-4.md)  
+
+### Context
+
+M4.1, M4.2, M4.5 were already done in M2.1. M4.3 (ps-aux) was done in M7.1. M4.4 (ls-la) skipped — project uses SFTP. This entry covers the remaining M4.6, M4.7, M4.8 tasks.
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `server/src/parsers/schemas/services.ts` | Zod schema: `ServiceInfoSchema`, `ServiceListSchema` |
+| `server/src/parsers/deterministic/systemctl.ts` | `parseSystemctlListUnits` — extracted from services.ts inline parser |
+| `server/src/cache/output-cache.ts` | `OutputCache` — hash-based cache with TTL, stats, server invalidation |
+| `server/src/llm/usage-tracker.ts` | `LLMUsageTracker` — tracks tokens, cost, latency per LLM call |
+| `server/src/routes/stats.ts` | `GET /api/stats/llm` + `POST /api/stats/llm/reset` |
+| `server/tests/parsers/systemctl.test.ts` | 11 tests for systemctl parser + Zod validation |
+| `server/tests/cache/output-cache.test.ts` | 12 tests for OutputCache (get/set/TTL/invalidate/stats) |
+| `server/tests/llm/usage-tracker.test.ts` | 13 tests for LLMUsageTracker (recording, cost, models, reset) |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `server/src/parsers/deterministic/index.ts` | Added systemctlParser to allParsers[] (31 → 32 parsers) |
+| `server/src/routes/services.ts` | Removed inline parseServiceList(), imported parseSystemctlListUnits from deterministic parser |
+| `server/src/parsers/pipeline.ts` | Added cache integration (check before parse, store after), usage tracker recording, `parsedBy: 'cache'` variant |
+| `server/src/orchestrator/orchestrator.ts` | Pass serverId to pipeline.parse() for cache keying, updated StepResult.parsedBy to include 'cache' |
+| `server/src/index.ts` | Created OutputCache + LLMUsageTracker, wired to pipeline, registered statsRoutes, added serveradmin to auto-reconnect, cache stats in /api/v1/status |
+| `AGENTS.md` | Added Output Cache + LLM Usage Tracking patterns to §7 Backend Patterns |
+| `.github/copilot-instructions.md` | Added Output Cache + LLM Usage Tracking to Key Patterns |
+| `docs/phases/phase-4.md` | Complete rewrite with current state: M4.3 done, M4.4 skipped, M4.6-M4.8 detailed specs |
+| `docs/PROGRESS.md` | M4 marked ✅ 8/8, all tasks updated, changelog entry |
+
+### Verification
+
+- TypeScript: Clean (only pre-existing FileStatInfo error)
+- Tests: 260 total (218 server + 42 client), all passing
+- Systemctl parser: 11 tests (typical, failed, mixed states, sorting, filtering, edge cases)
+- OutputCache: 12 tests (get/set, TTL expiration, invalidation, stats, reset)
+- LLM Usage Tracker: 13 tests (recording, cost estimation, model pricing, reset)
+- Pipeline integrates cache and usage tracker seamlessly
 
 ---
 

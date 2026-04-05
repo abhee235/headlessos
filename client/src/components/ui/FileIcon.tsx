@@ -7,6 +7,7 @@ import {
   Activity,
   Server,
   Palette,
+  Shield,
 } from 'lucide-react';
 
 interface FileIconProps {
@@ -220,6 +221,15 @@ export function SettingsIcon({ size = 48 }: { size?: number }) {
   return (
     <AppIconBase size={size} fromColor="#F0ABFC" toColor="#C026D3">
       <Palette size={Math.round(size * 0.52)} color="white" strokeWidth={sw} />
+    </AppIconBase>
+  );
+}
+
+export function ServerAdminIcon({ size = 48 }: { size?: number }) {
+  const sw = size <= 24 ? 2.25 : 1.75;
+  return (
+    <AppIconBase size={size} fromColor="#34D399" toColor="#059669">
+      <Shield size={Math.round(size * 0.52)} color="white" strokeWidth={sw} />
     </AppIconBase>
   );
 }

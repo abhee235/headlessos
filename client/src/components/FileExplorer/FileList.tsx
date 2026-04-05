@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import type { FileEntryData } from '../../lib/api';
 import { deleteFile, renameFile } from '../../lib/api';
+import { toast } from 'sonner';
 
 interface FileListProps {
   entries: FileEntryData[];
@@ -45,7 +46,7 @@ export function FileList({
       await deleteFile(serverId, fullPath);
       onRefresh();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Delete failed');
+      toast.error(err instanceof Error ? err.message : 'Delete failed');
     }
   };
 
@@ -70,7 +71,7 @@ export function FileList({
       await renameFile(serverId, oldPath, newPath);
       onRefresh();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Rename failed');
+      toast.error(err instanceof Error ? err.message : 'Rename failed');
     } finally {
       setRenamingEntry(null);
     }

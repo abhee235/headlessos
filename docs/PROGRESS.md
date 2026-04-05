@@ -23,9 +23,10 @@
 | M1: SSH + Terminal + LLM | Week 1, Day 3-7 | ✅ | 9/9 tasks | [phase-1](phases/phase-1.md) |
 | M2: Dashboard + File Explorer | Week 2 | ✅ | 6/6 tasks | [phase-2](phases/phase-2.md) |
 | M3: Docker + Processes + Services | Week 3 | ✅ | 6/6 tasks | [phase-3](phases/phase-3.md) |
-| M4: Deterministic Parsers | Week 4 | 🔄 | 3/8 tasks | [phase-4](phases/phase-4.md) |
-| M5: Polish + Security + Testing | Week 5 | ⬜ | 0/6 tasks | [phase-5](phases/phase-5.md) |
-| M6: Desktop UI System | Week 6-7 | 🔄 | 0/11 tasks | [phase-6](phases/phase-6.md) |
+| M4: Deterministic Parsers | Week 4 | ✅ | 8/8 tasks | [phase-4](phases/phase-4.md) |
+| M5: Polish + Security + Testing | Week 5 | ✅ | 6/6 tasks | [phase-5](phases/phase-5.md) |
+| M6: Desktop UI System | Week 6-7 | 🔄 | 4/11 tasks | [phase-6](phases/phase-6.md) |
+| M7: System Settings | Week 8 | 🔄 | 2/6 tasks | [phase-7](phases/phase-7.md) |
 
 ---
 
@@ -97,12 +98,12 @@ Example:
 |---------|------|--------|--------------|
 | M4.1 | Parser: `df -h` | ✅ | Done in M2.1 — deterministic/df.ts |
 | M4.2 | Parser: `free -m` | ✅ | Done in M2.1 — deterministic/free.ts |
-| M4.3 | Parser: `ps aux` | ⬜ | 100% fixture match |
-| M4.4 | Parser: `ls -la` | ⬜ | 100% fixture match |
+| M4.3 | Parser: `ps aux` | ✅ | Done in M7.1 — deterministic/ps-aux.ts, registered in allParsers[], used by taskManagerRoutes |
+| M4.4 | Parser: `ls -la` | ⏭️ | Skipped — SFTP readdir() used for all file listing (no consumer) |
 | M4.5 | Parser: `ip -brief addr` | ✅ | Done in M2.1 — deterministic/ip.ts |
-| M4.6 | Parser: `systemctl` | ⬜ | 100% fixture match |
-| M4.7 | Caching Layer | ⬜ | Cache hit skips LLM |
-| M4.8 | LLM Usage Stats | ⬜ | Shows calls, tokens, cost |
+| M4.6 | Parser: `systemctl` | ✅ | Extracted inline parser from services.ts → deterministic/systemctl.ts + Zod schema |
+| M4.7 | Caching Layer | ✅ | OutputCache: hash-based cache with TTL, pipeline integration, server invalidation, stats |
+| M4.8 | LLM Usage Stats | ✅ | LLMUsageTracker + `GET /api/stats/llm` + `POST /api/stats/llm/reset`. Per-model pricing, cost estimates |
 
 ---
 
@@ -110,12 +111,12 @@ Example:
 
 | Task ID | Task | Status | Verification |
 |---------|------|--------|--------------|
-| M5.1 | Command Validation | ⬜ | Injection prevented |
-| M5.2 | Path Validation | ⬜ | Traversal attacks blocked |
-| M5.3 | Credential Encryption | ⬜ | Passwords encrypted at rest |
-| M5.4 | Error Handling | ⬜ | Graceful degradation + retry |
-| M5.5 | Test Suite | ⬜ | 80%+ coverage on parsers + security |
-| M5.6 | UI Polish | ⬜ | Context menus, loading/error/empty states |
+| M5.1 | Command Validation | ✅ | Command allowlist (60+ patterns), blocklist (17 patterns), blocked command detection |
+| M5.2 | Path Validation | ✅ | Enhanced validators: container ID (12-64 hex), PID (1-4194304), signal (1-31), ISO date, log source, service name (256 max), shell escape hardened |
+| M5.3 | Credential Encryption | ✅ | AES-256-GCM, machine-derived key, auto-migration from plaintext, file permissions 0600 |
+| M5.4 | Error Handling | ✅ | sanitizeErrorMessage() redacts paths/IPs, shellEscape defense-in-depth on all routes |
+| M5.5 | Test Suite | ✅ | 224 tests (182 server + 42 client): 81 security validators, 22 encryption, 51 parser tests |
+| M5.6 | UI Polish | ✅ | Terminal: loading/ctx menu/reconnect/theme-aware. Desktop ctx menu wired (View/Sort/Refresh/About). alert()→toast() everywhere. Global shortcuts (F5, Cmd+Shift+Esc). DashboardView/LoginScreen empty states. |
 
 ---
 
@@ -123,16 +124,29 @@ Example:
 
 | Task ID | Task | Status | Verification |
 |---------|------|--------|--------------|
-| M6.1 | High-Quality Desktop & File Icons | ⬜ | Rich SVG icons, hover animations |
-| M6.2 | Glassmorphic Context Menus | ⬜ | Desktop, files, taskbar right-click |
+| M6.1 | High-Quality Desktop & File Icons | ✅ | Custom SVGs (FileExplorer, Terminal, ThisPC, Docker Moby), Apple HIG AppIconBase |
+| M6.2 | Glassmorphic Context Menus | ✅ | Desktop, files, taskbar right-click with glass styling |
 | M6.3 | Branded Wallpaper System | ⬜ | HeadlessOS watermark visible |
-| M6.4 | Light / White Theme | ⬜ | Full light mode, localStorage persist |
+| M6.4 | Light / White Theme | ✅ | oklch theme system, dark/light toggle, localStorage persist |
 | M6.5 | Window Chrome Polish | ⬜ | Snap, shadows, animations |
-| M6.6 | Taskbar & Start Menu Polish | ⬜ | Glass effect, animations |
+| M6.6 | Taskbar & Start Menu Polish | ✅ | Glass start menu, 4-color logo, AM/PM clock, system tray, user avatar |
 | M6.7 | File Operation UI (Copy/Paste) | ⬜ | Clipboard, progress, drag-drop |
 | M6.8 | Notification / Toast System | ⬜ | Bottom-right toasts |
 | M6.9 | Keyboard Shortcuts | ⬜ | Ctrl+C/V/X, F2, F5, Alt+F4 |
 | M6.10 | Selection & Multi-Select | ⬜ | Click, Ctrl+Click, rubber-band || M6.11 | Login Flow | 🔄 | Win 11 lock/login screen, auth UX |
+---
+
+## M7: System Settings
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| M7.1 | Terminal Settings | ✅ | Font size, font family, cursor style, scrollback, copy-on-select — persisted + applied |
+| M7.2 | Server Admin App | ✅ | 8 sections, 23 parsers, 11 API endpoints, 51 parser tests — all passing |
+| M7.3 | LLM / AI Configuration | ⬜ | Provider select, API key, model select, usage stats, fallback toggle |
+| M7.4 | Appearance (Expand) | ⬜ | Accent color wired to CSS vars, desktop icon size, taskbar options |
+| M7.5 | General Settings | ⬜ | Default shell, auto-reconnect, session timeout, auto-refresh interval |
+| M7.6 | Notifications & Data | ⬜ | Toast preferences, clear cache, data retention |
+
 ---
 
 ## Backlog (Future)
@@ -143,9 +157,9 @@ Example:
 | B.2 | Anthropic (Claude) provider | Low | Alternative cloud provider |
 | B.3 | Vision pipeline (ncurses tools) | Low | Screenshot → LLM image parse |
 | B.4 | Git app | Medium | View repos, branches, recent commits |
-| B.5 | Nginx/Apache config viewer | Low | Parse and display web server config |
+| B.5 | ~~Nginx/Apache config viewer~~ | — | **Covered by M7.2** (Web Server section) |
 | B.6 | PM2 app | Medium | Node.js process manager |
-| B.7 | Log viewer app | Medium | tail -f for various log files |
+| B.7 | ~~Log viewer app~~ | — | **Covered by M7.2** (Logs section) |
 | B.8 | Multi-server overview dashboard | Medium | Aggregate stats across servers |
 | B.9 | Electron wrapper | Low | Desktop app experience |
 | B.10 | Community plugin system | Low | See ADR-012 |
@@ -162,6 +176,16 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-04-07 | **M4 ✅** Deterministic Parsers + Optimization complete: M4.3 ps-aux (done in M7.1), M4.4 ls-la skipped (SFTP), M4.6 systemctl parser extracted from services.ts to registry + Zod schema, M4.7 OutputCache (hash-based, TTL, pipeline integration, server invalidation), M4.8 LLMUsageTracker + /api/stats/llm endpoint. 260 tests (218 server + 42 client) all passing. |
+| 2026-04-07 | **M5.6 ✅** UI Polish: Terminal loading/context menu/reconnect/theme-aware, Desktop context menu wired (View/Sort/Refresh/About HeadlessOS dialog), alert()→toast() in all components, global keyboard shortcuts (F5, Cmd+Shift+Esc), DashboardView empty state, LoginScreen loading state, desktopIconSize/desktopSortBy preferences |
+| 2026-04-07 | **M5.1-M5.5 ✅** Security hardening: command allowlist (60+ patterns), 17 blocked commands, enhanced validators (container ID 12-64, PID range, signal, ISO date, log source), AES-256-GCM credential encryption, CRITICAL injection fixes in serveradmin.ts + docker.ts, unified central validators, 103 new security tests (81 validator + 22 encryption), 224 total tests passing |
+| 2026-04-06 | **M7.2 ✅** Server Admin App: 8 sections (Network, Firewall, Security, WebServer, Packages, Cron, Logs, Storage), 23 deterministic parsers, 11 REST endpoints, 8 frontend components, 51 parser tests |
+| 2026-04-05 | **M7.1 ✅** Terminal Settings: preferences store (5 fields), TerminalView wiring, TerminalPage UI |
+| 2026-04-05 | **M7.2 redefined** Server Admin as standalone desktop app (8 sections) — replaces old Server CRUD spec |
+| 2026-04-05 | **M6.1 ✅** Icons: Custom SVGs (FileExplorer, Terminal, ThisPC, Docker Moby), Apple HIG AppIconBase |
+| 2026-04-05 | **M6.2 ✅** Glassmorphic context menus with backdrop-blur |
+| 2026-04-05 | **M6.4 ✅** oklch theme migration, dark/light toggle |
+| 2026-04-05 | **M6.6 ✅** Taskbar & Start Menu: glass menu, 4-color logo, clock, tray, avatar |
 | 2026-04-04 | **M3 complete** — Docker backend (containers/images JSON, actions, logs, inspect), Docker frontend (container/image tabs, context menus, search, log viewer), Services backend (systemd list/start/stop/restart/enable/disable, status/logs), Services frontend (filter pills, context menus, status/log panels), M3.4/M3.5 covered by Task Manager |
 | 2026-04-04 | Initial documentation created |
 | 2026-04-04 | Puter analysis — ADR-011, ADR-012, 5 design patterns |

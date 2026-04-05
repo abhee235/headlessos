@@ -4,7 +4,7 @@
 
 ## What Is HeadlessOS?
 
-A **localhost web application** that connects to Linux VPS servers via SSH, runs commands, parses terminal output using LLMs, and renders the results as a visual UI (file explorer, Docker dashboard, process manager, etc.).
+A **localhost web application** that connects to Linux VPS servers via SSH, runs commands, parses terminal output using LLMs, and renders the results as a visual UI (file explorer, Docker dashboard, process manager, server admin, etc.).
 
 **Key fact: Nothing is installed on the server.** The server is untouched. All intelligence runs locally.
 
@@ -62,11 +62,15 @@ headlessOS/
 ├── client/src/
 │   ├── App.tsx
 │   ├── components/        # Per-app UI components
-│   │   ├── Shell/         # Layout (sidebar, tabs, terminal panel)
+│   │   ├── Desktop/       # Desktop environment (icons, taskbar, window manager, settings)
 │   │   ├── Dashboard/     # System overview cards
 │   │   ├── FileExplorer/  # File browser
 │   │   ├── Docker/        # Container/image management
+│   │   ├── Services/      # Systemd service management
+│   │   ├── ServerAdmin/   # Server admin (network, firewall, security, packages, logs, etc.)
+│   │   ├── TaskManager/   # Process manager
 │   │   ├── Terminal/      # xterm.js wrapper
+│   │   ├── Login/         # Lock/login screen
 │   │   └── ui/            # Reusable: Table, Card, TreeView, ContextMenu, etc.
 │   ├── hooks/             # React hooks
 │   └── store/             # Zustand state
@@ -203,7 +207,7 @@ export function SomeView() {
 |----------------------|---------|
 | System architecture and data flow | [ARCHITECTURE.md](ARCHITECTURE.md) |
 | What to build (phase overview) | [IMPLEMENTATION_INDEX.md](IMPLEMENTATION_INDEX.md) |
-| Detailed task specs | [phases/phase-0.md](phases/phase-0.md) through [phase-5.md](phases/phase-5.md) |
+| Detailed task specs | [phases/phase-0.md](phases/phase-0.md) through [phase-7.md](phases/phase-7.md) |
 | Task → file → commit audit trail | [TRACEABILITY.md](TRACEABILITY.md) |
 | How apps work, app schema | [APP_REGISTRY.md](APP_REGISTRY.md) |
 | API endpoints (REST + WebSocket) | [API_SPEC.md](API_SPEC.md) |

@@ -6,6 +6,7 @@ import type { FastifyInstance } from 'fastify';
 import type { ConnectionManager } from '../ssh/connection-manager.js';
 import type { DockerContainer, DockerImage } from 'headlessos-shared';
 import type { ClientChannel } from 'ssh2';
+import { validateDockerImageRef, validateISODate, shellEscape } from '../security/validators.js';
 
 interface DockerRouteOpts {
   connectionManager: ConnectionManager;
@@ -75,9 +76,15 @@ function parseImages(stdout: string): DockerImage[] {
   return images;
 }
 
-// Validate container/image ID — hex chars only (short or full hash)
-function isValidDockerRef(ref: string): boolean {
-  return /^[a-zA-Z0-9][a-zA-Z0-9_.\-/:]*$/.test(ref) && ref.length <= 256;
+// Use central validators from security/validators.ts
+// validateContainerId — hex, 12-64 chars
+// validateDockerImageRef — broader for image names
+
+// Docker container IDs from `docker ps` can be short (12 chars) or full SHA (64 chars).
+// We accept hex-only but allow the short form too (since docker CLI returns short IDs).
+function isValidContainerIdParam(id: string): boolean {
+  if (!id || typeof id !== 'string') return false;
+  return /^[a-f0-9]{12,64}$/.test(id);
 }
 
 export async function dockerRoutes(
@@ -176,7 +183,7 @@ export async function dockerRoutes(
       const { id, containerId, action } = req.params;
       requireConnected(id);
 
-      if (!isValidDockerRef(containerId)) {
+      if (!isValidContainerIdParam(containerId)) {
         reply.code(400);
         return { success: false, error: 'Invalid container ID' };
       }
@@ -232,7 +239,7 @@ export async function dockerRoutes(
       const { image, name, ports, env, volumes, detach = true, command } = req.body ?? {};
       requireConnected(id);
 
-      if (!image || !isValidDockerRef(image)) {
+      if (!image || !validateDockerImageRef(image)) {
         reply.code(400);
         return { success: false, error: 'Invalid or missing image name' };
       }
@@ -265,22 +272,22 @@ export async function dockerRoutes(
       if (env && Array.isArray(env)) {
         for (const e of env) {
           // Basic env validation: must contain = and no shell metacharacters
-          if (!e.includes('=') || /[;&|`$]/.test(e)) {
+          if (!e.includes('=') || /[;&|`$(){}]/.test(e)) {
             reply.code(400);
             return { success: false, error: `Invalid environment variable: ${e}` };
           }
-          args.push('-e', e);
+          args.push('-e', shellEscape(e));
         }
       }
 
       if (volumes && Array.isArray(volumes)) {
         for (const v of volumes) {
           // Validate volume: path:path (no shell metacharacters)
-          if (!v.includes(':') || /[;&|`$]/.test(v)) {
+          if (!v.includes(':') || /[;&|`$(){}]/.test(v)) {
             reply.code(400);
             return { success: false, error: `Invalid volume mapping: ${v}` };
           }
-          args.push('-v', v);
+          args.push('-v', shellEscape(v));
         }
       }
 
@@ -288,11 +295,11 @@ export async function dockerRoutes(
 
       if (command) {
         // Validate command: no dangerous shell metacharacters
-        if (/[;&|`$]/.test(command)) {
+        if (/[;&|`$(){}]/.test(command)) {
           reply.code(400);
           return { success: false, error: 'Invalid command — shell metacharacters not allowed' };
         }
-        args.push(...command.split(/\s+/));
+        args.push(...command.split(/\s+/).map(arg => shellEscape(arg)));
       }
 
       const cmd = args.join(' ');
@@ -328,7 +335,7 @@ export async function dockerRoutes(
       const force = req.query.force === 'true';
       requireConnected(id);
 
-      if (!isValidDockerRef(containerId)) {
+      if (!isValidContainerIdParam(containerId)) {
         reply.code(400);
         return { success: false, error: 'Invalid container ID' };
       }
@@ -364,7 +371,7 @@ export async function dockerRoutes(
       const force = req.query.force === 'true';
       requireConnected(id);
 
-      if (!isValidDockerRef(imageId)) {
+      if (!isValidContainerIdParam(imageId)) {
         reply.code(400);
         return { success: false, error: 'Invalid image ID' };
       }
@@ -404,7 +411,7 @@ export async function dockerRoutes(
       const since = req.query.since;
       requireConnected(id);
 
-      if (!isValidDockerRef(containerId)) {
+      if (!isValidContainerIdParam(containerId)) {
         reply.code(400);
         return { success: false, error: 'Invalid container ID' };
       }
@@ -418,12 +425,12 @@ export async function dockerRoutes(
       try {
         let cmd = `docker logs --tail ${tail} --timestamps ${containerId}`;
         if (since) {
-          // Basic ISO date validation
-          if (!/^\d{4}-\d{2}-\d{2}/.test(since)) {
+          // M5.1: Strict ISO date validation — anchored start AND end
+          if (!validateISODate(since)) {
             reply.code(400);
-            return { success: false, error: 'Invalid since format' };
+            return { success: false, error: 'Invalid since format. Use YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS' };
           }
-          cmd = `docker logs --since ${since} --timestamps ${containerId}`;
+          cmd = `docker logs --since ${shellEscape(since)} --timestamps ${containerId}`;
         }
 
         const result = await connectionManager.exec(id, cmd, 15_000);
@@ -449,7 +456,7 @@ export async function dockerRoutes(
       const { id, containerId } = req.params;
       requireConnected(id);
 
-      if (!isValidDockerRef(containerId)) {
+      if (!isValidContainerIdParam(containerId)) {
         reply.code(400);
         return { success: false, error: 'Invalid container ID' };
       }

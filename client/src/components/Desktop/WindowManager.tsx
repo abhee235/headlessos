@@ -10,6 +10,7 @@ import { SettingsView } from './SettingsView';
 import { TaskManagerView } from '../TaskManager/TaskManagerView';
 import { DockerView } from '../Docker/DockerView';
 import { ServicesView } from '../Services/ServicesView';
+import { ServerAdminView } from '../ServerAdmin/ServerAdminView';
 
 function WindowContent({ appId, serverId }: { appId: string; serverId: string }) {
   switch (appId) {
@@ -53,6 +54,12 @@ function WindowContent({ appId, serverId }: { appId: string; serverId: string })
       return (
         <div className="h-full overflow-hidden">
           <ServicesView serverId={serverId} />
+        </div>
+      );
+    case 'serveradmin':
+      return (
+        <div className="h-full overflow-hidden">
+          <ServerAdminView serverId={serverId} />
         </div>
       );
     default:

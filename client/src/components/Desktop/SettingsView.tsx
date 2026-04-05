@@ -12,8 +12,9 @@ import {
   Plus,
   Trash2,
   Monitor,
+  TerminalSquare,
 } from 'lucide-react';
-import { usePreferencesStore } from '../../store/preferences-store';
+import { usePreferencesStore, type CursorStyle } from '../../store/preferences-store';
 import {
   BUILTIN_WALLPAPERS,
   fetchWallpapers,
@@ -28,7 +29,7 @@ import { cn } from '../../lib/utils';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type PageId = 'wallpaper' | 'appearance' | 'about';
+type PageId = 'wallpaper' | 'appearance' | 'terminal' | 'about';
 
 interface SidebarEntry {
   id: PageId;
@@ -49,6 +50,12 @@ const SIDEBAR: SidebarEntry[] = [
     label: 'Appearance',
     icon: <Paintbrush size={14} className="text-white" />,
     iconBg: 'bg-indigo-500',
+  },
+  {
+    id: 'terminal',
+    label: 'Terminal',
+    icon: <TerminalSquare size={14} className="text-white" />,
+    iconBg: 'bg-zinc-800',
   },
   {
     id: 'about',
@@ -509,6 +516,208 @@ function AppearancePage() {
   );
 }
 
+// ─── Terminal Page ──────────────────────────────────────────────────────────
+
+const FONT_FAMILIES = [
+  { label: 'JetBrains Mono', value: '"JetBrains Mono", monospace' },
+  { label: 'Fira Code', value: '"Fira Code", monospace' },
+  { label: 'Source Code Pro', value: '"Source Code Pro", monospace' },
+  { label: 'Cascadia Code', value: '"Cascadia Code", monospace' },
+  { label: 'Menlo', value: 'Menlo, monospace' },
+  { label: 'Courier New', value: '"Courier New", monospace' },
+] as const;
+
+const SCROLLBACK_OPTIONS = [
+  { label: '1,000 lines', value: 1000 },
+  { label: '5,000 lines', value: 5000 },
+  { label: '10,000 lines', value: 10000 },
+  { label: 'Unlimited', value: -1 },
+] as const;
+
+const CURSOR_STYLES: { label: string; value: CursorStyle; preview: React.ReactNode }[] = [
+  {
+    label: 'Block',
+    value: 'block',
+    preview: <div className="w-2 h-3.5 bg-blue-400 rounded-[1px]" />,
+  },
+  {
+    label: 'Underline',
+    value: 'underline',
+    preview: (
+      <div className="relative w-2 h-3.5">
+        <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-400 rounded-full" />
+      </div>
+    ),
+  },
+  {
+    label: 'Bar',
+    value: 'bar',
+    preview: (
+      <div className="relative w-2 h-3.5">
+        <div className="absolute top-0 left-0 w-0.5 h-full bg-blue-400 rounded-full" />
+      </div>
+    ),
+  },
+];
+
+function TerminalPage() {
+  const fontSize = usePreferencesStore((s) => s.terminalFontSize);
+  const setFontSize = usePreferencesStore((s) => s.setTerminalFontSize);
+  const fontFamily = usePreferencesStore((s) => s.terminalFontFamily);
+  const setFontFamily = usePreferencesStore((s) => s.setTerminalFontFamily);
+  const cursorStyle = usePreferencesStore((s) => s.terminalCursorStyle);
+  const setCursorStyle = usePreferencesStore((s) => s.setTerminalCursorStyle);
+  const scrollback = usePreferencesStore((s) => s.terminalScrollback);
+  const setScrollback = usePreferencesStore((s) => s.setTerminalScrollback);
+  const copyOnSelect = usePreferencesStore((s) => s.terminalCopyOnSelect);
+  const setCopyOnSelect = usePreferencesStore((s) => s.setTerminalCopyOnSelect);
+
+  const currentFontLabel = FONT_FAMILIES.find((f) => f.value === fontFamily)?.label ?? 'Custom';
+  const currentScrollLabel = SCROLLBACK_OPTIONS.find((o) => o.value === scrollback)?.label ?? `${scrollback} lines`;
+
+  return (
+    <div className="space-y-6">
+      {/* ── Font ──────────────────────────────── */}
+      <div>
+        <SectionHeader title="Font" />
+        <GroupedCard>
+          {/* Font Size */}
+          <div className="flex items-center justify-between px-3 py-2.5 border-b border-border">
+            <span className="text-[13px] text-foreground">Font Size</span>
+            <div className="flex items-center gap-3">
+              <input
+                type="range"
+                min={10}
+                max={24}
+                step={1}
+                value={fontSize}
+                onChange={(e) => setFontSize(Number(e.target.value))}
+                className="w-28 h-1 accent-primary cursor-pointer"
+              />
+              <span className="text-[13px] text-muted-foreground tabular-nums w-6 text-right">
+                {fontSize}
+              </span>
+            </div>
+          </div>
+          {/* Font Family */}
+          <div className="flex items-center justify-between px-3 py-2.5">
+            <span className="text-[13px] text-foreground">Font Family</span>
+            <select
+              value={fontFamily}
+              onChange={(e) => setFontFamily(e.target.value)}
+              className="bg-transparent text-[13px] text-muted-foreground text-right cursor-pointer outline-none appearance-none pr-1 hover:text-foreground transition-colors"
+            >
+              {FONT_FAMILIES.map((f) => (
+                <option key={f.value} value={f.value}>
+                  {f.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </GroupedCard>
+      </div>
+
+      {/* ── Preview ──────────────────────────── */}
+      <div>
+        <SectionHeader title="Preview" />
+        <div
+          className="rounded-lg border border-border bg-[#09090b] p-3 h-18 overflow-hidden"
+          style={{ fontFamily, fontSize: `${fontSize}px` }}
+        >
+          <span className="text-green-400">user@server</span>
+          <span className="text-zinc-400">:</span>
+          <span className="text-blue-400">~</span>
+          <span className="text-zinc-400">$ </span>
+          <span className="text-zinc-300">ls -la</span>
+          <span
+            className={cn(
+              'inline-block ml-px animate-pulse',
+              cursorStyle === 'block' && 'w-[0.6em] h-[1em] bg-blue-400 align-text-bottom',
+              cursorStyle === 'underline' && 'w-[0.6em] h-0.5 bg-blue-400 align-baseline -mb-px',
+              cursorStyle === 'bar' && 'w-0.5 h-[1em] bg-blue-400 align-text-bottom',
+            )}
+          />
+        </div>
+      </div>
+
+      {/* ── Cursor ────────────────────────────── */}
+      <div>
+        <SectionHeader title="Cursor" />
+        <GroupedCard>
+          <div className="flex items-center justify-between px-3 py-2.5">
+            <span className="text-[13px] text-foreground">Cursor Style</span>
+            <div className="flex gap-1">
+              {CURSOR_STYLES.map((cs) => (
+                <button
+                  key={cs.value}
+                  onClick={() => setCursorStyle(cs.value)}
+                  className={cn(
+                    'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] transition-colors',
+                    cursorStyle === cs.value
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                  )}
+                >
+                  {cs.preview}
+                  <span>{cs.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </GroupedCard>
+      </div>
+
+      {/* ── Scrollback & Behavior ─────────────── */}
+      <div>
+        <SectionHeader title="Behavior" />
+        <GroupedCard>
+          {/* Scrollback */}
+          <div className="flex items-center justify-between px-3 py-2.5 border-b border-border">
+            <span className="text-[13px] text-foreground">Scrollback Buffer</span>
+            <select
+              value={scrollback}
+              onChange={(e) => setScrollback(Number(e.target.value))}
+              className="bg-transparent text-[13px] text-muted-foreground text-right cursor-pointer outline-none appearance-none pr-1 hover:text-foreground transition-colors"
+            >
+              {SCROLLBACK_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          {/* Copy on Select */}
+          <div className="flex items-center justify-between px-3 py-2.5">
+            <div>
+              <span className="text-[13px] text-foreground">Copy on Select</span>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Automatically copy selected text to clipboard
+              </p>
+            </div>
+            <button
+              role="switch"
+              aria-checked={copyOnSelect}
+              onClick={() => setCopyOnSelect(!copyOnSelect)}
+              className={cn(
+                'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors',
+                copyOnSelect ? 'bg-primary' : 'bg-muted',
+              )}
+            >
+              <span
+                className={cn(
+                  'pointer-events-none block h-4 w-4 rounded-full bg-white shadow-sm transition-transform',
+                  copyOnSelect ? 'translate-x-4' : 'translate-x-0',
+                )}
+              />
+            </button>
+          </div>
+        </GroupedCard>
+      </div>
+    </div>
+  );
+}
+
+
 // ─── About Page ─────────────────────────────────────────────────────────────
 
 function AboutPage() {
@@ -589,6 +798,7 @@ export function SettingsView() {
 
         {page === 'wallpaper' && <WallpaperPage />}
         {page === 'appearance' && <AppearancePage />}
+        {page === 'terminal' && <TerminalPage />}
         {page === 'about' && <AboutPage />}
       </main>
     </div>

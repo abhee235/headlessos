@@ -74,14 +74,47 @@ Unit + integration tests. 80%+ coverage on parsers + security validators.
 **Task ID:** `M5.6`
 > **Ref:** [ARCHITECTURE.md § Design Patterns](../ARCHITECTURE.md#design-patterns-reference-from-puter-analysis) — patterns 3, 4, 5
 
-- Context menus for all data views (files, containers, processes, services)
-- Single-instance tab enforcement
-- Process tree visualization
-- Loading/error/empty states for all views
-- Dark theme, keyboard shortcuts, toast notifications
+Based on a full component audit (2026-04-06), M5.6 is broken into 5 subtasks:
+
+### M5.6a: Toast/Alert Consistency
+- Replace `alert()` with `toast()` in **FileViewer** (save errors)
+- Ensure `toast()` is used consistently for user-facing notifications
+
+### M5.6b: Terminal UI Polish
+- Add **loading state** while WebSocket connects (spinner overlay)
+- Add **context menu** on terminal: Copy, Paste, Clear, Select All
+- Add **reconnect button/UI** when disconnected (not just inline red text)
+- Adapt terminal **background to light/dark theme** (currently hardcoded dark)
+
+### M5.6c: Desktop Context Menu Wiring
+- Wire **Refresh** handler (refresh active window/desktop)
+- Wire **View** submenu (icon size, arrangement — store in preferences)
+- Wire **Sort by** submenu (name, date, size, type)
+- Wire **About HeadlessOS** dialog (version, tech stack, credits)
+- Wire **Ctrl+Shift+Esc** shortcut label to actually open Task Manager
+
+### M5.6d: Empty/Loading State Fixes
+- **DashboardView**: Show proper empty state message instead of returning `null`
+- **DashboardView**: Add context menus on cards (Copy hostname, Refresh)
+- **LoginScreen**: Show spinner while `loadingServers` is true
+- **TerminalView disconnected**: Replace inline text with proper DisconnectedState-style UI
+
+### M5.6e: Global Keyboard Shortcuts
+- Register global `keydown` listener for:
+  - **F5**: Refresh active view
+  - **Ctrl+Shift+Esc** (or **Cmd+Shift+Esc**): Open Task Manager
+- Ensure shortcuts shown in context menus actually work
+
+> **Out of scope** (tracked elsewhere):
+> - File clipboard ops (Cut/Copy/Paste) → M6.7
+> - Skeleton loading placeholders → nice-to-have, not required (spinners are adequate)
+> - ServerAdmin section context menus → low priority (table rows are display-only)
+> - "Open in Terminal" from file explorer → requires terminal tab integration
 
 **Verification:**
-- [ ] All states handled (loading, error, empty, data)
-- [ ] Context menus work on all data views
-- [ ] Single-instance tabs enforced
-- [ ] Dark theme consistent
+- [ ] No `alert()` calls remain in the codebase
+- [ ] Terminal has loading, context menu, reconnect, theme adaptation
+- [ ] Desktop context menu items all functional (no dead handlers)
+- [ ] All views handle loading, error, empty states
+- [ ] F5 and Ctrl/Cmd+Shift+Esc shortcuts work globally
+- [ ] All tests pass

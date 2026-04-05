@@ -498,6 +498,7 @@ An "app" in HeadlessOS is a **module** that:
 | Docker | `docker ps`, `docker images`, `docker logs` | Deterministic (JSON flag) | P1 |
 | Processes | `ps aux --sort=-%mem` | LLM → Deterministic | P1 |
 | Services | `systemctl list-units` | LLM → Deterministic | P2 |
+| Server Admin | `ss`, `ufw`, `nginx -T`, `apt list`, `journalctl`, `who`, `crontab -l`, `findmnt` | Deterministic | P1 |
 
 See [APP_REGISTRY.md](APP_REGISTRY.md) for the full app definition schema.
 
@@ -556,6 +557,16 @@ App.tsx
 │   ├── ContainerList.tsx
 │   ├── ImageList.tsx
 │   └── LogViewer.tsx
+├── ServerAdmin/
+│   ├── ServerAdminView.tsx  # Main shell with sidebar nav (8 sections)
+│   ├── NetworkSection.tsx   # Ports, routes, DNS, connections
+│   ├── FirewallSection.tsx  # UFW rules, add/delete, toggle
+│   ├── SecuritySection.tsx  # Users, sessions, logins, SSH config
+│   ├── WebServerSection.tsx # Nginx sites, config test, SSL certs
+│   ├── PackagesSection.tsx  # Installed/upgradable packages
+│   ├── CronSection.tsx      # Cron jobs viewer
+│   ├── LogsSection.tsx      # Journal/dmesg/syslog viewer
+│   └── StorageSection.tsx   # Dir sizes, mounts, swap
 ├── Processes/
 │   ├── ProcessView.tsx
 │   └── ProcessTable.tsx
@@ -579,6 +590,8 @@ App.tsx
 |---------------|----------|----------|
 | App data (read) | HTTP GET | Fetch server state, file listings, docker containers |
 | App actions (write) | HTTP POST | Stop container, delete file, kill process |
+| Server admin read | HTTP GET | Network info, firewall rules, security, packages, logs, storage |
+| Server admin write | HTTP POST/DELETE | Add/delete firewall rules, toggle firewall |
 | Terminal | WebSocket | Bidirectional stream for interactive SSH shell |
 | Real-time data | WebSocket | Docker logs streaming, live process updates |
 

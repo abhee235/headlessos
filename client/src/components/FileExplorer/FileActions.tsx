@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { FolderPlus, FilePlus, X, Check } from 'lucide-react';
 import { createDirectory, writeFile } from '../../lib/api';
+import { toast } from 'sonner';
 
 interface FileActionsProps {
   serverId: string;
@@ -33,7 +34,7 @@ export function FileActions({ serverId, currentPath, onComplete }: FileActionsPr
       setName('');
       onComplete();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Create failed');
+      toast.error(err instanceof Error ? err.message : 'Create failed');
     } finally {
       setBusy(false);
     }

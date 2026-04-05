@@ -10,6 +10,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { readFile, writeFile } from '../../lib/api';
+import { toast } from 'sonner';
 
 interface FileViewerProps {
   serverId: string;
@@ -52,9 +53,10 @@ export function FileViewer({ serverId, filePath, onClose, onSave }: FileViewerPr
     try {
       await writeFile(serverId, filePath, content);
       setOriginalContent(content);
+      toast.success('File saved');
       onSave();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Save failed');
+      toast.error(err instanceof Error ? err.message : 'Save failed');
     } finally {
       setSaving(false);
     }
@@ -103,7 +105,13 @@ export function FileViewer({ serverId, filePath, onClose, onSave }: FileViewerPr
         <div className="flex items-center justify-center h-48">
           <div className="text-center">
             <AlertCircle className="w-8 h-8 text-destructive mx-auto mb-2" />
-            <p className="text-sm text-destructive">{error}</p>
+            <p className="text-sm text-destructive mb-3">{error}</p>
+            <button
+              onClick={loadFile}
+              className="px-3 py-1.5 text-xs bg-secondary hover:bg-accent text-secondary-foreground rounded"
+            >
+              Retry
+            </button>
           </div>
         </div>
       )}

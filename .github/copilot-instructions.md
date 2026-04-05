@@ -59,6 +59,8 @@ Pipeline: Command Orchestrator → SSH exec → ANSI strip → deterministic par
 2. **Command Orchestrator** — multi-command parallel exec, retry with error context, fallback chains (ADR-013)
 3. **Parsing Pipeline** — ANSI strip → deterministic parser → LLM fallback → Zod validate
 4. **Plugin-Ready App Registry** — each app is a self-contained module (ADR-012)
+5. **Output Cache** — hash-based cache prevents re-parsing when terminal output unchanged (M4.7)
+6. **LLM Usage Tracking** — token/cost/latency tracking per LLM call, exposed via `GET /api/stats/llm` (M4.8)
 
 ## Critical Rules
 

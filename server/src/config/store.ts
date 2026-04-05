@@ -1,12 +1,13 @@
-// M1.6: Server Config Management
-// @see docs/phases/phase-1.md
+// M1.6 + M5.3: Server Config Management with credential encryption
+// @see docs/phases/phase-1.md, docs/SECURITY.md
 
-import { readFile, writeFile, mkdir } from 'fs/promises';
+import { readFile, writeFile, mkdir, chmod } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import { randomUUID } from 'crypto';
 import { BaseService } from '../services/base-service.js';
+import { encrypt, decrypt, isEncrypted } from '../security/encryption.js';
 import type { ServerConfig } from 'headlessos-shared';
 
 const CONFIG_DIR = join(homedir(), '.headlessos');
@@ -61,14 +62,33 @@ export class ConfigStore extends BaseService {
 
   private async ensureConfigDir(): Promise<void> {
     if (!existsSync(CONFIG_DIR)) {
-      await mkdir(CONFIG_DIR, { recursive: true });
+      await mkdir(CONFIG_DIR, { recursive: true, mode: 0o700 });
+    }
+    // Ensure directory is owner-only (0700)
+    try {
+      await chmod(CONFIG_DIR, 0o700);
+    } catch {
+      // Non-fatal — may fail on some systems
     }
   }
 
   private async load(): Promise<void> {
     try {
       const raw = await readFile(SERVERS_FILE, 'utf-8');
-      this.servers = JSON.parse(raw) as ServerConfig[];
+      const stored = JSON.parse(raw) as ServerConfig[];
+
+      // M5.3: Decrypt passwords on load
+      this.servers = stored.map(s => ({
+        ...s,
+        password: s.password ? decrypt(s.password) : undefined,
+      }));
+
+      // Migrate: if any passwords were stored in plaintext (not encrypted),
+      // re-save with encryption to upgrade the file
+      const needsMigration = stored.some(s => s.password && !isEncrypted(s.password));
+      if (needsMigration) {
+        await this.save();
+      }
     } catch {
       // File doesn't exist yet — start with empty array
       this.servers = [];
@@ -76,12 +96,14 @@ export class ConfigStore extends BaseService {
   }
 
   private async save(): Promise<void> {
-    // Strip sensitive fields before writing
-    const safe = this.servers.map(s => ({
+    // M5.3: Encrypt passwords before writing to disk
+    const encrypted = this.servers.map(s => ({
       ...s,
-      // Don't persist plaintext passwords — TODO: M5.3 encryption
-      password: s.password ? '***' : undefined,
+      password: s.password ? encrypt(s.password) : undefined,
     }));
-    await writeFile(SERVERS_FILE, JSON.stringify(safe, null, 2), 'utf-8');
+    await writeFile(SERVERS_FILE, JSON.stringify(encrypted, null, 2), {
+      encoding: 'utf-8',
+      mode: 0o600, // Owner read/write only
+    });
   }
 }

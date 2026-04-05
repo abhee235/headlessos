@@ -572,6 +572,242 @@ Execute an arbitrary command (with safety constraints).
 
 ---
 
+## Server Admin
+
+All Server Admin endpoints use the prefix `/api/servers/:id/admin/`. Each section degrades gracefully — if a tool isn't installed (exit code 127), the response includes `{ available: false, message: "..." }` instead of an error.
+
+### `GET /api/servers/:id/admin/network`
+
+Network information: listening ports, routes, DNS, active connections.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "ports": [
+      { "protocol": "tcp", "localAddress": "0.0.0.0", "localPort": 22, "process": "sshd", "pid": 1234 },
+      { "protocol": "tcp", "localAddress": "0.0.0.0", "localPort": 80, "process": "nginx", "pid": 5678 }
+    ],
+    "routes": [
+      { "destination": "default", "gateway": "10.0.0.1", "interface": "eth0", "metric": 100 }
+    ],
+    "dns": {
+      "nameservers": ["1.1.1.1", "8.8.8.8"],
+      "searchDomains": ["example.com"]
+    },
+    "connections": [
+      { "protocol": "tcp", "localAddress": "10.0.0.5", "localPort": 22, "remoteAddress": "192.168.1.100", "remotePort": 54321, "state": "ESTAB", "process": "sshd", "pid": 1234 }
+    ]
+  }
+}
+```
+
+### `GET /api/servers/:id/admin/firewall`
+
+UFW firewall status and rules.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "available": true,
+    "active": true,
+    "rules": [
+      { "number": 1, "to": "22/tcp", "action": "ALLOW IN", "from": "Anywhere" },
+      { "number": 2, "to": "80/tcp", "action": "ALLOW IN", "from": "Anywhere" },
+      { "number": 3, "to": "443/tcp", "action": "ALLOW IN", "from": "Anywhere" }
+    ]
+  }
+}
+```
+
+**Not installed response:**
+```json
+{
+  "success": true,
+  "data": {
+    "available": false,
+    "active": false,
+    "rules": [],
+    "message": "UFW is not installed. Install with: sudo apt install ufw"
+  }
+}
+```
+
+### `POST /api/servers/:id/admin/firewall/rules`
+
+Add a firewall rule.
+
+**Request:**
+```json
+{
+  "port": 8080,
+  "protocol": "tcp",
+  "action": "allow"
+}
+```
+
+**Validation:** `port` must be 1-65535, `protocol` must be `tcp` or `udp`, `action` must be `allow` or `deny`.
+
+### `DELETE /api/servers/:id/admin/firewall/rules/:num`
+
+Delete a firewall rule by number.
+
+**Validation:** `num` must be a positive integer matching a rule number from `ufw status numbered`.
+
+### `POST /api/servers/:id/admin/firewall/toggle`
+
+Enable or disable the firewall.
+
+**Request:**
+```json
+{
+  "enable": true
+}
+```
+
+### `GET /api/servers/:id/admin/security`
+
+Security overview: users, active sessions, login history, SSH config.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "users": [
+      { "username": "root", "uid": 0, "gid": 0, "home": "/root", "shell": "/bin/bash" },
+      { "username": "testuser", "uid": 1000, "gid": 1000, "home": "/home/testuser", "shell": "/bin/bash" }
+    ],
+    "sessions": [
+      { "user": "testuser", "terminal": "pts/0", "loginTime": "2026-04-05 10:30", "remoteHost": "192.168.1.100" }
+    ],
+    "loginHistory": [
+      { "user": "testuser", "terminal": "pts/0", "remoteHost": "192.168.1.100", "loginTime": "Sat Apr  5 10:30", "logoutTime": "still logged in", "duration": "" }
+    ],
+    "sshConfig": {
+      "port": "22",
+      "permitRootLogin": "prohibit-password",
+      "passwordAuthentication": "yes",
+      "pubkeyAuthentication": "yes",
+      "maxAuthTries": "6",
+      "x11Forwarding": "yes"
+    },
+    "fail2ban": { "available": false, "message": "fail2ban not installed" }
+  }
+}
+```
+
+### `GET /api/servers/:id/admin/webserver`
+
+Web server (nginx) information.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "available": true,
+    "sites": [
+      { "name": "default", "enabled": true },
+      { "name": "my-app.conf", "enabled": true },
+      { "name": "staging.conf", "enabled": false }
+    ],
+    "configTest": { "success": true, "output": "nginx: configuration file /etc/nginx/nginx.conf test is successful" },
+    "sslCertificates": [
+      { "domain": "example.com", "expiry": "2026-07-01", "issuer": "Let's Encrypt", "daysRemaining": 87 }
+    ]
+  }
+}
+```
+
+### `GET /api/servers/:id/admin/packages`
+
+Package information (APT/dpkg).
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "available": true,
+    "totalInstalled": 487,
+    "upgradable": [
+      { "name": "openssl", "currentVersion": "3.0.2-0ubuntu1.14", "newVersion": "3.0.2-0ubuntu1.15", "architecture": "amd64" }
+    ]
+  }
+}
+```
+
+### `GET /api/servers/:id/admin/cron`
+
+Cron jobs.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "jobs": [
+      { "schedule": "0 2 * * *", "command": "/usr/local/bin/backup.sh", "source": "user:testuser", "description": "At 02:00 every day" },
+      { "schedule": "*/5 * * * *", "command": "/usr/bin/healthcheck", "source": "system:/etc/cron.d/healthcheck", "description": "Every 5 minutes" }
+    ]
+  }
+}
+```
+
+### `GET /api/servers/:id/admin/logs`
+
+System logs with filtering.
+
+**Query params:**
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `source` | string | `journal` | Log source: `journal`, `dmesg`, `syslog` |
+| `unit` | string | `""` | Systemd unit filter (journal only), e.g. `nginx.service` |
+| `lines` | number | `100` | Number of log lines to retrieve (max 500) |
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "source": "journal",
+    "entries": [
+      { "timestamp": "2026-04-05T10:30:15Z", "unit": "nginx.service", "priority": "info", "message": "Started A high performance web server." }
+    ]
+  }
+}
+```
+
+### `GET /api/servers/:id/admin/storage`
+
+Storage information: directory sizes, mount points, swap.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "dirSizes": [
+      { "path": "/home/testuser", "size": "2.3G" },
+      { "path": "/var/log", "size": "456M" },
+      { "path": "/tmp", "size": "12M" }
+    ],
+    "mounts": [
+      { "target": "/", "source": "/dev/sda1", "fstype": "ext4", "options": "rw,relatime" }
+    ],
+    "swap": [
+      { "name": "/swap.img", "type": "file", "size": "2G", "used": "128M", "priority": -2 }
+    ]
+  }
+}
+```
+
+---
+
 ## WebSocket Endpoints
 
 ### `ws://localhost:3001/ws/terminal/:serverId`

@@ -18,7 +18,11 @@ import { wallpaperRoutes } from './routes/wallpapers.js';
 import { taskManagerRoutes } from './routes/taskmanager.js';
 import { dockerRoutes } from './routes/docker.js';
 import { servicesRoutes } from './routes/services.js';
+import { serverAdminRoutes } from './routes/serveradmin.js';
+import { statsRoutes } from './routes/stats.js';
 import { allParsers } from './parsers/deterministic/index.js';
+import { OutputCache } from './cache/output-cache.js';
+import { LLMUsageTracker } from './llm/usage-tracker.js';
 
 const PORT = Number(process.env.PORT) || 3001;
 
@@ -30,6 +34,8 @@ async function main(): Promise<void> {
   const connectionManager = new ConnectionManager('ssh');
   const pipeline = new ParsingPipeline('parser');
   const orchestrator = new CommandOrchestrator('orchestrator');
+  const outputCache = new OutputCache();
+  const usageTracker = new LLMUsageTracker();
 
   container.register('config', configStore);
   container.register('ssh', connectionManager);
@@ -55,6 +61,11 @@ async function main(): Promise<void> {
   }
   console.log(`📋 Registered ${allParsers.length} deterministic parsers`);
 
+  // Wire output cache and usage tracker to pipeline
+  pipeline.setCache(outputCache);
+  pipeline.setUsageTracker(usageTracker);
+  console.log('💾 Output cache + LLM usage tracking enabled');
+
   // -- Fastify --
   const app = Fastify({ logger: true });
 
@@ -78,13 +89,14 @@ async function main(): Promise<void> {
       version: '0.1.0',
       services: ['config', 'ssh', 'parser', 'orchestrator'],
       llm: pipeline['llmProvider'] ? 'openai' : 'none',
+      cache: outputCache.getStats(),
     };
   });
 
   // ── Auto-reconnect hook for data routes ──
   // When a server is disconnected (e.g. after dev server restart), attempt to
   // reconnect transparently using stored credentials before the route handler runs.
-  const dataRoutePattern = /^\/api\/servers\/([^/]+)\/(docker|system|files|taskmanager|services|terminal)/;
+  const dataRoutePattern = /^\/api\/servers\/([^/]+)\/(docker|system|files|taskmanager|services|terminal|serveradmin)/;
 
   app.addHook('preHandler', async (req) => {
     const match = req.url.match(dataRoutePattern);
@@ -120,6 +132,8 @@ async function main(): Promise<void> {
   await app.register(taskManagerRoutes, { orchestrator, connectionManager });
   await app.register(dockerRoutes, { connectionManager });
   await app.register(servicesRoutes, { connectionManager });
+  await app.register(serverAdminRoutes, { connectionManager });
+  await app.register(statsRoutes, { usageTracker, outputCache });
 
   // -- Start --
   try {
@@ -134,6 +148,7 @@ async function main(): Promise<void> {
   const shutdown = async () => {
     console.log('\n🛑 Shutting down...');
     await app.close();
+    outputCache.destroy();
     await container.shutdown();
     process.exit(0);
   };

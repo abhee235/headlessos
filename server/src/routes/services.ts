@@ -4,70 +4,14 @@
 
 import type { FastifyInstance } from 'fastify';
 import type { ConnectionManager } from '../ssh/connection-manager.js';
-import type { ServiceInfo } from 'headlessos-shared';
+import { validateServiceName, shellEscape } from '../security/validators.js';
+import { parseSystemctlListUnits } from '../parsers/deterministic/systemctl.js';
 
 interface ServicesRouteOpts {
   connectionManager: ConnectionManager;
 }
 
-// Parse `systemctl list-units --type=service --all --no-pager --no-legend` output
-function parseServiceList(stdout: string): ServiceInfo[] {
-  const lines = stdout.trim().split('\n').filter(Boolean);
-  const services: ServiceInfo[] = [];
-
-  for (const line of lines) {
-    // Format: UNIT LOAD ACTIVE SUB DESCRIPTION...
-    // e.g.: "  ssh.service loaded active running OpenBSD Secure Shell server"
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-
-    // Some lines start with ● for failed services
-    const cleaned = trimmed.replace(/^[●○]\s*/, '');
-
-    const parts = cleaned.split(/\s+/);
-    if (parts.length < 4) continue;
-
-    const unitName = parts[0];
-    const loadState = parts[1];
-    const activeState = parts[2];
-    const subState = parts[3];
-    const description = parts.slice(4).join(' ');
-
-    // Only include .service units
-    if (!unitName.endsWith('.service')) continue;
-
-    // Strip .service suffix for display name
-    const name = unitName.replace(/\.service$/, '');
-
-    services.push({
-      name,
-      loadState: (['loaded', 'not-found', 'masked'].includes(loadState)
-        ? loadState
-        : 'loaded') as ServiceInfo['loadState'],
-      activeState: (['active', 'inactive', 'failed', 'activating', 'deactivating'].includes(activeState)
-        ? activeState
-        : 'inactive') as ServiceInfo['activeState'],
-      subState,
-      description,
-    });
-  }
-
-  // Sort: active first, then by name
-  services.sort((a, b) => {
-    if (a.activeState === 'active' && b.activeState !== 'active') return -1;
-    if (a.activeState !== 'active' && b.activeState === 'active') return 1;
-    if (a.activeState === 'failed' && b.activeState !== 'failed') return -1;
-    if (a.activeState !== 'failed' && b.activeState === 'failed') return 1;
-    return a.name.localeCompare(b.name);
-  });
-
-  return services;
-}
-
-// Validate service name — alphanumeric, hyphen, underscore, @ allowed
-function isValidServiceName(name: string): boolean {
-  return /^[a-zA-Z0-9_\-@.]+$/.test(name) && name.length <= 256;
-}
+// Use central validateServiceName from security/validators.ts
 
 export async function servicesRoutes(
   fastify: FastifyInstance,
@@ -108,7 +52,7 @@ export async function servicesRoutes(
           return { success: false, error: errMsg || 'Failed to list services' };
         }
 
-        const services = parseServiceList(result.stdout);
+        const services = parseSystemctlListUnits(result.stdout);
         return { success: true, data: services, systemdAvailable: true };
       } catch (err) {
         reply.code(500);
@@ -128,7 +72,7 @@ export async function servicesRoutes(
       const { id, serviceName, action } = req.params;
       requireConnected(id);
 
-      if (!isValidServiceName(serviceName)) {
+      if (!validateServiceName(serviceName)) {
         reply.code(400);
         return { success: false, error: 'Invalid service name' };
       }
@@ -147,7 +91,7 @@ export async function servicesRoutes(
         const unit = serviceName.endsWith('.service') ? serviceName : `${serviceName}.service`;
         const result = await connectionManager.exec(
           id,
-          `sudo systemctl ${action} ${unit}`,
+          `sudo systemctl ${action} ${shellEscape(unit)}`,
           15_000,
         );
 
@@ -177,7 +121,7 @@ export async function servicesRoutes(
       const { id, serviceName } = req.params;
       requireConnected(id);
 
-      if (!isValidServiceName(serviceName)) {
+      if (!validateServiceName(serviceName)) {
         reply.code(400);
         return { success: false, error: 'Invalid service name' };
       }
@@ -186,7 +130,7 @@ export async function servicesRoutes(
         const unit = serviceName.endsWith('.service') ? serviceName : `${serviceName}.service`;
         const result = await connectionManager.exec(
           id,
-          `systemctl status ${unit} --no-pager`,
+          `systemctl status ${shellEscape(unit)} --no-pager`,
           10_000,
         );
 
@@ -214,7 +158,7 @@ export async function servicesRoutes(
       const lines = req.query.lines ?? '100';
       requireConnected(id);
 
-      if (!isValidServiceName(serviceName)) {
+      if (!validateServiceName(serviceName)) {
         reply.code(400);
         return { success: false, error: 'Invalid service name' };
       }
@@ -228,7 +172,7 @@ export async function servicesRoutes(
         const unit = serviceName.endsWith('.service') ? serviceName : `${serviceName}.service`;
         const result = await connectionManager.exec(
           id,
-          `journalctl -u ${unit} -n ${lines} --no-pager`,
+          `journalctl -u ${shellEscape(unit)} -n ${lines} --no-pager`,
           10_000,
         );
 

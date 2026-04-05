@@ -12,6 +12,7 @@ import {
   DiskIoSchema,
 } from '../parsers/schemas/taskmanager.js';
 import { MemoryInfoSchema as SystemMemorySchema } from '../parsers/schemas/system.js';
+import { validateSignal } from '../security/validators.js';
 import type {
   ProcessListParsed,
   CpuStatsParsed,
@@ -149,8 +150,8 @@ export async function taskManagerRoutes(
         return { success: false, error: 'Invalid PID' };
       }
 
-      // Only allow SIGTERM (15) and SIGKILL (9)
-      if (signal !== 9 && signal !== 15) {
+      // M5.1: Validate signal range (1-31), but restrict to SIGTERM and SIGKILL for safety
+      if (!validateSignal(signal) || (signal !== 9 && signal !== 15)) {
         reply.code(400);
         return { success: false, error: 'Signal must be 9 (SIGKILL) or 15 (SIGTERM)' };
       }

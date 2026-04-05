@@ -373,6 +373,89 @@ const servicesApp: AppManifest = {
 };
 ```
 
+### Server Admin
+
+```typescript
+const serverAdminApp: AppManifest = {
+  id: 'serveradmin',
+  name: 'Server Admin',
+  description: 'Manage server networking, firewall, security, web server, packages, cron, logs, and storage',
+  icon: 'shield',
+  category: 'system',
+  requiredTools: [],                 // always available — sections degrade gracefully
+  showInSidebar: true,
+  refreshInterval: 0,               // manual refresh per section
+  views: [
+    {
+      id: 'network',
+      name: 'Network',
+      command: { exec: '__MULTI__', parseMode: 'auto' },  // ss -tlnp, ip route, /etc/resolv.conf, ss -tunap
+      schema: 'NetworkInfo',
+      renderer: 'custom',
+    },
+    {
+      id: 'firewall',
+      name: 'Firewall',
+      command: { exec: 'ufw status numbered', parseMode: 'auto' },
+      schema: 'FirewallStatus',
+      renderer: 'custom',
+      actions: [
+        { id: 'add-rule', label: 'Add Rule', icon: 'plus', command: 'ufw {action} {port}/{proto}', variant: 'default' },
+        { id: 'delete-rule', label: 'Delete Rule', icon: 'trash-2', command: 'ufw delete {num}', confirm: true, variant: 'danger' },
+        { id: 'toggle', label: 'Toggle Firewall', icon: 'shield', command: 'ufw {enable|disable}', confirm: true, variant: 'default' },
+      ],
+    },
+    {
+      id: 'security',
+      name: 'Security',
+      command: { exec: '__MULTI__', parseMode: 'auto' },  // /etc/passwd, who, last, sshd_config
+      schema: 'SecurityInfo',
+      renderer: 'custom',
+    },
+    {
+      id: 'webserver',
+      name: 'Web Server',
+      command: { exec: '__MULTI__', parseMode: 'auto' },  // nginx -T, sites, certbot
+      schema: 'WebServerInfo',
+      renderer: 'custom',
+    },
+    {
+      id: 'packages',
+      name: 'Packages',
+      command: { exec: '__MULTI__', parseMode: 'auto' },  // apt list --upgradable, dpkg -l
+      schema: 'PackageInfo',
+      renderer: 'custom',
+    },
+    {
+      id: 'cron',
+      name: 'Cron Jobs',
+      command: { exec: 'crontab -l', parseMode: 'auto' },
+      schema: 'CronJobArray',
+      renderer: 'table',
+      columns: [
+        { key: 'schedule', label: 'Schedule', type: 'text' },
+        { key: 'command', label: 'Command', type: 'text' },
+        { key: 'description', label: 'Description', type: 'text' },
+      ],
+    },
+    {
+      id: 'logs',
+      name: 'Logs',
+      command: { exec: 'journalctl -n 100 --no-pager', parseMode: 'auto' },
+      schema: 'LogEntryArray',
+      renderer: 'custom',
+    },
+    {
+      id: 'storage',
+      name: 'Storage',
+      command: { exec: '__MULTI__', parseMode: 'auto' },  // du, findmnt, swapon
+      schema: 'StorageInfo',
+      renderer: 'custom',
+    },
+  ],
+};
+```
+
 ## How to Add a New App
 
 ### Step-by-step:
