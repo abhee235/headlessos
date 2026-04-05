@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a2744"/>
+      <stop offset="20%" stop-color="#2a4a7f"/>
+      <stop offset="40%" stop-color="#5b8ec9"/>
+      <stop offset="55%" stop-color="#e8a87c"/>
+      <stop offset="65%" stop-color="#d47d5e"/>
+      <stop offset="80%" stop-color="#3b2a4a"/>
+      <stop offset="100%" stop-color="#1a1a2e"/>
+    </linearGradient>
+    <radialGradient id="sunGlow" cx="50%" cy="55%" r="35%">
+      <stop offset="0%" stop-color="#f7ba78" stop-opacity="0.40"/>
+      <stop offset="100%" stop-color="#f7ba78" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="hill1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2d1a3a" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#1a1028" stop-opacity="0.9"/>
+    </linearGradient>
+    <linearGradient id="hill2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#231640" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#12101e" stop-opacity="0.95"/>
+    </linearGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="2"/></filter>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#sky)"/>
+  <rect width="1920" height="1080" fill="url(#sunGlow)"/>
+  <!-- Rolling hills silhouette -->
+  <path d="M0 750 Q200 680 480 720 Q700 750 960 700 Q1200 660 1440 710 Q1700 740 1920 690 L1920 1080 L0 1080 Z" fill="url(#hill1)" filter="url(#soft)"/>
+  <path d="M0 800 Q300 760 600 790 Q900 810 1200 770 Q1500 750 1920 780 L1920 1080 L0 1080 Z" fill="url(#hill2)"/>
+  <!-- Foreground -->
+  <rect y="880" width="1920" height="200" fill="#12101e"/>
+  <rect y="870" width="1920" height="15" fill="#12101e" opacity="0.5" filter="url(#soft)"/>
+</svg>

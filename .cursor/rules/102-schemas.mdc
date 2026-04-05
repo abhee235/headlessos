@@ -1,0 +1,66 @@
+---
+description: Rules for Zod schema files used for validation and LLM structured output
+globs: server/src/parsers/schemas/**/*.ts,shared/**/*.ts
+---
+
+# Schema Rules
+
+## Zod is the Single Source of Truth
+- Every data structure that crosses a boundary (API response, parsed data, LLM output) MUST have a Zod schema
+- TypeScript types are DERIVED from Zod schemas using `z.infer<typeof Schema>`
+- NEVER define a TypeScript interface separately and a Zod schema separately — derive one from the other
+
+## Schema Pattern
+```typescript
+import { z } from 'zod';
+
+// Define the schema
+export const ContainerSchema = z.object({
+  id: z.string().regex(/^[a-f0-9]+$/),
+  name: z.string(),
+  image: z.string(),
+  status: z.enum(['running', 'stopped', 'paused', 'restarting']),
+  ports: z.array(z.object({
+    host: z.number().int().positive(),
+    container: z.number().int().positive(),
+    protocol: z.enum(['tcp', 'udp']),
+  })),
+  created: z.string().datetime(),
+});
+
+// Derive the TypeScript type
+export type Container = z.infer<typeof ContainerSchema>;
+
+// For arrays
+export const ContainerListSchema = z.array(ContainerSchema);
+export type ContainerList = z.infer<typeof ContainerListSchema>;
+```
+
+## Dual Purpose: Validation + LLM
+Schemas serve two roles:
+1. **Runtime validation**: `Schema.parse(data)` throws on invalid data
+2. **LLM structured output**: `zodResponseFormat(Schema, 'name')` for OpenAI
+
+When designing schemas, keep both uses in mind:
+- Use clear field names (LLM needs to understand the schema)
+- Add `.describe()` to ambiguous fields for LLM context
+- Keep schemas flat when possible — deeply nested schemas confuse LLMs
+
+## File Locations
+| Schema type | Location |
+|-------------|----------|
+| System schemas (CPU, memory, disk) | `server/src/parsers/schemas/system.ts` |
+| Docker schemas | `server/src/parsers/schemas/docker.ts` |
+| File schemas | `server/src/parsers/schemas/files.ts` |
+| Process schemas | `server/src/parsers/schemas/processes.ts` |
+| Service schemas | `server/src/parsers/schemas/services.ts` |
+| Network schemas | `server/src/parsers/schemas/network.ts` |
+| Shared types (API contracts) | `shared/types.ts` |
+
+## Rules
+- NEVER use `z.any()` — always be specific
+- NEVER skip validation — every parsed result gets `.parse()`
+- Prefer `z.enum()` over `z.string()` for known value sets
+- Use `z.coerce.number()` when parsing string numbers from terminal output
+- Add `.default()` for optional fields with sensible defaults
+- Export both the schema AND the inferred type

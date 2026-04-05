@@ -1,0 +1,109 @@
+---
+description: Rules for frontend React/TypeScript files in client/src/
+globs: client/src/**/*.{ts,tsx}
+---
+
+# Frontend Development Rules
+
+## Code Style
+- Functional React components with hooks — no class components
+- TailwindCSS for ALL styling — no CSS files, no CSS-in-JS, no inline styles
+- Zustand for state management — no Redux, no Context for global state
+- TypeScript strict mode — no `any` types
+
+## Component Patterns
+
+### App Views
+Each app (Dashboard, Files, Docker, etc.) follows this pattern:
+```typescript
+export function SomeView() {
+  const { serverId } = useActiveServer();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch data from backend
+  useEffect(() => { ... }, [serverId]);
+
+  // Always handle all 3 states:
+  if (loading) return <LoadingSpinner />;
+  if (error) return <ErrorState message={error} onRetry={...} />;
+  if (!data) return <EmptyState message="..." />;
+
+  return <Table columns={columns} data={data} />;
+}
+```
+
+### State Management (Zustand)
+```typescript
+// client/src/store/app-store.ts
+interface AppState {
+  servers: ServerConfig[];
+  activeServerId: string | null;
+  tabs: Tab[];
+  activeTabId: string | null;
+  terminalVisible: boolean;
+  // ... actions
+}
+```
+
+### Single-Instance Tabs
+Some tabs (Terminal, Dashboard) only allow one instance per server:
+```typescript
+openTab: (app) => {
+  const existing = get().tabs.find(t => t.appId === app.id && t.serverId === activeServerId);
+  if (existing && app.singleInstance) {
+    set({ activeTabId: existing.id });
+    return;
+  }
+  // Create new tab...
+}
+```
+
+## Security
+- NEVER use `dangerouslySetInnerHTML` with terminal output
+- Terminal output goes through xterm.js only (handles ANSI safely)
+- All data comes from the backend — frontend never calls APIs directly to remote servers
+- No frontend polling — backend handles poll intervals and caching
+
+## UI Components
+- Reusable primitives go in `client/src/components/ui/`
+- App-specific components go in `client/src/components/{AppName}/`
+- Use Lucide React for icons
+- Dark theme via TailwindCSS dark mode
+- Context menus for all data views (files, containers, processes)
+
+## AppWindow (Modal Dialogs — MANDATORY)
+**All overlay/dialog/window UI MUST use `AppWindow`** from `@/components/ui/app-window`.
+See `docs/UI_DESIGN.md` for full design system reference.
+
+Sizes: xs (380×260), sm (480×400), md (680×520), lg (900×620), xl (1100×720)
+
+```tsx
+<AppWindow open={open} onOpenChange={setOpen} title="Title" icon={Icon} size="lg">
+  <AppWindow.Sidebar width={200}>
+    <AppWindow.SidebarGroup label="Section">
+      <AppWindow.SidebarItem id="x" icon={Icon} label="Label" active onClick={...} />
+    </AppWindow.SidebarGroup>
+  </AppWindow.Sidebar>
+  <AppWindow.Toolbar>{/* actions */}</AppWindow.Toolbar>
+  <AppWindow.Body>{/* content */}</AppWindow.Body>
+  <AppWindow.Footer>{/* status */}</AppWindow.Footer>
+</AppWindow>
+```
+
+Sidebar, Toolbar, Footer are optional. Use `noPadding` on Body for terminal/grids.
+
+## File Locations
+| Purpose | Path |
+|---------|------|
+| App entry | `client/src/App.tsx` |
+| Layout | `client/src/components/Shell/` |
+| Dashboard | `client/src/components/Dashboard/` |
+| File Explorer | `client/src/components/FileExplorer/` |
+| Docker | `client/src/components/Docker/` |
+| Terminal | `client/src/components/Terminal/` |
+| Reusable UI | `client/src/components/ui/` |
+| State | `client/src/store/` |
+| Hooks | `client/src/hooks/` |
+| Shared types | `shared/types.ts` |

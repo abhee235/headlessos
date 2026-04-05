@@ -1,0 +1,75 @@
+---
+description: Project context and architecture rules — always active for all files
+globs:
+alwaysApply: true
+---
+
+# HeadlessOS Project Context
+
+## What Is This Project?
+
+A **localhost web application** that connects to Linux VPS servers via SSH, runs commands, parses terminal output using LLMs, and renders the results as a visual UI.
+
+**Nothing is installed on the server.** Zero server footprint. All intelligence runs locally.
+
+## Architecture
+
+```
+Browser (React 19, localhost:3000)
+    ↕ HTTP REST + WebSocket
+Fastify Backend (Node.js, localhost:3001)
+    ↕ SSH (ssh2 library)
+Remote VPS (unchanged, standard sshd)
+```
+
+Backend pipeline: Command Orchestrator → SSH exec → ANSI strip → deterministic parser / LLM → Zod validate → typed JSON
+
+## Tech Stack
+
+- Backend: Node.js + Fastify + TypeScript (strict mode)
+- SSH: `ssh2` directly (NOT node-ssh or wrappers)
+- LLM: OpenAI SDK with `zodResponseFormat()`, provider-agnostic `LLMProvider` interface
+- Frontend: React 19 + Vite + TailwindCSS 4 + Zustand
+- Terminal: xterm.js via WebSocket
+- Schema: Zod (types + validation + LLM JSON schema)
+- Testing: Vitest
+
+## Key Architectural Patterns
+
+1. **Service Container** — all backend modules are services registered in `ServiceContainer` (ADR-011)
+2. **Command Orchestrator** — multi-command parallel exec, retry with error context, fallback chains (ADR-013)
+3. **Parsing Pipeline** — ANSI strip → deterministic parser → LLM fallback → Zod validate
+4. **Plugin-Ready App Registry** — each app is a self-contained module (ADR-012)
+
+## Documentation Map
+
+| Doc | Purpose |
+|-----|---------|
+| `docs/CONTEXT.md` | 2-min AI briefing |
+| `docs/ARCHITECTURE.md` | System design, data flow, patterns |
+| `docs/IMPLEMENTATION_INDEX.md` | Phase overview + task ID system |
+| `docs/phases/phase-{0-5}.md` | Detailed per-phase task specs |
+| `docs/TRACEABILITY.md` | Task → files → commits audit trail |
+| `docs/PROGRESS.md` | Live task tracker (update after every task!) |
+| `docs/DECISIONS.md` | Architecture Decision Records (ADR-001 to ADR-014) |
+| `docs/API_SPEC.md` | REST + WebSocket API reference |
+| `docs/LLM_STRATEGY.md` | LLM integration, parsing, cost optimization |
+| `docs/SECURITY.md` | Threat model, validation rules |
+| `docs/TESTING.md` | Test strategy, fixtures |
+| `docs/APP_REGISTRY.md` | App abstraction schema |
+| `AGENTS.md` | AI assistant rules |
+
+## Task ID Convention
+
+Every task has an ID: `M{milestone}.{task}` (e.g., `M1.4`)
+
+Used in: phase docs, PROGRESS.md, TRACEABILITY.md, git commits (`feat(M1.4): ...`), code comments (`// M1.4: ...`)
+
+## Critical Rules
+
+1. NEVER interpolate user input into shell commands
+2. File operations use SFTP, not shell commands
+3. Every parsed output is Zod-validated
+4. All backend modules are Services in the ServiceContainer
+5. Deterministic parsing preferred over LLM
+6. Backend listens on localhost only

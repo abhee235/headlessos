@@ -1,0 +1,12 @@
+# HeadlessOS — Local Dev SSH Server
+# Start:   docker compose up -d
+# Stop:    docker compose down
+# SSH:     ssh testuser@localhost -p 2222  (password: testpass)
+
+services:
+  ssh-server:
+    build: ./ssh-server
+    container_name: headlessos-dev-ssh
+    ports:
+      - "2222:22"
+    restart: unless-stopped
