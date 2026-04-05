@@ -24,6 +24,7 @@ export function FileExplorerView({ serverId }: FileExplorerViewProps) {
   const [error, setError] = useState<string | null>(null);
   const [viewingFile, setViewingFile] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>(() => usePreferencesStore.getState().explorerViewMode);
+  const [selectedCount, setSelectedCount] = useState(0);
 
   // Ref to expose FileList's startCreate to the toolbar
   const startCreateRef = useRef<((type: 'file' | 'folder') => void) | null>(null);
@@ -219,6 +220,7 @@ export function FileExplorerView({ serverId }: FileExplorerViewProps) {
               viewMode={viewMode}
               onViewModeChange={handleViewModeChange}
               onStartCreateRef={startCreateRef}
+              onSelectionChange={setSelectedCount}
             />
           )}
         </div>
@@ -226,7 +228,10 @@ export function FileExplorerView({ serverId }: FileExplorerViewProps) {
         {/* Status bar */}
         <div className="flex items-center justify-between px-3 py-1 border-t border-border/20 text-[11px] text-foreground/40">
           <span className="truncate max-w-[40%]">{currentPath}</span>
-          <span className="shrink-0">{entries.length} {entries.length === 1 ? 'item' : 'items'}</span>
+          <span className="shrink-0">
+            {entries.length} {entries.length === 1 ? 'item' : 'items'}
+            {selectedCount > 0 && ` | ${selectedCount} selected`}
+          </span>
         </div>
       </div>
     </div>

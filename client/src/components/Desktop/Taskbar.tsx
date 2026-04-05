@@ -27,6 +27,7 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { useThemeStore } from '../../store/theme-store';
+import { usePreferencesStore } from '../../store/preferences-store';
 import {
   Tooltip,
   TooltipContent,
@@ -75,6 +76,7 @@ const ALL_APP_ICONS: Record<string, React.ComponentType<{ size?: number }>> = {
 
 function Clock() {
   const [time, setTime] = useState(new Date());
+  const dateFormat = usePreferencesStore((s) => s.dateFormat);
 
   useEffect(() => {
     const interval = setInterval(() => setTime(new Date()), 1000);
@@ -84,7 +86,7 @@ function Clock() {
   const timeStr = time.toLocaleTimeString([], {
     hour: 'numeric',
     minute: '2-digit',
-    hour12: true,
+    hour12: dateFormat === '12h',
   });
   const dateStr = time.toLocaleDateString([], {
     day: 'numeric',
@@ -119,7 +121,7 @@ function Clock() {
 // ─── Theme toggle ────────────────────────────────────────────────────────────
 
 function ThemeToggle() {
-  const { theme, toggleTheme } = useThemeStore();
+  const { resolvedTheme, toggleTheme } = useThemeStore();
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -127,7 +129,7 @@ function ThemeToggle() {
           className="flex items-center justify-center w-9 h-9 rounded-md hover:bg-foreground/5 transition-colors"
           onClick={toggleTheme}
         >
-          {theme === 'dark' ? (
+          {resolvedTheme === 'dark' ? (
             <Sun className="w-4 h-4 text-foreground/80" />
           ) : (
             <Moon className="w-4 h-4 text-foreground/80" />
@@ -135,7 +137,7 @@ function ThemeToggle() {
         </button>
       </TooltipTrigger>
       <TooltipContent side="top" sideOffset={10}>
-        {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+        {resolvedTheme === 'dark' ? 'Light mode' : 'Dark mode'}
       </TooltipContent>
     </Tooltip>
   );

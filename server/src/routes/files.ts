@@ -300,6 +300,56 @@ export async function fileRoutes(
     const stream = sftp.createReadStream(filePath);
     return reply.send(stream);
   });
+
+  // ── POST /api/servers/:id/files/copy — copy file/dir (exec cp) ──
+
+  fastify.post<{
+    Params: { id: string };
+    Body: { sourcePath: string; destPath: string };
+  }>('/api/servers/:id/files/copy', async (req) => {
+    const { id } = req.params;
+    const source = requireValidPath(req.body.sourcePath, 'sourcePath');
+    const dest = requireValidPath(req.body.destPath, 'destPath');
+
+    const command = `cp -r ${shellEscapeForCopy(source)} ${shellEscapeForCopy(dest)}`;
+    const result = await connectionManager.exec(id, command, 60_000);
+    if (result.exitCode !== 0) {
+      throw Object.assign(
+        new Error(`Copy failed: ${result.stderr.trim() || 'exit code ' + result.exitCode}`),
+        { statusCode: 500 },
+      );
+    }
+    return { success: true };
+  });
+
+  // ── POST /api/servers/:id/files/move — move/rename file/dir ──
+
+  fastify.post<{
+    Params: { id: string };
+    Body: { sourcePath: string; destPath: string };
+  }>('/api/servers/:id/files/move', async (req) => {
+    const { id } = req.params;
+    const source = requireValidPath(req.body.sourcePath, 'sourcePath');
+    const dest = requireValidPath(req.body.destPath, 'destPath');
+    const sftp = await requireSftp(id);
+
+    // sftp.rename works for move (same as mv)
+    return new Promise<{ success: boolean }>((resolve, reject) => {
+      sftp.rename(source, dest, (err) => {
+        if (err) return reject(new Error(`Move failed: ${err.message}`));
+        resolve({ success: true });
+      });
+    });
+  });
+}
+
+// ── Helpers ─────────────────────────────────────────────
+
+/** Escape a validated absolute path for use in shell commands (copy only) */
+function shellEscapeForCopy(path: string): string {
+  // Path has already been validated by requireValidPath, so it's a clean absolute path
+  // Wrap in single quotes and escape any single quotes within
+  return "'" + path.replace(/'/g, "'\\''") + "'";
 }
 
 // ── Helpers ─────────────────────────────────────────────

@@ -3,18 +3,26 @@
 
 import { Toaster as Sonner } from "sonner";
 import { useThemeStore } from "@/store/theme-store";
+import { usePreferencesStore } from "@/store/preferences-store";
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
 function Toaster({ ...props }: ToasterProps) {
-  const theme = useThemeStore((s) => s.theme);
+  const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
+  const toastPosition = usePreferencesStore((s) => s.toastPosition);
+  const showToasts = usePreferencesStore((s) => s.showToasts);
+
+  // When user disables notifications, don't render the toast container at all
+  if (!showToasts) return null;
+
+  const bottomOffset = toastPosition === 'bottom-right' ? 56 : 12;
 
   return (
     <Sonner
-      theme={theme}
+      theme={resolvedTheme}
       className="toaster group"
-      position="bottom-right"
-      offset={{ right: 12, bottom: 56 }}
+      position={toastPosition}
+      offset={{ right: 12, bottom: bottomOffset }}
       toastOptions={{
         classNames: {
           toast:

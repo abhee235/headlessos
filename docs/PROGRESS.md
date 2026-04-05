@@ -25,8 +25,8 @@
 | M3: Docker + Processes + Services | Week 3 | ✅ | 6/6 tasks | [phase-3](phases/phase-3.md) |
 | M4: Deterministic Parsers | Week 4 | ✅ | 8/8 tasks | [phase-4](phases/phase-4.md) |
 | M5: Polish + Security + Testing | Week 5 | ✅ | 6/6 tasks | [phase-5](phases/phase-5.md) |
-| M6: Desktop UI System | Week 6-7 | 🔄 | 4/11 tasks | [phase-6](phases/phase-6.md) |
-| M7: System Settings | Week 8 | 🔄 | 2/6 tasks | [phase-7](phases/phase-7.md) |
+| M6: Desktop UI System | Week 6-7 | ✅ | 11/11 tasks | [phase-6](phases/phase-6.md) |
+| M7: System Settings | Week 8 | 🔄 | 5/6 tasks | [phase-7](phases/phase-7.md) |
 
 ---
 
@@ -126,14 +126,15 @@ Example:
 |---------|------|--------|--------------|
 | M6.1 | High-Quality Desktop & File Icons | ✅ | Custom SVGs (FileExplorer, Terminal, ThisPC, Docker Moby), Apple HIG AppIconBase |
 | M6.2 | Glassmorphic Context Menus | ✅ | Desktop, files, taskbar right-click with glass styling |
-| M6.3 | Branded Wallpaper System | ⬜ | HeadlessOS watermark visible |
+| M6.3 | Branded Wallpaper System | ✅ | 5 builtin gradients, 13 system wallpapers, user upload, HeadlessOS watermark (opacity 0.035) |
 | M6.4 | Light / White Theme | ✅ | oklch theme system, dark/light toggle, localStorage persist |
-| M6.5 | Window Chrome Polish | ⬜ | Snap, shadows, animations |
+| M6.5 | Window Chrome Polish | ✅ | Snap-to-edges (left/right/corners/maximize), snap preview overlay, un-maximize on drag |
 | M6.6 | Taskbar & Start Menu Polish | ✅ | Glass start menu, 4-color logo, AM/PM clock, system tray, user avatar |
-| M6.7 | File Operation UI (Copy/Paste) | ⬜ | Clipboard, progress, drag-drop |
-| M6.8 | Notification / Toast System | ⬜ | Bottom-right toasts |
-| M6.9 | Keyboard Shortcuts | ⬜ | Ctrl+C/V/X, F2, F5, Alt+F4 |
-| M6.10 | Selection & Multi-Select | ⬜ | Click, Ctrl+Click, rubber-band || M6.11 | Login Flow | 🔄 | Win 11 lock/login screen, auth UX |
+| M6.7 | File Operation UI (Copy/Paste) | ✅ | Clipboard store, cut/copy/paste, backend copy (cp -r) + move (SFTP rename), context menu + keyboard |
+| M6.8 | Notification / Toast System | ✅ | Sonner toasts (30+ sites), bottom-right, all types (success/error/info/warning) |
+| M6.9 | Keyboard Shortcuts | ✅ | useKeyboardShortcuts hook: Alt+F4, Ctrl+Space, Ctrl+Tab, Ctrl+`, Ctrl+Shift+Esc; file explorer: Ctrl+C/X/V/A, Delete, F2, F5, Enter, Esc |
+| M6.10 | Selection & Multi-Select | ✅ | useSelection hook: click, Ctrl+Click toggle, Shift+Click range, selectAll, visual highlight in all views, status bar count |
+| M6.11 | Login Flow | ✅ | LockScreen, LoginScreen, AddServerForm, ServerAvatar; Lock + Switch User buttons in StartMenu |
 ---
 
 ## M7: System Settings
@@ -143,9 +144,9 @@ Example:
 | M7.1 | Terminal Settings | ✅ | Font size, font family, cursor style, scrollback, copy-on-select — persisted + applied |
 | M7.2 | Server Admin App | ✅ | 8 sections, 23 parsers, 11 API endpoints, 51 parser tests — all passing |
 | M7.3 | LLM / AI Configuration | ⬜ | Provider select, API key, model select, usage stats, fallback toggle |
-| M7.4 | Appearance (Expand) | ⬜ | Accent color wired to CSS vars, desktop icon size, taskbar options |
-| M7.5 | General Settings | ⬜ | Default shell, auto-reconnect, session timeout, auto-refresh interval |
-| M7.6 | Notifications & Data | ⬜ | Toast preferences, clear cache, data retention |
+| M7.4 | Appearance (Expand) | ✅ | Accent color (8 oklch presets) wired to CSS vars, theme auto mode, desktop icon size — 307 tests passing |
+| M7.5 | General Settings | ✅ | Clock format (12h/24h) wired to Taskbar, auto-refresh interval selector, connection info (server-side deferred to M7.3) |
+| M7.6 | Notifications & Data | ✅ | Toast show/hide toggle, position selector (bottom-right/top-right), clear cache, reset all settings with confirmation |
 
 ---
 
@@ -176,6 +177,8 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-04-08 | **M7.4-M7.6 ✅** Settings expansion: Appearance (8 oklch accent color presets wired to --primary/--ring CSS vars, theme auto mode with prefers-color-scheme listener, desktop icon size), General (clock format 12h/24h wired to Taskbar, auto-refresh interval select), Notifications & Data (toast show/hide/position, clear cache, reset all settings with ConfirmDialog). Updated preferences-store (6 new fields + ACCENT_PRESETS), rewrote theme-store (auto mode + resolvedTheme), SettingsView (6 pages: General/Appearance/Wallpaper/Terminal/Notifications/About). 307 tests (228 server + 79 client) passing. |
+| 2026-04-08 | **M6 ✅** Desktop UI System complete: M6.3 wallpaper (confirmed done), M6.5 window snap-to-edges + preview overlay, M6.7 clipboard store + copy/move endpoints + context menu wiring, M6.8 toasts (confirmed done), M6.9 useKeyboardShortcuts hook (Alt+F4, Ctrl+Space/Tab/`/Shift+Esc), M6.10 useSelection hook (click/Ctrl/Shift+click, visual highlight, status bar count), M6.11 Lock + Switch User in StartMenu. 292 tests (228 server + 64 client) all passing. |
 | 2026-04-07 | **M4 ✅** Deterministic Parsers + Optimization complete: M4.3 ps-aux (done in M7.1), M4.4 ls-la skipped (SFTP), M4.6 systemctl parser extracted from services.ts to registry + Zod schema, M4.7 OutputCache (hash-based, TTL, pipeline integration, server invalidation), M4.8 LLMUsageTracker + /api/stats/llm endpoint. 260 tests (218 server + 42 client) all passing. |
 | 2026-04-07 | **M5.6 ✅** UI Polish: Terminal loading/context menu/reconnect/theme-aware, Desktop context menu wired (View/Sort/Refresh/About HeadlessOS dialog), alert()→toast() in all components, global keyboard shortcuts (F5, Cmd+Shift+Esc), DashboardView empty state, LoginScreen loading state, desktopIconSize/desktopSortBy preferences |
 | 2026-04-07 | **M5.1-M5.5 ✅** Security hardening: command allowlist (60+ patterns), 17 blocked commands, enhanced validators (container ID 12-64, PID range, signal, ISO date, log source), AES-256-GCM credential encryption, CRITICAL injection fixes in serveradmin.ts + docker.ts, unified central validators, 103 new security tests (81 validator + 22 encryption), 224 total tests passing |

@@ -3,6 +3,8 @@
 
 import { create } from 'zustand';
 
+export type SnapZone = 'left' | 'right' | 'top-left' | 'top-right' | 'maximize' | null;
+
 export interface WindowState {
   id: string;
   appId: string;
@@ -16,6 +18,9 @@ export interface WindowState {
   width: number;
   height: number;
 
+  // Pre-snap position/size for restore
+  preSnap?: { x: number; y: number; width: number; height: number };
+
   // State
   minimized: boolean;
   maximized: boolean;
@@ -27,6 +32,7 @@ interface DesktopState {
   windows: WindowState[];
   nextZIndex: number;
   startMenuOpen: boolean;
+  snapPreview: SnapZone;
 
   // Actions
   openWindow: (appId: string, serverId: string, title: string, icon: string) => void;
@@ -37,6 +43,8 @@ interface DesktopState {
   restoreWindow: (id: string) => void;
   moveWindow: (id: string, x: number, y: number) => void;
   resizeWindow: (id: string, width: number, height: number) => void;
+  snapWindow: (id: string, zone: SnapZone) => void;
+  setSnapPreview: (zone: SnapZone) => void;
   toggleStartMenu: () => void;
   closeStartMenu: () => void;
 }
@@ -59,6 +67,7 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
   windows: [],
   nextZIndex: 100,
   startMenuOpen: false,
+  snapPreview: null,
 
   openWindow: (appId, serverId, title, icon) => {
     const state = get();
@@ -82,16 +91,25 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
     const offset = (windowCounter % 8) * 32;
     const newZ = state.nextZIndex;
 
+    // Clamp initial position & size to viewport
+    const taskbarH = 56;
+    const screenW = window.innerWidth;
+    const screenH = window.innerHeight - taskbarH;
+    const winW = Math.min(defaults.width, screenW - 40);
+    const winH = Math.min(defaults.height, screenH - 40);
+    const winX = Math.min(120 + offset, screenW - winW - 20);
+    const winY = Math.min(60 + offset, screenH - 80);
+
     const win: WindowState = {
       id: `win-${windowCounter}`,
       appId,
       serverId,
       title,
       icon,
-      x: 120 + offset,
-      y: 60 + offset,
-      width: defaults.width,
-      height: defaults.height,
+      x: Math.max(0, winX),
+      y: Math.max(0, winY),
+      width: winW,
+      height: winH,
       minimized: false,
       maximized: false,
       focused: true,
@@ -164,31 +182,117 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
   restoreWindow: (id) => {
     set(s => {
       const newZ = s.nextZIndex;
+      const taskbarH = 56;
+      const screenW = window.innerWidth;
+      const screenH = window.innerHeight - taskbarH;
+      const TITLE_BAR_H = 40;
+      const MIN_VISIBLE_X = 100;
+
       return {
-        windows: s.windows.map(w =>
-          w.id === id
-            ? { ...w, minimized: false, maximized: false, focused: true, zIndex: newZ }
-            : { ...w, focused: false },
-        ),
+        windows: s.windows.map(w => {
+          if (w.id !== id) return { ...w, focused: false };
+          const restored = w.preSnap ?? { x: w.x, y: w.y, width: w.width, height: w.height };
+          // Clamp restored position to current viewport
+          const clampedX = Math.min(
+            Math.max(restored.x, -(restored.width - MIN_VISIBLE_X)),
+            screenW - MIN_VISIBLE_X,
+          );
+          const clampedY = Math.min(
+            Math.max(restored.y, 0),
+            screenH - TITLE_BAR_H,
+          );
+          return {
+            ...w,
+            x: clampedX,
+            y: clampedY,
+            width: Math.min(restored.width, screenW),
+            height: Math.min(restored.height, screenH),
+            preSnap: undefined,
+            minimized: false,
+            maximized: false,
+            focused: true,
+            zIndex: newZ,
+          };
+        }),
         nextZIndex: newZ + 1,
       };
     });
   },
 
   moveWindow: (id, x, y) => {
+    // Clamp position so the window title bar is always reachable
+    const taskbarH = 56;
+    const screenW = window.innerWidth;
+    const screenH = window.innerHeight - taskbarH;
+    const TITLE_BAR_H = 40;
+    const MIN_VISIBLE_X = 100; // at least 100px visible horizontally
+
     set(s => ({
-      windows: s.windows.map(w =>
-        w.id === id ? { ...w, x, y } : w,
-      ),
+      windows: s.windows.map(w => {
+        if (w.id !== id) return w;
+        // Horizontal: keep at least MIN_VISIBLE_X px of the window visible
+        const clampedX = Math.min(
+          Math.max(x, -(w.width - MIN_VISIBLE_X)),
+          screenW - MIN_VISIBLE_X,
+        );
+        // Vertical: top can't go above 0, bottom of title bar must stay in viewport
+        const clampedY = Math.min(
+          Math.max(y, 0),
+          screenH - TITLE_BAR_H,
+        );
+        return { ...w, x: clampedX, y: clampedY };
+      }),
     }));
   },
 
   resizeWindow: (id, width, height) => {
+    const taskbarH = 56;
+    const screenW = window.innerWidth;
+    const screenH = window.innerHeight - taskbarH;
     set(s => ({
-      windows: s.windows.map(w =>
-        w.id === id ? { ...w, width: Math.max(400, width), height: Math.max(300, height) } : w,
-      ),
+      windows: s.windows.map(w => {
+        if (w.id !== id) return w;
+        // Clamp: min 400x300, max to fill viewport from current position
+        const clampedW = Math.min(Math.max(400, width), screenW - w.x);
+        const clampedH = Math.min(Math.max(300, height), screenH - w.y);
+        return { ...w, width: clampedW, height: clampedH };
+      }),
     }));
+  },
+
+  snapWindow: (id, zone) => {
+    if (!zone) return;
+    const taskbarH = 56;
+    const screenW = window.innerWidth;
+    const screenH = window.innerHeight - taskbarH;
+
+    set(s => ({
+      snapPreview: null,
+      windows: s.windows.map(w => {
+        if (w.id !== id) return w;
+        // Save pre-snap dimensions (only if not already snapped/maximized)
+        const preSnap = w.preSnap ?? { x: w.x, y: w.y, width: w.width, height: w.height };
+
+        switch (zone) {
+          case 'maximize':
+            return { ...w, preSnap, maximized: true };
+          case 'left':
+            return { ...w, preSnap, maximized: false, x: 0, y: 0, width: Math.round(screenW / 2), height: screenH };
+          case 'right':
+            return { ...w, preSnap, maximized: false, x: Math.round(screenW / 2), y: 0, width: Math.round(screenW / 2), height: screenH };
+          case 'top-left':
+            return { ...w, preSnap, maximized: false, x: 0, y: 0, width: Math.round(screenW / 2), height: Math.round(screenH / 2) };
+          case 'top-right':
+            return { ...w, preSnap, maximized: false, x: Math.round(screenW / 2), y: 0, width: Math.round(screenW / 2), height: Math.round(screenH / 2) };
+          default:
+            return w;
+        }
+      }),
+    }));
+  },
+
+  setSnapPreview: (zone) => {
+    set({ snapPreview: zone });
   },
 
   toggleStartMenu: () => {

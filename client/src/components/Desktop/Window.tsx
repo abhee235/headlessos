@@ -2,7 +2,7 @@
 // @see docs/phases/phase-6.md
 
 import { useRef, useCallback, type ReactNode, type MouseEvent as ReactMouseEvent } from 'react';
-import { useDesktopStore, type WindowState } from '../../store/window-store';
+import { useDesktopStore, type WindowState, type SnapZone } from '../../store/window-store';
 import {
   Minus,
   Square,
@@ -64,15 +64,43 @@ export function WindowFrame({ win, children }: WindowFrameProps) {
     restoreWindow,
     moveWindow,
     resizeWindow,
+    snapWindow,
+    setSnapPreview,
   } = useDesktopStore();
 
   const dragRef = useRef<{ startX: number; startY: number; winX: number; winY: number } | null>(null);
   const resizeRef = useRef<{ startX: number; startY: number; winW: number; winH: number } | null>(null);
 
+  // ── Detect snap zone from cursor position ──
+  const detectSnapZone = useCallback((clientX: number, clientY: number): SnapZone => {
+    const EDGE = 8; // px from edge to trigger snap
+    const screenW = window.innerWidth;
+    const atLeft = clientX <= EDGE;
+    const atRight = clientX >= screenW - EDGE;
+    const atTop = clientY <= EDGE;
+
+    if (atTop && atLeft) return 'top-left';
+    if (atTop && atRight) return 'top-right';
+    if (atTop) return 'maximize';
+    if (atLeft) return 'left';
+    if (atRight) return 'right';
+    return null;
+  }, []);
+
   // ── Drag handler (title bar) ──
   const handleDragStart = useCallback(
     (e: ReactMouseEvent) => {
-      if (win.maximized) return;
+      // If maximized, un-maximize and re-position proportionally
+      if (win.maximized) {
+        const ratio = e.clientX / window.innerWidth;
+        const newW = win.preSnap?.width ?? 800;
+        const newX = e.clientX - newW * ratio;
+        restoreWindow(win.id);
+        // Small delay so restore takes effect
+        requestAnimationFrame(() => {
+          moveWindow(win.id, Math.max(0, newX), 0);
+        });
+      }
       e.preventDefault();
       focusWindow(win.id);
 
@@ -88,18 +116,26 @@ export function WindowFrame({ win, children }: WindowFrameProps) {
         const dx = ev.clientX - dragRef.current.startX;
         const dy = ev.clientY - dragRef.current.startY;
         moveWindow(win.id, dragRef.current.winX + dx, dragRef.current.winY + dy);
+        // Detect snap zone while dragging
+        setSnapPreview(detectSnapZone(ev.clientX, ev.clientY));
       };
 
-      const handleUp = () => {
+      const handleUp = (ev: globalThis.MouseEvent) => {
         dragRef.current = null;
         window.removeEventListener('mousemove', handleMove);
         window.removeEventListener('mouseup', handleUp);
+        // Apply snap if cursor ended on an edge
+        const zone = detectSnapZone(ev.clientX, ev.clientY);
+        setSnapPreview(null);
+        if (zone) {
+          snapWindow(win.id, zone);
+        }
       };
 
       window.addEventListener('mousemove', handleMove);
       window.addEventListener('mouseup', handleUp);
     },
-    [win.id, win.x, win.y, win.maximized, focusWindow, moveWindow],
+    [win.id, win.x, win.y, win.maximized, win.preSnap, focusWindow, moveWindow, restoreWindow, snapWindow, setSnapPreview, detectSnapZone],
   );
 
   // ── Resize handler (bottom-right corner) ──

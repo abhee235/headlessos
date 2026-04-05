@@ -1,6 +1,6 @@
-// M6.4: Settings — macOS System Settings–style settings window
-// Sidebar navigation, wallpaper picker, appearance, about
-// @see docs/phases/phase-6.md
+// M7.4-M7.6: Settings — macOS System Settings–style settings window
+// Sidebar navigation, wallpaper picker, appearance, general, terminal, notifications, about
+// @see docs/phases/phase-7.md
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -13,8 +13,11 @@ import {
   Trash2,
   Monitor,
   TerminalSquare,
+  Settings2,
+  Bell,
 } from 'lucide-react';
-import { usePreferencesStore, type CursorStyle } from '../../store/preferences-store';
+import { usePreferencesStore, ACCENT_PRESETS, type CursorStyle, type DateFormat, type ToastPosition } from '../../store/preferences-store';
+import { useThemeStore, type Theme } from '../../store/theme-store';
 import {
   BUILTIN_WALLPAPERS,
   fetchWallpapers,
@@ -26,10 +29,12 @@ import {
 } from './wallpapers';
 import { WallpaperPreview } from './Wallpaper';
 import { cn } from '../../lib/utils';
+import { ConfirmDialog } from '../ui/confirm-dialog';
+import { toast } from 'sonner';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type PageId = 'wallpaper' | 'appearance' | 'terminal' | 'about';
+type PageId = 'general' | 'appearance' | 'wallpaper' | 'terminal' | 'notifications' | 'about';
 
 interface SidebarEntry {
   id: PageId;
@@ -40,10 +45,10 @@ interface SidebarEntry {
 
 const SIDEBAR: SidebarEntry[] = [
   {
-    id: 'wallpaper',
-    label: 'Wallpaper',
-    icon: <Image size={14} className="text-white" />,
-    iconBg: 'bg-cyan-500',
+    id: 'general',
+    label: 'General',
+    icon: <Settings2 size={14} className="text-white" />,
+    iconBg: 'bg-zinc-500',
   },
   {
     id: 'appearance',
@@ -52,10 +57,22 @@ const SIDEBAR: SidebarEntry[] = [
     iconBg: 'bg-indigo-500',
   },
   {
+    id: 'wallpaper',
+    label: 'Wallpaper',
+    icon: <Image size={14} className="text-white" />,
+    iconBg: 'bg-cyan-500',
+  },
+  {
     id: 'terminal',
     label: 'Terminal',
     icon: <TerminalSquare size={14} className="text-white" />,
     iconBg: 'bg-zinc-800',
+  },
+  {
+    id: 'notifications',
+    label: 'Notifications',
+    icon: <Bell size={14} className="text-white" />,
+    iconBg: 'bg-rose-500',
   },
   {
     id: 'about',
@@ -381,15 +398,16 @@ function WallpaperPage() {
 
 // ─── Appearance Page ────────────────────────────────────────────────────────
 
-const ACCENT_COLORS = [
-  { name: 'Blue', value: '#3b82f6' },
-  { name: 'Purple', value: '#8b5cf6' },
-  { name: 'Pink', value: '#ec4899' },
-  { name: 'Red', value: '#ef4444' },
-  { name: 'Orange', value: '#f97316' },
-  { name: 'Yellow', value: '#eab308' },
-  { name: 'Green', value: '#22c55e' },
-  { name: 'Teal', value: '#14b8a6' },
+// Hex approximations for visual swatches (ACCENT_PRESETS in oklch are used for actual CSS vars)
+const ACCENT_SWATCH_COLORS = [
+  '#3b82f6', // Blue
+  '#8b5cf6', // Purple
+  '#ec4899', // Pink
+  '#ef4444', // Red
+  '#f97316', // Orange
+  '#eab308', // Yellow
+  '#22c55e', // Green
+  '#14b8a6', // Teal
 ];
 
 function ThemeMiniPreview({ mode }: { mode: 'light' | 'dark' | 'auto' }) {
@@ -439,20 +457,11 @@ function ThemeMiniPreview({ mode }: { mode: 'light' | 'dark' | 'auto' }) {
 }
 
 function AppearancePage() {
-  const [theme, setTheme] = useState<'light' | 'dark' | 'auto'>(() => {
-    return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-  });
-  const [accentIdx, setAccentIdx] = useState(0);
-
-  const applyTheme = (mode: 'light' | 'dark' | 'auto') => {
-    setTheme(mode);
-    const root = document.documentElement;
-    if (mode === 'dark' || (mode === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-  };
+  const { theme, setTheme } = useThemeStore();
+  const accentIdx = usePreferencesStore((s) => s.accentColorIndex);
+  const setAccentIdx = usePreferencesStore((s) => s.setAccentColorIndex);
+  const desktopIconSize = usePreferencesStore((s) => s.desktopIconSize);
+  const setDesktopIconSize = usePreferencesStore((s) => s.setDesktopIconSize);
 
   return (
     <div className="space-y-6">
@@ -463,7 +472,7 @@ function AppearancePage() {
           {(['light', 'dark', 'auto'] as const).map((mode) => (
             <button
               key={mode}
-              onClick={() => applyTheme(mode)}
+              onClick={() => setTheme(mode)}
               className="flex flex-col items-center gap-2"
             >
               <div
@@ -486,16 +495,16 @@ function AppearancePage() {
       <div>
         <SectionHeader title="Accent Color" />
         <div className="flex gap-2 flex-wrap">
-          {ACCENT_COLORS.map((color, idx) => (
+          {ACCENT_PRESETS.map((preset, idx) => (
             <button
-              key={color.name}
+              key={preset.name}
               onClick={() => setAccentIdx(idx)}
               className={cn(
                 'w-7 h-7 rounded-full flex items-center justify-center transition-transform',
                 accentIdx === idx && 'ring-2 ring-offset-2 ring-offset-background ring-primary scale-110',
               )}
-              style={{ background: color.value }}
-              title={color.name}
+              style={{ background: ACCENT_SWATCH_COLORS[idx] }}
+              title={preset.name}
             >
               {accentIdx === idx && <Check size={13} className="text-white drop-shadow" />}
             </button>
@@ -503,13 +512,29 @@ function AppearancePage() {
         </div>
       </div>
 
-      {/* ── Options ──────────────────────────── */}
+      {/* ── Desktop Icon Size ─────────────────── */}
       <div>
-        <SectionHeader title="Options" />
+        <SectionHeader title="Desktop" />
         <GroupedCard>
-          <GroupedRow label="Sidebar Icon Size" value="Default" chevron />
-          <GroupedRow label="Show Scroll Bars" value="Automatic" chevron />
-          <GroupedRow label="Allow Wallpaper Tinting" value="On" chevron last />
+          <div className="flex items-center justify-between px-3 py-2.5">
+            <span className="text-[13px] text-foreground">Desktop Icon Size</span>
+            <div className="flex gap-1">
+              {(['small', 'medium', 'large'] as const).map((size) => (
+                <button
+                  key={size}
+                  onClick={() => setDesktopIconSize(size)}
+                  className={cn(
+                    'px-2.5 py-1 rounded-md text-[12px] capitalize transition-colors',
+                    desktopIconSize === size
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                  )}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+          </div>
         </GroupedCard>
       </div>
     </div>
@@ -717,6 +742,263 @@ function TerminalPage() {
   );
 }
 
+// ─── Toggle Switch Primitive ────────────────────────────────────────────────
+
+function ToggleSwitch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={cn(
+        'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors',
+        checked ? 'bg-primary' : 'bg-muted',
+      )}
+    >
+      <span
+        className={cn(
+          'pointer-events-none block h-4 w-4 rounded-full bg-white shadow-sm transition-transform',
+          checked ? 'translate-x-4' : 'translate-x-0',
+        )}
+      />
+    </button>
+  );
+}
+
+// ─── General Page (M7.5) ────────────────────────────────────────────────────
+
+const AUTO_REFRESH_OPTIONS = [
+  { label: 'Off', value: 0 },
+  { label: '15 seconds', value: 15 },
+  { label: '30 seconds', value: 30 },
+  { label: '60 seconds', value: 60 },
+  { label: '120 seconds', value: 120 },
+] as const;
+
+function GeneralPage() {
+  const autoRefreshInterval = usePreferencesStore((s) => s.autoRefreshInterval);
+  const setAutoRefreshInterval = usePreferencesStore((s) => s.setAutoRefreshInterval);
+  const dateFormat = usePreferencesStore((s) => s.dateFormat);
+  const setDateFormat = usePreferencesStore((s) => s.setDateFormat);
+
+  return (
+    <div className="space-y-6">
+      {/* ── Display ──────────────────────────── */}
+      <div>
+        <SectionHeader title="Display" />
+        <GroupedCard>
+          <div className="flex items-center justify-between px-3 py-2.5">
+            <div>
+              <span className="text-[13px] text-foreground">Clock Format</span>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Affects taskbar clock display</p>
+            </div>
+            <div className="flex gap-1">
+              {([{ label: '12-hour', value: '12h' as DateFormat }, { label: '24-hour', value: '24h' as DateFormat }]).map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setDateFormat(opt.value)}
+                  className={cn(
+                    'px-2.5 py-1 rounded-md text-[12px] transition-colors',
+                    dateFormat === opt.value
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </GroupedCard>
+      </div>
+
+      {/* ── Data Refresh ─────────────────────── */}
+      <div>
+        <SectionHeader title="Data Refresh" />
+        <GroupedCard>
+          <div className="flex items-center justify-between px-3 py-2.5">
+            <div>
+              <span className="text-[13px] text-foreground">Auto-Refresh Interval</span>
+              <p className="text-[11px] text-muted-foreground mt-0.5">How often dashboard & file explorer refresh data</p>
+            </div>
+            <select
+              value={autoRefreshInterval}
+              onChange={(e) => setAutoRefreshInterval(Number(e.target.value))}
+              className="bg-transparent text-[13px] text-muted-foreground text-right cursor-pointer outline-none appearance-none pr-1 hover:text-foreground transition-colors"
+            >
+              {AUTO_REFRESH_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </GroupedCard>
+      </div>
+
+      {/* ── Info ──────────────────────────────── */}
+      <div>
+        <SectionHeader title="Connection" />
+        <GroupedCard>
+          <GroupedRow
+            label="Default Shell"
+            value="/bin/bash"
+          />
+          <GroupedRow
+            label="Auto-Reconnect"
+            value="On"
+          />
+          <GroupedRow
+            label="Session Timeout"
+            value="Never"
+            last
+          />
+        </GroupedCard>
+        <p className="text-[11px] text-muted-foreground mt-2">
+          Server-side connection settings will be configurable after LLM backend integration (M7.3).
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Notifications & Data Page (M7.6) ───────────────────────────────────────
+
+function NotificationsPage() {
+  const showToasts = usePreferencesStore((s) => s.showToasts);
+  const setShowToasts = usePreferencesStore((s) => s.setShowToasts);
+  const toastPosition = usePreferencesStore((s) => s.toastPosition);
+  const setToastPosition = usePreferencesStore((s) => s.setToastPosition);
+  const resetAllPreferences = usePreferencesStore((s) => s.resetAllPreferences);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [storageSize, setStorageSize] = useState('—');
+
+  useEffect(() => {
+    // Calculate approximate localStorage usage
+    try {
+      let total = 0;
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key) {
+          total += key.length + (localStorage.getItem(key)?.length ?? 0);
+        }
+      }
+      const kb = (total * 2) / 1024; // UTF-16 = 2 bytes per char
+      setStorageSize(kb < 1 ? `${(total * 2)} B` : `${kb.toFixed(1)} KB`);
+    } catch {
+      setStorageSize('Unknown');
+    }
+  }, []);
+
+  const handleClearCache = () => {
+    // Clear only HeadlessOS data, not all localStorage
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('headlessos-')) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+    toast.success('Cached data cleared', { description: `Removed ${keysToRemove.length} items` });
+    // Recalculate
+    setStorageSize('0 B');
+  };
+
+  const handleResetAll = () => {
+    resetAllPreferences();
+    // Also reset theme
+    const { setTheme } = useThemeStore.getState();
+    setTheme('dark');
+    toast.success('All settings reset to defaults');
+    setShowResetConfirm(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* ── Notifications ─────────────────────── */}
+      <div>
+        <SectionHeader title="Toast Notifications" />
+        <GroupedCard>
+          <div className="flex items-center justify-between px-3 py-2.5 border-b border-border">
+            <div>
+              <span className="text-[13px] text-foreground">Show Notifications</span>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Toast popups for actions like copy, delete, connect
+              </p>
+            </div>
+            <ToggleSwitch checked={showToasts} onChange={setShowToasts} />
+          </div>
+          <div className="flex items-center justify-between px-3 py-2.5">
+            <span className="text-[13px] text-foreground">Position</span>
+            <div className="flex gap-1">
+              {([{ label: 'Bottom Right', value: 'bottom-right' as ToastPosition }, { label: 'Top Right', value: 'top-right' as ToastPosition }]).map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setToastPosition(opt.value)}
+                  className={cn(
+                    'px-2.5 py-1 rounded-md text-[12px] transition-colors',
+                    toastPosition === opt.value
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </GroupedCard>
+      </div>
+
+      {/* ── Data ──────────────────────────────── */}
+      <div>
+        <SectionHeader title="Data & Storage" />
+        <GroupedCard>
+          <GroupedRow label="Local Storage Used" value={storageSize} />
+          <div className="flex items-center justify-between px-3 py-2.5 border-b border-border">
+            <div>
+              <span className="text-[13px] text-foreground">Clear Cached Data</span>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Remove all HeadlessOS data from browser storage
+              </p>
+            </div>
+            <button
+              onClick={handleClearCache}
+              className="px-3 py-1 rounded-md text-[12px] bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              Clear
+            </button>
+          </div>
+          <div className="flex items-center justify-between px-3 py-2.5">
+            <div>
+              <span className="text-[13px] text-destructive">Reset All Settings</span>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Restore all preferences to their default values
+              </p>
+            </div>
+            <button
+              onClick={() => setShowResetConfirm(true)}
+              className="px-3 py-1 rounded-md text-[12px] bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
+            >
+              Reset
+            </button>
+          </div>
+        </GroupedCard>
+      </div>
+
+      <ConfirmDialog
+        open={showResetConfirm}
+        onOpenChange={setShowResetConfirm}
+        title="Reset All Settings?"
+        description="This will restore all preferences (theme, accent color, terminal, notifications, wallpaper) to their default values. This cannot be undone."
+        confirmLabel="Reset All"
+        variant="destructive"
+        onConfirm={handleResetAll}
+      />
+    </div>
+  );
+}
 
 // ─── About Page ─────────────────────────────────────────────────────────────
 
@@ -759,7 +1041,7 @@ function AboutPage() {
 // ═════════════════════════════════════════════════════════════════════════════
 
 export function SettingsView() {
-  const [page, setPage] = useState<PageId>('wallpaper');
+  const [page, setPage] = useState<PageId>('general');
 
   return (
     <div className="flex h-full bg-background">
@@ -796,9 +1078,11 @@ export function SettingsView() {
           {SIDEBAR.find((s) => s.id === page)?.label}
         </h1>
 
+        {page === 'general' && <GeneralPage />}
         {page === 'wallpaper' && <WallpaperPage />}
         {page === 'appearance' && <AppearancePage />}
         {page === 'terminal' && <TerminalPage />}
+        {page === 'notifications' && <NotificationsPage />}
         {page === 'about' && <AboutPage />}
       </main>
     </div>

@@ -22,10 +22,12 @@ import {
   Info,
 } from 'lucide-react';
 import type { FileEntryData } from '../../lib/api';
-import { deleteFile, renameFile, createDirectory, writeFile } from '../../lib/api';
+import { deleteFile, renameFile, createDirectory, writeFile, copyFile, moveFile } from '../../lib/api';
 import type { ViewMode } from './ExplorerToolbar';
 import { FileIcon, FolderSVG } from '../ui/FileIcon';
 import { usePreferencesStore, type IconSize } from '../../store/preferences-store';
+import { useClipboardStore, type ClipboardEntry } from '../../store/clipboard-store';
+import { useSelection } from '../../hooks/useSelection';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -52,6 +54,8 @@ interface FileListProps {
   onViewModeChange?: (mode: ViewMode) => void;
   /** Expose startCreate to parent so toolbar can trigger inline creation */
   onStartCreateRef?: React.MutableRefObject<((type: 'file' | 'folder') => void) | null>;
+  /** Report selection count changes to parent */
+  onSelectionChange?: (count: number) => void;
 }
 
 export function FileList({
@@ -64,6 +68,7 @@ export function FileList({
   viewMode,
   onViewModeChange,
   onStartCreateRef,
+  onSelectionChange,
 }: FileListProps) {
   const [renamingEntry, setRenamingEntry] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
@@ -75,6 +80,163 @@ export function FileList({
   const sortAsc = usePreferencesStore(s => s.explorerSortAsc);
   const setSortBy = usePreferencesStore(s => s.setExplorerSortBy);
   const setSortAsc = usePreferencesStore(s => s.setExplorerSortAsc);
+
+  // ── Selection ──
+  const { selectedKeys, isSelected, handleSelect, clearSelection, selectAll, getSelectedItems, count: selectedCount } = useSelection({
+    items: entries,
+    getKey: (e) => e.name,
+  });
+
+  // Report selection changes to parent
+  useEffect(() => {
+    onSelectionChange?.(selectedCount);
+  }, [selectedCount, onSelectionChange]);
+
+  // ── Clipboard ──
+  const clipboardEntries = useClipboardStore(s => s.entries);
+  const clipboardOp = useClipboardStore(s => s.operation);
+  const clipboardCopy = useClipboardStore(s => s.copy);
+  const clipboardCut = useClipboardStore(s => s.cut);
+  const clipboardClear = useClipboardStore(s => s.clear);
+  const hasClipboard = clipboardEntries.length > 0;
+
+  const toClipboardEntries = useCallback((items: FileEntryData[]): ClipboardEntry[] => {
+    return items.map(e => ({
+      serverId,
+      path: currentPath === '/' ? `/${e.name}` : `${currentPath}/${e.name}`,
+      name: e.name,
+      isDirectory: e.type === 'directory',
+    }));
+  }, [serverId, currentPath]);
+
+  const handleCopy = useCallback(() => {
+    const items = getSelectedItems();
+    if (items.length === 0) return;
+    clipboardCopy(toClipboardEntries(items), currentPath);
+    toast.success(`${items.length} item${items.length > 1 ? 's' : ''} copied`);
+  }, [getSelectedItems, clipboardCopy, toClipboardEntries, currentPath]);
+
+  const handleCut = useCallback(() => {
+    const items = getSelectedItems();
+    if (items.length === 0) return;
+    clipboardCut(toClipboardEntries(items), currentPath);
+    toast.success(`${items.length} item${items.length > 1 ? 's' : ''} cut`);
+  }, [getSelectedItems, clipboardCut, toClipboardEntries, currentPath]);
+
+  const handlePaste = useCallback(async () => {
+    if (!hasClipboard) return;
+    try {
+      for (const entry of clipboardEntries) {
+        const destName = entry.name;
+        const destPath = currentPath === '/' ? `/${destName}` : `${currentPath}/${destName}`;
+        if (clipboardOp === 'copy') {
+          await copyFile(entry.serverId, entry.path, destPath);
+        } else {
+          await moveFile(entry.serverId, entry.path, destPath);
+        }
+      }
+      if (clipboardOp === 'cut') clipboardClear();
+      toast.success(`${clipboardEntries.length} item${clipboardEntries.length > 1 ? 's' : ''} pasted`);
+      onRefresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Paste failed');
+    }
+  }, [hasClipboard, clipboardEntries, clipboardOp, currentPath, clipboardClear, onRefresh]);
+
+  // Clear selection when directory changes
+  useEffect(() => {
+    clearSelection();
+  }, [currentPath, clearSelection]);
+
+  // ── Keyboard shortcuts for file explorer ──
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const handler = (e: KeyboardEvent) => {
+      // Don't interfere with input fields
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      const isMeta = e.metaKey || e.ctrlKey;
+
+      // Ctrl/Cmd+C — Copy
+      if (isMeta && e.key === 'c') {
+        e.preventDefault();
+        handleCopy();
+        return;
+      }
+
+      // Ctrl/Cmd+X — Cut
+      if (isMeta && e.key === 'x') {
+        e.preventDefault();
+        handleCut();
+        return;
+      }
+
+      // Ctrl/Cmd+V — Paste
+      if (isMeta && e.key === 'v') {
+        e.preventDefault();
+        handlePaste();
+        return;
+      }
+
+      // Ctrl/Cmd+A — Select all
+      if (isMeta && e.key === 'a') {
+        e.preventDefault();
+        selectAll();
+        return;
+      }
+
+      // Delete/Backspace — Delete selected
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedCount > 0) {
+        e.preventDefault();
+        const items = getSelectedItems();
+        if (items.length === 1) {
+          setDeleteTarget(items[0]);
+        } else if (items.length > 1) {
+          // For multi-delete, delete first item for now (could expand to batch)
+          setDeleteTarget(items[0]);
+        }
+        return;
+      }
+
+      // F2 — Rename selected
+      if (e.key === 'F2' && selectedCount === 1) {
+        e.preventDefault();
+        const items = getSelectedItems();
+        if (items.length === 1) {
+          startRename(items[0]);
+        }
+        return;
+      }
+
+      // F5 — Refresh
+      if (e.key === 'F5') {
+        e.preventDefault();
+        onRefresh();
+        return;
+      }
+
+      // Enter — Open selected
+      if (e.key === 'Enter' && selectedCount === 1) {
+        e.preventDefault();
+        const items = getSelectedItems();
+        if (items.length === 1) onOpen(items[0]);
+        return;
+      }
+
+      // Escape — Clear selection
+      if (e.key === 'Escape') {
+        clearSelection();
+        return;
+      }
+    };
+
+    el.addEventListener('keydown', handler);
+    return () => el.removeEventListener('keydown', handler);
+  }, [handleCopy, handleCut, handlePaste, selectAll, selectedCount, getSelectedItems, clearSelection, onRefresh, onOpen]);
 
   const changeView = useCallback((mode: ViewMode) => {
     onViewModeChange?.(mode);
@@ -187,12 +349,37 @@ export function FileList({
           Open in Terminal
         </ContextMenuItem>
         <ContextMenuSeparator />
-        <ContextMenuItem disabled>
+        <ContextMenuItem onClick={() => {
+          // If item not in selection, select it first
+          if (!isSelected(entry.name)) {
+            handleSelect(entry.name, { ctrlKey: false, metaKey: false, shiftKey: false });
+          }
+          // Delay to let selection update
+          setTimeout(() => {
+            const items: ClipboardEntry[] = [{
+              serverId,
+              path: currentPath === '/' ? `/${entry.name}` : `${currentPath}/${entry.name}`,
+              name: entry.name,
+              isDirectory: entry.type === 'directory',
+            }];
+            clipboardCut(items, currentPath);
+            toast.success('Cut to clipboard');
+          }, 0);
+        }}>
           <Scissors className="w-4 h-4 mr-2 opacity-60" />
           Cut
           <ContextMenuShortcut>⌘X</ContextMenuShortcut>
         </ContextMenuItem>
-        <ContextMenuItem disabled>
+        <ContextMenuItem onClick={() => {
+          const items: ClipboardEntry[] = [{
+            serverId,
+            path: currentPath === '/' ? `/${entry.name}` : `${currentPath}/${entry.name}`,
+            name: entry.name,
+            isDirectory: entry.type === 'directory',
+          }];
+          clipboardCopy(items, currentPath);
+          toast.success('Copied to clipboard');
+        }}>
           <Copy className="w-4 h-4 mr-2 opacity-60" />
           Copy
           <ContextMenuShortcut>⌘C</ContextMenuShortcut>
@@ -216,7 +403,7 @@ export function FileList({
         </ContextMenuItem>
       </ContextMenuContent>
     ),
-    [onOpen, startRename],
+    [onOpen, startRename, serverId, currentPath, clipboardCopy, clipboardCut, isSelected, handleSelect],
   );
 
   const emptyAreaContextMenu = useCallback(
@@ -232,9 +419,9 @@ export function FileList({
           New File
         </ContextMenuItem>
         <ContextMenuSeparator />
-        <ContextMenuItem disabled>
+        <ContextMenuItem onClick={handlePaste} disabled={!hasClipboard}>
           <ClipboardPaste className="w-4 h-4 mr-2 opacity-60" />
-          Paste
+          Paste {hasClipboard ? `(${clipboardEntries.length})` : ''}
           <ContextMenuShortcut>⌘V</ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuSeparator />
@@ -298,11 +485,15 @@ export function FileList({
         </ContextMenuItem>
       </ContextMenuContent>
     ),
-    [onRefresh, startCreate, changeView, viewMode, sortBy, setSortBy, setSortAsc],
+    [onRefresh, startCreate, changeView, viewMode, sortBy, setSortBy, setSortAsc, handlePaste, hasClipboard, clipboardEntries],
   );
 
   const contextMenuProps = { fileContextMenu, emptyAreaContextMenu };
   const createProps = { creatingType, createName, setCreateName, handleCreateSubmit, cancelCreate };
+
+  // Build a set of clipboard entry names for cut dimming (only items in same directory)
+  const clipboardEntryPaths = new Set(clipboardOp === 'cut' ? clipboardEntries.map(e => e.name) : []);
+  const selectionProps: SelectionProps = { isSelected, handleSelect, clearSelection, clipboardOp, clipboardEntryPaths };
 
   const viewContent = (() => {
     switch (viewMode) {
@@ -317,6 +508,7 @@ export function FileList({
             {...actionProps}
             {...contextMenuProps}
             {...createProps}
+            {...selectionProps}
           />
         );
       case 'list':
@@ -330,6 +522,7 @@ export function FileList({
             {...actionProps}
             {...contextMenuProps}
             {...createProps}
+            {...selectionProps}
           />
         );
       case 'small-icons':
@@ -344,6 +537,7 @@ export function FileList({
             {...actionProps}
             {...contextMenuProps}
             {...createProps}
+            {...selectionProps}
           />
         );
       case 'large-icons':
@@ -358,6 +552,7 @@ export function FileList({
             {...actionProps}
             {...contextMenuProps}
             {...createProps}
+            {...selectionProps}
           />
         );
     }
@@ -365,7 +560,12 @@ export function FileList({
 
   return (
     <>
-      {viewContent}
+      <div ref={containerRef} tabIndex={0} className="outline-none h-full" onClick={(e) => {
+        // Click on empty space clears selection
+        if (e.target === e.currentTarget) clearSelection();
+      }}>
+        {viewContent}
+      </div>
 
       {/* Delete confirmation dialog */}
       <ConfirmDialog
@@ -421,7 +621,15 @@ interface CreateProps {
   cancelCreate: () => void;
 }
 
-interface ViewProps extends RenameProps, ActionProps, ContextMenuProps, CreateProps {
+interface SelectionProps {
+  isSelected: (key: string) => boolean;
+  handleSelect: (key: string, e: { ctrlKey: boolean; metaKey: boolean; shiftKey: boolean }) => void;
+  clearSelection: () => void;
+  clipboardOp: 'copy' | 'cut' | null;
+  clipboardEntryPaths: Set<string>;
+}
+
+interface ViewProps extends RenameProps, ActionProps, ContextMenuProps, CreateProps, SelectionProps {
   entries: FileEntryData[];
   canGoUp: boolean;
   onOpen: (entry: FileEntryData) => void;
@@ -447,6 +655,10 @@ function DetailsView({
   setCreateName,
   handleCreateSubmit,
   cancelCreate,
+  isSelected,
+  handleSelect,
+  clearSelection,
+  clipboardEntryPaths,
 }: ViewProps) {
   return (
     <ContextMenu>
@@ -478,11 +690,15 @@ function DetailsView({
                   <td className="hidden lg:table-cell" />
                 </tr>
               )}
-              {entries.map(entry => (
+              {entries.map(entry => {
+                const selected = isSelected(entry.name);
+                const isCut = clipboardEntryPaths.has(entry.name);
+                return (
                 <ContextMenu key={entry.name}>
                   <ContextMenuTrigger asChild>
                     <tr
-                      className="hover:bg-primary/8 cursor-pointer group border-b border-border/15"
+                      className={`cursor-pointer group border-b border-border/15 ${selected ? 'bg-primary/12' : 'hover:bg-primary/8'} ${isCut ? 'opacity-50' : ''}`}
+                      onClick={(e) => handleSelect(entry.name, e)}
                       onDoubleClick={() => onOpen(entry)}
                     >
                       <td className="px-3 py-1">
@@ -517,7 +733,8 @@ function DetailsView({
                   </ContextMenuTrigger>
                   {fileContextMenu(entry)}
                 </ContextMenu>
-              ))}
+                );
+              })}
               {/* Inline create at bottom */}
               {creatingType && (
                 <tr>
@@ -561,6 +778,10 @@ function ListView({
   setCreateName,
   handleCreateSubmit,
   cancelCreate,
+  isSelected,
+  handleSelect,
+  clearSelection,
+  clipboardEntryPaths,
 }: ViewProps) {
   return (
     <ContextMenu>
@@ -576,11 +797,15 @@ function ListView({
                 <span>..</span>
               </button>
             )}
-            {entries.map(entry => (
+            {entries.map(entry => {
+              const selected = isSelected(entry.name);
+              const isCut = clipboardEntryPaths.has(entry.name);
+              return (
               <ContextMenu key={entry.name}>
                 <ContextMenuTrigger asChild>
                   <div
-                    className="flex items-center gap-2 px-2 py-0.5 rounded-lg text-xs hover:bg-primary/8 cursor-pointer"
+                    className={`flex items-center gap-2 px-2 py-0.5 rounded-lg text-xs cursor-pointer ${selected ? 'bg-primary/12' : 'hover:bg-primary/8'} ${isCut ? 'opacity-50' : ''}`}
+                    onClick={(e) => handleSelect(entry.name, e)}
                     onDoubleClick={() => onOpen(entry)}
                   >
                     <FileIcon entry={entry} size="sm" className="shrink-0" />
@@ -601,8 +826,8 @@ function ListView({
                 </ContextMenuTrigger>
                 {fileContextMenu(entry)}
               </ContextMenu>
-            ))}
-            {/* Inline create at bottom */}
+              );
+            })}
             {creatingType && (
               <InlineCreateInput
                 name={createName}
@@ -648,6 +873,10 @@ function IconGridView({
   setCreateName,
   handleCreateSubmit,
   cancelCreate,
+  isSelected,
+  handleSelect,
+  clearSelection,
+  clipboardEntryPaths,
 }: ViewProps & { iconSize: IconSize }) {
   const cfg = ICON_SIZE_CONFIG[iconSize];
 
@@ -665,11 +894,15 @@ function IconGridView({
                 <span className={`${cfg.textSize} truncate max-w-full`}>..</span>
               </button>
             )}
-            {entries.map(entry => (
+            {entries.map(entry => {
+              const selected = isSelected(entry.name);
+              const isCut = clipboardEntryPaths.has(entry.name);
+              return (
               <ContextMenu key={entry.name}>
                 <ContextMenuTrigger asChild>
                   <div
-                    className={`flex flex-col items-center justify-center ${cfg.cellPad} rounded-xl hover:bg-primary/8 cursor-pointer transition-colors`}
+                    className={`flex flex-col items-center justify-center ${cfg.cellPad} rounded-xl cursor-pointer transition-colors ${selected ? 'bg-primary/12 ring-1 ring-primary/30' : 'hover:bg-primary/8'} ${isCut ? 'opacity-50' : ''}`}
+                    onClick={(e) => handleSelect(entry.name, e)}
                     onDoubleClick={() => onOpen(entry)}
                   >
                     <FileIcon entry={entry} size={cfg.fileSize} style={{ width: cfg.iconPx, height: cfg.iconPx }} />
@@ -690,7 +923,8 @@ function IconGridView({
                 </ContextMenuTrigger>
                 {fileContextMenu(entry)}
               </ContextMenu>
-            ))}
+              );
+            })}
             {/* Inline create card — Windows-like */}
             {creatingType && (
               <GridCreateCard

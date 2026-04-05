@@ -1,52 +1,59 @@
 // M2.X + M5.6e: Desktop Layout — Windows-like shell with global keyboard shortcuts
 // @see docs/phases/phase-2.md
 
-import { useEffect, useCallback } from 'react';
+import { useEffect } from 'react';
 import { useAppStore } from '../../store/app-store';
-import { useDesktopStore } from '../../store/window-store';
+import { useDesktopStore, type SnapZone } from '../../store/window-store';
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { Desktop } from './Desktop';
 import { Taskbar } from './Taskbar';
 import { StartMenu } from './StartMenu';
 import { WindowManager } from './WindowManager';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
-import { toast } from 'sonner';
+
+// ── Snap Preview Overlay ────────────────────────────────
+
+function SnapPreview({ zone }: { zone: SnapZone }) {
+  if (!zone) return null;
+
+  const taskbarH = 56;
+  const style: React.CSSProperties = (() => {
+    switch (zone) {
+      case 'maximize':
+        return { top: 0, left: 0, right: 0, bottom: taskbarH };
+      case 'left':
+        return { top: 0, left: 0, width: '50%', bottom: taskbarH };
+      case 'right':
+        return { top: 0, right: 0, width: '50%', bottom: taskbarH };
+      case 'top-left':
+        return { top: 0, left: 0, width: '50%', height: `calc(50% - ${taskbarH / 2}px)` };
+      case 'top-right':
+        return { top: 0, right: 0, width: '50%', height: `calc(50% - ${taskbarH / 2}px)` };
+      default:
+        return {};
+    }
+  })();
+
+  return (
+    <div
+      className="fixed z-[9999] pointer-events-none rounded-2xl border-2 border-primary/40 bg-primary/10 backdrop-blur-sm transition-all duration-150 ease-out"
+      style={style}
+    />
+  );
+}
 
 export function DesktopLayout() {
   const fetchServers = useAppStore(s => s.fetchServers);
-  const activeServerId = useAppStore(s => s.activeServerId);
-  const servers = useAppStore(s => s.servers);
-  const openWindow = useDesktopStore(s => s.openWindow);
+  const snapPreview = useDesktopStore(s => s.snapPreview);
 
   // Load servers on mount
   useEffect(() => {
     fetchServers();
   }, [fetchServers]);
 
-  // Global keyboard shortcuts
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    // F5 — Refresh
-    if (e.key === 'F5') {
-      e.preventDefault();
-      toast.success('Refreshed');
-      return;
-    }
-
-    // Ctrl+Shift+Esc (Win) or Cmd+Shift+Esc (Mac) — Open Task Manager
-    if (e.key === 'Escape' && e.shiftKey && (e.ctrlKey || e.metaKey)) {
-      e.preventDefault();
-      const server = servers.find(s => s.id === activeServerId);
-      if (server?.state?.status === 'connected' && activeServerId) {
-        openWindow('taskmanager', activeServerId, 'Task Manager', 'taskmanager');
-      }
-      return;
-    }
-  }, [activeServerId, servers, openWindow]);
-
-  useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleKeyDown]);
+  // Global keyboard shortcuts (Alt+F4, Ctrl+Space, Ctrl+Tab, Ctrl+`, Ctrl+Shift+Esc)
+  useKeyboardShortcuts();
 
   return (
     <TooltipProvider delayDuration={400}>
@@ -62,6 +69,9 @@ export function DesktopLayout() {
 
         {/* Taskbar — bottom bar */}
         <Taskbar />
+
+        {/* Snap zone preview */}
+        <SnapPreview zone={snapPreview} />
 
         {/* Toast notifications */}
         <Toaster />

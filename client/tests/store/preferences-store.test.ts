@@ -16,7 +16,7 @@ Object.defineProperty(globalThis, 'localStorage', { value: mockLocalStorage, wri
 const STORAGE_KEY = 'headlessos-preferences';
 
 // Import after localStorage is mocked
-import { usePreferencesStore } from '../../src/store/preferences-store';
+import { usePreferencesStore, ACCENT_PRESETS } from '../../src/store/preferences-store';
 
 describe('preferences-store', () => {
   beforeEach(() => {
@@ -29,6 +29,12 @@ describe('preferences-store', () => {
       explorerSortBy: 'name',
       explorerSortAsc: true,
       wallpaperId: 'builtin:celestial',
+      accentColorIndex: 0,
+      autoRefreshInterval: 30,
+      dateFormat: '12h',
+      showToasts: true,
+      toastPosition: 'bottom-right',
+      desktopIconSize: 'large',
     });
   });
 
@@ -145,6 +151,136 @@ describe('preferences-store', () => {
       const stored = JSON.parse(storage[STORAGE_KEY]);
       expect(stored.explorerViewMode).toBe('details');
       expect(stored.explorerIconSize).toBe('medium');
+    });
+  });
+
+  // ─── M7.4: Appearance preferences ────────────────────────────────────────
+
+  describe('accent color (M7.4)', () => {
+    it('defaults to index 0 (Blue)', () => {
+      const state = usePreferencesStore.getState();
+      expect(state.accentColorIndex).toBe(0);
+    });
+
+    it('updates accent color index and persists', () => {
+      usePreferencesStore.getState().setAccentColorIndex(3);
+      expect(usePreferencesStore.getState().accentColorIndex).toBe(3);
+      expect(mockLocalStorage.setItem).toHaveBeenCalledWith(
+        STORAGE_KEY,
+        expect.stringContaining('"accentColorIndex":3'),
+      );
+    });
+
+    it('ACCENT_PRESETS has 8 entries with required fields', () => {
+      expect(ACCENT_PRESETS).toHaveLength(8);
+      for (const preset of ACCENT_PRESETS) {
+        expect(preset).toHaveProperty('name');
+        expect(preset).toHaveProperty('oklchLight');
+        expect(preset).toHaveProperty('oklchDark');
+        expect(preset).toHaveProperty('oklchFg');
+      }
+    });
+
+    it('defaults desktop icon size to large', () => {
+      const state = usePreferencesStore.getState();
+      expect(state.desktopIconSize).toBe('large');
+    });
+
+    it('updates desktop icon size', () => {
+      usePreferencesStore.getState().setDesktopIconSize('large');
+      expect(usePreferencesStore.getState().desktopIconSize).toBe('large');
+    });
+  });
+
+  // ─── M7.5: General preferences ───────────────────────────────────────────
+
+  describe('general settings (M7.5)', () => {
+    it('defaults auto-refresh interval to 30', () => {
+      const state = usePreferencesStore.getState();
+      expect(state.autoRefreshInterval).toBe(30);
+    });
+
+    it('updates auto-refresh interval and persists', () => {
+      usePreferencesStore.getState().setAutoRefreshInterval(60);
+      expect(usePreferencesStore.getState().autoRefreshInterval).toBe(60);
+      expect(mockLocalStorage.setItem).toHaveBeenCalledWith(
+        STORAGE_KEY,
+        expect.stringContaining('"autoRefreshInterval":60'),
+      );
+    });
+
+    it('can set auto-refresh to 0 (off)', () => {
+      usePreferencesStore.getState().setAutoRefreshInterval(0);
+      expect(usePreferencesStore.getState().autoRefreshInterval).toBe(0);
+    });
+
+    it('defaults date format to 12h', () => {
+      const state = usePreferencesStore.getState();
+      expect(state.dateFormat).toBe('12h');
+    });
+
+    it('updates date format and persists', () => {
+      usePreferencesStore.getState().setDateFormat('24h');
+      expect(usePreferencesStore.getState().dateFormat).toBe('24h');
+      expect(mockLocalStorage.setItem).toHaveBeenCalledWith(
+        STORAGE_KEY,
+        expect.stringContaining('"dateFormat":"24h"'),
+      );
+    });
+  });
+
+  // ─── M7.6: Notifications & Data ──────────────────────────────────────────
+
+  describe('notifications & data (M7.6)', () => {
+    it('defaults showToasts to true', () => {
+      const state = usePreferencesStore.getState();
+      expect(state.showToasts).toBe(true);
+    });
+
+    it('toggles showToasts and persists', () => {
+      usePreferencesStore.getState().setShowToasts(false);
+      expect(usePreferencesStore.getState().showToasts).toBe(false);
+      expect(mockLocalStorage.setItem).toHaveBeenCalledWith(
+        STORAGE_KEY,
+        expect.stringContaining('"showToasts":false'),
+      );
+    });
+
+    it('defaults toastPosition to bottom-right', () => {
+      const state = usePreferencesStore.getState();
+      expect(state.toastPosition).toBe('bottom-right');
+    });
+
+    it('updates toast position and persists', () => {
+      usePreferencesStore.getState().setToastPosition('top-right');
+      expect(usePreferencesStore.getState().toastPosition).toBe('top-right');
+      expect(mockLocalStorage.setItem).toHaveBeenCalledWith(
+        STORAGE_KEY,
+        expect.stringContaining('"toastPosition":"top-right"'),
+      );
+    });
+
+    it('resetAllPreferences restores every field to defaults', () => {
+      // Modify several fields
+      usePreferencesStore.getState().setAccentColorIndex(5);
+      usePreferencesStore.getState().setAutoRefreshInterval(120);
+      usePreferencesStore.getState().setDateFormat('24h');
+      usePreferencesStore.getState().setShowToasts(false);
+      usePreferencesStore.getState().setToastPosition('top-right');
+      usePreferencesStore.getState().setDesktopIconSize('large');
+      usePreferencesStore.getState().setExplorerViewMode('details');
+
+      // Reset
+      usePreferencesStore.getState().resetAllPreferences();
+
+      const state = usePreferencesStore.getState();
+      expect(state.accentColorIndex).toBe(0);
+      expect(state.autoRefreshInterval).toBe(30);
+      expect(state.dateFormat).toBe('12h');
+      expect(state.showToasts).toBe(true);
+      expect(state.toastPosition).toBe('bottom-right');
+      expect(state.desktopIconSize).toBe('large');
+      expect(state.explorerViewMode).toBe('large-icons');
     });
   });
 });

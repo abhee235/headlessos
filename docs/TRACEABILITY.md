@@ -260,6 +260,42 @@ _No tasks completed yet._
 | M5.6 | UI Polish | [phase-5](phases/phase-5.md) | `client/src/components/` (Terminal, Desktop, FileViewer, Dashboard, Login) | ✅ |
 | M7.1 | Terminal Settings | [phase-7](phases/phase-7.md) | `client/src/store/preferences-store.ts`, `client/src/components/Terminal/TerminalView.tsx` | ✅ |
 | M7.2 | Server Admin App | [phase-7](phases/phase-7.md) | See M7.2 detailed entry below | ✅ |
+| M6.1 | Desktop & File Icons | [phase-6](phases/phase-6.md) | `client/src/components/ui/FileIcon.tsx` | ✅ |
+| M6.2 | Context Menus | [phase-6](phases/phase-6.md) | `client/src/components/ui/context-menu.tsx` | ✅ |
+| M6.3 | Wallpaper System | [phase-6](phases/phase-6.md) | `client/src/components/Desktop/Wallpaper.tsx`, `client/src/lib/wallpapers.ts` | ✅ |
+| M6.4 | Theme System | [phase-6](phases/phase-6.md) | `client/src/styles.css`, `client/src/store/theme-store.ts` | ✅ |
+| M6.5 | Window Chrome Polish | [phase-6](phases/phase-6.md) | `client/src/store/window-store.ts`, `client/src/components/Desktop/Window.tsx` | ✅ |
+| M6.6 | Taskbar & Start Menu | [phase-6](phases/phase-6.md) | `client/src/components/Desktop/Taskbar.tsx`, `StartMenu.tsx` | ✅ |
+| M6.7 | File Operations | [phase-6](phases/phase-6.md) | `client/src/store/clipboard-store.ts`, `server/src/routes/files.ts`, `FileListNew.tsx` | ✅ |
+| M6.8 | Toast System | [phase-6](phases/phase-6.md) | `client/src/components/ui/sonner.tsx` | ✅ |
+| M6.9 | Keyboard Shortcuts | [phase-6](phases/phase-6.md) | `client/src/hooks/useKeyboardShortcuts.ts`, `FileListNew.tsx` | ✅ |
+| M6.10 | Selection & Multi-Select | [phase-6](phases/phase-6.md) | `client/src/hooks/useSelection.ts`, `FileListNew.tsx`, `FileExplorerView.tsx` | ✅ |
+| M6.11 | Login Flow | [phase-6](phases/phase-6.md) | `client/src/components/Desktop/StartMenu.tsx`, `Login/` | ✅ |
+
+---
+
+## M7.4–M7.6: Appearance + General + Notifications
+
+**Status:** ✅ Complete  
+**Spec:** [phase-7.md](phases/phase-7.md)  
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `client/src/store/preferences-store.ts` | Added 6 new fields (accentColorIndex, autoRefreshInterval, dateFormat, showToasts, toastPosition + setters), ACCENT_PRESETS (8 oklch entries), applyAccentColor(), resetAllPreferences(), DateFormat/ToastPosition types |
+| `client/src/store/theme-store.ts` | Rewrote: Theme = 'dark'\|'light'\|'auto', resolvedTheme, prefers-color-scheme listener, applyTheme re-applies accent color |
+| `client/src/components/Desktop/SettingsView.tsx` | 6-page sidebar (General/Appearance/Wallpaper/Terminal/Notifications/About), rewrote AppearancePage (accent swatches + theme auto + icon size), added GeneralPage (clock format + auto-refresh), added NotificationsPage (toast toggle/position + clear cache + reset all) |
+| `client/src/components/Desktop/Taskbar.tsx` | Clock uses dateFormat preference (12h/24h), theme icon uses resolvedTheme |
+| `client/src/components/ui/sonner.tsx` | Uses resolvedTheme, toastPosition, showToasts suppression |
+| `client/src/components/Terminal/TerminalView.tsx` | Uses resolvedTheme instead of theme |
+| `client/tests/store/preferences-store.test.ts` | Added 15 new tests for M7.4/M7.5/M7.6 preferences (accent, dateFormat, autoRefresh, toasts, reset) |
+
+### Verification
+
+- TypeScript: Clean compilation, no errors
+- Tests: 307 total (228 server + 79 client), all passing
+- 15 new preference tests cover all new fields + resetAllPreferences
 
 ---
 
@@ -444,6 +480,65 @@ M4.1, M4.2, M4.5 were already done in M2.1. M4.3 (ps-aux) was done in M7.1. M4.4
 - OutputCache: 12 tests (get/set, TTL expiration, invalidation, stats, reset)
 - LLM Usage Tracker: 13 tests (recording, cost estimation, model pricing, reset)
 - Pipeline integrates cache and usage tracker seamlessly
+
+---
+
+## M6: Desktop UI System (Complete)
+
+### M6.5: Window Chrome Polish ✅
+**Completed:** 2026-04-08
+
+| File | Changes |
+|------|---------|
+| `client/src/store/window-store.ts` | Added SnapZone type, preSnap field, snapWindow(), setSnapPreview(), restoreWindow() from preSnap |
+| `client/src/components/Desktop/Window.tsx` | detectSnapZone() (8px edge), un-maximize on drag (proportional), snap preview during drag, snap commit on mouseup |
+| `client/src/components/Desktop/DesktopLayout.tsx` | SnapPreview component (border-primary/40, backdrop-blur), cleaned up to use useKeyboardShortcuts hook |
+
+### M6.7: File Operation UI (Copy/Paste) ✅
+**Completed:** 2026-04-08
+
+| File | Changes |
+|------|---------|
+| `client/src/store/clipboard-store.ts` | **NEW** — Zustand store: ClipboardEntry[], copy/cut/clear/hasEntries |
+| `server/src/routes/files.ts` | Added POST /files/copy (cp -r via exec), POST /files/move (SFTP rename), shellEscapeForCopy() |
+| `client/src/lib/api.ts` | Added copyFile(), moveFile() API functions |
+| `client/src/components/FileExplorer/FileListNew.tsx` | Clipboard integration, handleCopy/Cut/Paste, context menu Cut/Copy/Paste functional |
+| `client/tests/store/clipboard-store.test.ts` | **NEW** — 9 tests: copy, cut, clear, hasEntries, switching ops |
+| `server/tests/routes/files.test.ts` | **NEW** — 10 tests: shellEscapeForCopy, command construction |
+
+### M6.9: Keyboard Shortcuts ✅
+**Completed:** 2026-04-08
+
+| File | Changes |
+|------|---------|
+| `client/src/hooks/useKeyboardShortcuts.ts` | **NEW** — Global shortcuts: Alt+F4 (close), Ctrl+Space (start menu), Ctrl+Tab (cycle), Ctrl+` (terminal), Ctrl+Shift+Esc (task manager) |
+| `client/src/components/Desktop/DesktopLayout.tsx` | Replaced inline keyboard handler with useKeyboardShortcuts() hook, removed unused store imports |
+| `client/src/components/FileExplorer/FileListNew.tsx` | File-local shortcuts: Ctrl+C/X/V/A, Delete, F2, F5, Enter, Escape |
+
+### M6.10: Selection & Multi-Select ✅
+**Completed:** 2026-04-08
+
+| File | Changes |
+|------|---------|
+| `client/src/hooks/useSelection.ts` | **NEW** — Generic hook: click/Ctrl+Click/Shift+Click range, selectAll, clearSelection, getSelectedItems |
+| `client/src/components/FileExplorer/FileListNew.tsx` | Selection integration in DetailsView/ListView/IconGridView (bg-primary/12 highlight, opacity-50 for cut items), status bar selection count, containerRef for keyboard events |
+| `client/src/components/FileExplorer/FileExplorerView.tsx` | selectedCount state, onSelectionChange callback, status bar shows "N selected" |
+| `client/tests/hooks/useSelection.test.ts` | **NEW** — 13 tests: click, ctrl+click, shift+click range, selectAll, clearSelection, getSelectedItems |
+
+### M6.11: Login Flow ✅
+**Completed:** 2026-04-08
+
+| File | Changes |
+|------|---------|
+| `client/src/components/Desktop/StartMenu.tsx` | Added Lock + Switch User buttons in footer (lucide Lock, ArrowLeftRight icons) |
+
+### Verification
+
+- TypeScript: Clean (no real errors, only TailwindCSS lint suggestions)
+- Tests: 292 total (228 server + 64 client), all passing
+- useSelection hook: 13 tests (click, ctrl, shift range, selectAll, clear, getSelectedItems)
+- Clipboard store: 9 tests (copy, cut, clear, hasEntries, switching ops)
+- File copy/move: 10 tests (shell escaping, command construction)
 
 ---
 

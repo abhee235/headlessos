@@ -87,7 +87,7 @@ export function TerminalView({ serverId }: TerminalViewProps) {
   const cursorStyle = usePreferencesStore((s) => s.terminalCursorStyle);
   const scrollback = usePreferencesStore((s) => s.terminalScrollback);
   const copyOnSelect = usePreferencesStore((s) => s.terminalCopyOnSelect);
-  const theme = useThemeStore((s) => s.theme);
+  const theme = useThemeStore((s) => s.resolvedTheme);
 
   const copyOnSelectRef = useRef(copyOnSelect);
   useEffect(() => {

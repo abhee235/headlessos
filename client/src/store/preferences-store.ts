@@ -9,6 +9,19 @@ export type IconSize = 'medium' | 'large';
 export type DesktopIconSize = 'small' | 'medium' | 'large';
 export type DesktopSortBy = 'name' | 'type' | 'date';
 export type CursorStyle = 'block' | 'underline' | 'bar';
+export type DateFormat = '12h' | '24h';
+export type ToastPosition = 'bottom-right' | 'top-right';
+
+export const ACCENT_PRESETS = [
+  { name: 'Blue',   oklchLight: 'oklch(0.488 0.243 264.376)', oklchDark: 'oklch(0.488 0.243 264.376)', oklchFg: 'oklch(0.97 0.014 254.604)' },
+  { name: 'Purple', oklchLight: 'oklch(0.541 0.281 293.009)', oklchDark: 'oklch(0.541 0.281 293.009)', oklchFg: 'oklch(0.97 0.014 254.604)' },
+  { name: 'Pink',   oklchLight: 'oklch(0.592 0.249 0.584)',   oklchDark: 'oklch(0.592 0.249 0.584)',   oklchFg: 'oklch(0.97 0.014 254.604)' },
+  { name: 'Red',    oklchLight: 'oklch(0.577 0.245 27.325)',  oklchDark: 'oklch(0.628 0.258 29.234)',  oklchFg: 'oklch(0.97 0.014 254.604)' },
+  { name: 'Orange', oklchLight: 'oklch(0.702 0.209 41.348)',  oklchDark: 'oklch(0.702 0.209 41.348)',  oklchFg: 'oklch(0.97 0.014 254.604)' },
+  { name: 'Yellow', oklchLight: 'oklch(0.795 0.184 86.047)',  oklchDark: 'oklch(0.795 0.184 86.047)',  oklchFg: 'oklch(0.21 0.006 285.885)' },
+  { name: 'Green',  oklchLight: 'oklch(0.696 0.17 162.48)',   oklchDark: 'oklch(0.696 0.17 162.48)',   oklchFg: 'oklch(0.97 0.014 254.604)' },
+  { name: 'Teal',   oklchLight: 'oklch(0.627 0.14 178.547)',  oklchDark: 'oklch(0.627 0.14 178.547)',  oklchFg: 'oklch(0.97 0.014 254.604)' },
+] as const;
 
 interface UserPreferences {
   /** Default view mode for File Explorer */
@@ -37,6 +50,22 @@ interface UserPreferences {
   terminalScrollback: number;
   /** Copy text to clipboard on selection */
   terminalCopyOnSelect: boolean;
+
+  // ── Appearance (M7.4) ─────────────────────────────────────────────────────
+  /** Accent color preset index (maps to ACCENT_PRESETS) */
+  accentColorIndex: number;
+
+  // ── General (M7.5) ────────────────────────────────────────────────────────
+  /** Auto-refresh interval in seconds (0 = off) */
+  autoRefreshInterval: number;
+  /** Clock display format */
+  dateFormat: DateFormat;
+
+  // ── Notifications & Data (M7.6) ───────────────────────────────────────────
+  /** Show toast notifications */
+  showToasts: boolean;
+  /** Toast notification position */
+  toastPosition: ToastPosition;
 }
 
 interface PreferencesState extends UserPreferences {
@@ -52,6 +81,12 @@ interface PreferencesState extends UserPreferences {
   setTerminalCopyOnSelect: (enabled: boolean) => void;
   setDesktopIconSize: (size: DesktopIconSize) => void;
   setDesktopSortBy: (field: DesktopSortBy) => void;
+  setAccentColorIndex: (index: number) => void;
+  setAutoRefreshInterval: (seconds: number) => void;
+  setDateFormat: (format: DateFormat) => void;
+  setShowToasts: (show: boolean) => void;
+  setToastPosition: (position: ToastPosition) => void;
+  resetAllPreferences: () => void;
   /** Update multiple preferences at once */
   updatePreferences: (partial: Partial<UserPreferences>) => void;
 }
@@ -71,6 +106,11 @@ const DEFAULTS: UserPreferences = {
   terminalCursorStyle: 'block',
   terminalScrollback: 5000,
   terminalCopyOnSelect: true,
+  accentColorIndex: 0,
+  autoRefreshInterval: 30,
+  dateFormat: '12h',
+  showToasts: true,
+  toastPosition: 'bottom-right',
 };
 
 function loadPreferences(): UserPreferences {
@@ -93,8 +133,26 @@ function savePreferences(prefs: UserPreferences) {
   }
 }
 
+/** Apply accent color to CSS custom properties on :root */
+export function applyAccentColor(index: number) {
+  if (typeof document === 'undefined') return;
+  const preset = ACCENT_PRESETS[index] ?? ACCENT_PRESETS[0];
+  const root = document.documentElement;
+  const isDark = root.classList.contains('dark');
+  root.style.setProperty('--primary', isDark ? preset.oklchDark : preset.oklchLight);
+  root.style.setProperty('--primary-foreground', preset.oklchFg);
+  // Also update sidebar-primary and ring to match
+  root.style.setProperty('--sidebar-primary', isDark ? preset.oklchDark : preset.oklchLight);
+  root.style.setProperty('--ring', isDark ? preset.oklchDark : preset.oklchLight);
+}
+
 export const usePreferencesStore = create<PreferencesState>((set, get) => {
   const initial = loadPreferences();
+
+  // Apply persisted accent color on load
+  if (typeof document !== 'undefined') {
+    applyAccentColor(initial.accentColorIndex);
+  }
 
   return {
     ...initial,
@@ -160,6 +218,41 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => {
       savePreferences({ ...get(), desktopSortBy: field });
     },
 
+    setAccentColorIndex: (index) => {
+      const clamped = Math.max(0, Math.min(ACCENT_PRESETS.length - 1, index));
+      set({ accentColorIndex: clamped });
+      savePreferences({ ...get(), accentColorIndex: clamped });
+      // Apply accent color to CSS vars immediately
+      applyAccentColor(clamped);
+    },
+
+    setAutoRefreshInterval: (seconds) => {
+      set({ autoRefreshInterval: seconds });
+      savePreferences({ ...get(), autoRefreshInterval: seconds });
+    },
+
+    setDateFormat: (format) => {
+      set({ dateFormat: format });
+      savePreferences({ ...get(), dateFormat: format });
+    },
+
+    setShowToasts: (show) => {
+      set({ showToasts: show });
+      savePreferences({ ...get(), showToasts: show });
+    },
+
+    setToastPosition: (position) => {
+      set({ toastPosition: position });
+      savePreferences({ ...get(), toastPosition: position });
+    },
+
+    resetAllPreferences: () => {
+      set(DEFAULTS);
+      savePreferences(DEFAULTS);
+      // Re-apply default accent color
+      applyAccentColor(DEFAULTS.accentColorIndex);
+    },
+
     updatePreferences: (partial) => {
       const current = get();
       const updated = { ...current, ...partial };
@@ -177,6 +270,11 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => {
         terminalCopyOnSelect: updated.terminalCopyOnSelect,
         desktopIconSize: updated.desktopIconSize,
         desktopSortBy: updated.desktopSortBy,
+        accentColorIndex: updated.accentColorIndex,
+        autoRefreshInterval: updated.autoRefreshInterval,
+        dateFormat: updated.dateFormat,
+        showToasts: updated.showToasts,
+        toastPosition: updated.toastPosition,
       });
     },
   };

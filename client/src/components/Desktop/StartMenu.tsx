@@ -10,6 +10,8 @@ import {
   User,
   Plug,
   Unplug,
+  Lock,
+  ArrowLeftRight,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import {
@@ -73,6 +75,8 @@ export function StartMenu() {
     activeServerId,
     connectServer,
     disconnectServer,
+    lockScreen,
+    switchUser,
     signOut,
   } = useAppStore();
   const [searchQuery, setSearchQuery] = useState('');
@@ -279,9 +283,33 @@ export function StartMenu() {
           {/* Separator */}
           <div className="w-px h-5 bg-separator mx-1" />
 
-          {/* Sign out */}
+          {/* Lock */}
           <button
             className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-black/5 dark:hover:bg-white/6 text-foreground/35 hover:text-foreground/70 transition-colors"
+            title="Lock"
+            onClick={() => {
+              closeStartMenu();
+              lockScreen();
+            }}
+          >
+            <Lock className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Switch User */}
+          <button
+            className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-black/5 dark:hover:bg-white/6 text-foreground/35 hover:text-foreground/70 transition-colors"
+            title="Switch User"
+            onClick={() => {
+              closeStartMenu();
+              switchUser();
+            }}
+          >
+            <ArrowLeftRight className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Sign out */}
+          <button
+            className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-black/5 dark:hover:bg-white/6 text-foreground/35 hover:text-red-500 transition-colors"
             title="Sign Out"
             onClick={() => {
               closeStartMenu();

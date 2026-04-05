@@ -222,6 +222,20 @@ export async function writeFile(serverId: string, path: string, content: string)
   });
 }
 
+export async function copyFile(serverId: string, sourcePath: string, destPath: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/servers/${serverId}/files/copy`, {
+    method: 'POST',
+    body: JSON.stringify({ sourcePath, destPath }),
+  });
+}
+
+export async function moveFile(serverId: string, sourcePath: string, destPath: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/servers/${serverId}/files/move`, {
+    method: 'POST',
+    body: JSON.stringify({ sourcePath, destPath }),
+  });
+}
+
 // ── Task Manager ────────────────────────────────────────
 
 export interface ProcessData {
