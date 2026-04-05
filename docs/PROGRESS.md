@@ -22,7 +22,7 @@
 | M0: Project Scaffolding | Week 1, Day 1-2 | ✅ | 6/6 tasks | [phase-0](phases/phase-0.md) |
 | M1: SSH + Terminal + LLM | Week 1, Day 3-7 | ✅ | 9/9 tasks | [phase-1](phases/phase-1.md) |
 | M2: Dashboard + File Explorer | Week 2 | ✅ | 6/6 tasks | [phase-2](phases/phase-2.md) |
-| M3: Docker + Processes + Services | Week 3 | ⬜ | 0/6 tasks | [phase-3](phases/phase-3.md) |
+| M3: Docker + Processes + Services | Week 3 | ✅ | 6/6 tasks | [phase-3](phases/phase-3.md) |
 | M4: Deterministic Parsers | Week 4 | 🔄 | 3/8 tasks | [phase-4](phases/phase-4.md) |
 | M5: Polish + Security + Testing | Week 5 | ⬜ | 0/6 tasks | [phase-5](phases/phase-5.md) |
 | M6: Desktop UI System | Week 6-7 | 🔄 | 0/11 tasks | [phase-6](phases/phase-6.md) |
@@ -82,12 +82,12 @@ Example:
 
 | Task ID | Task | Status | Verification |
 |---------|------|--------|--------------|
-| M3.1 | Docker Backend | ⬜ | Lists containers/images (JSON format) |
-| M3.2 | Docker Frontend | ⬜ | Start/stop/restart from UI |
-| M3.3 | Docker Log Streaming | ⬜ | Real-time log tailing |
-| M3.4 | Process Manager Backend | ⬜ | ProcessInfo[] sorted by memory |
-| M3.5 | Process Manager Frontend | ⬜ | Tree view + kill action |
-| M3.6 | Services Manager | ⬜ | List/start/stop/restart systemd |
+| M3.1 | Docker Backend | ✅ | Lists containers/images (JSON format), start/stop/restart/remove, logs, inspect |
+| M3.2 | Docker Frontend | ✅ | Container/image tabs, context menu actions, search/filter |
+| M3.3 | Docker Log Streaming | ✅ | Real-time log tailing with auto-refresh panel |
+| M3.4 | Process Manager Backend | ✅ | Done — Task Manager covers this (M7.1) |
+| M3.5 | Process Manager Frontend | ✅ | Done — Task Manager covers this (M7.1) |
+| M3.6 | Services Manager | ✅ | List/start/stop/restart/enable/disable systemd, status/logs panel |
 
 ---
 
@@ -162,6 +162,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-04-04 | **M3 complete** — Docker backend (containers/images JSON, actions, logs, inspect), Docker frontend (container/image tabs, context menus, search, log viewer), Services backend (systemd list/start/stop/restart/enable/disable, status/logs), Services frontend (filter pills, context menus, status/log panels), M3.4/M3.5 covered by Task Manager |
 | 2026-04-04 | Initial documentation created |
 | 2026-04-04 | Puter analysis — ADR-011, ADR-012, 5 design patterns |
 | 2026-04-04 | Command Orchestrator — ADR-013, ADR-014, Task M1.4 |

@@ -21,11 +21,11 @@ export function NetworkCard({ interfaces }: NetworkCardProps) {
   });
 
   return (
-    <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-4">
+    <div className="rounded-lg border border-border bg-card p-4">
       <div className="flex items-center gap-2 mb-3">
         <Network className="w-4 h-4 text-cyan-400" />
-        <h3 className="text-sm font-medium text-zinc-200">Network</h3>
-        <span className="text-xs text-zinc-500">
+        <h3 className="text-sm font-medium text-card-foreground">Network</h3>
+        <span className="text-xs text-muted-foreground">
           {interfaces.filter(i => i.status === 'UP').length} up /{' '}
           {interfaces.length} total
         </span>
@@ -47,12 +47,12 @@ function InterfaceRow({ iface }: { iface: NetworkInterfaceData }) {
       ? 'text-green-400'
       : iface.status === 'UNKNOWN'
         ? 'text-yellow-400'
-        : 'text-zinc-600';
+        : 'text-muted-foreground/50';
 
   return (
     <div className="flex items-center gap-3 text-xs py-1">
       <StatusIcon className={`w-3.5 h-3.5 shrink-0 ${statusColor}`} />
-      <span className="text-zinc-300 font-mono w-24 truncate" title={iface.name}>
+      <span className="text-foreground font-mono w-24 truncate" title={iface.name}>
         {iface.name}
       </span>
       <div className="flex-1 flex flex-wrap gap-1">
@@ -60,13 +60,13 @@ function InterfaceRow({ iface }: { iface: NetworkInterfaceData }) {
           iface.ipAddresses.map(ip => (
             <span
               key={ip}
-              className="px-1.5 py-0.5 bg-zinc-800 rounded text-zinc-400 font-mono text-[10px]"
+              className="px-1.5 py-0.5 bg-muted rounded text-muted-foreground font-mono text-[10px]"
             >
               {ip}
             </span>
           ))
         ) : (
-          <span className="text-zinc-600 italic">no address</span>
+          <span className="text-muted-foreground/50 italic">no address</span>
         )}
       </div>
     </div>

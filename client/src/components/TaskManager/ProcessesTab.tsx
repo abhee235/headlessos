@@ -67,7 +67,7 @@ function usageColor(pct: number): string {
   if (pct >= 80) return 'text-red-500';
   if (pct >= 50) return 'text-orange-400';
   if (pct >= 20) return 'text-yellow-400';
-  return 'text-[rgb(var(--muted-foreground))]';
+  return 'text-muted-foreground';
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
@@ -150,29 +150,29 @@ export function ProcessesTab({ processes, serverId, onRefresh, refreshing, onCon
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return <ArrowUpDown size={12} className="opacity-30" />;
     return sortAsc ? (
-      <ArrowUp size={12} className="text-[rgb(var(--primary))]" />
+      <ArrowUp size={12} className="text-primary" />
     ) : (
-      <ArrowDown size={12} className="text-[rgb(var(--primary))]" />
+      <ArrowDown size={12} className="text-primary" />
     );
   };
 
   return (
     <div className="flex flex-col h-full">
       {/* ── Toolbar ── */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-[rgb(var(--border))] shrink-0">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-border shrink-0">
         {/* Search */}
         <div className="relative flex-1 max-w-xs">
-          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[rgb(var(--muted-foreground))]" />
+          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search processes…"
-            className="w-full pl-8 pr-7 py-1.5 text-[12px] rounded-md border border-[rgb(var(--input))] bg-[rgb(var(--background))] text-[rgb(var(--foreground))] placeholder:text-[rgb(var(--muted-foreground))] focus:outline-none focus:ring-1 focus:ring-[rgb(var(--ring))]"
+            className="w-full pl-8 pr-7 py-1.5 text-[12px] rounded-md border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
           {search && (
             <button
               onClick={() => setSearch('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))]"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
             >
               <X size={12} />
             </button>
@@ -180,7 +180,7 @@ export function ProcessesTab({ processes, serverId, onRefresh, refreshing, onCon
         </div>
 
         {/* Process count */}
-        <span className="text-[11px] text-[rgb(var(--muted-foreground))] tabular-nums">
+        <span className="text-[11px] text-muted-foreground tabular-nums">
           {filtered.length} / {processes.length} processes
         </span>
 
@@ -210,7 +210,7 @@ export function ProcessesTab({ processes, serverId, onRefresh, refreshing, onCon
       <div className="flex-1 overflow-auto">
         <Table>
           <TableHeader className="sticky top-0 z-10">
-            <TableRow className="bg-[rgb(var(--secondary))] hover:bg-[rgb(var(--secondary))]">
+            <TableRow className="bg-secondary hover:bg-secondary">
               <TableHead className="w-16 cursor-pointer select-none" onClick={() => toggleSort('pid')}>
                 <span className="flex items-center gap-1 text-[11px]">PID <SortIcon field="pid" /></span>
               </TableHead>
@@ -246,18 +246,18 @@ export function ProcessesTab({ processes, serverId, onRefresh, refreshing, onCon
                       className={cn(
                         'cursor-pointer transition-colors',
                         selectedPid === p.pid
-                          ? 'bg-[rgb(var(--primary))]/10 hover:bg-[rgb(var(--primary))]/15'
-                          : 'hover:bg-[rgb(var(--accent))]',
+                          ? 'bg-primary/10 hover:bg-primary/15'
+                          : 'hover:bg-accent',
                       )}
                       onClick={() => setSelectedPid(selectedPid === p.pid ? null : p.pid)}
                     >
-                      <TableCell className="text-[11px] tabular-nums text-[rgb(var(--muted-foreground))]">
+                      <TableCell className="text-[11px] tabular-nums text-muted-foreground">
                         {p.pid}
                       </TableCell>
-                      <TableCell className="text-[11px] text-[rgb(var(--muted-foreground))]">
+                      <TableCell className="text-[11px] text-muted-foreground">
                         {p.user}
                       </TableCell>
-                      <TableCell className="text-[12px] font-medium text-[rgb(var(--foreground))]">
+                      <TableCell className="text-[12px] font-medium text-foreground">
                         <div className="truncate max-w-70" title={p.command}>{shortName}</div>
                       </TableCell>
                       <TableCell className="text-right">
@@ -271,7 +271,7 @@ export function ProcessesTab({ processes, serverId, onRefresh, refreshing, onCon
                       <TableCell className={cn('text-right text-[11px] tabular-nums font-medium', usageColor(p.memory))}>
                         {p.memory.toFixed(1)}%
                       </TableCell>
-                      <TableCell className="text-right text-[11px] tabular-nums text-[rgb(var(--muted-foreground))]">
+                      <TableCell className="text-right text-[11px] tabular-nums text-muted-foreground">
                         {formatKb(p.rss)}
                       </TableCell>
                     </TableRow>
@@ -323,7 +323,7 @@ export function ProcessesTab({ processes, serverId, onRefresh, refreshing, onCon
       </div>
 
       {/* ── Status bar ── */}
-      <div className="flex items-center justify-between px-3 py-1.5 border-t border-[rgb(var(--border))] bg-[rgb(var(--secondary))] text-[10px] text-[rgb(var(--muted-foreground))] shrink-0">
+      <div className="flex items-center justify-between px-3 py-1.5 border-t border-border bg-secondary text-[10px] text-muted-foreground shrink-0">
         <span>Processes: {processes.length}</span>
         <span className="tabular-nums">
           CPU: {processes.reduce((s, p) => s + p.cpu, 0).toFixed(1)}% ·

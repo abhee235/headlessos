@@ -247,22 +247,22 @@ export function FileList({
             <ContextMenuItem onClick={() => changeView('large-icons')}>
               <LayoutGrid className="w-4 h-4 mr-2 opacity-60" />
               Large Icons
-              {viewMode === 'large-icons' && <span className="ml-auto text-[rgb(var(--primary))]">✓</span>}
+              {viewMode === 'large-icons' && <span className="ml-auto text-primary">✓</span>}
             </ContextMenuItem>
             <ContextMenuItem onClick={() => changeView('small-icons')}>
               <Grid3x3 className="w-4 h-4 mr-2 opacity-60" />
               Medium Icons
-              {viewMode === 'small-icons' && <span className="ml-auto text-[rgb(var(--primary))]">✓</span>}
+              {viewMode === 'small-icons' && <span className="ml-auto text-primary">✓</span>}
             </ContextMenuItem>
             <ContextMenuItem onClick={() => changeView('list')}>
               <List className="w-4 h-4 mr-2 opacity-60" />
               List
-              {viewMode === 'list' && <span className="ml-auto text-[rgb(var(--primary))]">✓</span>}
+              {viewMode === 'list' && <span className="ml-auto text-primary">✓</span>}
             </ContextMenuItem>
             <ContextMenuItem onClick={() => changeView('details')}>
               <Table2 className="w-4 h-4 mr-2 opacity-60" />
               Details
-              {viewMode === 'details' && <span className="ml-auto text-[rgb(var(--primary))]">✓</span>}
+              {viewMode === 'details' && <span className="ml-auto text-primary">✓</span>}
             </ContextMenuItem>
           </ContextMenuSubContent>
         </ContextMenuSub>
@@ -274,19 +274,19 @@ export function FileList({
           <ContextMenuSubContent>
             <ContextMenuItem onClick={() => { setSortBy('name'); setSortAsc(true); }}>
               Name
-              {sortBy === 'name' && <span className="ml-auto text-[rgb(var(--primary))]">✓</span>}
+              {sortBy === 'name' && <span className="ml-auto text-primary">✓</span>}
             </ContextMenuItem>
             <ContextMenuItem onClick={() => { setSortBy('size'); setSortAsc(false); }}>
               Size
-              {sortBy === 'size' && <span className="ml-auto text-[rgb(var(--primary))]">✓</span>}
+              {sortBy === 'size' && <span className="ml-auto text-primary">✓</span>}
             </ContextMenuItem>
             <ContextMenuItem onClick={() => { setSortBy('date'); setSortAsc(false); }}>
               Date Modified
-              {sortBy === 'date' && <span className="ml-auto text-[rgb(var(--primary))]">✓</span>}
+              {sortBy === 'date' && <span className="ml-auto text-primary">✓</span>}
             </ContextMenuItem>
             <ContextMenuItem onClick={() => { setSortBy('type'); setSortAsc(true); }}>
               Type
-              {sortBy === 'type' && <span className="ml-auto text-[rgb(var(--primary))]">✓</span>}
+              {sortBy === 'type' && <span className="ml-auto text-primary">✓</span>}
             </ContextMenuItem>
           </ContextMenuSubContent>
         </ContextMenuSub>
@@ -454,7 +454,7 @@ function DetailsView({
         <div className="overflow-auto h-full">
           <table className="w-full text-xs">
             <thead className="sticky top-0 z-10">
-              <tr className="bg-gray-50/90 dark:bg-zinc-800/90 text-gray-500 dark:text-zinc-500 border-b border-gray-200 dark:border-zinc-700/60">
+              <tr className="bg-muted/40 text-muted-foreground border-b border-border/50">
                 <th className="text-left px-3 py-1.5 font-medium">Name</th>
                 <th className="text-left px-3 py-1.5 font-medium w-20">Type</th>
                 <th className="text-right px-3 py-1.5 font-medium w-20">Size</th>
@@ -465,14 +465,14 @@ function DetailsView({
             <tbody>
               {canGoUp && (
                 <tr
-                  className="hover:bg-gray-50 dark:hover:bg-zinc-800/50 cursor-pointer border-b border-gray-100 dark:border-zinc-800/30"
+                  className="hover:bg-accent/50 cursor-pointer border-b border-border/20"
                   onClick={onNavigateUp}
                 >
-                  <td className="px-3 py-1 flex items-center gap-2 text-gray-400 dark:text-zinc-400">
+                  <td className="px-3 py-1 flex items-center gap-2 text-muted-foreground">
                     <ArrowUp className="w-3.5 h-3.5" />
                     <span>..</span>
                   </td>
-                  <td className="px-3 py-1 text-gray-400 dark:text-zinc-600">Folder</td>
+                  <td className="px-3 py-1 text-muted-foreground">Folder</td>
                   <td />
                   <td className="hidden md:table-cell" />
                   <td className="hidden lg:table-cell" />
@@ -482,7 +482,7 @@ function DetailsView({
                 <ContextMenu key={entry.name}>
                   <ContextMenuTrigger asChild>
                     <tr
-                      className="hover:bg-blue-50 dark:hover:bg-blue-600/10 cursor-pointer group border-b border-gray-100 dark:border-zinc-800/20"
+                      className="hover:bg-primary/8 cursor-pointer group border-b border-border/15"
                       onDoubleClick={() => onOpen(entry)}
                     >
                       <td className="px-3 py-1">
@@ -496,21 +496,21 @@ function DetailsView({
                               onCancel={() => setRenamingEntry(null)}
                             />
                           ) : (
-                            <span className="text-gray-900 dark:text-zinc-200 truncate">{entry.name}</span>
+                            <span className="text-foreground truncate">{entry.name}</span>
                           )}
                           {entry.type === 'symlink' && entry.symlinkTarget && (
-                            <span className="text-[10px] text-gray-400 dark:text-zinc-600">→ {entry.symlinkTarget}</span>
+                            <span className="text-[10px] text-muted-foreground/60">→ {entry.symlinkTarget}</span>
                           )}
                         </div>
                       </td>
-                      <td className="px-3 py-1 text-gray-400 dark:text-zinc-500">{getTypeLabel(entry)}</td>
-                      <td className="px-3 py-1 text-right text-gray-400 dark:text-zinc-500 font-mono">
+                      <td className="px-3 py-1 text-muted-foreground">{getTypeLabel(entry)}</td>
+                      <td className="px-3 py-1 text-right text-muted-foreground font-mono">
                         {entry.type === 'directory' ? '' : formatSize(entry.size)}
                       </td>
-                      <td className="px-3 py-1 text-gray-400 dark:text-zinc-500 hidden md:table-cell">
+                      <td className="px-3 py-1 text-muted-foreground hidden md:table-cell">
                         {formatDate(entry.modified)}
                       </td>
-                      <td className="px-3 py-1 text-gray-300 dark:text-zinc-600 font-mono hidden lg:table-cell">
+                      <td className="px-3 py-1 text-muted-foreground/50 font-mono hidden lg:table-cell">
                         {entry.permissions.split(' ')[0]}
                       </td>
                     </tr>
@@ -570,7 +570,7 @@ function ListView({
             {canGoUp && (
               <button
                 onClick={onNavigateUp}
-                className="flex items-center gap-2 px-2 py-0.5 rounded text-xs text-gray-400 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800/60 hover:text-gray-900 dark:hover:text-zinc-200 text-left"
+                className="flex items-center gap-2 px-2 py-0.5 rounded-lg text-xs text-muted-foreground hover:bg-accent/60 hover:text-foreground text-left"
               >
                 <ArrowUp className="w-3.5 h-3.5 shrink-0" />
                 <span>..</span>
@@ -580,7 +580,7 @@ function ListView({
               <ContextMenu key={entry.name}>
                 <ContextMenuTrigger asChild>
                   <div
-                    className="flex items-center gap-2 px-2 py-0.5 rounded text-xs hover:bg-blue-50 dark:hover:bg-blue-600/10 cursor-pointer"
+                    className="flex items-center gap-2 px-2 py-0.5 rounded-lg text-xs hover:bg-primary/8 cursor-pointer"
                     onDoubleClick={() => onOpen(entry)}
                   >
                     <FileIcon entry={entry} size="sm" className="shrink-0" />
@@ -592,9 +592,9 @@ function ListView({
                         onCancel={() => setRenamingEntry(null)}
                       />
                     ) : (
-                      <span className="text-gray-900 dark:text-zinc-200 truncate flex-1">{entry.name}</span>
+                      <span className="text-foreground truncate flex-1">{entry.name}</span>
                     )}
-                    <span className="text-gray-400 dark:text-zinc-600 font-mono text-[10px] shrink-0">
+                    <span className="text-muted-foreground/60 font-mono text-[10px] shrink-0">
                       {entry.type === 'directory' ? '' : formatSize(entry.size)}
                     </span>
                   </div>
@@ -613,7 +613,7 @@ function ListView({
               />
             )}
             {entries.length === 0 && !canGoUp && !creatingType && (
-              <div className="text-center text-gray-400 dark:text-zinc-600 text-xs py-8">Empty directory</div>
+              <div className="text-center text-muted-foreground text-xs py-8">Empty directory</div>
             )}
           </div>
         </div>
@@ -659,7 +659,7 @@ function IconGridView({
             {canGoUp && (
               <button
                 onClick={onNavigateUp}
-                className={`flex flex-col items-center justify-center ${cfg.cellPad} rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800/60 text-gray-400 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-200 transition-colors`}
+                className={`flex flex-col items-center justify-center ${cfg.cellPad} rounded-xl hover:bg-accent/60 text-muted-foreground hover:text-foreground transition-colors`}
               >
                 <ArrowUp style={{ width: cfg.iconPx * 0.6, height: cfg.iconPx * 0.6 }} className="mb-1" />
                 <span className={`${cfg.textSize} truncate max-w-full`}>..</span>
@@ -669,7 +669,7 @@ function IconGridView({
               <ContextMenu key={entry.name}>
                 <ContextMenuTrigger asChild>
                   <div
-                    className={`flex flex-col items-center justify-center ${cfg.cellPad} rounded-lg hover:bg-blue-50 dark:hover:bg-blue-600/10 cursor-pointer transition-colors`}
+                    className={`flex flex-col items-center justify-center ${cfg.cellPad} rounded-xl hover:bg-primary/8 cursor-pointer transition-colors`}
                     onDoubleClick={() => onOpen(entry)}
                   >
                     <FileIcon entry={entry} size={cfg.fileSize} style={{ width: cfg.iconPx, height: cfg.iconPx }} />
@@ -682,7 +682,7 @@ function IconGridView({
                         centered
                       />
                     ) : (
-                      <span className={`${cfg.textSize} text-gray-800 dark:text-zinc-300 text-center truncate max-w-full mt-1 leading-tight`}>
+                      <span className={`${cfg.textSize} text-foreground text-center truncate max-w-full mt-1 leading-tight`}>
                         {entry.name}
                       </span>
                     )}
@@ -706,7 +706,7 @@ function IconGridView({
             )}
           </div>
           {entries.length === 0 && !canGoUp && !creatingType && (
-            <div className="text-center text-gray-400 dark:text-zinc-600 text-xs py-12">This folder is empty</div>
+            <div className="text-center text-muted-foreground text-xs py-12">This folder is empty</div>
           )}
         </div>
       </ContextMenuTrigger>
@@ -749,7 +749,7 @@ function RenameInput({
   return (
     <input
       ref={inputRef}
-      className={`bg-white dark:bg-zinc-800 border border-blue-500 rounded px-1 py-0.5 text-gray-900 dark:text-zinc-200 text-xs outline-none w-full max-w-30 focus:ring-1 focus:ring-blue-500/30 ${centered ? 'text-center' : ''}`}
+      className={`bg-background border border-primary rounded-lg px-1.5 py-0.5 text-foreground text-xs outline-none w-full max-w-30 focus:ring-1 focus:ring-primary/30 ${centered ? 'text-center' : ''}`}
       value={value}
       onChange={e => onChange(e.target.value)}
       onBlur={() => onSubmit()}
@@ -796,7 +796,7 @@ function InlineCreateInput({
       )}
       <input
         ref={inputRef}
-        className="bg-white dark:bg-zinc-800 border border-blue-500 rounded px-1.5 py-0.5 text-gray-900 dark:text-zinc-200 text-xs outline-none w-48 focus:ring-1 focus:ring-blue-500/30"
+        className="bg-background border border-primary rounded-lg px-1.5 py-0.5 text-foreground text-xs outline-none w-48 focus:ring-1 focus:ring-primary/30"
         value={name}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {
@@ -843,7 +843,7 @@ function GridCreateCard({
   }, []);
 
   return (
-    <div className={`flex flex-col items-center justify-center ${cellPad} rounded-lg bg-blue-50/60 dark:bg-blue-600/10 border border-blue-300/50 dark:border-blue-500/20`}>
+    <div className={`flex flex-col items-center justify-center ${cellPad} rounded-xl bg-primary/8 border border-primary/20`}>
       {type === 'folder' ? (
         <FolderSVG size={iconPx} className="" />
       ) : (
@@ -851,7 +851,7 @@ function GridCreateCard({
       )}
       <input
         ref={inputRef}
-        className={`${textSize} bg-white dark:bg-zinc-800 border border-blue-500 rounded px-1 py-0.5 text-gray-900 dark:text-zinc-200 outline-none text-center mt-1 w-full max-w-[90px] focus:ring-1 focus:ring-blue-500/30`}
+        className={`${textSize} bg-background border border-primary rounded-lg px-1 py-0.5 text-foreground outline-none text-center mt-1 w-full max-w-[90px] focus:ring-1 focus:ring-primary/30`}
         value={name}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {
@@ -870,7 +870,7 @@ function GridCreateCard({
 function EmptyRow({ colSpan }: { colSpan: number }) {
   return (
     <tr>
-      <td colSpan={colSpan} className="px-3 py-8 text-center text-gray-400 dark:text-zinc-600 text-xs">
+      <td colSpan={colSpan} className="px-3 py-8 text-center text-muted-foreground text-xs">
         This folder is empty
       </td>
     </tr>

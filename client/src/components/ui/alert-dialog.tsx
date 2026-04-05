@@ -34,8 +34,8 @@ const AlertDialogContent = React.forwardRef<
       className={cn(
         "fixed left-1/2 top-1/2 z-[9999] grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4",
         "rounded-2xl p-6",
-        "bg-white/80 dark:bg-zinc-900/80 backdrop-blur-2xl backdrop-saturate-[1.8]",
-        "border border-white/60 dark:border-white/[0.12]",
+        "bg-glass backdrop-blur-2xl backdrop-saturate-[1.8]",
+        "border border-glass-border",
         "ring-1 ring-black/[0.04] dark:ring-white/[0.05]",
         "shadow-2xl shadow-black/[0.08] dark:shadow-black/40",
         "animate-dialogIn",
@@ -81,7 +81,7 @@ const AlertDialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <AlertDialogPrimitive.Description
     ref={ref}
-    className={cn("text-sm text-[rgb(var(--muted-foreground))]", className)}
+    className={cn("text-sm text-muted-foreground", className)}
     {...props}
   />
 ));

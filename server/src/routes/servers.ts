@@ -1,6 +1,9 @@
 // M1.7: Server API Routes
 // @see docs/phases/phase-1.md
 
+import { readdir, readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { homedir } from 'node:os';
 import type { FastifyInstance } from 'fastify';
 import type { ConnectionManager } from '../ssh/connection-manager.js';
 import type { ConfigStore } from '../config/store.js';
@@ -88,5 +91,74 @@ export async function serverRoutes(
 
   fastify.get<{ Params: { id: string } }>('/api/servers/:id/status', async (req) => {
     return connectionManager.getState(req.params.id);
+  });
+
+  // ── GET /api/ssh-keys — detect local SSH keys ────────
+
+  fastify.get('/api/ssh-keys', async (_req, reply) => {
+    const sshDir = join(homedir(), '.ssh');
+    try {
+      const files = await readdir(sshDir);
+      // Match private key files (no .pub extension, common key patterns)
+      const keyPatterns = [
+        /^id_rsa$/,
+        /^id_ed25519$/,
+        /^id_ecdsa$/,
+        /^id_dsa$/,
+        /^id_.*(?<!\.pub)$/,    // any id_* file that's not .pub
+      ];
+      const keyFiles = files
+        .filter(f => keyPatterns.some(p => p.test(f)))
+        .filter(f => !f.endsWith('.pub'));  // extra safety
+
+      const keys: Array<{ name: string; path: string; type: string }> = [];
+      for (const file of keyFiles) {
+        const fullPath = join(sshDir, file);
+        try {
+          const content = await readFile(fullPath, 'utf-8');
+          // Detect key type from first line
+          let type = 'unknown';
+          if (content.includes('RSA')) type = 'RSA';
+          else if (content.includes('ED25519') || content.includes('ed25519')) type = 'ED25519';
+          else if (content.includes('ECDSA') || content.includes('ecdsa')) type = 'ECDSA';
+          else if (content.includes('DSA')) type = 'DSA';
+          else if (content.includes('OPENSSH')) type = 'OpenSSH';
+
+          keys.push({ name: file, path: fullPath, type });
+        } catch {
+          // Skip unreadable files
+        }
+      }
+
+      return { keys };
+    } catch {
+      // ~/.ssh doesn't exist or isn't readable
+      return { keys: [] };
+    }
+  });
+
+  // ── GET /api/ssh-keys/:name — read a specific key's content ──
+
+  fastify.get<{ Params: { name: string } }>('/api/ssh-keys/:name', async (req, reply) => {
+    const keyName = req.params.name;
+    // Validate: only allow simple filenames (no path traversal)
+    if (/[/\\]/.test(keyName) || keyName.includes('..')) {
+      reply.code(400);
+      return { error: 'Invalid key name' };
+    }
+
+    const keyPath = join(homedir(), '.ssh', keyName);
+    try {
+      const content = await readFile(keyPath, 'utf-8');
+      // Verify it looks like a private key
+      if (!content.includes('PRIVATE KEY')) {
+        reply.code(400);
+        return { error: 'File does not appear to be a private key' };
+      }
+      return { content };
+    } catch {
+      reply.code(404);
+      return { error: 'Key not found' };
+    }
   });
 }

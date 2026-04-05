@@ -20,7 +20,7 @@ export function DesktopLayout() {
 
   return (
     <TooltipProvider delayDuration={400}>
-      <div className="relative w-screen h-screen overflow-hidden bg-[rgb(var(--background))] text-[rgb(var(--foreground))] select-none">
+      <div className="relative w-screen h-screen overflow-hidden bg-background text-foreground select-none">
         {/* Desktop — wallpaper + icons */}
         <Desktop />
 

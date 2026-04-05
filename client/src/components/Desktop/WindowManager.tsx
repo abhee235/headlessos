@@ -8,6 +8,8 @@ import { FileExplorerView } from '../FileExplorer/FileExplorerView';
 import { TerminalView } from '../Terminal/TerminalView';
 import { SettingsView } from './SettingsView';
 import { TaskManagerView } from '../TaskManager/TaskManagerView';
+import { DockerView } from '../Docker/DockerView';
+import { ServicesView } from '../Services/ServicesView';
 
 function WindowContent({ appId, serverId }: { appId: string; serverId: string }) {
   switch (appId) {
@@ -39,6 +41,18 @@ function WindowContent({ appId, serverId }: { appId: string; serverId: string })
       return (
         <div className="h-full overflow-hidden">
           <TaskManagerView serverId={serverId} />
+        </div>
+      );
+    case 'docker':
+      return (
+        <div className="h-full overflow-hidden">
+          <DockerView serverId={serverId} />
+        </div>
+      );
+    case 'services':
+      return (
+        <div className="h-full overflow-hidden">
+          <ServicesView serverId={serverId} />
         </div>
       );
     default:

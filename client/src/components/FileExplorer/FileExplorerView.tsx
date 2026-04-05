@@ -11,6 +11,7 @@ import { AddressBar } from './AddressBar';
 import { NavigationPane } from './NavigationPane';
 import { ExplorerToolbar, type ViewMode } from './ExplorerToolbar';
 import { usePreferencesStore } from '../../store/preferences-store';
+import { DisconnectedState } from '@/components/ui/disconnected-state';
 
 interface FileExplorerViewProps {
   serverId: string;
@@ -123,70 +124,83 @@ export function FileExplorerView({ serverId }: FileExplorerViewProps) {
     usePreferencesStore.getState().setExplorerViewMode(mode);
   }, []);
 
-  // If viewing a file, show the file viewer full-pane
+  // If viewing a file, show the file viewer with full-height sidebar
   if (viewingFile) {
     return (
-      <div className="flex flex-col h-full">
-        <FileViewer
-          serverId={serverId}
-          filePath={viewingFile}
-          onClose={() => setViewingFile(null)}
-          onSave={handleActionComplete}
-        />
+      <div className="flex h-full">
+        {/* Full-height sidebar */}
+        <NavigationPane currentPath={currentPath} onNavigate={navigateTo} />
+        {/* Right: file viewer */}
+        <div className="flex flex-col flex-1 min-w-0 bg-background">
+          <FileViewer
+            serverId={serverId}
+            filePath={viewingFile}
+            onClose={() => setViewingFile(null)}
+            onSave={handleActionComplete}
+          />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Address bar */}
-      <AddressBar
-        currentPath={currentPath}
-        onNavigate={navigateTo}
-        onRefresh={handleRefresh}
-        loading={loading}
-        historyBack={historyBack}
-        historyForward={historyForward}
-        onBack={goBack}
-        onForward={goForward}
-        onUp={navigateUp}
-      />
+    <div className="flex h-full">
+      {/* Full-height sidebar — flows from the window title bar sidebar header */}
+      <NavigationPane currentPath={currentPath} onNavigate={navigateTo} />
 
-      {/* Toolbar */}
-      <ExplorerToolbar
-        viewMode={viewMode}
-        onViewModeChange={handleViewModeChange}
-        serverId={serverId}
-        currentPath={currentPath}
-        onActionComplete={handleActionComplete}
-        entryCount={entries.length}
-        onStartCreate={handleStartCreate}
-      />
+      {/* Right column: address bar + toolbar + files + status bar */}
+      <div className="flex flex-col flex-1 min-w-0 bg-background">
+        {/* Address bar */}
+        <AddressBar
+          currentPath={currentPath}
+          onNavigate={navigateTo}
+          onRefresh={handleRefresh}
+          loading={loading}
+          historyBack={historyBack}
+          historyForward={historyForward}
+          onBack={goBack}
+          onForward={goForward}
+          onUp={navigateUp}
+        />
 
-      {/* Main content area: sidebar + file list */}
-      <div className="flex flex-1 min-h-0">
-        {/* Navigation pane */}
-        <NavigationPane currentPath={currentPath} onNavigate={navigateTo} />
+        {/* Toolbar */}
+        <ExplorerToolbar
+          viewMode={viewMode}
+          onViewModeChange={handleViewModeChange}
+          serverId={serverId}
+          currentPath={currentPath}
+          onActionComplete={handleActionComplete}
+          entryCount={entries.length}
+          onStartCreate={handleStartCreate}
+        />
 
         {/* File content area */}
-        <div className="flex-1 min-w-0 bg-white dark:bg-zinc-950/50">
+        <div className="flex-1 min-h-0 bg-background">
           {loading && (
             <div className="flex items-center justify-center h-full">
-              <div className="flex items-center gap-2 text-gray-400 dark:text-zinc-400">
+              <div className="flex items-center gap-2 text-muted-foreground">
                 <RefreshCw className="w-4 h-4 animate-spin" />
                 <span className="text-xs">Loading…</span>
               </div>
             </div>
           )}
 
-          {error && !loading && (
+          {error && !loading && /not connected/i.test(error) && (
+            <DisconnectedState
+              serverId={serverId}
+              onReconnected={handleRefresh}
+              message="The SSH connection to this server was lost. Reconnect to browse files."
+            />
+          )}
+
+          {error && !loading && !/not connected/i.test(error) && (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
-                <AlertCircle className="w-6 h-6 text-red-500 dark:text-red-400 mx-auto mb-2" />
-                <p className="text-xs text-red-500 dark:text-red-400 mb-2">{error}</p>
+                <AlertCircle className="w-6 h-6 text-destructive mx-auto mb-2" />
+                <p className="text-xs text-destructive mb-3">{error}</p>
                 <button
                   onClick={handleRefresh}
-                  className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-300 rounded"
+                  className="px-3 py-1.5 text-xs bg-accent hover:bg-accent/80 text-foreground rounded-lg transition-colors"
                 >
                   Retry
                 </button>
@@ -208,13 +222,12 @@ export function FileExplorerView({ serverId }: FileExplorerViewProps) {
             />
           )}
         </div>
-      </div>
 
-      {/* Status bar */}
-      <div className="flex items-center px-2 py-0.5 bg-gray-50 dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-700/40 text-[10px] text-gray-500 dark:text-zinc-500">
-        <span>{entries.length} items</span>
-        <span className="mx-2">|</span>
-        <span className="truncate">{currentPath}</span>
+        {/* Status bar */}
+        <div className="flex items-center justify-between px-3 py-1 border-t border-border/20 text-[11px] text-foreground/40">
+          <span className="truncate max-w-[40%]">{currentPath}</span>
+          <span className="shrink-0">{entries.length} {entries.length === 1 ? 'item' : 'items'}</span>
+        </div>
       </div>
     </div>
   );

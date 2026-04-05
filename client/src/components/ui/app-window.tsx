@@ -65,11 +65,11 @@ function SidebarItem({
   return (
     <button
       className={cn(
-        'flex items-center gap-2.5 w-full px-3 py-[7px] rounded-lg text-[13px] transition-colors text-left',
-        'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[rgb(var(--ring))]',
+        'flex items-center gap-2.5 w-full px-3 py-1.75 rounded-lg text-[13px] transition-colors text-left',
+        'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
         active
-          ? 'bg-[rgb(var(--accent))] text-[rgb(var(--foreground))] font-medium'
-          : 'text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))] hover:bg-[rgb(var(--accent))]/50',
+          ? 'bg-primary/12 text-primary font-medium dark:bg-primary/20'
+          : 'text-muted-foreground hover:text-foreground hover:bg-accent',
         disabled && 'opacity-40 pointer-events-none',
       )}
       onClick={onClick}
@@ -78,7 +78,7 @@ function SidebarItem({
       {Icon && <Icon className="w-4 h-4 shrink-0 opacity-70" />}
       <span className="truncate flex-1">{label}</span>
       {badge !== undefined && (
-        <span className="text-[10px] bg-[rgb(var(--muted))] text-[rgb(var(--muted-foreground))] px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+        <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full min-w-4.5 text-center">
           {badge}
         </span>
       )}
@@ -97,7 +97,7 @@ function SidebarGroup({ label, children }: SidebarGroupProps) {
   return (
     <div className="space-y-0.5">
       {label && (
-        <div className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[rgb(var(--muted-foreground))]/60">
+        <div className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
           {label}
         </div>
       )}
@@ -118,8 +118,8 @@ function Sidebar({ children, className, width = 200 }: SidebarProps) {
   return (
     <div
       className={cn(
-        'shrink-0 border-r border-[rgb(var(--border))]/60',
-        'bg-[rgb(var(--sidebar))]/50',
+        'shrink-0 border-r border-border/60',
+        'bg-sidebar/50',
         'overflow-y-auto py-2 px-2 space-y-0.5',
         className,
       )}
@@ -142,8 +142,8 @@ function Toolbar({ children, className }: ToolbarProps) {
     <div
       className={cn(
         'flex items-center gap-1.5 px-3 py-1.5 shrink-0',
-        'border-b border-[rgb(var(--border))]/60',
-        'bg-[rgb(var(--background))]/50',
+        'border-b border-border/60',
+        'bg-background/50',
         className,
       )}
     >
@@ -193,9 +193,9 @@ function Footer({ children, className }: FooterProps) {
     <div
       className={cn(
         'flex items-center gap-2 px-3 py-1.5 shrink-0',
-        'border-t border-[rgb(var(--border))]/60',
-        'text-[11px] text-[rgb(var(--muted-foreground))]',
-        'bg-[rgb(var(--background))]/30',
+        'border-t border-border/60',
+        'text-[11px] text-muted-foreground',
+        'bg-background/30',
         className,
       )}
     >
@@ -310,20 +310,20 @@ function AppWindowRoot({
         <DialogPrimitive.Portal>
           {/* Overlay */}
           <DialogPrimitive.Overlay
-            className="fixed inset-0 z-[9998] bg-black/40 dark:bg-black/60 backdrop-blur-sm animate-fadeIn"
+            className="fixed inset-0 z-9998 bg-overlay backdrop-blur-sm animate-fadeIn"
           />
 
           {/* Window */}
           <DialogPrimitive.Content
             className={cn(
-              'fixed left-1/2 top-1/2 z-[9999] -translate-x-1/2 -translate-y-1/2',
+              'fixed left-1/2 top-1/2 z-9999 -translate-x-1/2 -translate-y-1/2',
               'flex flex-col overflow-hidden',
-              'rounded-xl',
-              'bg-[rgb(var(--background))]/95 dark:bg-[rgb(var(--card))]/95',
+              'rounded-2xl',
+              'bg-background/95 dark:bg-card/95',
               'backdrop-blur-2xl backdrop-saturate-150',
-              'border border-white/60 dark:border-white/[0.08]',
-              'ring-1 ring-black/[0.04] dark:ring-white/[0.05]',
-              'shadow-2xl shadow-black/[0.12] dark:shadow-black/50',
+              'border border-glass-border',
+              'shadow-window',
+              'ring-1 ring-black/4 dark:ring-white/5',
               'animate-dialogIn',
               'focus-visible:outline-none',
               className,
@@ -331,17 +331,17 @@ function AppWindowRoot({
             style={{ width: w, height: h }}
           >
             {/* ── Title Bar ── */}
-            <div className="flex items-center gap-2.5 px-4 py-3 shrink-0 border-b border-[rgb(var(--border))]/60">
+            <div className="flex items-center gap-2.5 px-4 py-3 shrink-0 border-b border-border/40 bg-chrome/30">
               <div className="flex items-center gap-2.5 flex-1 min-w-0">
                 {TitleIcon && (
-                  <TitleIcon className="w-5 h-5 shrink-0 text-[rgb(var(--primary))] opacity-80" />
+                  <TitleIcon className="w-5 h-5 shrink-0 text-primary opacity-80" />
                 )}
                 <div className="min-w-0">
-                  <DialogPrimitive.Title className="text-sm font-semibold text-[rgb(var(--foreground))] leading-tight truncate">
+                  <DialogPrimitive.Title className="text-sm font-semibold text-foreground leading-tight truncate">
                     {title}
                   </DialogPrimitive.Title>
                   {description && (
-                    <DialogPrimitive.Description className="text-[11px] text-[rgb(var(--muted-foreground))] leading-tight mt-0.5 truncate">
+                    <DialogPrimitive.Description className="text-[11px] text-muted-foreground leading-tight mt-0.5 truncate">
                       {description}
                     </DialogPrimitive.Description>
                   )}
@@ -351,10 +351,10 @@ function AppWindowRoot({
               {/* Close button */}
               <DialogPrimitive.Close
                 className={cn(
-                  'shrink-0 rounded-lg p-1.5 transition-colors',
-                  'text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))]',
-                  'hover:bg-[rgb(var(--accent))] active:bg-[rgb(var(--destructive))] active:text-[rgb(var(--destructive-foreground))]',
-                  'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[rgb(var(--ring))]',
+                  'shrink-0 rounded-xl p-1.5 transition-all duration-200',
+                  'text-muted-foreground hover:text-foreground',
+                  'hover:bg-accent active:bg-destructive active:text-destructive-foreground',
+                  'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
                 )}
               >
                 <X className="w-4 h-4" />

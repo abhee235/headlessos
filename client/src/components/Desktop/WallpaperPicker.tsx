@@ -173,7 +173,7 @@ export function WallpaperPicker({ open, onOpenChange }: WallpaperPickerProps) {
           onChange={handleUpload}
         />
         <div className="flex-1" />
-        <span className="text-[11px] text-[rgb(var(--muted-foreground))]">
+        <span className="text-[11px] text-muted-foreground">
           {currentWallpapers.length} wallpaper{currentWallpapers.length !== 1 ? 's' : ''}
         </span>
       </AppWindow.Toolbar>
@@ -182,10 +182,10 @@ export function WallpaperPicker({ open, onOpenChange }: WallpaperPickerProps) {
       <AppWindow.Body>
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-6 h-6 animate-spin text-[rgb(var(--muted-foreground))]" />
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
         ) : currentWallpapers.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 gap-2 text-[rgb(var(--muted-foreground))]">
+          <div className="flex flex-col items-center justify-center py-12 gap-2 text-muted-foreground">
             <ImageIcon className="w-10 h-10 opacity-40" />
             <p className="text-sm">
               {activeCategory === 'user'
@@ -204,11 +204,11 @@ export function WallpaperPicker({ open, onOpenChange }: WallpaperPickerProps) {
                   <button
                     className={cn(
                       'relative w-full rounded-xl overflow-hidden cursor-pointer transition-all duration-200',
-                      'ring-2 ring-offset-2 ring-offset-[rgb(var(--background))]',
-                      'hover:ring-[rgb(var(--primary))]/50 hover:scale-[1.02]',
+                      'ring-2 ring-offset-2 ring-offset-background',
+                      'hover:ring-primary/50 hover:scale-[1.02]',
                       'active:scale-[0.98]',
-                      'focus-visible:outline-none focus-visible:ring-[rgb(var(--ring))]',
-                      isActive ? 'ring-[rgb(var(--primary))]' : 'ring-transparent',
+                      'focus-visible:outline-none focus-visible:ring-ring',
+                      isActive ? 'ring-primary' : 'ring-transparent',
                     )}
                     onClick={() => setWallpaperId(wp.id)}
                     title={wp.name}
@@ -216,8 +216,8 @@ export function WallpaperPicker({ open, onOpenChange }: WallpaperPickerProps) {
                     <WallpaperPreview wallpaper={wp} className="w-full aspect-video" />
 
                     {isActive && (
-                      <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[rgb(var(--primary))] flex items-center justify-center shadow-lg">
-                        <Check className="w-3 h-3 text-[rgb(var(--primary-foreground))]" />
+                      <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center shadow-lg">
+                        <Check className="w-3 h-3 text-primary-foreground" />
                       </div>
                     )}
 
@@ -257,7 +257,7 @@ export function WallpaperPicker({ open, onOpenChange }: WallpaperPickerProps) {
       {/* ── Footer: hint ── */}
       <AppWindow.Footer>
         Drop images into{' '}
-        <code className="px-1 py-0.5 rounded bg-[rgb(var(--muted))] text-[10px]">
+        <code className="px-1 py-0.5 rounded bg-muted text-[10px]">
           ~/.headlessos/wallpapers/
         </code>{' '}
         to add user wallpapers automatically

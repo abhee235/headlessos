@@ -1,52 +1,161 @@
-// M2.X: Start Menu — Windows-like start menu with apps and server selector
-// @see docs/phases/phase-2.md
+// M6.6: Start Menu — Glassmorphic two-column layout with rich gradient icons
+// @see docs/phases/phase-6.md
 
 import { useDesktopStore } from '../../store/window-store';
 import { useAppStore } from '../../store/app-store';
 import {
   LayoutDashboard,
   FolderOpen,
-  Terminal,
-  Server,
+  TerminalSquare,
+  Search,
+  Power,
+  Activity,
+  Box,
+  Cog,
+  Paintbrush,
+  ChevronRight,
+  User,
   Plug,
   Unplug,
-  Plus,
-  Power,
-  Settings,
-  Search,
-  Lock,
-  UserRoundX,
-  LogOut,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+
+// ─── Greeting ────────────────────────────────────────────────────────────────
+
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+// ─── App definitions ─────────────────────────────────────────────────────────
 
 interface AppEntry {
   id: string;
   label: string;
   Icon: LucideIcon;
-  iconColor: string;
-  bgColor: string;
+  gradient: string;
+  shadow: string;
 }
 
-const ALL_APPS: AppEntry[] = [
-  { id: 'dashboard', label: 'Dashboard', Icon: LayoutDashboard, iconColor: 'text-blue-400', bgColor: 'bg-blue-500/20' },
-  { id: 'files', label: 'File Explorer', Icon: FolderOpen, iconColor: 'text-yellow-400', bgColor: 'bg-yellow-500/20' },
-  { id: 'terminal', label: 'Terminal', Icon: Terminal, iconColor: 'text-green-400', bgColor: 'bg-green-500/20' },
+const PINNED_APPS: AppEntry[] = [
+  {
+    id: 'dashboard',
+    label: 'Dashboard',
+    Icon: LayoutDashboard,
+    gradient: 'from-blue-500 to-indigo-600',
+    shadow: 'shadow-blue-500/25 dark:shadow-blue-400/15',
+  },
+  {
+    id: 'files',
+    label: 'Files',
+    Icon: FolderOpen,
+    gradient: 'from-amber-400 to-orange-500',
+    shadow: 'shadow-amber-500/25 dark:shadow-amber-400/15',
+  },
+  {
+    id: 'terminal',
+    label: 'Terminal',
+    Icon: TerminalSquare,
+    gradient: 'from-emerald-500 to-teal-600',
+    shadow: 'shadow-emerald-500/25 dark:shadow-emerald-400/15',
+  },
+  {
+    id: 'taskmanager',
+    label: 'Tasks',
+    Icon: Activity,
+    gradient: 'from-violet-500 to-purple-600',
+    shadow: 'shadow-violet-500/25 dark:shadow-violet-400/15',
+  },
+  {
+    id: 'docker',
+    label: 'Docker',
+    Icon: Box,
+    gradient: 'from-cyan-500 to-blue-600',
+    shadow: 'shadow-cyan-500/25 dark:shadow-cyan-400/15',
+  },
+  {
+    id: 'services',
+    label: 'Services',
+    Icon: Cog,
+    gradient: 'from-orange-500 to-rose-500',
+    shadow: 'shadow-orange-500/25 dark:shadow-orange-400/15',
+  },
+  {
+    id: 'settings',
+    label: 'Personalize',
+    Icon: Paintbrush,
+    gradient: 'from-fuchsia-500 to-pink-600',
+    shadow: 'shadow-fuchsia-500/25 dark:shadow-fuchsia-400/15',
+  },
 ];
+
+interface RecentEntry {
+  label: string;
+  sub: string;
+  Icon: LucideIcon;
+  gradient: string;
+}
+
+const RECENTLY_USED: RecentEntry[] = [
+  {
+    label: 'System Overview',
+    sub: '2 min ago',
+    Icon: LayoutDashboard,
+    gradient: 'from-blue-500 to-indigo-600',
+  },
+  {
+    label: 'Docker Containers',
+    sub: '15 min ago',
+    Icon: Box,
+    gradient: 'from-cyan-500 to-blue-600',
+  },
+  {
+    label: 'Server Logs',
+    sub: '1 hour ago',
+    Icon: TerminalSquare,
+    gradient: 'from-emerald-500 to-teal-600',
+  },
+  {
+    label: 'Service Status',
+    sub: 'Yesterday',
+    Icon: Cog,
+    gradient: 'from-orange-500 to-rose-500',
+  },
+  {
+    label: 'File Browser',
+    sub: 'Yesterday',
+    Icon: FolderOpen,
+    gradient: 'from-amber-400 to-orange-500',
+  },
+  {
+    label: 'Task Manager',
+    sub: '2 days ago',
+    Icon: Activity,
+    gradient: 'from-violet-500 to-purple-600',
+  },
+];
+
+// ─── Start Menu ──────────────────────────────────────────────────────────────
 
 export function StartMenu() {
   const { startMenuOpen, closeStartMenu, openWindow } = useDesktopStore();
-  const { servers, activeServerId, setActiveServer, connectServer, disconnectServer, fetchServers } =
-    useAppStore();
-  const { lockScreen, switchUser, signOut } = useAppStore();
+  const {
+    servers,
+    activeServerId,
+    connectServer,
+    disconnectServer,
+    signOut,
+  } = useAppStore();
   const [searchQuery, setSearchQuery] = useState('');
-  const [showAddServer, setShowAddServer] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const activeServer = servers.find(s => s.id === activeServerId);
+  const activeServer = servers.find((s) => s.id === activeServerId);
   const isConnected = activeServer?.state?.status === 'connected';
+  const serverStatus = activeServer?.state?.status ?? 'disconnected';
 
   // Focus search on open
   useEffect(() => {
@@ -64,8 +173,10 @@ export function StartMenu() {
         closeStartMenu();
       }
     };
-    // Delay to prevent immediate close from taskbar click
-    const timeout = setTimeout(() => document.addEventListener('mousedown', handler), 50);
+    const timeout = setTimeout(
+      () => document.addEventListener('mousedown', handler),
+      50,
+    );
     return () => {
       clearTimeout(timeout);
       document.removeEventListener('mousedown', handler);
@@ -75,166 +186,189 @@ export function StartMenu() {
   if (!startMenuOpen) return null;
 
   const filteredApps = searchQuery
-    ? ALL_APPS.filter(a =>
+    ? PINNED_APPS.filter((a) =>
         a.label.toLowerCase().includes(searchQuery.toLowerCase()),
       )
-    : ALL_APPS;
+    : PINNED_APPS;
 
-  const handleOpenApp = (app: AppEntry) => {
+  const handleOpenApp = (appId: string, label: string) => {
     if (!activeServerId || !isConnected) return;
-    openWindow(app.id, activeServerId, app.label, app.id);
+    openWindow(appId, activeServerId, label, appId);
     closeStartMenu();
   };
+
+  const statusDot =
+    serverStatus === 'connected'
+      ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50'
+      : serverStatus === 'connecting'
+        ? 'bg-amber-400 animate-pulse'
+        : serverStatus === 'error'
+          ? 'bg-red-500'
+          : 'bg-foreground/20';
 
   return (
     <div
       ref={menuRef}
-      className="absolute bottom-12 left-0 z-[10000] w-80 bg-white/75 dark:bg-zinc-900/80 backdrop-blur-2xl backdrop-saturate-[1.8] rounded-t-xl border border-white/60 dark:border-white/10 shadow-xl shadow-black/[0.06] dark:shadow-black/40 ring-1 ring-black/[0.03] dark:ring-transparent overflow-hidden"
-      onClick={e => e.stopPropagation()}
+      className="absolute bottom-14 left-1/2 -translate-x-1/2 z-10000 w-160 bg-glass backdrop-blur-2xl backdrop-saturate-[1.8] border border-glass-border shadow-2xl shadow-black/10 dark:shadow-black/50 ring-1 ring-black/5 dark:ring-white/5 rounded-2xl overflow-hidden animate-scaleIn"
+      onClick={(e) => e.stopPropagation()}
     >
-      {/* Search Bar */}
-      <div className="p-3 pb-2">
-        <div className="flex items-center gap-2 px-3 py-2 bg-zinc-100 dark:bg-zinc-800/80 rounded-lg border border-zinc-200 dark:border-white/5">
-          <Search className="w-4 h-4 text-zinc-400 dark:text-white/40 shrink-0" />
+      {/* ── Search bar ── */}
+      <div className="px-5 pt-5 pb-2">
+        <div className="flex items-center gap-3 px-4 py-2 bg-black/3 dark:bg-white/5 rounded-full border border-transparent focus-within:border-primary/30 focus-within:ring-2 focus-within:ring-primary/10 transition-all">
+          <Search className="w-4 h-4 text-foreground/40 shrink-0" />
           <input
             ref={searchRef}
             type="text"
-            placeholder="Search apps..."
-            className="flex-1 bg-transparent text-sm text-zinc-900 dark:text-white/90 placeholder-zinc-400 dark:placeholder-white/30 outline-none"
+            placeholder="Type here to search"
+            className="flex-1 bg-transparent text-[13px] font-medium text-foreground placeholder:text-foreground/35 outline-none"
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
       </div>
 
-      {/* Quick Apps — Pinned */}
-      <div className="px-3 pb-2">
-        <p className="text-[10px] uppercase tracking-wider text-zinc-400 dark:text-white/30 font-semibold mb-2 px-1">
-          Pinned
-        </p>
-        <div className="grid grid-cols-3 gap-1">
-          {filteredApps.map(app => (
-            <button
-              key={app.id}
-              className={`
-                flex flex-col items-center gap-1.5 py-3 px-2 rounded-lg
-                transition-colors duration-100
-                ${isConnected ? 'hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer' : 'opacity-40 cursor-not-allowed'}
-              `}
-              onClick={() => handleOpenApp(app)}
-              disabled={!isConnected}
-            >
-              <div className={`w-9 h-9 rounded-lg ${app.bgColor} flex items-center justify-center`}>
-                <app.Icon className={`w-5 h-5 ${app.iconColor}`} />
-              </div>
-              <span className="text-[11px] text-zinc-700 dark:text-white/80 font-medium">{app.label}</span>
+      {/* ── Two-column body ── */}
+      <div className="flex">
+        {/* Left column: Pinned Apps */}
+        <div className="flex-1 px-5 pb-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-[13px] font-bold text-foreground/90 tracking-tight">
+              Pinned Apps
+            </h3>
+            <button className="flex items-center gap-0.5 text-[11px] text-primary/80 hover:text-primary font-semibold px-2.5 py-1 rounded-lg hover:bg-primary/8 transition-colors">
+              See all
+              <ChevronRight className="w-3 h-3" />
             </button>
-          ))}
-        </div>
-      </div>
+          </div>
 
-      {/* Divider */}
-      <div className="h-px bg-black/[0.06] dark:bg-white/[0.08] mx-3" />
-
-      {/* Server List */}
-      <div className="p-3">
-        <p className="text-[10px] uppercase tracking-wider text-zinc-400 dark:text-white/30 font-semibold mb-2 px-1">
-          Servers
-        </p>
-        <div className="space-y-0.5 max-h-40 overflow-y-auto">
-          {servers.length === 0 && (
-            <p className="text-xs text-zinc-400 dark:text-white/30 px-2 py-2">No servers configured</p>
-          )}
-          {servers.map(srv => {
-            const isActive = srv.id === activeServerId;
-            const status = srv.state?.status ?? 'disconnected';
-            const statusColor =
-              status === 'connected'
-                ? 'bg-green-500'
-                : status === 'connecting'
-                  ? 'bg-yellow-500 animate-pulse'
-                  : status === 'error'
-                    ? 'bg-red-500'
-                    : 'bg-zinc-600';
-
-            return (
-              <div
-                key={srv.id}
-                className={`
-                  flex items-center gap-2.5 px-2 py-2 rounded-lg cursor-pointer
-                  transition-colors duration-100
-                  ${isActive ? 'bg-black/5 dark:bg-white/10' : 'hover:bg-black/[0.03] dark:hover:bg-white/5'}
-                `}
-                onClick={() => setActiveServer(srv.id)}
+          <div className="grid grid-cols-4 gap-0.5">
+            {filteredApps.map((app) => (
+              <button
+                key={app.id}
+                className={`group flex flex-col items-center gap-1.5 py-3 px-1.5 rounded-xl transition-all duration-150 ${
+                  isConnected
+                    ? 'hover:bg-black/5 dark:hover:bg-white/8 cursor-pointer active:scale-[0.97]'
+                    : 'opacity-40 cursor-not-allowed'
+                }`}
+                onClick={() => handleOpenApp(app.id, app.label)}
+                disabled={!isConnected}
               >
-                <Server className="w-4 h-4 text-zinc-400 dark:text-white/40 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-zinc-800 dark:text-white/80 truncate font-medium">{srv.name}</p>
-                  <p className="text-[10px] text-zinc-400 dark:text-white/40 truncate">
-                    {srv.host}:{srv.port}
+                <div
+                  className={`w-11 h-11 rounded-[14px] bg-linear-to-br ${app.gradient} flex items-center justify-center shadow-lg ${app.shadow} transition-transform duration-150 group-hover:scale-110 group-active:scale-100`}
+                >
+                  <app.Icon className="w-5.5 h-5.5 text-white drop-shadow-sm" />
+                </div>
+                <span className="text-[11px] text-foreground/60 font-semibold leading-tight text-center truncate w-full group-hover:text-foreground/90 transition-colors">
+                  {app.label}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="w-px bg-separator self-stretch my-3" />
+
+        {/* Right column: Recently Used */}
+        <div className="w-56 px-3 pb-4">
+          <div className="flex items-center justify-between mb-3 px-1">
+            <h3 className="text-[13px] font-bold text-foreground/90 tracking-tight">
+              Recently Used
+            </h3>
+          </div>
+
+          <div className="flex flex-col gap-0.5">
+            {RECENTLY_USED.map((item) => (
+              <button
+                key={item.label}
+                className={`group flex items-center gap-3 px-2.5 py-2 rounded-xl transition-all text-left ${
+                  isConnected
+                    ? 'hover:bg-black/5 dark:hover:bg-white/8 cursor-pointer'
+                    : 'opacity-40 cursor-not-allowed'
+                }`}
+                disabled={!isConnected}
+              >
+                <div
+                  className={`w-8 h-8 rounded-[10px] bg-linear-to-br ${item.gradient} flex items-center justify-center shrink-0 shadow-md`}
+                >
+                  <item.Icon className="w-4 h-4 text-white" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[12px] text-foreground/75 font-semibold truncate group-hover:text-foreground transition-colors">
+                    {item.label}
+                  </p>
+                  <p className="text-[10px] text-foreground/35 font-medium">
+                    {item.sub}
                   </p>
                 </div>
-                <span className={`w-2 h-2 rounded-full shrink-0 ${statusColor}`} />
-                {status === 'connected' ? (
-                  <button
-                    className="p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 text-zinc-400 dark:text-white/40 hover:text-red-400"
-                    onClick={e => {
-                      e.stopPropagation();
-                      disconnectServer(srv.id);
-                    }}
-                    title="Disconnect"
-                  >
-                    <Unplug className="w-3.5 h-3.5" />
-                  </button>
-                ) : status !== 'connecting' ? (
-                  <button
-                    className="p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 text-zinc-400 dark:text-white/40 hover:text-green-400"
-                    onClick={e => {
-                      e.stopPropagation();
-                      connectServer(srv.id);
-                    }}
-                    title="Connect"
-                  >
-                    <Plug className="w-3.5 h-3.5" />
-                  </button>
-                ) : null}
-              </div>
-            );
-          })}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Footer — Lock / Switch User / Sign Out */}
-      <div className="flex items-center justify-between px-3 py-2 border-t border-zinc-200 dark:border-white/10 bg-zinc-50/80 dark:bg-zinc-950/50">
+      {/* ── Footer: user + server status ── */}
+      <div className="flex items-center justify-between px-5 py-2.5 border-t border-separator">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-linear-to-br from-primary/90 to-primary/50 flex items-center justify-center shadow-md shadow-primary/15">
+            <User className="w-4.5 h-4.5 text-primary-foreground" />
+          </div>
+          <div>
+            <p className="text-[13px] font-bold text-foreground/90 tracking-tight">
+              {getGreeting()}
+            </p>
+            <p className="text-[11px] text-foreground/40 font-medium">
+              {activeServer
+                ? `${activeServer.name} \u00b7 ${activeServer.host}:${activeServer.port}`
+                : 'No server connected'}
+            </p>
+          </div>
+        </div>
+
         <div className="flex items-center gap-1">
+          {/* Connection status dot */}
+          <span className={`w-2 h-2 rounded-full ${statusDot}`} />
+
+          {/* Connect / Disconnect */}
+          {activeServer && serverStatus === 'connected' ? (
+            <button
+              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-black/5 dark:hover:bg-white/6 text-foreground/35 hover:text-red-500 transition-colors"
+              title="Disconnect"
+              onClick={(e) => {
+                e.stopPropagation();
+                disconnectServer(activeServer.id);
+              }}
+            >
+              <Unplug className="w-3.5 h-3.5" />
+            </button>
+          ) : activeServer && serverStatus !== 'connecting' ? (
+            <button
+              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-black/5 dark:hover:bg-white/6 text-foreground/35 hover:text-emerald-500 transition-colors"
+              title="Connect"
+              onClick={(e) => {
+                e.stopPropagation();
+                connectServer(activeServer.id);
+              }}
+            >
+              <Plug className="w-3.5 h-3.5" />
+            </button>
+          ) : null}
+
+          {/* Separator */}
+          <div className="w-px h-5 bg-separator mx-1" />
+
+          {/* Sign out */}
           <button
-            className="p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 text-zinc-400 dark:text-white/40 hover:text-zinc-600 dark:hover:text-white/70"
-            title="Lock"
-            onClick={() => { closeStartMenu(); lockScreen(); }}
+            className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-black/5 dark:hover:bg-white/6 text-foreground/35 hover:text-foreground/70 transition-colors"
+            title="Sign Out"
+            onClick={() => {
+              closeStartMenu();
+              signOut();
+            }}
           >
-            <Lock className="w-4 h-4" />
-          </button>
-          <button
-            className="p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 text-zinc-400 dark:text-white/40 hover:text-zinc-600 dark:hover:text-white/70"
-            title="Switch User"
-            onClick={() => { closeStartMenu(); switchUser(); }}
-          >
-            <UserRoundX className="w-4 h-4" />
-          </button>
-          <button
-            className="p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 text-zinc-400 dark:text-white/40 hover:text-zinc-600 dark:hover:text-white/70"
-            title="Settings"
-          >
-            <Settings className="w-4 h-4" />
+            <Power className="w-3.5 h-3.5" />
           </button>
         </div>
-        <button
-          className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-red-500/10 text-zinc-400 dark:text-white/40 hover:text-red-500 dark:hover:text-red-400 transition-colors"
-          title="Sign Out"
-          onClick={() => { closeStartMenu(); signOut(); }}
-        >
-          <LogOut className="w-4 h-4" />
-        </button>
       </div>
     </div>
   );

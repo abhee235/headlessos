@@ -18,13 +18,13 @@ function Toaster({ ...props }: ToasterProps) {
       toastOptions={{
         classNames: {
           toast:
-            "group toast group-[.toaster]:bg-white dark:group-[.toaster]:bg-zinc-900 group-[.toaster]:text-zinc-900 dark:group-[.toaster]:text-zinc-100 group-[.toaster]:border group-[.toaster]:border-zinc-200 dark:group-[.toaster]:border-zinc-700 group-[.toaster]:shadow-xl group-[.toaster]:rounded-xl",
+            "group toast group-[.toaster]:bg-popover group-[.toaster]:text-popover-foreground group-[.toaster]:border group-[.toaster]:border-border group-[.toaster]:shadow-xl group-[.toaster]:rounded-xl",
           description:
-            "group-[.toast]:text-zinc-500 dark:group-[.toast]:text-zinc-400",
+            "group-[.toast]:text-muted-foreground",
           actionButton:
-            "group-[.toast]:bg-[rgb(var(--primary))] group-[.toast]:text-white",
+            "group-[.toast]:bg-primary group-[.toast]:text-white",
           cancelButton:
-            "group-[.toast]:bg-zinc-100 dark:group-[.toast]:bg-zinc-800 group-[.toast]:text-zinc-600 dark:group-[.toast]:text-zinc-400",
+            "group-[.toast]:bg-secondary group-[.toast]:text-muted-foreground",
         },
       }}
       {...props}

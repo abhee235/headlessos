@@ -1,5 +1,5 @@
-// M2.X: Window — draggable, resizable window with title bar controls
-// @see docs/phases/phase-2.md
+// M6.5: Window — modern glassmorphic window with macOS-style controls
+// @see docs/phases/phase-6.md
 
 import { useRef, useCallback, type ReactNode, type MouseEvent as ReactMouseEvent } from 'react';
 import { useDesktopStore, type WindowState } from '../../store/window-store';
@@ -13,6 +13,8 @@ import {
   Terminal,
   Settings,
   Activity,
+  Box,
+  Server,
   Maximize2,
   Minimize2,
   RotateCcw,
@@ -34,14 +36,18 @@ const APP_ICONS: Record<string, LucideIcon> = {
   terminal: Terminal,
   settings: Settings,
   taskmanager: Activity,
+  docker: Box,
+  services: Server,
 };
 
 const APP_ACCENT: Record<string, string> = {
   dashboard: 'bg-blue-500',
-  files: 'bg-yellow-500',
-  terminal: 'bg-green-500',
-  settings: 'bg-purple-500',
-  taskmanager: 'bg-emerald-500',
+  files: 'bg-amber-500',
+  terminal: 'bg-emerald-500',
+  settings: 'bg-violet-500',
+  taskmanager: 'bg-teal-500',
+  docker: 'bg-cyan-500',
+  services: 'bg-orange-500',
 };
 
 interface WindowFrameProps {
@@ -137,10 +143,13 @@ export function WindowFrame({ win, children }: WindowFrameProps) {
   if (win.minimized) return null;
 
   const Icon = APP_ICONS[win.appId] ?? LayoutDashboard;
-  const accent = APP_ACCENT[win.appId] ?? 'bg-zinc-500';
+  const accent = APP_ACCENT[win.appId] ?? 'bg-muted-foreground';
+
+  // Split-sidebar title bar experiment — for apps that have a left sidebar pane
+  const isSidebarApp = win.appId === 'files';
 
   const style = win.maximized
-    ? { top: 0, left: 0, right: 0, bottom: 48, zIndex: win.zIndex }
+    ? { top: 0, left: 0, right: 0, bottom: 56, zIndex: win.zIndex }
     : {
         top: win.y,
         left: win.x,
@@ -153,13 +162,16 @@ export function WindowFrame({ win, children }: WindowFrameProps) {
     <div
       className={`
         absolute flex flex-col
-        ${win.maximized ? 'rounded-none' : 'rounded-xl'}
-        ${win.focused
-          ? 'shadow-2xl shadow-black/20 dark:shadow-black/60 ring-1 ring-black/[0.08] dark:ring-white/15'
-          : 'shadow-lg shadow-black/10 dark:shadow-black/40 ring-1 ring-black/[0.05] dark:ring-white/5'
-        }
+        ${win.maximized ? 'rounded-none' : 'rounded-2xl'}
+        ${win.focused ? 'shadow-window' : 'shadow-window-unfocused'}
         overflow-hidden
-        transition-shadow duration-200
+        transition-shadow duration-300 ease-out
+        bg-background
+        border
+        ${win.focused
+          ? 'border-black/8 dark:border-white/12'
+          : 'border-black/4 dark:border-white/6'
+        }
       `}
       style={style}
       onMouseDown={() => {
@@ -170,53 +182,89 @@ export function WindowFrame({ win, children }: WindowFrameProps) {
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
-            className={`
-              flex items-center h-9 px-3 shrink-0 select-none
-              ${win.focused
-                ? 'bg-white/70 dark:bg-zinc-800/80 backdrop-blur-2xl backdrop-saturate-150'
-                : 'bg-white/50 dark:bg-zinc-800/60 backdrop-blur-xl'
-              }
-              border-b border-black/[0.06] dark:border-white/[0.06]
-            `}
+            className="flex h-10 shrink-0 select-none"
             onMouseDown={handleDragStart}
             onDoubleClick={handleDoubleClickTitle}
           >
-            {/* Icon + accent dot */}
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              <div className={`w-1 h-4 rounded-full ${accent} ${win.focused ? 'opacity-100' : 'opacity-40'}`} />
-              <Icon className={`w-3.5 h-3.5 shrink-0 ${win.focused ? 'text-zinc-700 dark:text-white/70' : 'text-zinc-400 dark:text-white/40'}`} />
-              <span className={`text-xs truncate ${win.focused ? 'text-zinc-800 dark:text-white/80' : 'text-zinc-400 dark:text-white/40'} font-medium`}>
-                {win.title}
-              </span>
-            </div>
+            {/* ── Sidebar header section (only for sidebar apps) ── */}
+            {isSidebarApp && (
+              <div
+                className={`
+                  w-56 shrink-0 flex items-center gap-2.5 px-5
+                  bg-sidebar border-r border-black/6 dark:border-white/6
+                  ${win.focused ? '' : 'opacity-80'}
+                `}
+              >
+                <div className={`w-1 h-4 rounded-full ${accent} ${win.focused ? 'opacity-80' : 'opacity-30'} transition-opacity shrink-0`} />
+                <Icon className={`w-3.5 h-3.5 shrink-0 transition-colors ${win.focused ? 'text-foreground/60' : 'text-foreground/25'}`} />
+                <span className={`text-[13px] font-semibold truncate transition-colors ${win.focused ? 'text-foreground/70' : 'text-foreground/30'}`}>
+                  {win.title}
+                </span>
+              </div>
+            )}
 
-            {/* Window controls */}
-            <div className="flex items-center -mr-1" onMouseDown={e => e.stopPropagation()}>
-              <button
-                className="p-1.5 rounded-md hover:bg-black/[0.06] dark:hover:bg-white/10 text-zinc-400 dark:text-white/50 hover:text-zinc-600 dark:hover:text-white/80 transition-colors"
-                onClick={() => minimizeWindow(win.id)}
-                title="Minimize"
-              >
-                <Minus className="w-3.5 h-3.5" />
-              </button>
-              <button
-                className="p-1.5 rounded-md hover:bg-black/[0.06] dark:hover:bg-white/10 text-zinc-400 dark:text-white/50 hover:text-zinc-600 dark:hover:text-white/80 transition-colors"
-                onClick={() => (win.maximized ? restoreWindow(win.id) : maximizeWindow(win.id))}
-                title={win.maximized ? 'Restore' : 'Maximize'}
-              >
-                {win.maximized ? (
-                  <Copy className="w-3 h-3" />
-                ) : (
-                  <Square className="w-3 h-3" />
-                )}
-              </button>
-              <button
-                className="p-1.5 rounded-md hover:bg-red-500/90 text-zinc-400 dark:text-white/50 hover:text-white transition-colors"
-                onClick={() => closeWindow(win.id)}
-                title="Close"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
+            {/* ── Main header section (glass, drag, controls) ── */}
+            <div
+              className={`
+                flex-1 flex items-center min-w-0 px-4
+                ${isSidebarApp ? 'bg-background' : ''}
+              `}
+            >
+              {/* Icon + Title (only for non-sidebar apps) */}
+              {!isSidebarApp && (
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <div className={`w-1 h-4 rounded-full ${accent} ${win.focused ? 'opacity-80' : 'opacity-30'} transition-opacity shrink-0`} />
+                  <Icon className={`w-3.5 h-3.5 shrink-0 transition-colors ${win.focused ? 'text-foreground/60' : 'text-foreground/30'}`} />
+                  <span className={`text-[13px] truncate transition-colors font-medium ${win.focused ? 'text-foreground/80' : 'text-foreground/35'}`}>
+                    {win.title}
+                  </span>
+                </div>
+              )}
+              {/* Spacer for sidebar apps so controls push to the right */}
+              {isSidebarApp && <div className="flex-1" />}
+
+              {/* Window controls (right side) — Windows 11 style */}
+              <div className="flex items-center gap-1 shrink-0" onMouseDown={e => e.stopPropagation()}>
+                {/* Minimize */}
+                <button
+                  className={`flex items-center justify-center w-6 h-6 rounded-lg transition-colors duration-100
+                    ${win.focused
+                      ? 'text-foreground/50 hover:text-foreground hover:bg-separator'
+                      : 'text-foreground/20 hover:text-foreground/40 hover:bg-black/4 dark:hover:bg-white/5'
+                    }`}
+                  onClick={() => minimizeWindow(win.id)}
+                  title="Minimize"
+                >
+                  <Minus className="w-3.5 h-3.5" strokeWidth={2} />
+                </button>
+                {/* Maximize / Restore */}
+                <button
+                  className={`flex items-center justify-center w-6 h-6 rounded-lg transition-colors duration-100
+                    ${win.focused
+                      ? 'text-foreground/50 hover:text-foreground hover:bg-separator'
+                      : 'text-foreground/20 hover:text-foreground/40 hover:bg-black/4 dark:hover:bg-white/5'
+                    }`}
+                  onClick={() => (win.maximized ? restoreWindow(win.id) : maximizeWindow(win.id))}
+                  title={win.maximized ? 'Restore' : 'Maximize'}
+                >
+                  {win.maximized
+                    ? <Copy className="w-3 h-3" strokeWidth={2} />
+                    : <Square className="w-3 h-3" strokeWidth={2} />
+                  }
+                </button>
+                {/* Close */}
+                <button
+                  className={`flex items-center justify-center w-6 h-6 rounded-lg transition-colors duration-100
+                    ${win.focused
+                      ? 'text-foreground/50 hover:text-white hover:bg-red-500'
+                      : 'text-foreground/20 hover:text-white/90 hover:bg-red-500/80'
+                    }`}
+                  onClick={() => closeWindow(win.id)}
+                  title="Close"
+                >
+                  <X className="w-3.5 h-3.5" strokeWidth={2} />
+                </button>
+              </div>
             </div>
           </div>
         </ContextMenuTrigger>
@@ -259,11 +307,8 @@ export function WindowFrame({ win, children }: WindowFrameProps) {
 
       {/* ── Window Content ── */}
       <div
-        className="flex-1 min-h-0 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-xl overflow-auto"
+        className="flex-1 min-h-0 overflow-auto"
         onContextMenu={(e) => {
-          // Prevent native browser context menu on blank areas inside windows.
-          // Radix ContextMenus (file list, process rows, etc.) intercept the
-          // event before it reaches here, so they still work normally.
           e.preventDefault();
         }}
       >
@@ -273,14 +318,13 @@ export function WindowFrame({ win, children }: WindowFrameProps) {
       {/* ── Resize Handle (bottom-right) ── */}
       {!win.maximized && (
         <div
-          className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize z-10"
+          className="absolute bottom-0 right-0 w-5 h-5 cursor-nwse-resize z-10 group"
           onMouseDown={handleResizeStart}
         >
-          {/* Visual grip dots */}
-          <svg className="absolute bottom-0.5 right-0.5 w-3 h-3 text-zinc-300 dark:text-white/20" viewBox="0 0 12 12">
-            <circle cx="10" cy="10" r="1" fill="currentColor" />
-            <circle cx="6" cy="10" r="1" fill="currentColor" />
-            <circle cx="10" cy="6" r="1" fill="currentColor" />
+          <svg className="absolute bottom-1 right-1 w-3 h-3 text-foreground/15 group-hover:text-foreground/30 transition-colors" viewBox="0 0 12 12">
+            <circle cx="10" cy="10" r="1.2" fill="currentColor" />
+            <circle cx="6" cy="10" r="1.2" fill="currentColor" />
+            <circle cx="10" cy="6" r="1.2" fill="currentColor" />
           </svg>
         </div>
       )}

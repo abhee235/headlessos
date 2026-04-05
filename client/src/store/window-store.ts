@@ -50,6 +50,8 @@ const APP_DEFAULTS: Record<string, { width: number; height: number }> = {
   terminal: { width: 800, height: 500 },
   settings: { width: 860, height: 580 },
   taskmanager: { width: 1000, height: 650 },
+  docker: { width: 950, height: 600 },
+  services: { width: 900, height: 600 },
 };
 
 export const useDesktopStore = create<DesktopState>((set, get) => ({
@@ -61,7 +63,7 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
     const state = get();
 
     // Single-instance apps: focus existing window
-    const singleInstance = ['dashboard', 'files', 'terminal', 'settings', 'taskmanager'];
+    const singleInstance = ['dashboard', 'files', 'terminal', 'settings', 'taskmanager', 'docker', 'services'];
     if (singleInstance.includes(appId)) {
       const existing = state.windows.find(
         w => w.appId === appId && w.serverId === serverId,

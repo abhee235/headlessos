@@ -19,6 +19,7 @@ import type {
 } from '../../lib/api';
 import { fetchTaskManager } from '../../lib/api';
 import { useDesktopStore } from '../../store/window-store';
+import { DisconnectedState } from '@/components/ui/disconnected-state';
 import { ProcessesTab } from './ProcessesTab';
 import { PerformanceTab } from './PerformanceTab';
 
@@ -145,8 +146,8 @@ export function TaskManagerView({ serverId }: TaskManagerViewProps) {
   // ── Loading state ──
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full bg-[rgb(var(--background))]">
-        <div className="flex items-center gap-3 text-[rgb(var(--muted-foreground))]">
+      <div className="flex items-center justify-center h-full bg-background">
+        <div className="flex items-center gap-3 text-muted-foreground">
           <RefreshCw className="w-5 h-5 animate-spin" />
           <span className="text-sm">Loading task manager…</span>
         </div>
@@ -154,16 +155,28 @@ export function TaskManagerView({ serverId }: TaskManagerViewProps) {
     );
   }
 
+  // ── Disconnected state ──
+  const isDisconnected = error && /not connected/i.test(error);
+  if (isDisconnected) {
+    return (
+      <DisconnectedState
+        serverId={serverId}
+        onReconnected={() => loadData()}
+        message="The SSH connection to this server was lost. Reconnect to view task manager."
+      />
+    );
+  }
+
   // ── Error state ──
   if (error) {
     return (
-      <div className="flex items-center justify-center h-full bg-[rgb(var(--background))]">
+      <div className="flex items-center justify-center h-full bg-background">
         <div className="text-center">
-          <AlertCircle className="w-8 h-8 text-[rgb(var(--destructive))] mx-auto mb-2" />
-          <p className="text-sm text-[rgb(var(--destructive))] mb-3">{error}</p>
+          <AlertCircle className="w-8 h-8 text-destructive mx-auto mb-2" />
+          <p className="text-sm text-destructive mb-3">{error}</p>
           <button
             onClick={() => loadData()}
-            className="px-3 py-1.5 text-xs bg-[rgb(var(--secondary))] hover:bg-[rgb(var(--accent))] text-[rgb(var(--foreground))] rounded-md"
+            className="px-3 py-1.5 text-xs bg-secondary hover:bg-accent text-foreground rounded-md"
           >
             Retry
           </button>
@@ -175,9 +188,9 @@ export function TaskManagerView({ serverId }: TaskManagerViewProps) {
   if (!data) return null;
 
   return (
-    <div className="flex h-full bg-[rgb(var(--background))]">
+    <div className="flex h-full bg-background">
       {/* ── Left sidebar  — Windows 11 Task Manager style ── */}
-      <nav className="w-12 shrink-0 border-r border-[rgb(var(--border))] bg-[rgb(var(--sidebar))] flex flex-col items-center py-2 gap-1">
+      <nav className="w-12 shrink-0 border-r border-border bg-sidebar flex flex-col items-center py-2 gap-1">
         {TABS.map((entry) => (
           <button
             key={entry.id}
@@ -186,15 +199,15 @@ export function TaskManagerView({ serverId }: TaskManagerViewProps) {
               w-9 h-9 rounded-md flex items-center justify-center transition-colors relative group
               ${
                 tab === entry.id
-                  ? 'bg-[rgb(var(--primary))]/15 text-[rgb(var(--primary))]'
-                  : 'text-[rgb(var(--muted-foreground))] hover:bg-[rgb(var(--accent))] hover:text-[rgb(var(--foreground))]'
+                  ? 'bg-primary/15 text-primary'
+                  : 'text-muted-foreground hover:bg-accent hover:text-foreground'
               }
             `}
             title={entry.label}
           >
             {/* Active indicator bar — like Windows 11 Task Manager */}
             {tab === entry.id && (
-              <div className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-[rgb(var(--primary))]" />
+              <div className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-primary" />
             )}
             {entry.icon}
           </button>

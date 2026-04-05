@@ -126,7 +126,7 @@ export function TerminalView({ serverId }: TerminalViewProps) {
     <div
       ref={containerRef}
       className="w-full h-full"
-      style={{ padding: '4px' }}
+      style={{ padding: '0 4px' }}
     />
   );
 }

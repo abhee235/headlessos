@@ -80,10 +80,15 @@ export function LoginScreen() {
     try {
       setActiveServer(selectedServerId);
 
-      // Build credentials from the form
+      // Build credentials from the form based on auth method
       const credentials: Record<string, string> = {};
       if (selectedServer?.authMethod === 'password' && password) {
         credentials.password = password;
+      }
+      // For privateKey auth, the key is stored server-side from addServer.
+      // If user entered a passphrase, send it.
+      if (selectedServer?.authMethod === 'privateKey' && password) {
+        credentials.passphrase = password;
       }
 
       await connectServer(selectedServerId, Object.keys(credentials).length > 0 ? credentials : undefined);
@@ -239,6 +244,35 @@ export function LoginScreen() {
                     ref={passwordRef}
                     type={showPassword ? 'text' : 'password'}
                     placeholder="Password"
+                    className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/10 text-white placeholder-white/30 text-sm outline-none focus:border-blue-400/50 focus:bg-white/15 transition-all"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    disabled={connecting}
+                  />
+                  <button
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+                    onClick={() => setShowPassword(!showPassword)}
+                    type="button"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* SSH Key auth — passphrase field (optional) */}
+            {selectedServer.authMethod === 'privateKey' && (
+              <div className="w-72 space-y-3">
+                <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-xs">
+                  <KeyRound className="w-3.5 h-3.5" />
+                  SSH key configured
+                </div>
+                <div className="relative">
+                  <input
+                    ref={passwordRef}
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Key passphrase (if encrypted)"
                     className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/10 text-white placeholder-white/30 text-sm outline-none focus:border-blue-400/50 focus:bg-white/15 transition-all"
                     value={password}
                     onChange={e => setPassword(e.target.value)}

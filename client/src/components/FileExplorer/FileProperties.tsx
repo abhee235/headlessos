@@ -71,7 +71,7 @@ export function FileProperties({
         {loading ? (
           <LoadingSkeleton />
         ) : error ? (
-          <div className="flex items-center justify-center h-full text-sm text-[rgb(var(--destructive))]">
+          <div className="flex items-center justify-center h-full text-sm text-destructive">
             {error}
           </div>
         ) : stat ? (
@@ -86,10 +86,10 @@ export function FileProperties({
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-[rgb(var(--foreground))] truncate">
+                <p className="text-sm font-semibold text-foreground truncate">
                   {stat.name}
                 </p>
-                <p className="text-xs text-[rgb(var(--muted-foreground))] truncate">
+                <p className="text-xs text-muted-foreground truncate">
                   {getFileTypeDescription(stat)}
                 </p>
               </div>
@@ -151,9 +151,9 @@ function PropertyRow({
 }) {
   return (
     <div className="flex items-start gap-2 text-[13px]">
-      {Icon && <Icon className="w-3.5 h-3.5 mt-0.5 shrink-0 text-[rgb(var(--muted-foreground))] opacity-70" />}
-      <span className="shrink-0 w-24 text-[rgb(var(--muted-foreground))]">{label}:</span>
-      <span className="text-[rgb(var(--foreground))] break-all min-w-0 select-text">{value}</span>
+      {Icon && <Icon className="w-3.5 h-3.5 mt-0.5 shrink-0 text-muted-foreground opacity-70" />}
+      <span className="shrink-0 w-24 text-muted-foreground">{label}:</span>
+      <span className="text-foreground break-all min-w-0 select-text">{value}</span>
     </div>
   );
 }

@@ -694,9 +694,25 @@ This captures the page title, text content, HTML structure, and saves a screensh
 
 ## 17. Local Dev SSH Server
 
-For development and testing without a real VPS, a Docker-based Ubuntu SSH server is provided.
+Two options are available for local development. **Lima VM is recommended** because it runs a real Linux OS with its own Docker daemon — just like a real VPS.
 
-### Quick Start
+### Option A: Lima VM (Recommended)
+
+A real Ubuntu 22.04 VM with Docker Engine pre-installed. Docker containers inside the VM are completely isolated from your Mac.
+
+```bash
+./dev/vm.sh start     # Create & start (first run ~3min, downloads Ubuntu + Docker)
+./dev/vm.sh stop      # Stop VM (preserves data)
+./dev/vm.sh status    # Show status + running containers
+./dev/vm.sh ssh       # SSH into VM as testuser
+./dev/vm.sh destroy   # Delete VM completely
+```
+
+**Requires**: Lima (`brew install lima`), sshpass (`brew install hudochenkov/sshpass/sshpass`)
+
+### Option B: Docker Container (Lightweight)
+
+A Docker container with SSH. Faster to start but Docker commands inside it talk to your **host Mac's Docker daemon** (via socket mount), not an isolated Docker.
 
 ```bash
 cd dev && docker compose up -d        # Start SSH server
@@ -704,7 +720,9 @@ cd dev && docker compose down          # Stop SSH server
 cd dev && docker compose up -d --build # Rebuild after Dockerfile changes
 ```
 
-### Connection Details
+> **Note**: Options A and B both use port 2222. Stop one before starting the other.
+
+### Connection Details (same for both)
 
 | Field | Value |
 |-------|-------|
@@ -717,7 +735,7 @@ cd dev && docker compose up -d --build # Rebuild after Dockerfile changes
 
 ### Pre-installed Tools
 
-git, python3, nginx, curl, wget, htop, vim, tree, net-tools, iproute2, procps
+git, python3, nginx, curl, wget, htop, vim, tree, net-tools, iproute2, procps, docker
 
 ### Adding to HeadlessOS
 
@@ -727,7 +745,7 @@ curl -X POST http://localhost:3001/api/servers \
   -d '{"name":"Local Ubuntu Dev","host":"127.0.0.1","port":2222,"username":"testuser","authMethod":"password","password":"testpass"}'
 ```
 
-Files: `dev/docker-compose.yml`, `dev/ssh-server/Dockerfile`
+Files: `dev/headlessos-dev.yaml` (Lima VM), `dev/vm.sh` (VM script), `dev/docker-compose.yml` (Docker option), `dev/ssh-server/Dockerfile`
 
 ---
 

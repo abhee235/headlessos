@@ -167,12 +167,12 @@ function FullChart({
               </linearGradient>
             ))}
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--border))" strokeOpacity={0.5} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" strokeOpacity={0.5} />
           <XAxis dataKey="time" hide />
           <YAxis
             domain={yDomain ?? [0, 'auto']}
             width={40}
-            tick={{ fontSize: 10, fill: 'rgb(var(--muted-foreground))' }}
+            tick={{ fontSize: 10, fill: 'var(--color-muted-foreground)' }}
             tickFormatter={yFormatter}
             axisLine={false}
             tickLine={false}
@@ -199,8 +199,8 @@ function FullChart({
 function StatRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between py-1">
-      <span className="text-[11px] text-[rgb(var(--muted-foreground))]">{label}</span>
-      <span className="text-[11px] font-medium text-[rgb(var(--foreground))] tabular-nums">{value}</span>
+      <span className="text-[11px] text-muted-foreground">{label}</span>
+      <span className="text-[11px] font-medium text-foreground tabular-nums">{value}</span>
     </div>
   );
 }
@@ -212,12 +212,12 @@ function CpuDetail({ cpu, history }: { cpu: CpuStatsData; history: Array<{ time:
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-[13px] text-[rgb(var(--muted-foreground))]">CPU</h3>
-          <p className="text-[28px] font-semibold text-[rgb(var(--foreground))] leading-tight tabular-nums">
+          <h3 className="text-[13px] text-muted-foreground">CPU</h3>
+          <p className="text-[28px] font-semibold text-foreground leading-tight tabular-nums">
             {cpu.overallPercent.toFixed(1)}%
           </p>
         </div>
-        <span className="text-[11px] text-[rgb(var(--muted-foreground))]">
+        <span className="text-[11px] text-muted-foreground">
           {cpu.coreCount} core{cpu.coreCount !== 1 ? 's' : ''}
         </span>
       </div>
@@ -235,10 +235,10 @@ function CpuDetail({ cpu, history }: { cpu: CpuStatsData; history: Array<{ time:
       <div className="grid grid-cols-2 gap-x-4 gap-y-1">
         {cpu.cores.map((core) => (
           <div key={core.id} className="flex items-center gap-2">
-            <span className="text-[10px] text-[rgb(var(--muted-foreground))] w-9 shrink-0">
+            <span className="text-[10px] text-muted-foreground w-9 shrink-0">
               Core {core.id}
             </span>
-            <div className="flex-1 h-2 rounded-full bg-[rgb(var(--secondary))] overflow-hidden">
+            <div className="flex-1 h-2 rounded-full bg-secondary overflow-hidden">
               <div
                 className="h-full rounded-full transition-all duration-300"
                 style={{
@@ -247,14 +247,14 @@ function CpuDetail({ cpu, history }: { cpu: CpuStatsData; history: Array<{ time:
                 }}
               />
             </div>
-            <span className="text-[10px] tabular-nums text-[rgb(var(--muted-foreground))] w-8 text-right">
+            <span className="text-[10px] tabular-nums text-muted-foreground w-8 text-right">
               {core.percent.toFixed(0)}%
             </span>
           </div>
         ))}
       </div>
 
-      <div className="border-t border-[rgb(var(--border))] pt-2 space-y-0.5">
+      <div className="border-t border-border pt-2 space-y-0.5">
         <StatRow label="Uptime" value={cpu.uptime} />
         <StatRow label="Processes" value={String(cpu.processes.total)} />
         <StatRow label="Running" value={String(cpu.processes.running)} />
@@ -279,12 +279,12 @@ function MemoryDetail({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-[13px] text-[rgb(var(--muted-foreground))]">Memory</h3>
-          <p className="text-[28px] font-semibold text-[rgb(var(--foreground))] leading-tight tabular-nums">
+          <h3 className="text-[13px] text-muted-foreground">Memory</h3>
+          <p className="text-[28px] font-semibold text-foreground leading-tight tabular-nums">
             {usedPct.toFixed(1)}%
           </p>
         </div>
-        <span className="text-[11px] text-[rgb(var(--muted-foreground))]">
+        <span className="text-[11px] text-muted-foreground">
           {memory.usedMb} / {memory.totalMb} MB
         </span>
       </div>
@@ -300,7 +300,7 @@ function MemoryDetail({
 
       {/* Memory composition bar */}
       <div className="space-y-1">
-        <div className="flex h-3 rounded-full overflow-hidden bg-[rgb(var(--secondary))]">
+        <div className="flex h-3 rounded-full overflow-hidden bg-secondary">
           <div
             className="h-full transition-all duration-300"
             style={{
@@ -317,7 +317,7 @@ function MemoryDetail({
             title={`Cached: ${memory.availableMb - memory.freeMb} MB`}
           />
         </div>
-        <div className="flex gap-3 text-[10px] text-[rgb(var(--muted-foreground))]">
+        <div className="flex gap-3 text-[10px] text-muted-foreground">
           <span className="flex items-center gap-1">
             <div className="w-2 h-2 rounded-full bg-violet-500" /> Used
           </span>
@@ -325,12 +325,12 @@ function MemoryDetail({
             <div className="w-2 h-2 rounded-full bg-violet-400/25" /> Cached
           </span>
           <span className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-full bg-[rgb(var(--secondary))]" /> Free
+            <div className="w-2 h-2 rounded-full bg-secondary" /> Free
           </span>
         </div>
       </div>
 
-      <div className="border-t border-[rgb(var(--border))] pt-2 space-y-0.5">
+      <div className="border-t border-border pt-2 space-y-0.5">
         <StatRow label="Total" value={`${memory.totalMb} MB`} />
         <StatRow label="Used" value={`${memory.usedMb} MB`} />
         <StatRow label="Available" value={`${memory.availableMb} MB`} />
@@ -359,8 +359,8 @@ function DiskDetail({
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-[13px] text-[rgb(var(--muted-foreground))]">Disk</h3>
-        <p className="text-[28px] font-semibold text-[rgb(var(--foreground))] leading-tight tabular-nums">
+        <h3 className="text-[13px] text-muted-foreground">Disk</h3>
+        <p className="text-[28px] font-semibold text-foreground leading-tight tabular-nums">
           {formatBytesPerSec(readRate + writeRate)}
         </p>
       </div>
@@ -373,7 +373,7 @@ function DiskDetail({
         gradientIds={['disk-read-grad', 'disk-write-grad']}
       />
 
-      <div className="flex gap-3 text-[10px] text-[rgb(var(--muted-foreground))]">
+      <div className="flex gap-3 text-[10px] text-muted-foreground">
         <span className="flex items-center gap-1">
           <div className="w-2 h-2 rounded-full bg-green-500" /> Read
         </span>
@@ -382,7 +382,7 @@ function DiskDetail({
         </span>
       </div>
 
-      <div className="border-t border-[rgb(var(--border))] pt-2 space-y-0.5">
+      <div className="border-t border-border pt-2 space-y-0.5">
         <StatRow label="Read Rate" value={formatBytesPerSec(readRate)} />
         <StatRow label="Write Rate" value={formatBytesPerSec(writeRate)} />
         {diskIo.map((d) => (
@@ -407,8 +407,8 @@ function NetworkDetail({
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-[13px] text-[rgb(var(--muted-foreground))]">Network</h3>
-        <p className="text-[28px] font-semibold text-[rgb(var(--foreground))] leading-tight tabular-nums">
+        <h3 className="text-[13px] text-muted-foreground">Network</h3>
+        <p className="text-[28px] font-semibold text-foreground leading-tight tabular-nums">
           {formatBytesPerSec(rxRate + txRate)}
         </p>
       </div>
@@ -421,7 +421,7 @@ function NetworkDetail({
         gradientIds={['net-rx-grad', 'net-tx-grad']}
       />
 
-      <div className="flex gap-3 text-[10px] text-[rgb(var(--muted-foreground))]">
+      <div className="flex gap-3 text-[10px] text-muted-foreground">
         <span className="flex items-center gap-1">
           <div className="w-2 h-2 rounded-full bg-amber-500" /> Receive
         </span>
@@ -430,7 +430,7 @@ function NetworkDetail({
         </span>
       </div>
 
-      <div className="border-t border-[rgb(var(--border))] pt-2 space-y-0.5">
+      <div className="border-t border-border pt-2 space-y-0.5">
         <StatRow label="Receive" value={formatBytesPerSec(rxRate)} />
         <StatRow label="Send" value={formatBytesPerSec(txRate)} />
         {networkIo.map((n) => (
@@ -486,16 +486,16 @@ export function PerformanceTab({
   return (
     <div className="flex h-full">
       {/* ── Left panel selector ── */}
-      <div className="w-52 shrink-0 border-r border-[rgb(var(--border))] bg-[rgb(var(--sidebar))] overflow-y-auto">
+      <div className="w-52 shrink-0 border-r border-border bg-sidebar overflow-y-auto">
         {PANELS.map((panel) => (
           <button
             key={panel.id}
             onClick={() => setSelected(panel.id)}
             className={cn(
-              'w-full text-left px-3 py-2.5 border-b border-[rgb(var(--border))] transition-colors relative',
+              'w-full text-left px-3 py-2.5 border-b border-border transition-colors relative',
               selected === panel.id
-                ? 'bg-[rgb(var(--accent))]'
-                : 'hover:bg-[rgb(var(--accent))]/50',
+                ? 'bg-accent'
+                : 'hover:bg-accent/50',
             )}
           >
             {/* Active indicator */}
@@ -507,9 +507,9 @@ export function PerformanceTab({
             )}
             <div className="flex items-center gap-2 mb-0.5">
               <span style={{ color: panel.color }}>{panel.icon}</span>
-              <span className="text-[12px] font-medium text-[rgb(var(--foreground))]">{panel.label}</span>
+              <span className="text-[12px] font-medium text-foreground">{panel.label}</span>
             </div>
-            <span className="text-[11px] text-[rgb(var(--muted-foreground))] tabular-nums">
+            <span className="text-[11px] text-muted-foreground tabular-nums">
               {panelValues[panel.id]}
             </span>
             <MiniChart

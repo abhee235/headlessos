@@ -34,6 +34,8 @@ import {
   Info,
   Paintbrush,
   Activity,
+  Box,
+  Server,
 } from 'lucide-react';
 import { Wallpaper } from './Wallpaper';
 import { createDirectory, writeFile } from '../../lib/api';
@@ -135,15 +137,16 @@ export function Desktop() {
       <Wallpaper />
 
       {/* Desktop Icons */}
-      <div className="relative z-10 flex flex-col flex-wrap gap-1 p-4 h-full content-start">
+      <div className="relative z-10 flex flex-col flex-wrap gap-2 p-5 h-full content-start">
         {DESKTOP_ICONS.map(icon => (
           <button
             key={icon.id}
             className={`
-              flex flex-col items-center justify-center gap-1
-              w-[76px] h-[84px] rounded-xl
-              transition-all duration-150
-              hover:bg-white/[0.07] active:bg-white/[0.12]
+              flex flex-col items-center justify-center gap-1.5
+              w-[80px] h-[88px] rounded-2xl
+              transition-all duration-200 ease-out
+              hover:bg-white/[0.10] active:bg-white/[0.15]
+              hover:shadow-lg hover:shadow-black/[0.05]
               ${!isConnected ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'}
               group
             `}
@@ -151,10 +154,10 @@ export function Desktop() {
             disabled={!isConnected}
             title={isConnected ? icon.label : 'Connect to a server first'}
           >
-            <div className="transition-transform duration-150 group-hover:scale-105 group-hover:-translate-y-0.5 group-active:scale-95 drop-shadow-lg">
-              <icon.IconComponent size={42} />
+            <div className="transition-transform duration-200 ease-out group-hover:scale-110 group-hover:-translate-y-1 group-active:scale-95 drop-shadow-lg">
+              <icon.IconComponent size={44} />
             </div>
-            <span className="text-[11px] text-white/90 font-medium leading-tight text-center drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] line-clamp-2 px-1">
+            <span className="text-[11px] text-white/90 font-medium leading-tight text-center drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] line-clamp-2 px-1">
               {icon.label}
             </span>
           </button>
@@ -163,14 +166,14 @@ export function Desktop() {
         {/* "This PC" when no server connected */}
         {!isConnected && (
           <button
-            className="flex flex-col items-center justify-center gap-1 w-[76px] h-[84px] rounded-xl hover:bg-white/[0.07] cursor-pointer group"
+            className="flex flex-col items-center justify-center gap-1.5 w-[80px] h-[88px] rounded-2xl hover:bg-white/[0.10] cursor-pointer group transition-all duration-200"
             onDoubleClick={() => {/* future: open server manager */}}
             title="No server connected"
           >
-            <div className="transition-transform duration-150 group-hover:scale-105 group-hover:-translate-y-0.5 drop-shadow-lg opacity-50">
-              <ThisPCIcon size={42} />
+            <div className="transition-transform duration-200 group-hover:scale-110 group-hover:-translate-y-1 drop-shadow-lg opacity-50">
+              <ThisPCIcon size={44} />
             </div>
-            <span className="text-[11px] text-white/50 font-medium leading-tight text-center drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+            <span className="text-[11px] text-white/50 font-medium leading-tight text-center drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">
               This PC
             </span>
           </button>
@@ -179,10 +182,10 @@ export function Desktop() {
 
       {/* Connect prompt when no server */}
       {!isConnected && (
-        <div className="absolute inset-0 flex items-end justify-center pb-20 pointer-events-none">
-          <div className="text-center bg-black/20 backdrop-blur-md rounded-2xl px-8 py-4 border border-white/10">
-            <p className="text-white/40 text-sm font-medium">Connect a server to get started</p>
-            <p className="text-white/20 text-xs mt-1">Use the Start menu to manage servers</p>
+        <div className="absolute inset-0 flex items-end justify-center pb-24 pointer-events-none">
+          <div className="text-center glass rounded-2xl px-8 py-5 border border-white/[0.12]">
+            <p className="text-white/50 text-sm font-medium">Connect a server to get started</p>
+            <p className="text-white/25 text-xs mt-1.5">Use the Start menu to manage servers</p>
           </div>
         </div>
       )}
@@ -251,6 +254,22 @@ export function Desktop() {
           <ContextMenuShortcut>⌃⇧Esc</ContextMenuShortcut>
         </ContextMenuItem>
 
+        <ContextMenuItem
+          disabled={!isConnected}
+          onClick={() => activeServerId && openWindow('docker', activeServerId, 'Docker', 'docker')}
+        >
+          <Box className="w-4 h-4 mr-2 opacity-60" />
+          Docker
+        </ContextMenuItem>
+
+        <ContextMenuItem
+          disabled={!isConnected}
+          onClick={() => activeServerId && openWindow('services', activeServerId, 'Services', 'services')}
+        >
+          <Server className="w-4 h-4 mr-2 opacity-60" />
+          Services
+        </ContextMenuItem>
+
         <ContextMenuItem onClick={() => openWindow('settings', '', 'Settings', 'settings')}>
           <Paintbrush className="w-4 h-4 mr-2 opacity-60" />
           Personalize
@@ -287,7 +306,7 @@ export function Desktop() {
             disabled={createBusy}
           />
           {createError && (
-            <p className="text-sm text-[rgb(var(--destructive))] mt-2">{createError}</p>
+            <p className="text-sm text-destructive mt-2">{createError}</p>
           )}
         </div>
       </AppWindow.Body>

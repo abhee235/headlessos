@@ -18,7 +18,7 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-[9998] bg-black/40 dark:bg-black/60 backdrop-blur-sm animate-fadeIn",
+      "fixed inset-0 z-[9998] bg-overlay backdrop-blur-sm animate-fadeIn",
       className
     )}
     {...props}
@@ -37,8 +37,8 @@ const DialogContent = React.forwardRef<
       className={cn(
         "fixed left-1/2 top-1/2 z-[9999] w-full max-w-md -translate-x-1/2 -translate-y-1/2",
         "rounded-2xl",
-        "bg-white/80 dark:bg-zinc-900/80 backdrop-blur-2xl backdrop-saturate-[1.8]",
-        "border border-white/60 dark:border-white/[0.12]",
+        "bg-glass backdrop-blur-2xl backdrop-saturate-[1.8]",
+        "border border-glass-border",
         "ring-1 ring-black/[0.04] dark:ring-white/[0.05]",
         "p-6 shadow-2xl shadow-black/[0.08] dark:shadow-black/40",
         "animate-dialogIn",
@@ -47,7 +47,7 @@ const DialogContent = React.forwardRef<
       {...props}
     >
       {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-lg p-1.5 opacity-50 hover:opacity-100 hover:bg-black/[0.06] dark:hover:bg-white/10 transition-all">
+      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-lg p-1.5 opacity-50 hover:opacity-100 hover:bg-separator transition-all">
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>
@@ -85,7 +85,7 @@ const DialogTitle = React.forwardRef<
   <DialogPrimitive.Title
     ref={ref}
     className={cn(
-      "text-base font-semibold leading-none tracking-tight text-zinc-900 dark:text-zinc-100",
+      "text-base font-semibold leading-none tracking-tight text-foreground",
       className
     )}
     {...props}
@@ -99,7 +99,7 @@ const DialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Description
     ref={ref}
-    className={cn("text-sm text-zinc-500 dark:text-zinc-400 mt-1.5", className)}
+    className={cn("text-sm text-muted-foreground mt-1.5", className)}
     {...props}
   />
 ));

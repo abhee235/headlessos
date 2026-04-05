@@ -42,12 +42,12 @@ export function FileActions({ serverId, currentPath, onComplete }: FileActionsPr
   if (creatingType) {
     return (
       <div className="flex items-center gap-1">
-        <span className="text-xs text-gray-500 dark:text-zinc-500">
+        <span className="text-xs text-muted-foreground">
           {creatingType === 'folder' ? 'New folder:' : 'New file:'}
         </span>
         <input
           autoFocus
-          className="bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded px-2 py-0.5 text-gray-900 dark:text-zinc-200 text-sm outline-none focus:border-blue-500 w-40"
+          className="bg-background border border-input rounded px-2 py-0.5 text-foreground text-sm outline-none focus:border-primary w-40"
           value={name}
           onChange={e => setName(e.target.value)}
           onKeyDown={e => {
@@ -63,7 +63,7 @@ export function FileActions({ serverId, currentPath, onComplete }: FileActionsPr
         <button
           onClick={handleCreate}
           disabled={!name.trim() || busy}
-          className="p-1 rounded hover:bg-gray-200 dark:hover:bg-zinc-700 text-green-500 dark:text-green-400 disabled:opacity-40"
+          className="p-1 rounded hover:bg-accent text-success disabled:opacity-40"
           title="Create"
         >
           <Check className="w-3.5 h-3.5" />
@@ -73,7 +73,7 @@ export function FileActions({ serverId, currentPath, onComplete }: FileActionsPr
             setCreatingType(null);
             setName('');
           }}
-          className="p-1 rounded hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-400 dark:text-zinc-500"
+          className="p-1 rounded hover:bg-accent text-muted-foreground"
           title="Cancel"
         >
           <X className="w-3.5 h-3.5" />
@@ -86,14 +86,14 @@ export function FileActions({ serverId, currentPath, onComplete }: FileActionsPr
     <div className="flex items-center gap-1">
       <button
         onClick={() => setCreatingType('file')}
-        className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-400 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-200"
+        className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
         title="New File"
       >
         <FilePlus className="w-4 h-4" />
       </button>
       <button
         onClick={() => setCreatingType('folder')}
-        className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-400 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-200"
+        className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
         title="New Folder"
       >
         <FolderPlus className="w-4 h-4" />

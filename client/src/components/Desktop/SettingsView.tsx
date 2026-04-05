@@ -54,7 +54,7 @@ const SIDEBAR: SidebarEntry[] = [
     id: 'about',
     label: 'About',
     icon: <Info size={14} className="text-white" />,
-    iconBg: 'bg-gray-500',
+    iconBg: 'bg-muted-foreground',
   },
 ];
 
@@ -64,7 +64,7 @@ function GroupedCard({ children, className }: { children: React.ReactNode; class
   return (
     <div
       className={cn(
-        'rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--card))] overflow-hidden',
+        'rounded-lg border border-border bg-card overflow-hidden',
         className,
       )}
     >
@@ -92,12 +92,12 @@ function GroupedRow({
       onClick={onClick}
       className={cn(
         'flex items-center justify-between w-full px-3 py-2 text-[13px]',
-        !last && 'border-b border-[rgb(var(--border))]',
-        onClick && 'hover:bg-[rgb(var(--accent))] cursor-pointer',
+        !last && 'border-b border-border',
+        onClick && 'hover:bg-accent cursor-pointer',
       )}
     >
-      <span className="text-[rgb(var(--foreground))]">{label}</span>
-      <span className="flex items-center gap-1 text-[rgb(var(--muted-foreground))]">
+      <span className="text-foreground">{label}</span>
+      <span className="flex items-center gap-1 text-muted-foreground">
         {value}
         {chevron && <ChevronRight size={14} />}
       </span>
@@ -118,11 +118,11 @@ function SectionHeader({
 }) {
   return (
     <div className="flex items-center justify-between mb-2">
-      <h3 className="text-[13px] font-semibold text-[rgb(var(--foreground))]">{title}</h3>
+      <h3 className="text-[13px] font-semibold text-foreground">{title}</h3>
       {showAll && count !== undefined && (
         <button
           onClick={onShowAll}
-          className="text-[12px] text-[rgb(var(--primary))] hover:underline"
+          className="text-[12px] text-primary hover:underline"
         >
           Show All ({count})
         </button>
@@ -153,14 +153,14 @@ function WallpaperThumb({
         className={cn(
           'relative w-30 h-19 rounded-lg overflow-hidden border-2 transition-all',
           selected
-            ? 'border-[rgb(var(--primary))] shadow-[0_0_0_1px_rgb(var(--primary))]'
-            : 'border-transparent hover:border-[rgb(var(--muted-foreground))]/30',
+            ? 'border-primary shadow-[0_0_0_1px_var(--primary)]'
+            : 'border-transparent hover:border-muted-foreground/30',
         )}
       >
         <WallpaperPreview wallpaper={wp} className="w-full h-full" />
         {/* Selected check */}
         {selected && (
-          <div className="absolute bottom-1 right-1 w-5 h-5 rounded-full bg-[rgb(var(--primary))] flex items-center justify-center">
+          <div className="absolute bottom-1 right-1 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
             <Check size={12} className="text-white" />
           </div>
         )}
@@ -177,7 +177,7 @@ function WallpaperThumb({
           </button>
         )}
       </div>
-      <span className="text-[11px] text-[rgb(var(--muted-foreground))] max-w-30 truncate">
+      <span className="text-[11px] text-muted-foreground max-w-30 truncate">
         {wp.name}
       </span>
     </button>
@@ -220,9 +220,9 @@ function AddPhotoCard({ onUpload }: { onUpload: (file: File) => void }) {
         onClick={() => inputRef.current?.click()}
         className="flex flex-col items-center shrink-0 gap-1.5"
       >
-        <div className="w-30 h-19 rounded-lg border-2 border-dashed border-[rgb(var(--border))] flex flex-col items-center justify-center gap-1 hover:border-[rgb(var(--primary))] hover:bg-[rgb(var(--accent))] transition-colors cursor-pointer">
-          <Plus size={18} className="text-[rgb(var(--muted-foreground))]" />
-          <span className="text-[10px] text-[rgb(var(--muted-foreground))]">Add Photo</span>
+        <div className="w-30 h-19 rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center gap-1 hover:border-primary hover:bg-accent transition-colors cursor-pointer">
+          <Plus size={18} className="text-muted-foreground" />
+          <span className="text-[10px] text-muted-foreground">Add Photo</span>
         </div>
         <span className="text-[11px] text-transparent">_</span>
       </button>
@@ -288,14 +288,14 @@ function WallpaperPage() {
     <div className="space-y-5">
       {/* ── Current Wallpaper ─────────────────────── */}
       <div className="flex items-start gap-4">
-        <div className="w-45 h-28 rounded-lg overflow-hidden border border-[rgb(var(--border))] shrink-0">
+        <div className="w-45 h-28 rounded-lg overflow-hidden border border-border shrink-0">
           <WallpaperPreview wallpaper={currentWp} className="w-full h-full" />
         </div>
         <div className="flex flex-col gap-1.5 pt-1">
-          <span className="text-[15px] font-medium text-[rgb(var(--foreground))]">
+          <span className="text-[15px] font-medium text-foreground">
             {currentWp.name}
           </span>
-          <span className="text-[12px] text-[rgb(var(--muted-foreground))]">
+          <span className="text-[12px] text-muted-foreground">
             {currentWp.type === 'gradient' ? 'Built-in Gradient' : currentWp.category === 'system' ? 'System' : 'Your Photo'}
           </span>
           <button
@@ -309,7 +309,7 @@ function WallpaperPage() {
               };
               input.click();
             }}
-            className="mt-2 text-[12px] text-[rgb(var(--primary))] hover:underline text-left"
+            className="mt-2 text-[12px] text-primary hover:underline text-left"
           >
             Add Photo…
           </button>
@@ -366,7 +366,7 @@ function WallpaperPage() {
       )}
 
       {loading && allWallpapers.length <= BUILTIN_WALLPAPERS.length && (
-        <p className="text-[12px] text-[rgb(var(--muted-foreground))]">Loading wallpapers…</p>
+        <p className="text-[12px] text-muted-foreground">Loading wallpapers…</p>
       )}
     </div>
   );
@@ -463,13 +463,13 @@ function AppearancePage() {
                 className={cn(
                   'w-22.5 h-15.5 rounded-lg border-2 overflow-hidden transition-all',
                   theme === mode
-                    ? 'border-[rgb(var(--primary))] shadow-[0_0_0_1px_rgb(var(--primary))]'
-                    : 'border-[rgb(var(--border))] hover:border-[rgb(var(--muted-foreground))]/40',
+                    ? 'border-primary shadow-[0_0_0_1px_var(--primary)]'
+                    : 'border-border hover:border-muted-foreground/40',
                 )}
               >
                 <ThemeMiniPreview mode={mode} />
               </div>
-              <span className="text-[12px] text-[rgb(var(--foreground))] capitalize">{mode}</span>
+              <span className="text-[12px] text-foreground capitalize">{mode}</span>
             </button>
           ))}
         </div>
@@ -485,7 +485,7 @@ function AppearancePage() {
               onClick={() => setAccentIdx(idx)}
               className={cn(
                 'w-7 h-7 rounded-full flex items-center justify-center transition-transform',
-                accentIdx === idx && 'ring-2 ring-offset-2 ring-offset-[rgb(var(--background))] ring-[rgb(var(--primary))] scale-110',
+                accentIdx === idx && 'ring-2 ring-offset-2 ring-offset-background ring-primary scale-110',
               )}
               style={{ background: color.value }}
               title={color.name}
@@ -520,8 +520,8 @@ function AboutPage() {
           <Monitor size={28} className="text-white" />
         </div>
         <div>
-          <h2 className="text-[16px] font-semibold text-[rgb(var(--foreground))]">HeadlessOS</h2>
-          <p className="text-[12px] text-[rgb(var(--muted-foreground))]">Version 0.1.0 (Alpha)</p>
+          <h2 className="text-[16px] font-semibold text-foreground">HeadlessOS</h2>
+          <p className="text-[12px] text-muted-foreground">Version 0.1.0 (Alpha)</p>
         </div>
       </div>
 
@@ -538,7 +538,7 @@ function AboutPage() {
         <GroupedRow label="GitHub" value="headlessOS" chevron last />
       </GroupedCard>
 
-      <p className="text-[11px] text-[rgb(var(--muted-foreground))] pt-1">
+      <p className="text-[11px] text-muted-foreground pt-1">
         A localhost web app that connects to Linux VPS servers via SSH. Nothing is installed on the server.
       </p>
     </div>
@@ -553,9 +553,9 @@ export function SettingsView() {
   const [page, setPage] = useState<PageId>('wallpaper');
 
   return (
-    <div className="flex h-full bg-[rgb(var(--background))]">
+    <div className="flex h-full bg-background">
       {/* ── Sidebar ── */}
-      <aside className="w-52 shrink-0 border-r border-[rgb(var(--border))] bg-[rgb(var(--sidebar))] px-2 py-3 flex flex-col gap-0.5 overflow-y-auto">
+      <aside className="w-52 shrink-0 border-r border-border bg-sidebar px-2 py-3 flex flex-col gap-0.5 overflow-y-auto">
         {SIDEBAR.map((entry) => (
           <button
             key={entry.id}
@@ -563,8 +563,8 @@ export function SettingsView() {
             className={cn(
               'flex items-center gap-2.5 w-full px-2 py-1.5 rounded-md text-[13px] transition-colors text-left',
               page === entry.id
-                ? 'bg-[rgb(var(--primary))] text-white'
-                : 'text-[rgb(var(--sidebar-foreground))] hover:bg-[rgb(var(--sidebar-accent))]',
+                ? 'bg-primary text-primary-foreground'
+                : 'text-sidebar-foreground hover:bg-sidebar-accent',
             )}
           >
             <div
@@ -583,7 +583,7 @@ export function SettingsView() {
       {/* ── Content ── */}
       <main className="flex-1 overflow-y-auto px-6 py-5">
         {/* Page title — simple left-aligned, like macOS */}
-        <h1 className="text-[22px] font-bold text-[rgb(var(--foreground))] mb-5">
+        <h1 className="text-[22px] font-bold text-foreground mb-5">
           {SIDEBAR.find((s) => s.id === page)?.label}
         </h1>
 

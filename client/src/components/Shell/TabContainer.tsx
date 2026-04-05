@@ -12,8 +12,8 @@ export function TabContainer() {
 
   if (tabs.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-zinc-950">
-        <div className="text-center text-zinc-600">
+      <div className="flex-1 flex items-center justify-center bg-background">
+        <div className="text-center text-muted-foreground">
           <MonitorDot className="w-12 h-12 mx-auto mb-3 opacity-40" />
           <p className="text-sm">
             {activeServerId
@@ -28,22 +28,22 @@ export function TabContainer() {
   const activeTab = tabs.find(t => t.id === activeTabId);
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-zinc-950">
+    <div className="flex-1 flex flex-col min-h-0 bg-background">
       {/* Tab Bar */}
-      <div className="flex items-center bg-zinc-900 border-b border-zinc-800 overflow-x-auto">
+      <div className="flex items-center bg-sidebar border-b border-border overflow-x-auto">
         {tabs.map(tab => (
           <button
             key={tab.id}
-            className={`group flex items-center gap-2 px-4 py-2 text-sm border-r border-zinc-800 shrink-0 ${
+            className={`group flex items-center gap-2 px-4 py-2 text-sm border-r border-border shrink-0 ${
               tab.id === activeTabId
-                ? 'bg-zinc-950 text-zinc-100'
-                : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+                ? 'bg-background text-foreground'
+                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
             }`}
             onClick={() => setActiveTab(tab.id)}
           >
             <span className="truncate max-w-[140px]">{tab.title}</span>
             <span
-              className="p-0.5 rounded hover:bg-zinc-700 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="p-0.5 rounded hover:bg-accent opacity-0 group-hover:opacity-100 transition-opacity"
               onClick={e => {
                 e.stopPropagation();
                 closeTab(tab.id);
@@ -73,8 +73,8 @@ function TabContent({ appId, serverId }: { appId: string; serverId: string }) {
       return <FileExplorerView serverId={serverId} />;
     default:
       return (
-        <div className="text-zinc-400 text-sm">
-          <p>Unknown app: <span className="text-zinc-200">{appId}</span></p>
+        <div className="text-muted-foreground text-sm">
+          <p>Unknown app: <span className="text-foreground">{appId}</span></p>
         </div>
       );
   }

@@ -1,5 +1,5 @@
-// M2.5: Explorer Toolbar — view mode switcher, sort, new file/folder actions
-// @see docs/phases/phase-2.md
+// M6: Explorer Toolbar — modern view mode switcher with rounded pill buttons
+// @see docs/phases/phase-6.md
 
 import {
   LayoutGrid,
@@ -23,10 +23,10 @@ interface ExplorerToolbarProps {
 }
 
 const VIEW_MODES: { mode: ViewMode; icon: React.ReactNode; label: string }[] = [
-  { mode: 'large-icons', icon: <LayoutGrid className="w-3.5 h-3.5" />, label: 'Large icons' },
-  { mode: 'small-icons', icon: <Grid3x3 className="w-3.5 h-3.5" />, label: 'Medium icons' },
-  { mode: 'list', icon: <List className="w-3.5 h-3.5" />, label: 'List' },
-  { mode: 'details', icon: <Table2 className="w-3.5 h-3.5" />, label: 'Details' },
+  { mode: 'large-icons', icon: <LayoutGrid className="w-4 h-4" />, label: 'Large icons' },
+  { mode: 'small-icons', icon: <Grid3x3 className="w-4 h-4" />, label: 'Medium icons' },
+  { mode: 'list', icon: <List className="w-4 h-4" />, label: 'List' },
+  { mode: 'details', icon: <Table2 className="w-4 h-4" />, label: 'Details' },
 ];
 
 export function ExplorerToolbar({
@@ -39,20 +39,20 @@ export function ExplorerToolbar({
   onStartCreate,
 }: ExplorerToolbarProps) {
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-[rgb(var(--chrome))] border-b border-gray-200/60 dark:border-zinc-700/40">
-      {/* New file / folder — just buttons, inline create handled by FileList */}
+    <div className="flex items-center gap-2 px-3 py-2 border-b border-border/30">
+      {/* New file / folder */}
       <div className="flex items-center gap-0.5">
         <button
           onClick={() => onStartCreate('file')}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-200 text-xs transition-colors"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-foreground/4 text-foreground/60 hover:text-foreground text-[13px] transition-all duration-150"
           title="New File"
         >
-          <File className="w-3.5 h-3.5" />
+          <File className="w-4 h-4" />
           <span className="hidden sm:inline">New File</span>
         </button>
         <button
           onClick={() => onStartCreate('folder')}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-200 text-xs transition-colors"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-foreground/4 text-foreground/60 hover:text-foreground text-[13px] transition-all duration-150"
           title="New Folder"
         >
           <Folder className="w-3.5 h-3.5" />
@@ -61,25 +61,25 @@ export function ExplorerToolbar({
       </div>
 
       {/* Separator */}
-      <div className="w-px h-4 bg-gray-200 dark:bg-zinc-700/50 mx-1" />
+      <div className="w-px h-4 bg-border/30" />
 
       {/* Spacer */}
       <div className="flex-1" />
 
       {/* Item count */}
-      <span className="text-[10px] text-gray-400 dark:text-zinc-600 mr-2 tabular-nums">{entryCount} items</span>
+      <span className="text-[12px] text-foreground/40 mr-1 tabular-nums">{entryCount} items</span>
 
-      {/* View mode switcher */}
-      <div className="flex items-center bg-gray-100 dark:bg-zinc-800/80 rounded-md border border-gray-200 dark:border-zinc-700/50">
-        {VIEW_MODES.map((vm, i) => (
+      {/* View mode switcher — pill capsule */}
+      <div className="flex items-center bg-foreground/[0.05] rounded-full p-0.5">
+        {VIEW_MODES.map((vm) => (
           <button
             key={vm.mode}
             onClick={() => onViewModeChange(vm.mode)}
-            className={`p-1.5 transition-colors ${
+            className={`p-2 rounded-full transition-all duration-150 ${
               viewMode === vm.mode
-                ? 'bg-white dark:bg-zinc-700 text-gray-900 dark:text-zinc-100 shadow-sm'
-                : 'text-gray-400 dark:text-zinc-500 hover:text-gray-800 dark:hover:text-zinc-300 hover:bg-gray-200/50 dark:hover:bg-zinc-700/50'
-            } ${i === 0 ? 'rounded-l-md' : ''} ${i === VIEW_MODES.length - 1 ? 'rounded-r-md' : ''}`}
+                ? 'bg-background text-primary shadow-sm'
+                : 'text-foreground/50 hover:text-foreground'
+            }`}
             title={vm.label}
           >
             {vm.icon}

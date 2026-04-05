@@ -27,10 +27,20 @@ RUN mkdir /var/run/sshd
 RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
 RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
 
-# Create test user with sudo
-RUN useradd -m -s /bin/bash testuser \
+# Install Docker CLI (daemon runs on host via mounted socket)
+RUN install -m 0755 -d /etc/apt/keyrings \
+    && curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc \
+    && chmod a+r /etc/apt/keyrings/docker.asc \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list \
+    && apt-get update \
+    && apt-get install -y docker-ce-cli \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create test user with sudo + docker group
+RUN groupadd -f docker \
+    && useradd -m -s /bin/bash testuser \
     && echo 'testuser:testpass' | chpasswd \
-    && usermod -aG sudo testuser \
+    && usermod -aG sudo,docker testuser \
     && echo 'testuser ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 # Also set root password for testing
@@ -45,6 +55,9 @@ RUN mkdir -p /home/testuser/projects/myapp \
     && echo 'Some notes here' > /home/testuser/documents/notes.txt \
     && chown -R testuser:testuser /home/testuser
 
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 EXPOSE 22
 
-CMD ["/usr/sbin/sshd", "-D"]
+CMD ["/entrypoint.sh"]

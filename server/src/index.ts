@@ -16,6 +16,8 @@ import { systemRoutes } from './routes/system.js';
 import { fileRoutes } from './routes/files.js';
 import { wallpaperRoutes } from './routes/wallpapers.js';
 import { taskManagerRoutes } from './routes/taskmanager.js';
+import { dockerRoutes } from './routes/docker.js';
+import { servicesRoutes } from './routes/services.js';
 import { allParsers } from './parsers/deterministic/index.js';
 
 const PORT = Number(process.env.PORT) || 3001;
@@ -79,6 +81,36 @@ async function main(): Promise<void> {
     };
   });
 
+  // ── Auto-reconnect hook for data routes ──
+  // When a server is disconnected (e.g. after dev server restart), attempt to
+  // reconnect transparently using stored credentials before the route handler runs.
+  const dataRoutePattern = /^\/api\/servers\/([^/]+)\/(docker|system|files|taskmanager|services|terminal)/;
+
+  app.addHook('preHandler', async (req) => {
+    const match = req.url.match(dataRoutePattern);
+    if (!match) return;
+
+    const serverId = match[1]!;
+    const state = connectionManager.getState(serverId);
+    if (state.status === 'connected') return;
+
+    const config = await configStore.getServer(serverId);
+    if (!config) return;
+
+    // Can't auto-reconnect if the password was stripped on persist
+    if (config.authMethod === 'password' && (!config.password || config.password === '***')) {
+      return;
+    }
+
+    try {
+      await connectionManager.connect(config);
+      console.log(`🔄 Auto-reconnected to server ${serverId}`);
+    } catch (err) {
+      // Reconnection failed — let the route handler deal with it
+      console.warn(`⚠️  Auto-reconnect failed for ${serverId}:`, (err as Error).message);
+    }
+  });
+
   // Register routes
   await app.register(serverRoutes, { connectionManager, configStore });
   await app.register(terminalRoutes, { connectionManager });
@@ -86,6 +118,8 @@ async function main(): Promise<void> {
   await app.register(fileRoutes, { connectionManager });
   await app.register(wallpaperRoutes);
   await app.register(taskManagerRoutes, { orchestrator, connectionManager });
+  await app.register(dockerRoutes, { connectionManager });
+  await app.register(servicesRoutes, { connectionManager });
 
   // -- Start --
   try {

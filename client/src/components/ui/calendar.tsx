@@ -28,22 +28,22 @@ function Calendar({ className, classNames, showOutsideDays = true, ...props }: C
         ),
         month_grid: "w-full border-collapse space-y-1",
         weekdays: "flex",
-        weekday: "text-[rgb(var(--muted-foreground))] rounded-md w-8 font-normal text-[0.8rem]",
+        weekday: "text-muted-foreground rounded-md w-8 font-normal text-[0.8rem]",
         week: "flex w-full mt-2",
-        day: "relative p-0 text-center text-sm focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-[rgb(var(--primary))]/10 [&:has([aria-selected])]:rounded-md",
+        day: "relative p-0 text-center text-sm focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-primary/10 [&:has([aria-selected])]:rounded-md",
         day_button: cn(
           buttonVariants({ variant: "ghost" }),
           "h-8 w-8 p-0 font-normal aria-selected:opacity-100"
         ),
         selected:
-          "bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))] hover:bg-[rgb(var(--primary))] hover:text-[rgb(var(--primary-foreground))] focus:bg-[rgb(var(--primary))] focus:text-[rgb(var(--primary-foreground))]",
-        today: "bg-[rgb(var(--muted))] text-[rgb(var(--foreground))]",
-        outside: "text-[rgb(var(--muted-foreground))] opacity-50",
-        disabled: "text-[rgb(var(--muted-foreground))] opacity-50",
+          "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+        today: "bg-muted text-foreground",
+        outside: "text-muted-foreground opacity-50",
+        disabled: "text-muted-foreground opacity-50",
         hidden: "invisible",
         range_start: "rounded-l-md",
         range_end: "rounded-r-md",
-        range_middle: "aria-selected:bg-[rgb(var(--primary))]/10 aria-selected:text-[rgb(var(--foreground))]",
+        range_middle: "aria-selected:bg-primary/10 aria-selected:text-foreground",
         ...classNames,
       }}
       components={{

@@ -77,7 +77,7 @@ export function ServerAvatar({ name, host, port, status, onClick }: ServerAvatar
               ? 'bg-green-500'
               : isConnecting
                 ? 'bg-yellow-500 animate-pulse'
-                : 'bg-zinc-500'
+                : 'bg-muted-foreground'
             }
           `}
         />

@@ -125,10 +125,33 @@ Use after modifying frontend to verify UI renders correctly.
 
 ## Local Dev SSH Server
 
+Two options are available for local development. **Lima VM is recommended** because it runs a real Linux OS with its own Docker daemon — just like a real VPS.
+
+### Option A: Lima VM (Recommended)
+
+A real Ubuntu 22.04 VM with Docker Engine pre-installed. Docker containers inside the VM are completely isolated from your Mac.
+
+```bash
+./dev/vm.sh start     # Create & start (first run ~3min, downloads Ubuntu + Docker)
+./dev/vm.sh stop      # Stop VM (preserves data)
+./dev/vm.sh status    # Show status + running containers
+./dev/vm.sh ssh       # SSH into VM as testuser
+./dev/vm.sh destroy   # Delete VM completely
+```
+
+**Requires**: Lima (`brew install lima`), sshpass (`brew install hudochenkov/sshpass/sshpass`)
+
+### Option B: Docker Container (Lightweight)
+
+A Docker container with SSH. Faster to start but Docker commands inside it talk to your **host Mac's Docker daemon** (via socket mount), not an isolated Docker.
+
 ```bash
 cd dev && docker compose up -d   # Start
 cd dev && docker compose down     # Stop
 ```
+
+> **Note**: Options A and B both use port 2222. Stop one before starting the other.
+
 Host: `127.0.0.1`, Port: `2222`, User: `testuser`, Pass: `testpass`
 
 ## File Location Guide
