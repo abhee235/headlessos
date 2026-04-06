@@ -493,11 +493,21 @@ export async function fetchServiceLogs(
 
 // ── Server Admin ────────────────────────────────────────
 
+export interface NetworkInterface {
+  name: string;
+  state: 'UP' | 'DOWN' | 'UNKNOWN';
+  mac?: string;
+  mtu?: number;
+  type?: string;
+}
+
 export interface NetworkInfo {
+  hostname?: string;
   ports: Array<{ protocol: string; localAddress: string; localPort: number; process: string; pid?: number }>;
   routes: Array<{ destination: string; gateway?: string; interface: string; metric?: number; scope?: string; protocol?: string }>;
   dns: { nameservers: string[]; searchDomains: string[] };
   connections: Array<{ protocol: string; localAddress: string; localPort: number; remoteAddress: string; remotePort: number; state: string; process?: string; pid?: number }>;
+  interfaces?: NetworkInterface[];
 }
 
 export interface FirewallStatus {
@@ -530,6 +540,14 @@ export interface PackageInfo {
   message?: string;
 }
 
+export interface AptSearchResult {
+  name: string;
+  version: string;
+  architecture: string;
+  description: string;
+  installed: boolean;
+}
+
 export interface CronInfo {
   jobs: Array<{ schedule: string; command: string; source: string; description?: string }>;
 }
@@ -547,6 +565,45 @@ export interface StorageInfo {
 
 export async function fetchNetworkInfo(serverId: string): Promise<{ success: boolean; data?: NetworkInfo; error?: string }> {
   return request(`/servers/${serverId}/admin/network`);
+}
+
+export async function setHostname(
+  serverId: string,
+  hostname: string,
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  return request(`/servers/${serverId}/admin/network/hostname`, {
+    method: 'POST',
+    body: JSON.stringify({ hostname }),
+  });
+}
+
+export async function setDnsConfig(
+  serverId: string,
+  nameservers: string[],
+  searchDomains?: string[],
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  return request(`/servers/${serverId}/admin/network/dns`, {
+    method: 'POST',
+    body: JSON.stringify({ nameservers, searchDomains }),
+  });
+}
+
+export async function setInterfaceUp(
+  serverId: string,
+  name: string,
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  return request(`/servers/${serverId}/admin/network/interface/${encodeURIComponent(name)}/up`, {
+    method: 'POST',
+  });
+}
+
+export async function setInterfaceDown(
+  serverId: string,
+  name: string,
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  return request(`/servers/${serverId}/admin/network/interface/${encodeURIComponent(name)}/down`, {
+    method: 'POST',
+  });
 }
 
 export async function fetchFirewallStatus(serverId: string): Promise<{ success: boolean; data?: FirewallStatus; error?: string }> {
@@ -582,32 +639,267 @@ export async function toggleFirewall(
   });
 }
 
+// ── Firewall Advanced Rules (M8.2) ─────────────────────────────
+
+export interface AdvancedFirewallRule {
+  action: 'allow' | 'deny';
+  from: string;
+  port?: string;
+  protocol?: 'tcp' | 'udp';
+  comment?: string;
+}
+
+export interface UfwAppProfile {
+  name: string;
+}
+
+export async function addAdvancedFirewallRule(
+  serverId: string,
+  rule: AdvancedFirewallRule,
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  return request(`/servers/${serverId}/admin/firewall/advanced`, {
+    method: 'POST',
+    body: JSON.stringify(rule),
+  });
+}
+
+export async function fetchUfwAppProfiles(
+  serverId: string,
+): Promise<{ success: boolean; data?: { apps: UfwAppProfile[] }; error?: string }> {
+  return request(`/servers/${serverId}/admin/firewall/apps`);
+}
+
+export async function allowDenyUfwApp(
+  serverId: string,
+  action: 'allow' | 'deny',
+  app: string,
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  return request(`/servers/${serverId}/admin/firewall/app`, {
+    method: 'POST',
+    body: JSON.stringify({ action, app }),
+  });
+}
+
 export async function fetchSecurityInfo(serverId: string): Promise<{ success: boolean; data?: SecurityInfo; error?: string }> {
   return request(`/servers/${serverId}/admin/security`);
+}
+
+// ── Fail2ban Management (M8.1) ─────────────────────────────────
+
+export interface Fail2banJailDetail {
+  jail: string;
+  currentlyFailed: number;
+  totalFailed: number;
+  currentlyBanned: number;
+  totalBanned: number;
+  bannedIps: string[];
+  fileList: string[];
+  filter: string;
+}
+
+export async function fetchFail2banJailDetail(serverId: string, jail: string): Promise<{ success: boolean; data?: Fail2banJailDetail; error?: string }> {
+  return request(`/servers/${serverId}/admin/fail2ban/jails/${encodeURIComponent(jail)}`);
+}
+
+export async function fail2banBanIp(serverId: string, jail: string, ip: string): Promise<{ success: boolean; message?: string; error?: string }> {
+  return request(`/servers/${serverId}/admin/fail2ban/ban`, { method: 'POST', body: JSON.stringify({ jail, ip }) });
+}
+
+export async function fail2banUnbanIp(serverId: string, jail: string, ip: string): Promise<{ success: boolean; message?: string; error?: string }> {
+  return request(`/servers/${serverId}/admin/fail2ban/unban`, { method: 'POST', body: JSON.stringify({ jail, ip }) });
+}
+
+export async function fail2banReload(serverId: string): Promise<{ success: boolean; message?: string; error?: string }> {
+  return request(`/servers/${serverId}/admin/fail2ban/reload`, { method: 'POST' });
+}
+
+// ── User & Session Management (M8.6) ──────────────────────────
+
+export async function createUser(
+  serverId: string,
+  opts: { username: string; shell?: string; createHome?: boolean },
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  return request(`/servers/${serverId}/admin/users`, {
+    method: 'POST',
+    body: JSON.stringify(opts),
+  });
+}
+
+export async function deleteUser(
+  serverId: string,
+  username: string,
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  return request(`/servers/${serverId}/admin/users/${encodeURIComponent(username)}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function setUserPassword(
+  serverId: string,
+  username: string,
+  password: string,
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  return request(`/servers/${serverId}/admin/users/${encodeURIComponent(username)}/password`, {
+    method: 'POST',
+    body: JSON.stringify({ password }),
+  });
+}
+
+export async function addUserToGroup(
+  serverId: string,
+  username: string,
+  group: string,
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  return request(`/servers/${serverId}/admin/users/${encodeURIComponent(username)}/groups`, {
+    method: 'POST',
+    body: JSON.stringify({ group }),
+  });
+}
+
+export async function killSession(
+  serverId: string,
+  tty: string,
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  return request(`/servers/${serverId}/admin/sessions/kill`, {
+    method: 'POST',
+    body: JSON.stringify({ tty }),
+  });
 }
 
 export async function fetchWebServerInfo(serverId: string): Promise<{ success: boolean; data?: WebServerInfo; error?: string }> {
   return request(`/servers/${serverId}/admin/webserver`);
 }
 
+// ── Nginx Site Management (M8.3) ───────────────────────────────
+
+export interface NginxSiteConfig {
+  site: string;
+  config: string;
+}
+
+export async function enableNginxSite(serverId: string, site: string): Promise<{ success: boolean; message?: string; error?: string }> {
+  return request(`/servers/${serverId}/admin/nginx/sites/${encodeURIComponent(site)}/enable`, { method: 'POST' });
+}
+
+export async function disableNginxSite(serverId: string, site: string): Promise<{ success: boolean; message?: string; error?: string }> {
+  return request(`/servers/${serverId}/admin/nginx/sites/${encodeURIComponent(site)}/disable`, { method: 'POST' });
+}
+
+export async function reloadNginx(serverId: string): Promise<{ success: boolean; message?: string; error?: string }> {
+  return request(`/servers/${serverId}/admin/nginx/reload`, { method: 'POST' });
+}
+
+export async function restartNginx(serverId: string): Promise<{ success: boolean; message?: string; error?: string }> {
+  return request(`/servers/${serverId}/admin/nginx/restart`, { method: 'POST' });
+}
+
+export async function fetchNginxSiteConfig(serverId: string, site: string): Promise<{ success: boolean; data?: NginxSiteConfig; error?: string }> {
+  return request(`/servers/${serverId}/admin/nginx/sites/${encodeURIComponent(site)}/config`);
+}
+
+export async function testNginxConfig(serverId: string): Promise<{ success: boolean; data?: { success: boolean; output: string }; error?: string }> {
+  return request(`/servers/${serverId}/admin/nginx/test`, { method: 'POST' });
+}
+
 export async function fetchPackageInfo(serverId: string): Promise<{ success: boolean; data?: PackageInfo; error?: string }> {
   return request(`/servers/${serverId}/admin/packages`);
+}
+
+export async function aptUpdate(serverId: string): Promise<{ success: boolean; data?: { output: string }; error?: string }> {
+  return request(`/servers/${serverId}/admin/packages/update`, { method: 'POST' });
+}
+
+export async function aptUpgradeAll(serverId: string): Promise<{ success: boolean; data?: { output: string }; error?: string }> {
+  return request(`/servers/${serverId}/admin/packages/upgrade-all`, { method: 'POST' });
+}
+
+export async function installPackage(serverId: string, pkg: string): Promise<{ success: boolean; data?: { output: string }; error?: string }> {
+  return request(`/servers/${serverId}/admin/packages/install`, { method: 'POST', body: JSON.stringify({ package: pkg }) });
+}
+
+export async function removePackage(serverId: string, pkg: string): Promise<{ success: boolean; data?: { output: string }; error?: string }> {
+  return request(`/servers/${serverId}/admin/packages/remove`, { method: 'POST', body: JSON.stringify({ package: pkg }) });
+}
+
+export async function upgradePackage(serverId: string, pkg: string): Promise<{ success: boolean; data?: { output: string }; error?: string }> {
+  return request(`/servers/${serverId}/admin/packages/upgrade`, { method: 'POST', body: JSON.stringify({ package: pkg }) });
+}
+
+export async function searchPackages(serverId: string, query: string): Promise<{ success: boolean; data?: AptSearchResult[]; error?: string }> {
+  return request(`/servers/${serverId}/admin/packages/search?q=${encodeURIComponent(query)}`);
 }
 
 export async function fetchCronInfo(serverId: string): Promise<{ success: boolean; data?: CronInfo; error?: string }> {
   return request(`/servers/${serverId}/admin/cron`);
 }
 
+export async function addCronJob(
+  serverId: string,
+  job: { schedule: string; command: string; description?: string },
+): Promise<{ success: boolean; error?: string }> {
+  return request(`/servers/${serverId}/admin/cron`, {
+    method: 'POST',
+    body: JSON.stringify(job),
+  });
+}
+
+export async function deleteCronJob(
+  serverId: string,
+  index: number,
+): Promise<{ success: boolean; error?: string }> {
+  return request(`/servers/${serverId}/admin/cron/${index}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function editCronJob(
+  serverId: string,
+  index: number,
+  job: { schedule: string; command: string; description?: string },
+): Promise<{ success: boolean; error?: string }> {
+  return request(`/servers/${serverId}/admin/cron/${index}`, {
+    method: 'PUT',
+    body: JSON.stringify(job),
+  });
+}
+
+export interface LogQueryOpts {
+  source?: 'journal' | 'dmesg' | 'syslog';
+  unit?: string;
+  lines?: number;
+  priority?: string;
+  since?: string;
+  until?: string;
+  grep?: string;
+}
+
 export async function fetchLogInfo(
   serverId: string,
-  opts?: { source?: 'journal' | 'dmesg' | 'syslog'; unit?: string; lines?: number },
+  opts?: LogQueryOpts,
 ): Promise<{ success: boolean; data?: LogInfo; error?: string }> {
   const params = new URLSearchParams();
   if (opts?.source) params.set('source', opts.source);
   if (opts?.unit) params.set('unit', opts.unit);
   if (opts?.lines) params.set('lines', String(opts.lines));
+  if (opts?.priority) params.set('priority', opts.priority);
+  if (opts?.since) params.set('since', opts.since);
+  if (opts?.until) params.set('until', opts.until);
+  if (opts?.grep) params.set('grep', opts.grep);
   const qs = params.toString();
   return request(`/servers/${serverId}/admin/logs${qs ? `?${qs}` : ''}`);
+}
+
+export function getLogExportUrl(serverId: string, opts?: LogQueryOpts): string {
+  const params = new URLSearchParams();
+  if (opts?.source) params.set('source', opts.source);
+  if (opts?.unit) params.set('unit', opts.unit);
+  if (opts?.lines) params.set('lines', String(opts.lines));
+  if (opts?.priority) params.set('priority', opts.priority);
+  if (opts?.since) params.set('since', opts.since);
+  if (opts?.until) params.set('until', opts.until);
+  if (opts?.grep) params.set('grep', opts.grep);
+  const qs = params.toString();
+  return `${BASE}/servers/${serverId}/admin/logs/export${qs ? `?${qs}` : ''}`;
 }
 
 export async function fetchStorageInfo(serverId: string): Promise<{ success: boolean; data?: StorageInfo; error?: string }> {

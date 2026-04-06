@@ -54,6 +54,63 @@ export function parseDpkgCount(raw: string): number {
   return Math.max(0, num - 5);
 }
 
+/**
+ * Represents a single result from `apt search`.
+ */
+export interface AptSearchResult {
+  name: string;
+  version: string;
+  architecture: string;
+  description: string;
+  installed: boolean;
+}
+
+/**
+ * Parses `apt search <query>` output.
+ *
+ * Format (each package is 2 lines):
+ * ```
+ * Sorting... Done
+ * Full Text Search... Done
+ * nginx/jammy-updates 1.18.0-6ubuntu14.5 amd64
+ *   small, powerful, scalable web/reverse proxy server
+ *
+ * nginx-common/jammy-updates 1.18.0-6ubuntu14.5 all [installed,automatic]
+ *   small, powerful, scalable web/reverse proxy server - common files
+ * ```
+ */
+export function parseAptSearchResults(raw: string): AptSearchResult[] {
+  const lines = raw.trim().split('\n');
+  const results: AptSearchResult[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!.trim();
+    // Skip headers and empty lines
+    if (!line || line.startsWith('Sorting') || line.startsWith('Full Text Search') || line.startsWith('WARNING')) continue;
+
+    // Package line: name/source version arch [status]
+    const match = line.match(
+      /^(\S+?)\/\S+\s+(\S+)\s+(\S+)(\s+\[.*\])?$/
+    );
+    if (match) {
+      const installed = line.includes('[installed');
+      // Next line is the description
+      const descLine = (i + 1 < lines.length) ? lines[i + 1]!.trim() : '';
+      results.push({
+        name: match[1]!,
+        version: match[2]!,
+        architecture: match[3]!,
+        description: descLine,
+        installed,
+      });
+      // Skip description line
+      if (descLine) i++;
+    }
+  }
+
+  return results;
+}
+
 export const aptUpgradableParser: DeterministicParser<UpgradablePackage[]> = {
   name: 'apt-upgradable',
   commands: ['apt list --upgradable', 'apt list --upgradeable'],

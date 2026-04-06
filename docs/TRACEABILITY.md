@@ -542,6 +542,90 @@ M4.1, M4.2, M4.5 were already done in M2.1. M4.3 (ps-aux) was done in M7.1. M4.4
 
 ---
 
+## M8.1: Fail2ban Management
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `server/src/parsers/deterministic/fail2ban.ts` | Deterministic parser for `fail2ban-client status <jail>` output |
+| `docs/phases/phase-8.md` | Phase 8 spec — Server Admin CRUD operations (M8.1–M8.8) |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `server/src/security/validators.ts` | Added `validateIpAddress()`, `validateJailName()`, 3 fail2ban commands to allowlist |
+| `server/src/parsers/schemas/serveradmin.ts` | Added `Fail2banJailDetailSchema`, `Fail2banJailDetail` type |
+| `server/src/routes/serveradmin.ts` | Added 4 endpoints: GET jail detail, POST ban, POST unban, POST reload |
+| `client/src/lib/api.ts` | Added `Fail2banJailDetail` interface, `fetchFail2banJailDetail`, `fail2banBanIp`, `fail2banUnbanIp`, `fail2banReload` |
+| `client/src/components/ServerAdmin/SecuritySection.tsx` | Interactive fail2ban tab: clickable jails, jail detail, ban/unban IP, reload config |
+| `server/tests/security/validators.test.ts` | Added 14 tests for `validateIpAddress` and `validateJailName` |
+| `server/tests/parsers/serveradmin-parsers.test.ts` | Added 5 tests for `parseFail2banJailStatus` |
+
+### Verification
+
+- TypeScript: Clean compile (no errors)
+- Tests: 321 total (242 server + 79 client), all passing
+- New validator tests: 14 (IPv4, IPv6, injection attacks, jail name validation)
+- New parser tests: 5 (typical output, no banned IPs, multiple log files, missing fields, Zod validation)
+
+---
+
+## M8.2: Firewall Advanced Rules
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `server/src/parsers/deterministic/ufw-apps.ts` | Deterministic parser for `sudo ufw app list` output |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `server/src/security/validators.ts` | Added `validateCidr()`, `validatePortRange()`, `validateUfwAppName()`; expanded UFW allowlist with deny, advanced (from IP/CIDR), app list, app allow/deny patterns |
+| `server/src/parsers/schemas/serveradmin.ts` | Added `AddAdvancedFirewallRuleSchema`, `UfwAppProfileSchema`, `UfwAppListSchema`, `AllowDenyAppSchema` with derived types |
+| `server/src/routes/serveradmin.ts` | Added 3 endpoints: POST advanced rule, GET app profiles, POST allow/deny app |
+| `client/src/lib/api.ts` | Added `AdvancedFirewallRule`, `UfwAppProfile` interfaces + `addAdvancedFirewallRule()`, `fetchUfwAppProfiles()`, `allowDenyUfwApp()` |
+| `client/src/components/ServerAdmin/FirewallSection.tsx` | Tabbed UI: Basic Rules, Advanced Rules (IP/CIDR + port range + comment), App Profiles (list + allow/deny) |
+| `server/tests/security/validators.test.ts` | Added 18 tests for `validateCidr`, `validatePortRange`, `validateUfwAppName` |
+| `server/tests/parsers/serveradmin-parsers.test.ts` | Added 6 tests for `parseUfwAppList` |
+
+### Verification
+
+- TypeScript: Clean compile (no errors)
+- Tests: 339 total (260 server + 79 client), all passing
+- New validator tests: 18 (CIDR notation, port ranges, UFW app names, injection attacks)
+- New parser tests: 6 (typical output, Zod validation, empty list, blank lines, no header)
+
+---
+
+## M8.3: Nginx Site Management
+
+### Files Created
+
+None (all changes to existing files).
+
+### Files Modified
+
+| File | Changes |
+|------|--------|
+| `server/src/security/validators.ts` | Added `validateNginxSiteName()`; expanded nginx allowlist with enable/disable/reload/restart/config read commands |
+| `server/src/parsers/schemas/serveradmin.ts` | Added `NginxSiteConfigSchema`, `NginxSiteConfig` type |
+| `server/src/routes/serveradmin.ts` | Added 6 endpoints: POST enable/disable site, POST reload/restart, GET site config, POST test config |
+| `client/src/lib/api.ts` | Added `NginxSiteConfig` interface + `enableNginxSite()`, `disableNginxSite()`, `reloadNginx()`, `restartNginx()`, `fetchNginxSiteConfig()`, `testNginxConfig()` |
+| `client/src/components/ServerAdmin/WebServerSection.tsx` | Full rewrite: enable/disable toggles per site, reload/restart/test buttons, config viewer dialog |
+| `server/tests/security/validators.test.ts` | Added 6 tests for `validateNginxSiteName` (valid names, path traversal, injection, long names) |
+
+### Verification
+
+- TypeScript: Clean compile (no errors)
+- Tests: 345 total (266 server + 79 client), all passing
+- New validator tests: 6 (site names, path traversal, command injection, edge cases)
+
+---
+
 ## How to Use This File
 
 ### After completing a task:

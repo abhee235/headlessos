@@ -51,18 +51,31 @@ export const ALLOWED_COMMANDS = new Map<string, CommandRule>([
   ['dmesg', { pattern: /^dmesg(\s+--time-format=\S+)?(\s+\|\s+tail\s+-n\s+\d+)?$/, risk: 'none' }],
   ['cat /var/log/syslog', { pattern: /^tail\s+-n\s+\d+\s+\/var\/log\/syslog$/, risk: 'none' }],
 
-  // Package management (read-only)
+  // Package management
   ['apt list', { pattern: /^apt\s+list\s+--installed/, risk: 'none' }],
   ['apt list upgradable', { pattern: /^apt\s+list\s+--upgradable/, risk: 'none' }],
   ['dpkg-query', { pattern: /^dpkg-query\s+-W/, risk: 'none' }],
+  ['apt update', { pattern: /^(sudo\s+)?apt\s+update$/, risk: 'medium' }],
+  ['apt install', { pattern: /^(sudo\s+)?apt\s+install\s+-y\s+[a-zA-Z0-9][a-zA-Z0-9.+\-:]*$/, risk: 'high' }],
+  ['apt remove', { pattern: /^(sudo\s+)?apt\s+remove\s+-y\s+[a-zA-Z0-9][a-zA-Z0-9.+\-:]*$/, risk: 'high' }],
+  ['apt upgrade', { pattern: /^(sudo\s+)?apt\s+upgrade\s+-y$/, risk: 'high' }],
+  ['apt search', { pattern: /^apt\s+search\s+[a-zA-Z0-9][a-zA-Z0-9.+\-]*\s*/, risk: 'none' }],
 
   // Cron
   ['crontab', { pattern: /^crontab\s+-l(\s+-u\s+[\w.-]+)?$/, risk: 'none' }],
+  ['crontab list 2>&1', { pattern: /^crontab\s+-l\s+2>&1$/, risk: 'none' }],
   ['cat /etc/crontab', { pattern: /^cat\s+\/etc\/crontab$/, risk: 'none' }],
+  ['crontab write', { pattern: /^\(crontab\s+-l\s+2>\/dev\/null/, risk: 'high' }],
+  ['crontab replace', { pattern: /^echo\s+'/, risk: 'high' }],
 
-  // Nginx (read-only)
-  ['nginx -t', { pattern: /^(sudo\s+)?nginx\s+-t$/, risk: 'low' }],
-  ['nginx sites', { pattern: /^ls\s+-la?\s+\/etc\/nginx\/sites-enabled\/?$/, risk: 'none' }],
+  // Nginx
+  ['nginx -t', { pattern: /^(sudo\s+)?nginx\s+-t(\s+2>&1)?$/, risk: 'low' }],
+  ['nginx sites', { pattern: /^ls\s+-1?a?\s+\/etc\/nginx\/sites-(available|enabled)\/?\s*(2>\/dev\/null)?$/, risk: 'none' }],
+  ['nginx reload', { pattern: /^(sudo\s+)?nginx\s+-s\s+reload$/, risk: 'medium' }],
+  ['nginx restart', { pattern: /^(sudo\s+)?systemctl\s+restart\s+nginx$/, risk: 'medium' }],
+  ['nginx site enable', { pattern: /^(sudo\s+)?ln\s+-sf\s+\/etc\/nginx\/sites-available\/[\w.-]+\s+\/etc\/nginx\/sites-enabled\/[\w.-]+$/, risk: 'medium' }],
+  ['nginx site disable', { pattern: /^(sudo\s+)?rm\s+\/etc\/nginx\/sites-enabled\/[\w.-]+$/, risk: 'medium' }],
+  ['nginx site config', { pattern: /^(sudo\s+)?cat\s+\/etc\/nginx\/sites-available\/[\w.-]+$/, risk: 'low' }],
 
   // SSH config (read-only)
   ['sshd_config', { pattern: /^(sudo\s+)?cat\s+\/etc\/ssh\/sshd_config$/, risk: 'none' }],
@@ -70,12 +83,19 @@ export const ALLOWED_COMMANDS = new Map<string, CommandRule>([
   // UFW
   ['ufw status', { pattern: /^(sudo\s+)?ufw\s+status(\s+verbose)?(\s+numbered)?$/, risk: 'none' }],
   ['ufw allow', { pattern: /^(sudo\s+)?ufw\s+allow\s+\d{1,5}(\/[a-z]+)?(\s+comment\s+'[^']*')?$/, risk: 'medium' }],
+  ['ufw deny', { pattern: /^(sudo\s+)?ufw\s+deny\s+\d{1,5}(\/[a-z]+)?(\s+comment\s+'[^']*')?$/, risk: 'medium' }],
+  ['ufw advanced', { pattern: /^(sudo\s+)?ufw\s+(allow|deny)\s+from\s+[\d.\/]+\s+to\s+any(\s+port\s+[\d:]+)?(\s+proto\s+(tcp|udp))?(\s+comment\s+'[^']*')?$/, risk: 'medium' }],
+  ['ufw app list', { pattern: /^(sudo\s+)?ufw\s+app\s+list$/, risk: 'none' }],
+  ['ufw app allow', { pattern: /^(sudo\s+)?ufw\s+(allow|deny)\s+'[\w .\/-]+'$/, risk: 'medium' }],
   ['ufw delete', { pattern: /^(sudo\s+)?ufw\s+delete\s+\d{1,3}$/, risk: 'high' }],
   ['ufw enable', { pattern: /^(sudo\s+)?ufw\s+--force\s+enable$/, risk: 'high' }],
   ['ufw disable', { pattern: /^(sudo\s+)?ufw\s+--force\s+disable$/, risk: 'high' }],
 
-  // Fail2ban (read-only)
+  // Fail2ban (read + management)
   ['fail2ban status', { pattern: /^(sudo\s+)?fail2ban-client\s+status(\s+[\w.-]+)?$/, risk: 'none' }],
+  ['fail2ban ban', { pattern: /^(sudo\s+)?fail2ban-client\s+set\s+[\w.-]+\s+banip\s+[\d.:a-fA-F]+$/, risk: 'high' }],
+  ['fail2ban unban', { pattern: /^(sudo\s+)?fail2ban-client\s+set\s+[\w.-]+\s+unbanip\s+[\d.:a-fA-F]+$/, risk: 'high' }],
+  ['fail2ban reload', { pattern: /^(sudo\s+)?fail2ban-client\s+reload$/, risk: 'high' }],
 
   // SSL certs (read-only)
   ['openssl', { pattern: /^openssl\s+x509\s+-in\s+/, risk: 'none' }],
@@ -363,4 +383,225 @@ export function sanitizeErrorMessage(error: string): string {
   }
 
   return sanitized;
+}
+
+/**
+ * Validate an IPv4 or IPv6 address.
+ * Accepts standard dotted quad (1.2.3.4) and colon-hex IPv6 (::1, 2001:db8::1).
+ */
+export function validateIpAddress(ip: string): boolean {
+  if (!ip || typeof ip !== 'string' || ip.length > 45) return false;
+  // IPv4
+  const ipv4 = /^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$/;
+  if (ipv4.test(ip)) return true;
+  // IPv6 (simplified — allows standard forms)
+  const ipv6 = /^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$/;
+  return ipv6.test(ip);
+}
+
+/**
+ * Validate a fail2ban jail name (alphanumeric + hyphen + underscore + dot).
+ */
+export function validateJailName(name: string): boolean {
+  if (!name || typeof name !== 'string') return false;
+  return /^[\w.-]{1,64}$/.test(name);
+}
+
+/**
+ * Validate CIDR notation (e.g. 192.168.1.0/24, 10.0.0.0/8).
+ */
+export function validateCidr(cidr: string): boolean {
+  if (!cidr || typeof cidr !== 'string') return false;
+  const match = cidr.match(/^([\d.]+)\/([\d]+)$/);
+  if (!match) return false;
+  const ip = match[1]!;
+  const prefix = parseInt(match[2]!, 10);
+  if (prefix < 0 || prefix > 32) return false;
+  return validateIpAddress(ip);
+}
+
+/**
+ * Validate a port range string (e.g. "8000:9000") or single port.
+ */
+export function validatePortRange(portRange: string): boolean {
+  if (!portRange || typeof portRange !== 'string') return false;
+  // single port
+  if (/^\d+$/.test(portRange)) {
+    const p = parseInt(portRange, 10);
+    return p >= 1 && p <= 65535;
+  }
+  // range format: start:end
+  const rangeMatch = portRange.match(/^(\d+):(\d+)$/);
+  if (!rangeMatch) return false;
+  const start = parseInt(rangeMatch[1]!, 10);
+  const end = parseInt(rangeMatch[2]!, 10);
+  return start >= 1 && start <= 65535 && end >= 1 && end <= 65535 && start < end;
+}
+
+/**
+ * Validate a cron schedule string.
+ * Accepts: numbers, asterisk, ranges (1-5), lists (1,3,5), steps, specials like @reboot.
+ */
+export function validateCronSchedule(schedule: string): boolean {
+  if (!schedule || typeof schedule !== 'string' || schedule.trim().length === 0) return false;
+  const s = schedule.trim();
+  // Special strings
+  if (/^@(reboot|hourly|daily|weekly|monthly|yearly|annually)$/.test(s)) return true;
+  // Standard 5-field cron expression
+  const fields = s.split(/\s+/);
+  if (fields.length !== 5) return false;
+  const fieldPattern = /^(\*|\d{1,3})([-/]\d{1,3})?(,(\*|\d{1,3})([-/]\d{1,3})?)*$/;
+  return fields.every(f => fieldPattern.test(f!));
+}
+
+/**
+ * Validate a cron command string.
+ * Blocks dangerous patterns but allows typical cron commands.
+ */
+export function validateCronCommand(cmd: string): boolean {
+  if (!cmd || typeof cmd !== 'string' || cmd.trim().length === 0 || cmd.length > 1024) return false;
+  // Block extremely dangerous standalone commands
+  const dangerous = /^\s*(rm\s+-rf\s+\/|mkfs\b|dd\s+if=|:\(\)\s*\{|shutdown\b|reboot\b|init\s+0|halt\b)/;
+  return !dangerous.test(cmd);
+}
+
+/**
+ * Validate a cron job index (0-based, integer).
+ */
+export function validateCronIndex(index: number): boolean {
+  return Number.isInteger(index) && index >= 0 && index < 1000;
+}
+
+/**
+ * Validate a Linux username.
+ * Lowercase alphanumeric + hyphen + underscore, 1-32 chars, must start with letter or underscore.
+ */
+export function validateUsername(name: string): boolean {
+  if (!name || typeof name !== 'string' || name.trim().length === 0 || name.length > 32) return false;
+  // Standard Linux username rules: start with letter or _, then alphanumeric + _ + -
+  return /^[a-z_][a-z0-9_-]*$/.test(name);
+}
+
+/**
+ * Validate a TTY name (e.g., pts/0, tty1).
+ */
+export function validateTty(tty: string): boolean {
+  if (!tty || typeof tty !== 'string' || tty.trim().length === 0 || tty.length > 32) return false;
+  return /^[a-zA-Z0-9/]+$/.test(tty);
+}
+
+/**
+ * Validate a Linux group name.
+ */
+export function validateGroupName(name: string): boolean {
+  if (!name || typeof name !== 'string' || name.trim().length === 0 || name.length > 32) return false;
+  return /^[a-z_][a-z0-9_-]*$/.test(name);
+}
+
+/**
+ * Validate a Debian/Ubuntu package name.
+ * Allows alphanumeric, hyphen, dot, plus, colon (for arch qualifiers like libc6:amd64).
+ */
+export function validatePackageName(name: string): boolean {
+  if (!name || typeof name !== 'string' || name.trim().length === 0 || name.length > 200) return false;
+  // Must not contain shell metacharacters, path separators, or spaces
+  if (/[\s\/\\;|&$`(){}\[\]!#~<>?*'"\\]/.test(name)) return false;
+  return /^[a-zA-Z0-9][a-zA-Z0-9.+\-:]*$/.test(name);
+}
+
+/**
+ * Validate a package search query.
+ * Alphanumeric, hyphen, dot, plus only. Max 100 chars.
+ */
+export function validateSearchQuery(query: string): boolean {
+  if (!query || typeof query !== 'string' || query.trim().length === 0 || query.length > 100) return false;
+  return /^[a-zA-Z0-9][a-zA-Z0-9.+\-]*$/.test(query);
+}
+
+/**
+ * Validate an nginx site name (alphanumeric + hyphen + dot only, no path traversal).
+ */
+export function validateNginxSiteName(name: string): boolean {
+  if (!name || typeof name !== 'string' || name.trim().length === 0 || name.length > 128) return false;
+  // No path separators, no traversal, no shell metacharacters
+  if (name.includes('/') || name.includes('\\') || name.includes('..')) return false;
+  return /^[\w.-]+$/.test(name);
+}
+
+/**
+ * Validate a UFW app profile name (alphanumeric + space + dot + slash + hyphen).
+ */
+export function validateUfwAppName(name: string): boolean {
+  if (!name || typeof name !== 'string' || name.trim().length === 0 || name.length > 128) return false;
+  return /^[\w .\/-]+$/.test(name);
+}
+
+// ── M8.7: Network Management validators ─────────────────────────────────
+
+/**
+ * Validate a hostname per RFC 1123.
+ * Up to 253 chars, labels separated by dots, each label 1-63 chars, alphanumeric + hyphen,
+ * no leading/trailing hyphens.
+ */
+export function validateHostname(hostname: string): boolean {
+  if (!hostname || typeof hostname !== 'string' || hostname.length === 0 || hostname.length > 253) return false;
+  const labels = hostname.split('.');
+  return labels.every(label =>
+    label.length >= 1 && label.length <= 63 &&
+    /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$/.test(label),
+  );
+}
+
+/**
+ * Validate a Linux network interface name (e.g., eth0, ens33, wlan0, docker0, lo, br-abc123).
+ * Alphanumeric + hyphen + dot + underscore, 1-15 chars (IFNAMSIZ limit).
+ */
+export function validateInterfaceName(name: string): boolean {
+  if (!name || typeof name !== 'string' || name.length === 0 || name.length > 15) return false;
+  return /^[a-zA-Z0-9][\w.-]*$/.test(name);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// M8.8: Log Enhancement Validators
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Validate a journalctl priority level (0-7).
+ * 0=emerg, 1=alert, 2=crit, 3=err, 4=warning, 5=notice, 6=info, 7=debug
+ */
+export function validateLogPriority(priority: string): boolean {
+  if (!priority || typeof priority !== 'string') return false;
+  return /^[0-7]$/.test(priority);
+}
+
+/**
+ * Validate a grep pattern for log search — must be safe for shell usage.
+ * Allows alphanumeric, spaces, basic punctuation. No shell metacharacters.
+ * Max 200 chars.
+ */
+export function validateGrepPattern(pattern: string): boolean {
+  if (!pattern || typeof pattern !== 'string') return false;
+  if (pattern.length > 200) return false;
+  // Reject shell injection characters
+  if (/[;|&`$(){}!<>\\]/.test(pattern)) return false;
+  // Must have at least one non-whitespace char
+  if (!/\S/.test(pattern)) return false;
+  return true;
+}
+
+/**
+ * Validate an ISO date string or journalctl-accepted date format.
+ * Accepts: "2025-01-15", "2025-01-15T10:30:00", "today", "yesterday", "1 hour ago", etc.
+ * Max 50 chars, no shell injection.
+ */
+export function validateDateParam(value: string): boolean {
+  if (!value || typeof value !== 'string') return false;
+  if (value.length > 50) return false;
+  // Reject shell injection characters
+  if (/[;|&`$(){}!<>\\]/.test(value)) return false;
+  // Must match ISO date, or relative time words
+  if (/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2})?)?$/.test(value)) return true;
+  if (/^(today|yesterday)$/i.test(value)) return true;
+  if (/^\d+\s+(second|minute|hour|day|week|month)s?\s+ago$/i.test(value)) return true;
+  return false;
 }

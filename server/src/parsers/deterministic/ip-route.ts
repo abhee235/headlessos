@@ -111,3 +111,70 @@ export const resolvConfParser: DeterministicParser<DNSConfig> = {
   commands: ['cat /etc/resolv.conf'],
   parse: parseResolvConf,
 };
+
+export interface IpLinkEntry {
+  name: string;
+  state: 'UP' | 'DOWN' | 'UNKNOWN';
+  mac?: string;
+  mtu?: number;
+  type?: string;
+}
+
+/**
+ * Parses `ip -o link show` output into IpLinkEntry[].
+ *
+ * Format (one line per interface):
+ * ```
+ * 1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000\    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+ * 2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP mode DEFAULT group default qlen 1000\    link/ether 52:54:00:xx:xx:xx brd ff:ff:ff:ff:ff:ff
+ * ```
+ */
+export function parseIpLinkShow(raw: string): IpLinkEntry[] {
+  if (!raw.trim()) return [];
+
+  const entries: IpLinkEntry[] = [];
+  // Each interface is on one logical line (may contain \\)
+  const lines = raw.trim().split('\n');
+
+  for (const line of lines) {
+    const full = line.replace(/\\\s*/g, ' ').trim();
+    if (!full) continue;
+
+    // Match: index: name: <FLAGS> ...
+    const nameMatch = full.match(/^\d+:\s+(\S+?):\s+<([^>]*)>/);
+    if (!nameMatch) continue;
+
+    const name = nameMatch[1]!.replace(/@.*$/, '');
+    const flags = nameMatch[2] || '';
+
+    // Determine state from `state XXX` token, or infer from flags
+    let state: 'UP' | 'DOWN' | 'UNKNOWN' = 'UNKNOWN';
+    const stateMatch = full.match(/\bstate\s+(UP|DOWN|UNKNOWN)\b/i);
+    if (stateMatch) {
+      state = stateMatch[1]!.toUpperCase() as 'UP' | 'DOWN' | 'UNKNOWN';
+    } else if (flags.includes('UP')) {
+      state = 'UP';
+    } else {
+      state = 'DOWN';
+    }
+
+    // Extract MTU
+    let mtu: number | undefined;
+    const mtuMatch = full.match(/\bmtu\s+(\d+)\b/);
+    if (mtuMatch) mtu = parseInt(mtuMatch[1]!, 10);
+
+    // Extract MAC from link/ether
+    let mac: string | undefined;
+    const macMatch = full.match(/link\/ether\s+([0-9a-f:]{17})/);
+    if (macMatch) mac = macMatch[1];
+
+    // Extract link type
+    let type: string | undefined;
+    const typeMatch = full.match(/link\/(\S+)/);
+    if (typeMatch) type = typeMatch[1];
+
+    entries.push({ name, state, mac, mtu, type });
+  }
+
+  return entries;
+}

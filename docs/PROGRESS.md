@@ -27,6 +27,7 @@
 | M5: Polish + Security + Testing | Week 5 | ✅ | 6/6 tasks | [phase-5](phases/phase-5.md) |
 | M6: Desktop UI System | Week 6-7 | ✅ | 11/11 tasks | [phase-6](phases/phase-6.md) |
 | M7: System Settings | Week 8 | 🔄 | 5/6 tasks | [phase-7](phases/phase-7.md) |
+| M8: Server Admin CRUD | Week 9-10 | 🔄 | 4/8 tasks | [phase-8](phases/phase-8.md) |
 
 ---
 
@@ -150,6 +151,21 @@ Example:
 
 ---
 
+## M8: Server Admin CRUD
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| M8.1 | Fail2ban Management | ✅ | Ban/unban IPs, list banned, jail status, reload config |
+| M8.2 | Firewall Advanced Rules | ✅ | IP-based rules, port ranges, named app profiles, rule reordering |
+| M8.3 | Nginx Site Management | ✅ | Enable/disable sites, nginx reload/restart, config editing, certbot renewal |
+| M8.4 | Package Management | ✅ | apt update, upgrade individual/all packages, install/remove packages, search |
+| M8.5 | Cron Job Management | ✅ | Add/edit/delete cron jobs, schedule presets, human-readable display, system vs user sources |
+| M8.6 | User & Session Management | ✅ | Create/delete users, set password, add to group, kill sessions — 379 tests passing |
+| M8.7 | Network Management | ✅ | DNS configuration, hostname change, interface up/down, `parseIpLinkShow` parser |
+| M8.8 | Log Enhancements | ✅ | Priority filtering, grep search, date range (since/until), auto-refresh, auto-scroll, export as text |
+
+---
+
 ## Backlog (Future)
 
 | # | Task | Priority | Notes |
@@ -177,6 +193,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-04-08 | **M8.4 ✅** Package Management: validatePackageName/validateSearchQuery validators, apt allowlist expansion (update/install/remove/upgrade/search), parseAptSearchResults parser, 6 new routes (apt update, upgrade-all, install, remove, upgrade, search), 7 new API client functions, PackagesSection rewrite with tabbed UI (Upgradable + Search & Install), per-package upgrade buttons, install/remove with confirmation dialogs, debounced search. 359 tests (280 server + 79 client) passing. |
 | 2026-04-08 | **M7.4-M7.6 ✅** Settings expansion: Appearance (8 oklch accent color presets wired to --primary/--ring CSS vars, theme auto mode with prefers-color-scheme listener, desktop icon size), General (clock format 12h/24h wired to Taskbar, auto-refresh interval select), Notifications & Data (toast show/hide/position, clear cache, reset all settings with ConfirmDialog). Updated preferences-store (6 new fields + ACCENT_PRESETS), rewrote theme-store (auto mode + resolvedTheme), SettingsView (6 pages: General/Appearance/Wallpaper/Terminal/Notifications/About). 307 tests (228 server + 79 client) passing. |
 | 2026-04-08 | **M6 ✅** Desktop UI System complete: M6.3 wallpaper (confirmed done), M6.5 window snap-to-edges + preview overlay, M6.7 clipboard store + copy/move endpoints + context menu wiring, M6.8 toasts (confirmed done), M6.9 useKeyboardShortcuts hook (Alt+F4, Ctrl+Space/Tab/`/Shift+Esc), M6.10 useSelection hook (click/Ctrl/Shift+click, visual highlight, status bar count), M6.11 Lock + Switch User in StartMenu. 292 tests (228 server + 64 client) all passing. |
 | 2026-04-07 | **M4 ✅** Deterministic Parsers + Optimization complete: M4.3 ps-aux (done in M7.1), M4.4 ls-la skipped (SFTP), M4.6 systemctl parser extracted from services.ts to registry + Zod schema, M4.7 OutputCache (hash-based, TTL, pipeline integration, server invalidation), M4.8 LLMUsageTracker + /api/stats/llm endpoint. 260 tests (218 server + 42 client) all passing. |

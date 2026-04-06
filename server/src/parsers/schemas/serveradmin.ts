@@ -56,13 +56,27 @@ export const NetworkConnectionSchema = z.object({
 
 export type NetworkConnection = z.infer<typeof NetworkConnectionSchema>;
 
+// ── Network Interface ───────────────────────────────────
+
+export const NetworkInterfaceSchema = z.object({
+  name: z.string(),
+  state: z.enum(['UP', 'DOWN', 'UNKNOWN']),
+  mac: z.string().optional(),
+  mtu: z.number().int().optional(),
+  type: z.string().optional(),
+});
+
+export type NetworkInterface = z.infer<typeof NetworkInterfaceSchema>;
+
 // ── Combined Network Info ───────────────────────────────
 
 export const NetworkInfoSchema = z.object({
+  hostname: z.string().optional(),
   ports: z.array(ListeningPortSchema),
   routes: z.array(RouteSchema),
   dns: DNSConfigSchema,
   connections: z.array(NetworkConnectionSchema),
+  interfaces: z.array(NetworkInterfaceSchema).optional(),
 });
 
 export type NetworkInfo = z.infer<typeof NetworkInfoSchema>;
@@ -153,6 +167,21 @@ export const Fail2banStatusSchema = z.object({
 
 export type Fail2banStatus = z.infer<typeof Fail2banStatusSchema>;
 
+// ── Fail2ban Jail Detail ────────────────────────────────
+
+export const Fail2banJailDetailSchema = z.object({
+  jail: z.string(),
+  currentlyFailed: z.number(),
+  totalFailed: z.number(),
+  currentlyBanned: z.number(),
+  totalBanned: z.number(),
+  bannedIps: z.array(z.string()),
+  fileList: z.array(z.string()),
+  filter: z.string(),
+});
+
+export type Fail2banJailDetail = z.infer<typeof Fail2banJailDetailSchema>;
+
 // ── Combined Security Info ──────────────────────────────
 
 export const SecurityInfoSchema = z.object({
@@ -164,6 +193,49 @@ export const SecurityInfoSchema = z.object({
 });
 
 export type SecurityInfo = z.infer<typeof SecurityInfoSchema>;
+
+// --- M8.6: User & Session Management Schemas ---
+
+export const CreateUserSchema = z.object({
+  username: z.string().min(1).max(32),
+  shell: z.string().max(256).optional(),
+  createHome: z.boolean().optional().default(true),
+});
+
+export type CreateUser = z.infer<typeof CreateUserSchema>;
+
+export const SetPasswordSchema = z.object({
+  password: z.string().min(1).max(256),
+});
+
+export type SetPassword = z.infer<typeof SetPasswordSchema>;
+
+export const AddToGroupSchema = z.object({
+  group: z.string().min(1).max(32),
+});
+
+export type AddToGroup = z.infer<typeof AddToGroupSchema>;
+
+export const KillSessionSchema = z.object({
+  tty: z.string().min(1).max(32),
+});
+
+export type KillSession = z.infer<typeof KillSessionSchema>;
+
+// ── M8.7: Network Management Schemas ────────────────────
+
+export const SetHostnameSchema = z.object({
+  hostname: z.string().min(1).max(253),
+});
+
+export type SetHostname = z.infer<typeof SetHostnameSchema>;
+
+export const SetDnsSchema = z.object({
+  nameservers: z.array(z.string().min(1).max(45)).min(1).max(10),
+  searchDomains: z.array(z.string().min(1).max(253)).max(10).optional(),
+});
+
+export type SetDns = z.infer<typeof SetDnsSchema>;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // WEB SERVER (Nginx)
@@ -202,6 +274,14 @@ export const WebServerInfoSchema = z.object({
 
 export type WebServerInfo = z.infer<typeof WebServerInfoSchema>;
 
+// M8.3 — Nginx site config read schema
+export const NginxSiteConfigSchema = z.object({
+  site: z.string(),
+  config: z.string(),
+});
+
+export type NginxSiteConfig = z.infer<typeof NginxSiteConfigSchema>;
+
 // ═══════════════════════════════════════════════════════════════════════════
 // PACKAGES
 // ═══════════════════════════════════════════════════════════════════════════
@@ -224,6 +304,32 @@ export const PackageInfoSchema = z.object({
 
 export type PackageInfo = z.infer<typeof PackageInfoSchema>;
 
+// --- M8.4: Package Management Schemas ---
+
+export const AptSearchResultSchema = z.object({
+  name: z.string(),
+  version: z.string(),
+  architecture: z.string(),
+  description: z.string(),
+  installed: z.boolean(),
+});
+
+export type AptSearchResult = z.infer<typeof AptSearchResultSchema>;
+
+export const AptSearchResultsSchema = z.array(AptSearchResultSchema);
+
+export const PackageActionSchema = z.object({
+  package: z.string().min(1).max(200),
+});
+
+export type PackageAction = z.infer<typeof PackageActionSchema>;
+
+export const PackageSearchQuerySchema = z.object({
+  q: z.string().min(1).max(100),
+});
+
+export type PackageSearchQuery = z.infer<typeof PackageSearchQuerySchema>;
+
 // ═══════════════════════════════════════════════════════════════════════════
 // CRON JOBS
 // ═══════════════════════════════════════════════════════════════════════════
@@ -242,6 +348,24 @@ export const CronInfoSchema = z.object({
 });
 
 export type CronInfo = z.infer<typeof CronInfoSchema>;
+
+// --- M8.5: Cron Management Schemas ---
+
+export const AddCronJobSchema = z.object({
+  schedule: z.string().min(1).max(100),
+  command: z.string().min(1).max(1024),
+  description: z.string().max(200).optional(),
+});
+
+export type AddCronJob = z.infer<typeof AddCronJobSchema>;
+
+export const EditCronJobSchema = z.object({
+  schedule: z.string().min(1).max(100),
+  command: z.string().min(1).max(1024),
+  description: z.string().max(200).optional(),
+});
+
+export type EditCronJob = z.infer<typeof EditCronJobSchema>;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // LOGS
@@ -312,6 +436,35 @@ export const AddFirewallRuleSchema = z.object({
 });
 
 export type AddFirewallRule = z.infer<typeof AddFirewallRuleSchema>;
+
+export const AddAdvancedFirewallRuleSchema = z.object({
+  action: z.enum(['allow', 'deny']),
+  from: z.string().min(1),              // IP or CIDR (validated in route handler)
+  port: z.string().optional(),           // port or port range like "8000:9000"
+  protocol: z.enum(['tcp', 'udp']).optional(),
+  comment: z.string().max(128).optional(),
+});
+
+export type AddAdvancedFirewallRule = z.infer<typeof AddAdvancedFirewallRuleSchema>;
+
+export const UfwAppProfileSchema = z.object({
+  name: z.string(),
+});
+
+export type UfwAppProfile = z.infer<typeof UfwAppProfileSchema>;
+
+export const UfwAppListSchema = z.object({
+  apps: z.array(UfwAppProfileSchema),
+});
+
+export type UfwAppList = z.infer<typeof UfwAppListSchema>;
+
+export const AllowDenyAppSchema = z.object({
+  action: z.enum(['allow', 'deny']),
+  app: z.string().min(1),
+});
+
+export type AllowDenyApp = z.infer<typeof AllowDenyAppSchema>;
 
 export const ToggleFirewallSchema = z.object({
   enable: z.boolean(),

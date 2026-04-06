@@ -21,6 +21,25 @@ import {
   sanitizeErrorMessage,
   ALLOWED_COMMANDS,
   BLOCKED_COMMANDS,
+  validateIpAddress,
+  validateJailName,
+  validateCidr,
+  validatePortRange,
+  validateUfwAppName,
+  validateNginxSiteName,
+  validatePackageName,
+  validateSearchQuery,
+  validateCronSchedule,
+  validateCronCommand,
+  validateCronIndex,
+  validateUsername,
+  validateTty,
+  validateGroupName,
+  validateHostname,
+  validateInterfaceName,
+  validateLogPriority,
+  validateGrepPattern,
+  validateDateParam,
 } from '../../src/security/validators';
 
 // ---------------------------------------------------------------------------
@@ -607,5 +626,652 @@ describe('Security constants', () => {
     const cmd = 'docker stop abc123def456';
     expect(matchAllowedCommand(cmd)).not.toBeNull();
     expect(isBlockedCommand(cmd)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// M8.1: IP Address Validation
+// ---------------------------------------------------------------------------
+
+describe('validateIpAddress', () => {
+  it('accepts valid IPv4 addresses', () => {
+    expect(validateIpAddress('192.168.1.1')).toBe(true);
+    expect(validateIpAddress('10.0.0.1')).toBe(true);
+    expect(validateIpAddress('255.255.255.255')).toBe(true);
+    expect(validateIpAddress('0.0.0.0')).toBe(true);
+    expect(validateIpAddress('172.16.0.100')).toBe(true);
+    expect(validateIpAddress('1.2.3.4')).toBe(true);
+  });
+
+  it('accepts valid IPv6 addresses', () => {
+    expect(validateIpAddress('::1')).toBe(true);
+    expect(validateIpAddress('fe80::1')).toBe(true);
+    expect(validateIpAddress('2001:db8::1')).toBe(true);
+  });
+
+  it('rejects invalid IPv4 addresses', () => {
+    expect(validateIpAddress('999.999.999.999')).toBe(false);
+    expect(validateIpAddress('256.1.1.1')).toBe(false);
+    expect(validateIpAddress('1.2.3.256')).toBe(false);
+    expect(validateIpAddress('1.2.3')).toBe(false);
+    expect(validateIpAddress('1.2.3.4.5')).toBe(false);
+    expect(validateIpAddress('abc.def.ghi.jkl')).toBe(false);
+  });
+
+  it('rejects non-IP strings', () => {
+    expect(validateIpAddress('')).toBe(false);
+    expect(validateIpAddress('hello')).toBe(false);
+    expect(validateIpAddress('not-an-ip')).toBe(false);
+    expect(validateIpAddress('192.168.1.1; rm -rf /')).toBe(false);
+    expect(validateIpAddress('$(whoami)')).toBe(false);
+  });
+
+  it('rejects command injection attempts', () => {
+    expect(validateIpAddress('1.2.3.4 && echo pwned')).toBe(false);
+    expect(validateIpAddress('1.2.3.4; cat /etc/passwd')).toBe(false);
+    expect(validateIpAddress('1.2.3.4`id`')).toBe(false);
+    expect(validateIpAddress('1.2.3.4|whoami')).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// M8.1: Jail Name Validation
+// ---------------------------------------------------------------------------
+
+describe('validateJailName', () => {
+  it('accepts valid jail names', () => {
+    expect(validateJailName('sshd')).toBe(true);
+    expect(validateJailName('nginx-http-auth')).toBe(true);
+    expect(validateJailName('apache-auth')).toBe(true);
+    expect(validateJailName('postfix')).toBe(true);
+    expect(validateJailName('dovecot')).toBe(true);
+    expect(validateJailName('recidive')).toBe(true);
+    expect(validateJailName('my_custom_jail')).toBe(true);
+    expect(validateJailName('jail.v2')).toBe(true);
+  });
+
+  it('rejects empty and invalid names', () => {
+    expect(validateJailName('')).toBe(false);
+    expect(validateJailName(' ')).toBe(false);
+  });
+
+  it('rejects names with special characters', () => {
+    expect(validateJailName('jail;drop')).toBe(false);
+    expect(validateJailName('jail && rm -rf /')).toBe(false);
+    expect(validateJailName('jail`id`')).toBe(false);
+    expect(validateJailName('jail$(whoami)')).toBe(false);
+    expect(validateJailName('jail|cat')).toBe(false);
+    expect(validateJailName('../etc/passwd')).toBe(false);
+  });
+
+  it('rejects names that are too long', () => {
+    expect(validateJailName('a'.repeat(65))).toBe(false);
+    // 64 chars should be fine
+    expect(validateJailName('a'.repeat(64))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// M8.2: CIDR Validation
+// ---------------------------------------------------------------------------
+
+describe('validateCidr', () => {
+  it('accepts valid CIDR notations', () => {
+    expect(validateCidr('10.0.0.0/8')).toBe(true);
+    expect(validateCidr('192.168.1.0/24')).toBe(true);
+    expect(validateCidr('172.16.0.0/12')).toBe(true);
+    expect(validateCidr('0.0.0.0/0')).toBe(true);
+    expect(validateCidr('255.255.255.255/32')).toBe(true);
+  });
+
+  it('rejects invalid CIDR notations', () => {
+    expect(validateCidr('10.0.0.0')).toBe(false);       // no prefix
+    expect(validateCidr('10.0.0.0/33')).toBe(false);    // prefix > 32
+    expect(validateCidr('10.0.0.0/-1')).toBe(false);    // negative prefix
+    expect(validateCidr('999.0.0.0/8')).toBe(false);    // invalid IP
+    expect(validateCidr('abc/24')).toBe(false);          // non-IP
+    expect(validateCidr('')).toBe(false);
+    expect(validateCidr('10.0.0.0/8; rm -rf /')).toBe(false);
+  });
+
+  it('rejects non-CIDR formats', () => {
+    expect(validateCidr('192.168.1.0/abc')).toBe(false);
+    expect(validateCidr('/24')).toBe(false);
+    expect(validateCidr('10.0.0.0/')).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// M8.2: Port Range Validation
+// ---------------------------------------------------------------------------
+
+describe('validatePortRange', () => {
+  it('accepts valid single ports', () => {
+    expect(validatePortRange('80')).toBe(true);
+    expect(validatePortRange('1')).toBe(true);
+    expect(validatePortRange('443')).toBe(true);
+    expect(validatePortRange('65535')).toBe(true);
+  });
+
+  it('accepts valid port ranges', () => {
+    expect(validatePortRange('8000:9000')).toBe(true);
+    expect(validatePortRange('1:65535')).toBe(true);
+    expect(validatePortRange('80:443')).toBe(true);
+  });
+
+  it('rejects invalid ports', () => {
+    expect(validatePortRange('0')).toBe(false);         // 0 not valid
+    expect(validatePortRange('65536')).toBe(false);     // > 65535
+    expect(validatePortRange('-1')).toBe(false);
+    expect(validatePortRange('abc')).toBe(false);
+    expect(validatePortRange('')).toBe(false);
+  });
+
+  it('rejects invalid port ranges', () => {
+    expect(validatePortRange('9000:8000')).toBe(false);  // start > end
+    expect(validatePortRange('80:80')).toBe(false);      // start == end
+    expect(validatePortRange('0:80')).toBe(false);       // 0 not valid
+    expect(validatePortRange('80:65536')).toBe(false);   // > 65535
+  });
+
+  it('rejects injection attempts', () => {
+    expect(validatePortRange('80; rm -rf /')).toBe(false);
+    expect(validatePortRange('80:90:100')).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// M8.2: UFW App Name Validation
+// ---------------------------------------------------------------------------
+
+describe('validateUfwAppName', () => {
+  it('accepts valid UFW app names', () => {
+    expect(validateUfwAppName('Nginx Full')).toBe(true);
+    expect(validateUfwAppName('Nginx HTTP')).toBe(true);
+    expect(validateUfwAppName('OpenSSH')).toBe(true);
+    expect(validateUfwAppName('Apache')).toBe(true);
+    expect(validateUfwAppName('Postfix')).toBe(true);
+    expect(validateUfwAppName('my-app_v2.0')).toBe(true);
+    expect(validateUfwAppName('app/subpath')).toBe(true);
+  });
+
+  it('rejects empty or whitespace names', () => {
+    expect(validateUfwAppName('')).toBe(false);
+    expect(validateUfwAppName('   ')).toBe(false);
+  });
+
+  it('rejects names with dangerous characters', () => {
+    expect(validateUfwAppName('app; rm -rf /')).toBe(false);
+    expect(validateUfwAppName('app`id`')).toBe(false);
+    expect(validateUfwAppName('app$(whoami)')).toBe(false);
+    expect(validateUfwAppName('app|cat')).toBe(false);
+    expect(validateUfwAppName('app&bg')).toBe(false);
+  });
+
+  it('rejects names that are too long', () => {
+    expect(validateUfwAppName('a'.repeat(129))).toBe(false);
+    expect(validateUfwAppName('a'.repeat(128))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// M8.3: Nginx Site Name Validation
+// ---------------------------------------------------------------------------
+
+describe('validateNginxSiteName', () => {
+  it('accepts valid site names', () => {
+    expect(validateNginxSiteName('default')).toBe(true);
+    expect(validateNginxSiteName('example.com')).toBe(true);
+    expect(validateNginxSiteName('my-site.conf')).toBe(true);
+    expect(validateNginxSiteName('app_v2')).toBe(true);
+    expect(validateNginxSiteName('001-reverse-proxy')).toBe(true);
+  });
+
+  it('rejects empty or whitespace names', () => {
+    expect(validateNginxSiteName('')).toBe(false);
+    expect(validateNginxSiteName('   ')).toBe(false);
+  });
+
+  it('rejects path traversal attempts', () => {
+    expect(validateNginxSiteName('../etc/passwd')).toBe(false);
+    expect(validateNginxSiteName('..%2fetc%2fpasswd')).toBe(false);
+    expect(validateNginxSiteName('my-site/../../etc')).toBe(false);
+  });
+
+  it('rejects names with slashes', () => {
+    expect(validateNginxSiteName('sites/default')).toBe(false);
+    expect(validateNginxSiteName('path\\to\\site')).toBe(false);
+  });
+
+  it('rejects command injection attempts', () => {
+    expect(validateNginxSiteName('site; rm -rf /')).toBe(false);
+    expect(validateNginxSiteName('site`id`')).toBe(false);
+    expect(validateNginxSiteName('site$(whoami)')).toBe(false);
+    expect(validateNginxSiteName('site|cat')).toBe(false);
+  });
+
+  it('rejects overly long names', () => {
+    expect(validateNginxSiteName('a'.repeat(129))).toBe(false);
+    expect(validateNginxSiteName('a'.repeat(128))).toBe(true);
+  });
+});
+
+describe('validatePackageName', () => {
+  it('accepts valid package names', () => {
+    expect(validatePackageName('nginx')).toBe(true);
+    expect(validatePackageName('python3')).toBe(true);
+    expect(validatePackageName('libc6')).toBe(true);
+    expect(validatePackageName('libssl-dev')).toBe(true);
+    expect(validatePackageName('g++')).toBe(true);
+    expect(validatePackageName('libc6:amd64')).toBe(true);
+    expect(validatePackageName('python3.11')).toBe(true);
+  });
+
+  it('rejects empty and whitespace', () => {
+    expect(validatePackageName('')).toBe(false);
+    expect(validatePackageName('   ')).toBe(false);
+  });
+
+  it('rejects names with spaces', () => {
+    expect(validatePackageName('nginx common')).toBe(false);
+  });
+
+  it('rejects shell injection', () => {
+    expect(validatePackageName('nginx; rm -rf /')).toBe(false);
+    expect(validatePackageName('pkg`id`')).toBe(false);
+    expect(validatePackageName('pkg$(whoami)')).toBe(false);
+    expect(validatePackageName('pkg|cat')).toBe(false);
+    expect(validatePackageName('pkg && echo')).toBe(false);
+  });
+
+  it('rejects path separators', () => {
+    expect(validatePackageName('../etc/passwd')).toBe(false);
+    expect(validatePackageName('pkg/test')).toBe(false);
+  });
+
+  it('rejects overly long names', () => {
+    expect(validatePackageName('a'.repeat(201))).toBe(false);
+    expect(validatePackageName('a'.repeat(200))).toBe(true);
+  });
+});
+
+describe('validateSearchQuery', () => {
+  it('accepts valid search queries', () => {
+    expect(validateSearchQuery('nginx')).toBe(true);
+    expect(validateSearchQuery('python3')).toBe(true);
+    expect(validateSearchQuery('lib')).toBe(true);
+    expect(validateSearchQuery('node-js')).toBe(true);
+    expect(validateSearchQuery('g++')).toBe(true);
+    expect(validateSearchQuery('python3.11')).toBe(true);
+  });
+
+  it('rejects empty and whitespace', () => {
+    expect(validateSearchQuery('')).toBe(false);
+    expect(validateSearchQuery('   ')).toBe(false);
+  });
+
+  it('rejects shell injection', () => {
+    expect(validateSearchQuery('pkg; rm -rf /')).toBe(false);
+    expect(validateSearchQuery('pkg`id`')).toBe(false);
+    expect(validateSearchQuery('$(whoami)')).toBe(false);
+  });
+
+  it('rejects overly long queries', () => {
+    expect(validateSearchQuery('a'.repeat(101))).toBe(false);
+    expect(validateSearchQuery('a'.repeat(100))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// M8.5: Cron Validators
+// ---------------------------------------------------------------------------
+
+describe('validateCronSchedule', () => {
+  it('accepts standard 5-field cron expressions', () => {
+    expect(validateCronSchedule('* * * * *')).toBe(true);
+    expect(validateCronSchedule('0 * * * *')).toBe(true);
+    expect(validateCronSchedule('*/5 * * * *')).toBe(true);
+    expect(validateCronSchedule('0 0 * * *')).toBe(true);
+    expect(validateCronSchedule('30 2 * * 1')).toBe(true);
+    expect(validateCronSchedule('0 0 1 * *')).toBe(true);
+    expect(validateCronSchedule('0,15,30,45 * * * *')).toBe(true);
+    expect(validateCronSchedule('0 */6 * * *')).toBe(true);
+    expect(validateCronSchedule('0 0 1,15 * *')).toBe(true);
+  });
+
+  it('accepts special cron strings', () => {
+    expect(validateCronSchedule('@reboot')).toBe(true);
+    expect(validateCronSchedule('@hourly')).toBe(true);
+    expect(validateCronSchedule('@daily')).toBe(true);
+    expect(validateCronSchedule('@weekly')).toBe(true);
+    expect(validateCronSchedule('@monthly')).toBe(true);
+    expect(validateCronSchedule('@yearly')).toBe(true);
+    expect(validateCronSchedule('@annually')).toBe(true);
+  });
+
+  it('rejects invalid schedules', () => {
+    expect(validateCronSchedule('')).toBe(false);
+    expect(validateCronSchedule('not a schedule')).toBe(false);
+    expect(validateCronSchedule('* *')).toBe(false);
+    expect(validateCronSchedule('* * * * * *')).toBe(false);
+    expect(validateCronSchedule('@unknown')).toBe(false);
+  });
+
+  it('rejects non-string input', () => {
+    // @ts-expect-error — testing runtime safety
+    expect(validateCronSchedule(null)).toBe(false);
+    // @ts-expect-error — testing runtime safety
+    expect(validateCronSchedule(undefined)).toBe(false);
+  });
+});
+
+describe('validateCronCommand', () => {
+  it('accepts valid cron commands', () => {
+    expect(validateCronCommand('/usr/bin/backup.sh')).toBe(true);
+    expect(validateCronCommand('echo "hello"')).toBe(true);
+    expect(validateCronCommand('/opt/scripts/cleanup.sh --flag')).toBe(true);
+    expect(validateCronCommand('python3 /home/user/task.py')).toBe(true);
+    expect(validateCronCommand('curl -s https://example.com/health')).toBe(true);
+  });
+
+  it('rejects dangerous commands', () => {
+    expect(validateCronCommand('rm -rf /')).toBe(false);
+    expect(validateCronCommand('mkfs.ext4 /dev/sda')).toBe(false);
+    expect(validateCronCommand('dd if=/dev/zero of=/dev/sda')).toBe(false);
+    expect(validateCronCommand('shutdown -h now')).toBe(false);
+    expect(validateCronCommand('reboot')).toBe(false);
+  });
+
+  it('rejects empty and overly long commands', () => {
+    expect(validateCronCommand('')).toBe(false);
+    expect(validateCronCommand('   ')).toBe(false);
+    expect(validateCronCommand('a'.repeat(1025))).toBe(false);
+    expect(validateCronCommand('a'.repeat(1024))).toBe(true);
+  });
+
+  it('rejects non-string input', () => {
+    // @ts-expect-error — testing runtime safety
+    expect(validateCronCommand(null)).toBe(false);
+    // @ts-expect-error — testing runtime safety
+    expect(validateCronCommand(undefined)).toBe(false);
+  });
+});
+
+describe('validateCronIndex', () => {
+  it('accepts valid indices', () => {
+    expect(validateCronIndex(0)).toBe(true);
+    expect(validateCronIndex(1)).toBe(true);
+    expect(validateCronIndex(10)).toBe(true);
+    expect(validateCronIndex(999)).toBe(true);
+  });
+
+  it('rejects negative indices', () => {
+    expect(validateCronIndex(-1)).toBe(false);
+    expect(validateCronIndex(-100)).toBe(false);
+  });
+
+  it('rejects indices >= 1000', () => {
+    expect(validateCronIndex(1000)).toBe(false);
+    expect(validateCronIndex(9999)).toBe(false);
+  });
+
+  it('rejects non-integers', () => {
+    expect(validateCronIndex(1.5)).toBe(false);
+    expect(validateCronIndex(NaN)).toBe(false);
+    expect(validateCronIndex(Infinity)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// M8.6: User & Session Validators
+// ---------------------------------------------------------------------------
+
+describe('validateUsername', () => {
+  it('accepts valid Linux usernames', () => {
+    expect(validateUsername('testuser')).toBe(true);
+    expect(validateUsername('_service')).toBe(true);
+    expect(validateUsername('user-name')).toBe(true);
+    expect(validateUsername('user_name')).toBe(true);
+    expect(validateUsername('a')).toBe(true);
+    expect(validateUsername('user123')).toBe(true);
+  });
+
+  it('rejects invalid usernames', () => {
+    expect(validateUsername('')).toBe(false);
+    expect(validateUsername('Root')).toBe(false);  // uppercase
+    expect(validateUsername('123start')).toBe(false);  // starts with number
+    expect(validateUsername('-dash')).toBe(false);  // starts with dash
+    expect(validateUsername('user name')).toBe(false);  // space
+    expect(validateUsername('user;cmd')).toBe(false);
+    expect(validateUsername('user$(id)')).toBe(false);
+    expect(validateUsername('a'.repeat(33))).toBe(false);  // too long
+  });
+
+  it('rejects non-string input', () => {
+    // @ts-expect-error — testing runtime safety
+    expect(validateUsername(null)).toBe(false);
+    // @ts-expect-error — testing runtime safety
+    expect(validateUsername(undefined)).toBe(false);
+  });
+});
+
+describe('validateTty', () => {
+  it('accepts valid TTY names', () => {
+    expect(validateTty('pts/0')).toBe(true);
+    expect(validateTty('pts/1')).toBe(true);
+    expect(validateTty('tty1')).toBe(true);
+    expect(validateTty('console')).toBe(true);
+  });
+
+  it('rejects invalid TTY names', () => {
+    expect(validateTty('')).toBe(false);
+    expect(validateTty('pts/0; rm -rf /')).toBe(false);
+    expect(validateTty('pts/0$(id)')).toBe(false);
+    expect(validateTty('a'.repeat(33))).toBe(false);
+  });
+
+  it('rejects non-string input', () => {
+    // @ts-expect-error — testing runtime safety
+    expect(validateTty(null)).toBe(false);
+  });
+});
+
+describe('validateGroupName', () => {
+  it('accepts valid group names', () => {
+    expect(validateGroupName('sudo')).toBe(true);
+    expect(validateGroupName('docker')).toBe(true);
+    expect(validateGroupName('www-data')).toBe(true);
+    expect(validateGroupName('_ssl-cert')).toBe(true);
+  });
+
+  it('rejects invalid group names', () => {
+    expect(validateGroupName('')).toBe(false);
+    expect(validateGroupName('Group')).toBe(false);  // uppercase
+    expect(validateGroupName('123')).toBe(false);  // starts with number
+    expect(validateGroupName('group;cmd')).toBe(false);
+    expect(validateGroupName('a'.repeat(33))).toBe(false);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// M8.7: Network Management Validators
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('validateHostname', () => {
+  it('accepts valid hostnames', () => {
+    expect(validateHostname('my-server')).toBe(true);
+    expect(validateHostname('server1')).toBe(true);
+    expect(validateHostname('web-01')).toBe(true);
+    expect(validateHostname('a')).toBe(true);
+    expect(validateHostname('server.example.com')).toBe(true);
+    expect(validateHostname('sub.server.example.com')).toBe(true);
+    expect(validateHostname('my-host-123')).toBe(true);
+  });
+
+  it('rejects empty or non-string input', () => {
+    expect(validateHostname('')).toBe(false);
+    expect(validateHostname(null as unknown as string)).toBe(false);
+    expect(validateHostname(undefined as unknown as string)).toBe(false);
+    expect(validateHostname(123 as unknown as string)).toBe(false);
+  });
+
+  it('rejects hostnames longer than 253 characters', () => {
+    // Each label max 63, total max 253
+    const longHostname = 'a'.repeat(254);
+    expect(validateHostname(longHostname)).toBe(false);
+  });
+
+  it('rejects labels longer than 63 characters', () => {
+    const longLabel = 'a'.repeat(64) + '.example.com';
+    expect(validateHostname(longLabel)).toBe(false);
+  });
+
+  it('rejects labels starting or ending with hyphen', () => {
+    expect(validateHostname('-server')).toBe(false);
+    expect(validateHostname('server-')).toBe(false);
+    expect(validateHostname('my.-bad.com')).toBe(false);
+    expect(validateHostname('my.bad-.com')).toBe(false);
+  });
+
+  it('rejects hostnames with invalid characters', () => {
+    expect(validateHostname('server name')).toBe(false);
+    expect(validateHostname('server;cmd')).toBe(false);
+    expect(validateHostname('server&rm')).toBe(false);
+    expect(validateHostname('server|pipe')).toBe(false);
+    expect(validateHostname('server$(cmd)')).toBe(false);
+    expect(validateHostname('server`cmd`')).toBe(false);
+  });
+
+  it('rejects hostnames with empty labels', () => {
+    expect(validateHostname('.example.com')).toBe(false);
+    expect(validateHostname('example..com')).toBe(false);
+  });
+});
+
+describe('validateInterfaceName', () => {
+  it('accepts valid interface names', () => {
+    expect(validateInterfaceName('eth0')).toBe(true);
+    expect(validateInterfaceName('ens3')).toBe(true);
+    expect(validateInterfaceName('lo')).toBe(true);
+    expect(validateInterfaceName('docker0')).toBe(true);
+    expect(validateInterfaceName('wlan0')).toBe(true);
+    expect(validateInterfaceName('br-abc123')).toBe(true);
+    expect(validateInterfaceName('veth1234567')).toBe(true);
+    expect(validateInterfaceName('enp0s3')).toBe(true);
+  });
+
+  it('rejects empty or non-string input', () => {
+    expect(validateInterfaceName('')).toBe(false);
+    expect(validateInterfaceName(null as unknown as string)).toBe(false);
+    expect(validateInterfaceName(undefined as unknown as string)).toBe(false);
+    expect(validateInterfaceName(123 as unknown as string)).toBe(false);
+  });
+
+  it('rejects names longer than 15 characters', () => {
+    expect(validateInterfaceName('a'.repeat(16))).toBe(false);
+  });
+
+  it('accepts names up to 15 characters', () => {
+    expect(validateInterfaceName('a'.repeat(15))).toBe(true);
+  });
+
+  it('rejects names with shell injection characters', () => {
+    expect(validateInterfaceName('eth0;cmd')).toBe(false);
+    expect(validateInterfaceName('eth0&rm')).toBe(false);
+    expect(validateInterfaceName('eth0|pipe')).toBe(false);
+    expect(validateInterfaceName('eth0$(cmd)')).toBe(false);
+    expect(validateInterfaceName('eth0`cmd`')).toBe(false);
+    expect(validateInterfaceName('eth0 1')).toBe(false);
+  });
+
+  it('rejects names with slashes or special chars', () => {
+    expect(validateInterfaceName('eth/0')).toBe(false);
+    expect(validateInterfaceName('../etc')).toBe(false);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// M8.8: Log Enhancement Validators
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('validateLogPriority', () => {
+  it('accepts valid priorities 0-7', () => {
+    for (let i = 0; i <= 7; i++) {
+      expect(validateLogPriority(String(i))).toBe(true);
+    }
+  });
+
+  it('rejects invalid priorities', () => {
+    expect(validateLogPriority('8')).toBe(false);
+    expect(validateLogPriority('-1')).toBe(false);
+    expect(validateLogPriority('10')).toBe(false);
+    expect(validateLogPriority('abc')).toBe(false);
+    expect(validateLogPriority('')).toBe(false);
+    expect(validateLogPriority(null as unknown as string)).toBe(false);
+  });
+});
+
+describe('validateGrepPattern', () => {
+  it('accepts valid grep patterns', () => {
+    expect(validateGrepPattern('error')).toBe(true);
+    expect(validateGrepPattern('failed to start')).toBe(true);
+    expect(validateGrepPattern('nginx')).toBe(true);
+    expect(validateGrepPattern('Connection from 10.0.0.1')).toBe(true);
+    expect(validateGrepPattern('OOM killer')).toBe(true);
+    expect(validateGrepPattern('kernel:')).toBe(true);
+  });
+
+  it('rejects shell injection characters', () => {
+    expect(validateGrepPattern('error;rm -rf')).toBe(false);
+    expect(validateGrepPattern('test|cmd')).toBe(false);
+    expect(validateGrepPattern('test&bg')).toBe(false);
+    expect(validateGrepPattern('test`cmd`')).toBe(false);
+    expect(validateGrepPattern('test$(cmd)')).toBe(false);
+    expect(validateGrepPattern('test\\n')).toBe(false);
+  });
+
+  it('rejects empty or too-long patterns', () => {
+    expect(validateGrepPattern('')).toBe(false);
+    expect(validateGrepPattern('   ')).toBe(false);
+    expect(validateGrepPattern('a'.repeat(201))).toBe(false);
+    expect(validateGrepPattern(null as unknown as string)).toBe(false);
+  });
+
+  it('accepts patterns up to 200 chars', () => {
+    expect(validateGrepPattern('a'.repeat(200))).toBe(true);
+  });
+});
+
+describe('validateDateParam', () => {
+  it('accepts ISO date strings', () => {
+    expect(validateDateParam('2025-01-15')).toBe(true);
+    expect(validateDateParam('2025-01-15T10:30')).toBe(true);
+    expect(validateDateParam('2025-01-15T10:30:00')).toBe(true);
+  });
+
+  it('accepts relative time strings', () => {
+    expect(validateDateParam('today')).toBe(true);
+    expect(validateDateParam('yesterday')).toBe(true);
+    expect(validateDateParam('1 hour ago')).toBe(true);
+    expect(validateDateParam('5 minutes ago')).toBe(true);
+    expect(validateDateParam('2 days ago')).toBe(true);
+    expect(validateDateParam('1 week ago')).toBe(true);
+  });
+
+  it('rejects invalid date strings', () => {
+    expect(validateDateParam('')).toBe(false);
+    expect(validateDateParam('not-a-date')).toBe(false);
+    expect(validateDateParam('last week')).toBe(false);
+    expect(validateDateParam(null as unknown as string)).toBe(false);
+  });
+
+  it('rejects shell injection', () => {
+    expect(validateDateParam('2025-01-15;rm')).toBe(false);
+    expect(validateDateParam('today$(cmd)')).toBe(false);
+    expect(validateDateParam('yesterday|cmd')).toBe(false);
+  });
+
+  it('rejects too-long values', () => {
+    expect(validateDateParam('a'.repeat(51))).toBe(false);
   });
 });

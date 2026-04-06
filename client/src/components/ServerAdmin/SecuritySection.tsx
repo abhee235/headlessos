@@ -1,10 +1,12 @@
-// M7.2: Security Section — users, sessions, login history, SSH config, fail2ban
-// @see docs/phases/phase-7.md
+// M7.2 + M8.1 + M8.6: Security Section — users, sessions, login history, SSH config, fail2ban, user/session management
+// @see docs/phases/phase-7.md, docs/phases/phase-8.md
 
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshCw, Loader2, AlertCircle, Lock, Users, LogIn, Key, ShieldCheck } from 'lucide-react';
+import { RefreshCw, Loader2, AlertCircle, Lock, Users, LogIn, Key, ShieldCheck, Ban, ShieldOff, RotateCw, Plus, Trash2, KeyRound, UserPlus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -14,13 +16,50 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { fetchSecurityInfo } from '@/lib/api';
-import type { SecurityInfo } from '@/lib/api';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  fetchSecurityInfo,
+  fetchFail2banJailDetail,
+  fail2banBanIp,
+  fail2banUnbanIp,
+  fail2banReload,
+  createUser,
+  deleteUser,
+  setUserPassword,
+  addUserToGroup,
+  killSession,
+} from '@/lib/api';
+import type { SecurityInfo, Fail2banJailDetail } from '@/lib/api';
+import { toast } from 'sonner';
 
 export function SecuritySection({ serverId }: { serverId: string }) {
   const [data, setData] = useState<SecurityInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // M8.1 — Fail2ban management state
+  const [selectedJail, setSelectedJail] = useState<string | null>(null);
+  const [jailDetail, setJailDetail] = useState<Fail2banJailDetail | null>(null);
+  const [jailLoading, setJailLoading] = useState(false);
+  const [banIpInput, setBanIpInput] = useState('');
+  const [actionLoading, setActionLoading] = useState<string | null>(null); // 'ban' | 'unban:<ip>' | 'reload'
+
+  // M8.6 — User & Session management state
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [newUsername, setNewUsername] = useState('');
+  const [newUserShell, setNewUserShell] = useState('/bin/bash');
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [passwordTarget, setPasswordTarget] = useState<string | null>(null);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [groupTarget, setGroupTarget] = useState<string | null>(null);
+  const [groupInput, setGroupInput] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -40,6 +79,189 @@ export function SecuritySection({ serverId }: { serverId: string }) {
   }, [serverId]);
 
   useEffect(() => { load(); }, [load]);
+
+  // M8.1 — Load jail detail
+  const loadJailDetail = useCallback(async (jail: string) => {
+    setSelectedJail(jail);
+    setJailLoading(true);
+    setJailDetail(null);
+    try {
+      const res = await fetchFail2banJailDetail(serverId, jail);
+      if (res.success && res.data) {
+        setJailDetail(res.data);
+      } else {
+        toast.error(`Failed to load jail "${jail}": ${res.error || 'Unknown error'}`);
+        setSelectedJail(null);
+      }
+    } catch (err) {
+      toast.error(`Failed to load jail "${jail}"`);
+      setSelectedJail(null);
+    } finally {
+      setJailLoading(false);
+    }
+  }, [serverId]);
+
+  // M8.1 — Ban IP
+  const handleBanIp = useCallback(async () => {
+    if (!selectedJail || !banIpInput.trim()) return;
+    setActionLoading('ban');
+    try {
+      const res = await fail2banBanIp(serverId, selectedJail, banIpInput.trim());
+      if (res.success) {
+        toast.success(`Banned ${banIpInput.trim()} in jail "${selectedJail}"`);
+        setBanIpInput('');
+        loadJailDetail(selectedJail);
+      } else {
+        toast.error(`Ban failed: ${res.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      toast.error('Failed to ban IP');
+    } finally {
+      setActionLoading(null);
+    }
+  }, [serverId, selectedJail, banIpInput, loadJailDetail]);
+
+  // M8.1 — Unban IP
+  const handleUnbanIp = useCallback(async (ip: string) => {
+    if (!selectedJail) return;
+    setActionLoading(`unban:${ip}`);
+    try {
+      const res = await fail2banUnbanIp(serverId, selectedJail, ip);
+      if (res.success) {
+        toast.success(`Unbanned ${ip} from jail "${selectedJail}"`);
+        loadJailDetail(selectedJail);
+      } else {
+        toast.error(`Unban failed: ${res.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      toast.error('Failed to unban IP');
+    } finally {
+      setActionLoading(null);
+    }
+  }, [serverId, selectedJail, loadJailDetail]);
+
+  // M8.1 — Reload fail2ban
+  const handleReload = useCallback(async () => {
+    setActionLoading('reload');
+    try {
+      const res = await fail2banReload(serverId);
+      if (res.success) {
+        toast.success('Fail2ban configuration reloaded');
+        load(); // refresh all security data
+        if (selectedJail) loadJailDetail(selectedJail);
+      } else {
+        toast.error(`Reload failed: ${res.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      toast.error('Failed to reload fail2ban');
+    } finally {
+      setActionLoading(null);
+    }
+  }, [serverId, selectedJail, load, loadJailDetail]);
+
+  // M8.6 — Create user
+  const handleCreateUser = async () => {
+    if (!newUsername.trim()) return;
+    setBusy(true);
+    try {
+      const res = await createUser(serverId, {
+        username: newUsername.trim(),
+        shell: newUserShell || '/bin/bash',
+        createHome: true,
+      });
+      if (res.success) {
+        toast.success(res.message || `User "${newUsername}" created`);
+        setShowAddUser(false);
+        setNewUsername('');
+        setNewUserShell('/bin/bash');
+        await load();
+      } else {
+        toast.error(res.error || 'Failed to create user');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to create user');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // M8.6 — Delete user
+  const handleDeleteUser = async () => {
+    if (!deleteTarget) return;
+    setBusy(true);
+    try {
+      const res = await deleteUser(serverId, deleteTarget);
+      if (res.success) {
+        toast.success(res.message || `User "${deleteTarget}" deleted`);
+        setDeleteTarget(null);
+        await load();
+      } else {
+        toast.error(res.error || 'Failed to delete user');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete user');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // M8.6 — Set password
+  const handleSetPassword = async () => {
+    if (!passwordTarget || !passwordInput) return;
+    setBusy(true);
+    try {
+      const res = await setUserPassword(serverId, passwordTarget, passwordInput);
+      if (res.success) {
+        toast.success(res.message || `Password set for "${passwordTarget}"`);
+        setPasswordTarget(null);
+        setPasswordInput('');
+      } else {
+        toast.error(res.error || 'Failed to set password');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to set password');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // M8.6 — Add to group
+  const handleAddToGroup = async () => {
+    if (!groupTarget || !groupInput.trim()) return;
+    setBusy(true);
+    try {
+      const res = await addUserToGroup(serverId, groupTarget, groupInput.trim());
+      if (res.success) {
+        toast.success(res.message || `Added "${groupTarget}" to group "${groupInput}"`);
+        setGroupTarget(null);
+        setGroupInput('');
+      } else {
+        toast.error(res.error || 'Failed to add to group');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to add to group');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // M8.6 — Kill session
+  const handleKillSession = async (tty: string) => {
+    setBusy(true);
+    try {
+      const res = await killSession(serverId, tty);
+      if (res.success) {
+        toast.success(res.message || `Session on ${tty} terminated`);
+        await load();
+      } else {
+        toast.error(res.error || 'Failed to kill session');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to kill session');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -105,6 +327,7 @@ export function SecuritySection({ serverId }: { serverId: string }) {
                 <TableHead>Terminal</TableHead>
                 <TableHead>Login Time</TableHead>
                 <TableHead>Remote Host</TableHead>
+                <TableHead className="w-20 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -114,17 +337,74 @@ export function SecuritySection({ serverId }: { serverId: string }) {
                   <TableCell className="font-mono text-xs">{s.terminal}</TableCell>
                   <TableCell className="text-xs">{s.loginTime}</TableCell>
                   <TableCell className="font-mono text-xs">{s.remoteHost || '-'}</TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive h-7 px-2 text-xs"
+                      onClick={() => handleKillSession(s.terminal)}
+                      disabled={busy}
+                      title="Kill session"
+                    >
+                      <Trash2 size={13} className="mr-1" /> Kill
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
               {data.sessions.length === 0 && (
-                <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">No active sessions</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No active sessions</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
         </TabsContent>
 
-        <TabsContent value="users" className="mt-3">
-          <h3 className="text-sm font-medium mb-2">Human Users (UID &ge; 1000)</h3>
+        <TabsContent value="users" className="mt-3 space-y-4">
+          {/* Add User button + form */}
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-medium">Human Users (UID &ge; 1000)</h3>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAddUser(!showAddUser)}
+              disabled={busy}
+            >
+              <Plus size={14} className="mr-1" /> Add User
+            </Button>
+          </div>
+
+          {showAddUser && (
+            <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
+              <h4 className="font-medium text-sm">Create New User</h4>
+              <div className="space-y-1">
+                <Label className="text-xs">Username</Label>
+                <Input
+                  value={newUsername}
+                  onChange={(e) => setNewUsername(e.target.value.toLowerCase())}
+                  placeholder="newuser"
+                  className="max-w-xs text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Shell</Label>
+                <Input
+                  value={newUserShell}
+                  onChange={(e) => setNewUserShell(e.target.value)}
+                  placeholder="/bin/bash"
+                  className="max-w-xs font-mono text-sm"
+                />
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <Button size="sm" onClick={handleCreateUser} disabled={busy || !newUsername.trim()}>
+                  {busy && <Loader2 size={14} className="animate-spin mr-1" />}
+                  Create
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setShowAddUser(false)} disabled={busy}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+
           <Table>
             <TableHeader>
               <TableRow>
@@ -132,6 +412,7 @@ export function SecuritySection({ serverId }: { serverId: string }) {
                 <TableHead>UID</TableHead>
                 <TableHead>Home</TableHead>
                 <TableHead>Shell</TableHead>
+                <TableHead className="w-24 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -141,6 +422,30 @@ export function SecuritySection({ serverId }: { serverId: string }) {
                   <TableCell className="text-xs">{u.uid}</TableCell>
                   <TableCell className="font-mono text-xs">{u.home}</TableCell>
                   <TableCell className="font-mono text-xs">{u.shell}</TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
+                          Actions
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => { setPasswordTarget(u.username); setPasswordInput(''); }}>
+                          <KeyRound size={14} className="mr-2" /> Set Password
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => { setGroupTarget(u.username); setGroupInput(''); }}>
+                          <UserPlus size={14} className="mr-2" /> Add to Group
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => setDeleteTarget(u.username)}
+                          disabled={u.username === 'root'}
+                        >
+                          <Trash2 size={14} className="mr-2" /> Delete User
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -172,6 +477,68 @@ export function SecuritySection({ serverId }: { serverId: string }) {
               </Table>
             </>
           )}
+
+          {/* Set Password dialog */}
+          {passwordTarget && (
+            <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
+              <h4 className="font-medium text-sm">Set Password for &ldquo;{passwordTarget}&rdquo;</h4>
+              <div className="space-y-1">
+                <Label className="text-xs">New Password</Label>
+                <Input
+                  type="password"
+                  value={passwordInput}
+                  onChange={(e) => setPasswordInput(e.target.value)}
+                  placeholder="Enter new password"
+                  className="max-w-xs text-sm"
+                />
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <Button size="sm" onClick={handleSetPassword} disabled={busy || !passwordInput}>
+                  {busy && <Loader2 size={14} className="animate-spin mr-1" />}
+                  Set Password
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setPasswordTarget(null)} disabled={busy}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Add to Group dialog */}
+          {groupTarget && (
+            <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
+              <h4 className="font-medium text-sm">Add &ldquo;{groupTarget}&rdquo; to Group</h4>
+              <div className="space-y-1">
+                <Label className="text-xs">Group Name</Label>
+                <Input
+                  value={groupInput}
+                  onChange={(e) => setGroupInput(e.target.value)}
+                  placeholder="sudo, docker, www-data"
+                  className="max-w-xs text-sm"
+                />
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <Button size="sm" onClick={handleAddToGroup} disabled={busy || !groupInput.trim()}>
+                  {busy && <Loader2 size={14} className="animate-spin mr-1" />}
+                  Add to Group
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setGroupTarget(null)} disabled={busy}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Delete user confirmation */}
+          <ConfirmDialog
+            open={deleteTarget !== null}
+            onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+            title="Delete User"
+            description={`Permanently delete user "${deleteTarget}" and their home directory? This cannot be undone.`}
+            confirmLabel="Delete"
+            variant="destructive"
+            onConfirm={() => { void handleDeleteUser(); }}
+          />
         </TabsContent>
 
         <TabsContent value="ssh" className="mt-3">
@@ -232,20 +599,180 @@ export function SecuritySection({ serverId }: { serverId: string }) {
 
         <TabsContent value="fail2ban" className="mt-3">
           {data.fail2ban.available ? (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <ShieldCheck size={16} className="text-success" />
-                <span className="text-sm font-medium">Fail2ban is active</span>
-              </div>
-              {data.fail2ban.jails && data.fail2ban.jails.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-medium mb-1">Active Jails</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {data.fail2ban.jails.map((j) => (
-                      <Badge key={j} variant="outline">{j}</Badge>
-                    ))}
-                  </div>
+            <div className="space-y-4">
+              {/* Header with status and reload */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck size={16} className="text-success" />
+                  <span className="text-sm font-medium">Fail2ban is active</span>
                 </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleReload}
+                  disabled={actionLoading === 'reload'}
+                >
+                  {actionLoading === 'reload' ? (
+                    <Loader2 size={14} className="animate-spin mr-1" />
+                  ) : (
+                    <RotateCw size={14} className="mr-1" />
+                  )}
+                  Reload Config
+                </Button>
+              </div>
+
+              {/* Jail detail view */}
+              {selectedJail ? (
+                <div className="space-y-4">
+                  {/* Back to jail list */}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => { setSelectedJail(null); setJailDetail(null); }}
+                    >
+                      ← Back to Jails
+                    </Button>
+                    <Badge variant="outline" className="text-sm font-mono">{selectedJail}</Badge>
+                  </div>
+
+                  {jailLoading ? (
+                    <div className="flex items-center justify-center h-32 text-muted-foreground">
+                      <Loader2 className="animate-spin mr-2" size={16} />
+                      Loading jail details…
+                    </div>
+                  ) : jailDetail ? (
+                    <>
+                      {/* Jail stats */}
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="rounded-lg border border-border p-3 text-center">
+                          <div className="text-2xl font-bold text-destructive">{jailDetail.currentlyBanned}</div>
+                          <div className="text-xs text-muted-foreground">Currently Banned</div>
+                        </div>
+                        <div className="rounded-lg border border-border p-3 text-center">
+                          <div className="text-2xl font-bold">{jailDetail.totalBanned}</div>
+                          <div className="text-xs text-muted-foreground">Total Banned</div>
+                        </div>
+                        <div className="rounded-lg border border-border p-3 text-center">
+                          <div className="text-2xl font-bold">{jailDetail.totalFailed}</div>
+                          <div className="text-xs text-muted-foreground">Total Failed</div>
+                        </div>
+                      </div>
+
+                      {/* Filter & File info */}
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div className="rounded-md border border-border p-2">
+                          <span className="text-muted-foreground">Filter: </span>
+                          <span className="font-mono">{jailDetail.filter || 'N/A'}</span>
+                        </div>
+                        <div className="rounded-md border border-border p-2">
+                          <span className="text-muted-foreground">Log Files: </span>
+                          <span className="font-mono">{jailDetail.fileList.length > 0 ? jailDetail.fileList.join(', ') : 'N/A'}</span>
+                        </div>
+                      </div>
+
+                      {/* Ban IP form */}
+                      <div className="flex items-center gap-2">
+                        <Input
+                          placeholder="Enter IP to ban (e.g. 192.168.1.100)"
+                          value={banIpInput}
+                          onChange={(e) => setBanIpInput(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleBanIp(); }}
+                          className="max-w-xs font-mono text-sm"
+                        />
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={handleBanIp}
+                          disabled={!banIpInput.trim() || actionLoading === 'ban'}
+                        >
+                          {actionLoading === 'ban' ? (
+                            <Loader2 size={14} className="animate-spin mr-1" />
+                          ) : (
+                            <Ban size={14} className="mr-1" />
+                          )}
+                          Ban IP
+                        </Button>
+                      </div>
+
+                      {/* Banned IPs table */}
+                      {jailDetail.bannedIps.length > 0 ? (
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Banned IP</TableHead>
+                              <TableHead className="w-24 text-right">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {jailDetail.bannedIps.map((ip) => (
+                              <TableRow key={ip}>
+                                <TableCell className="font-mono text-sm">{ip}</TableCell>
+                                <TableCell className="text-right">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleUnbanIp(ip)}
+                                    disabled={actionLoading === `unban:${ip}`}
+                                    className="text-destructive hover:text-destructive"
+                                  >
+                                    {actionLoading === `unban:${ip}` ? (
+                                      <Loader2 size={14} className="animate-spin mr-1" />
+                                    ) : (
+                                      <ShieldOff size={14} className="mr-1" />
+                                    )}
+                                    Unban
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center h-20 text-muted-foreground">
+                          <ShieldCheck size={20} className="opacity-40 mb-1" />
+                          <p className="text-xs">No banned IPs in this jail</p>
+                        </div>
+                      )}
+
+                      {/* Refresh jail detail */}
+                      <div className="flex justify-end">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => loadJailDetail(selectedJail)}
+                          disabled={jailLoading}
+                        >
+                          <RefreshCw size={14} className="mr-1" />
+                          Refresh
+                        </Button>
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+              ) : (
+                /* Jail list — clickable badges */
+                data.fail2ban.jails && data.fail2ban.jails.length > 0 ? (
+                  <div>
+                    <h3 className="text-sm font-medium mb-2">Active Jails</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {data.fail2ban.jails.map((j) => (
+                        <Badge
+                          key={j}
+                          variant="outline"
+                          className="cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors"
+                          onClick={() => loadJailDetail(j)}
+                        >
+                          <ShieldCheck size={12} className="mr-1" />
+                          {j}
+                        </Badge>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">Click a jail to view details and manage banned IPs</p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No active jails found</p>
+                )
               )}
             </div>
           ) : (

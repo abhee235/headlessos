@@ -8,12 +8,16 @@ import { parseEtcPasswd } from '../../src/parsers/deterministic/etc-passwd.js';
 import { parseWho, parseLast } from '../../src/parsers/deterministic/who.js';
 import { parseSshdConfig } from '../../src/parsers/deterministic/sshd-config.js';
 import { parseNginxSites, parseNginxConfigTest, parseCertbotCertificates } from '../../src/parsers/deterministic/nginx.js';
-import { parseAptUpgradable, parseDpkgCount } from '../../src/parsers/deterministic/apt.js';
+import { parseAptUpgradable, parseDpkgCount, parseAptSearchResults } from '../../src/parsers/deterministic/apt.js';
 import { parseCrontab, parseSystemCrontab } from '../../src/parsers/deterministic/crontab.js';
 import { parseDu } from '../../src/parsers/deterministic/du.js';
 import { parseFindmnt, parseSwapon } from '../../src/parsers/deterministic/findmnt.js';
-import { parseIpRoute, parseResolvConf } from '../../src/parsers/deterministic/ip-route.js';
+import { parseIpRoute, parseResolvConf, parseIpLinkShow } from '../../src/parsers/deterministic/ip-route.js';
 import { parseJournalctl, parseDmesg } from '../../src/parsers/deterministic/journalctl.js';
+import { parseFail2banJailStatus } from '../../src/parsers/deterministic/fail2ban.js';
+import { parseUfwAppList } from '../../src/parsers/deterministic/ufw-apps.js';
+import { Fail2banJailDetailSchema } from '../../src/parsers/schemas/serveradmin.js';
+import { UfwAppListSchema } from '../../src/parsers/schemas/serveradmin.js';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SS (Socket Statistics) Parser Tests
@@ -360,6 +364,54 @@ describe('parseDpkgCount', () => {
   });
 });
 
+describe('parseAptSearchResults', () => {
+  it('parses apt search output with installed and non-installed packages', () => {
+    const raw = `Sorting... Done
+Full Text Search... Done
+nginx/jammy-updates 1.18.0-6ubuntu14.5 amd64
+  small, powerful, scalable web/reverse proxy server
+
+nginx-common/jammy-updates 1.18.0-6ubuntu14.5 all [installed,automatic]
+  small, powerful, scalable web/reverse proxy server - common files
+
+nginx-core/jammy-updates 1.18.0-6ubuntu14.5 amd64
+  nginx web/reverse proxy server (standard version)`;
+    const result = parseAptSearchResults(raw);
+    expect(result).toHaveLength(3);
+    expect(result[0]).toEqual({
+      name: 'nginx',
+      version: '1.18.0-6ubuntu14.5',
+      architecture: 'amd64',
+      description: 'small, powerful, scalable web/reverse proxy server',
+      installed: false,
+    });
+    expect(result[1]!.name).toBe('nginx-common');
+    expect(result[1]!.installed).toBe(true);
+    expect(result[2]!.installed).toBe(false);
+  });
+
+  it('handles empty input', () => {
+    expect(parseAptSearchResults('')).toEqual([]);
+  });
+
+  it('handles only headers', () => {
+    const raw = `Sorting... Done
+Full Text Search... Done`;
+    expect(parseAptSearchResults(raw)).toEqual([]);
+  });
+
+  it('handles WARNING lines', () => {
+    const raw = `WARNING: apt does not have a stable CLI interface. Use with caution in scripts.
+Sorting... Done
+Full Text Search... Done
+htop/jammy 3.1.2-1 amd64
+  interactive processes viewer`;
+    const result = parseAptSearchResults(raw);
+    expect(result).toHaveLength(1);
+    expect(result[0]!.name).toBe('htop');
+  });
+});
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Crontab Parser Tests
 // ═══════════════════════════════════════════════════════════════════════════
@@ -560,6 +612,96 @@ search example.com corp.example.com`;
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+// M8.7: ip link show Parser Tests
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('parseIpLinkShow', () => {
+  it('parses typical ip -o link show output', () => {
+    const raw = `1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000\\    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP mode DEFAULT group default qlen 1000\\    link/ether 52:54:00:ab:cd:ef brd ff:ff:ff:ff:ff:ff`;
+    const result = parseIpLinkShow(raw);
+    expect(result).toHaveLength(2);
+
+    expect(result[0]!.name).toBe('lo');
+    expect(result[0]!.state).toBe('UNKNOWN');
+    expect(result[0]!.mtu).toBe(65536);
+    expect(result[0]!.type).toBe('loopback');
+    expect(result[0]!.mac).toBeUndefined(); // loopback has link/loopback, not link/ether
+
+    expect(result[1]!.name).toBe('eth0');
+    expect(result[1]!.state).toBe('UP');
+    expect(result[1]!.mtu).toBe(1500);
+    expect(result[1]!.mac).toBe('52:54:00:ab:cd:ef');
+    expect(result[1]!.type).toBe('ether');
+  });
+
+  it('parses interfaces with @ suffix (veth pairs)', () => {
+    const raw = `5: veth1234@if4: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT group default\\    link/ether aa:bb:cc:dd:ee:ff brd ff:ff:ff:ff:ff:ff`;
+    const result = parseIpLinkShow(raw);
+    expect(result).toHaveLength(1);
+    expect(result[0]!.name).toBe('veth1234');  // strips @if4
+    expect(result[0]!.state).toBe('UP');
+    expect(result[0]!.mac).toBe('aa:bb:cc:dd:ee:ff');
+  });
+
+  it('detects DOWN state', () => {
+    const raw = `3: ens4: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000\\    link/ether 00:11:22:33:44:55 brd ff:ff:ff:ff:ff:ff`;
+    const result = parseIpLinkShow(raw);
+    expect(result).toHaveLength(1);
+    expect(result[0]!.name).toBe('ens4');
+    expect(result[0]!.state).toBe('DOWN');
+  });
+
+  it('infers UP from flags when state keyword is missing', () => {
+    const raw = `2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel mode DEFAULT group default qlen 1000\\    link/ether 52:54:00:ab:cd:ef brd ff:ff:ff:ff:ff:ff`;
+    const result = parseIpLinkShow(raw);
+    expect(result).toHaveLength(1);
+    expect(result[0]!.state).toBe('UP');
+  });
+
+  it('infers DOWN from flags when no UP flag and no state keyword', () => {
+    const raw = `3: ens4: <BROADCAST,MULTICAST> mtu 1500 qdisc noop mode DEFAULT group default qlen 1000\\    link/ether 00:11:22:33:44:55 brd ff:ff:ff:ff:ff:ff`;
+    const result = parseIpLinkShow(raw);
+    expect(result).toHaveLength(1);
+    expect(result[0]!.state).toBe('DOWN');
+  });
+
+  it('handles docker bridge interfaces', () => {
+    const raw = `4: docker0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN mode DEFAULT group default\\    link/ether 02:42:ac:11:00:01 brd ff:ff:ff:ff:ff:ff`;
+    const result = parseIpLinkShow(raw);
+    expect(result).toHaveLength(1);
+    expect(result[0]!.name).toBe('docker0');
+    expect(result[0]!.state).toBe('DOWN');
+    expect(result[0]!.mac).toBe('02:42:ac:11:00:01');
+  });
+
+  it('returns empty array for empty input', () => {
+    expect(parseIpLinkShow('')).toEqual([]);
+    expect(parseIpLinkShow('   ')).toEqual([]);
+  });
+
+  it('skips malformed lines', () => {
+    const raw = `not a valid line
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default\\    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+another bad line`;
+    const result = parseIpLinkShow(raw);
+    expect(result).toHaveLength(1);
+    expect(result[0]!.name).toBe('lo');
+  });
+
+  it('handles multiple interfaces', () => {
+    const raw = `1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000\\    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP mode DEFAULT group default qlen 1000\\    link/ether 52:54:00:ab:cd:ef brd ff:ff:ff:ff:ff:ff
+3: docker0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN mode DEFAULT group default\\    link/ether 02:42:ac:11:00:01 brd ff:ff:ff:ff:ff:ff
+4: br-abc123: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT group default\\    link/ether 02:42:12:34:56:78 brd ff:ff:ff:ff:ff:ff`;
+    const result = parseIpLinkShow(raw);
+    expect(result).toHaveLength(4);
+    expect(result.map(e => e.name)).toEqual(['lo', 'eth0', 'docker0', 'br-abc123']);
+    expect(result.map(e => e.state)).toEqual(['UNKNOWN', 'UP', 'DOWN', 'UP']);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
 // Journalctl / Dmesg Parser Tests
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -599,5 +741,161 @@ describe('parseDmesg', () => {
 
   it('returns empty for empty input', () => {
     expect(parseDmesg('')).toEqual([]);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// M8.1: Fail2ban Jail Status Parser Tests
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('parseFail2banJailStatus', () => {
+  it('parses typical fail2ban-client status output with banned IPs', () => {
+    const raw = `Status for the jail: sshd
+|- Filter
+|  |- Currently failed:	3
+|  |- Total failed:	42
+|  \`- File list:	/var/log/auth.log
+\`- Actions
+   |- Currently banned:	2
+   |- Total banned:	15
+   \`- Banned IP list:	192.168.1.100 10.0.0.5`;
+    const result = parseFail2banJailStatus(raw);
+    expect(result.jail).toBe('sshd');
+    expect(result.currentlyFailed).toBe(3);
+    expect(result.totalFailed).toBe(42);
+    expect(result.currentlyBanned).toBe(2);
+    expect(result.totalBanned).toBe(15);
+    expect(result.bannedIps).toEqual(['192.168.1.100', '10.0.0.5']);
+    expect(result.fileList).toEqual(['/var/log/auth.log']);
+    expect(result.filter).toBe('');
+    // Validate against Zod schema
+    const validated = Fail2banJailDetailSchema.parse(result);
+    expect(validated.jail).toBe('sshd');
+  });
+
+  it('parses output with no banned IPs', () => {
+    const raw = `Status for the jail: nginx-http-auth
+|- Filter
+|  |- Currently failed:	0
+|  |- Total failed:	5
+|  \`- File list:	/var/log/nginx/error.log
+\`- Actions
+   |- Currently banned:	0
+   |- Total banned:	3
+   \`- Banned IP list:	`;
+    const result = parseFail2banJailStatus(raw);
+    expect(result.jail).toBe('nginx-http-auth');
+    expect(result.currentlyBanned).toBe(0);
+    expect(result.bannedIps).toEqual([]);
+    Fail2banJailDetailSchema.parse(result); // should not throw
+  });
+
+  it('parses output with multiple log files', () => {
+    const raw = `Status for the jail: apache-auth
+|- Filter
+|  |- Currently failed:	1
+|  |- Total failed:	10
+|  \`- File list:	/var/log/apache2/error.log /var/log/apache2/access.log
+\`- Actions
+   |- Currently banned:	1
+   |- Total banned:	8
+   \`- Banned IP list:	203.0.113.42`;
+    const result = parseFail2banJailStatus(raw);
+    expect(result.fileList).toEqual(['/var/log/apache2/error.log', '/var/log/apache2/access.log']);
+    expect(result.bannedIps).toEqual(['203.0.113.42']);
+  });
+
+  it('handles missing fields gracefully with defaults', () => {
+    // Minimal output with only some fields
+    const raw = `Status for the jail: postfix
+|- Filter
+|  \`- File list:	/var/log/mail.log
+\`- Actions
+   \`- Banned IP list:	`;
+    const result = parseFail2banJailStatus(raw);
+    expect(result.jail).toBe('postfix');
+    expect(result.currentlyFailed).toBe(0);
+    expect(result.totalFailed).toBe(0);
+    expect(result.currentlyBanned).toBe(0);
+    expect(result.totalBanned).toBe(0);
+    expect(result.bannedIps).toEqual([]);
+  });
+
+  it('validates against Zod schema for various inputs', () => {
+    const raw = `Status for the jail: dovecot
+|- Filter
+|  |- Currently failed:	100
+|  |- Total failed:	9999
+|  \`- File list:	/var/log/dovecot.log
+\`- Actions
+   |- Currently banned:	50
+   |- Total banned:	500
+   \`- Banned IP list:	1.2.3.4 5.6.7.8 9.10.11.12`;
+    const result = parseFail2banJailStatus(raw);
+    const validated = Fail2banJailDetailSchema.parse(result);
+    expect(validated.currentlyFailed).toBe(100);
+    expect(validated.totalBanned).toBe(500);
+    expect(validated.bannedIps).toHaveLength(3);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// M8.2: UFW App List Parser Tests
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('parseUfwAppList', () => {
+  it('parses a typical ufw app list output', () => {
+    const raw = `Available applications:
+  Nginx Full
+  Nginx HTTP
+  Nginx HTTPS
+  OpenSSH`;
+    const result = parseUfwAppList(raw);
+    expect(result.apps).toHaveLength(4);
+    expect(result.apps[0]!.name).toBe('Nginx Full');
+    expect(result.apps[1]!.name).toBe('Nginx HTTP');
+    expect(result.apps[2]!.name).toBe('Nginx HTTPS');
+    expect(result.apps[3]!.name).toBe('OpenSSH');
+  });
+
+  it('validates against Zod schema', () => {
+    const raw = `Available applications:
+  Apache
+  OpenSSH`;
+    const result = parseUfwAppList(raw);
+    const validated = UfwAppListSchema.parse(result);
+    expect(validated.apps).toHaveLength(2);
+  });
+
+  it('handles empty app list', () => {
+    const raw = `Available applications:`;
+    const result = parseUfwAppList(raw);
+    expect(result.apps).toHaveLength(0);
+  });
+
+  it('returns empty for empty input', () => {
+    const result = parseUfwAppList('');
+    expect(result.apps).toHaveLength(0);
+  });
+
+  it('skips blank lines', () => {
+    const raw = `Available applications:
+  Nginx Full
+
+  OpenSSH
+
+`;
+    const result = parseUfwAppList(raw);
+    expect(result.apps).toHaveLength(2);
+    expect(result.apps[0]!.name).toBe('Nginx Full');
+    expect(result.apps[1]!.name).toBe('OpenSSH');
+  });
+
+  it('handles output without header line', () => {
+    // In case the output doesn't have the header
+    const raw = `  Nginx Full
+  OpenSSH`;
+    const result = parseUfwAppList(raw);
+    expect(result.apps).toHaveLength(2);
   });
 });
