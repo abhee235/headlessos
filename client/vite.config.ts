@@ -5,6 +5,8 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // Use relative paths in production build so Electron file:// protocol works
+  base: './',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -17,7 +19,7 @@ export default defineConfig({
         manualChunks: {
           'vendor-react': ['react', 'react-dom'],
           'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-tooltip', '@radix-ui/react-context-menu', '@radix-ui/react-dropdown-menu'],
-          'vendor-xterm': ['@xterm/xterm', '@xterm/addon-fit', '@xterm/addon-web-links'],
+          'vendor-xterm': ['@xterm/xterm', '@xterm/addon-fit'],
           'vendor-charts': ['recharts'],
           'vendor-state': ['zustand'],
         },

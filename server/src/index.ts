@@ -76,7 +76,12 @@ async function main(): Promise<void> {
   const app = Fastify({ logger: true });
 
   await app.register(cors, {
-    origin: ['http://localhost:3000'],
+    // Allow Vite dev server and Electron production mode (file:// sends origin: null)
+    origin: (origin, cb) => {
+      const allowed = !origin || origin === 'null' || origin === 'http://localhost:3000';
+      cb(null, allowed);
+    },
+    credentials: true,
   });
 
   await app.register(websocket);

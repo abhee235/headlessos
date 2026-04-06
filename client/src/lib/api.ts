@@ -3,7 +3,11 @@
 
 import type { ServerConfig, ConnectionState, ApiResponse } from 'headlessos-shared';
 
-const BASE = '/api';
+// In Electron production mode (file:// protocol), there's no Vite proxy —
+// API calls must go directly to the backend server.
+const isElectronProd = typeof window !== 'undefined' &&
+  window.location.protocol === 'file:';
+const BASE = isElectronProd ? 'http://localhost:3001/api' : '/api';
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
@@ -79,11 +83,17 @@ export async function getServerStatus(id: string): Promise<ConnectionState> {
 // ── WebSocket URL ───────────────────────────────────────
 
 export function terminalWsUrl(serverId: string): string {
+  if (isElectronProd) {
+    return `ws://localhost:3001/ws/terminal/${serverId}`;
+  }
   const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
   return `${proto}://${window.location.host}/ws/terminal/${serverId}`;
 }
 
 export function dockerInstallWsUrl(serverId: string): string {
+  if (isElectronProd) {
+    return `ws://localhost:3001/ws/docker-install/${serverId}`;
+  }
   const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
   return `${proto}://${window.location.host}/ws/docker-install/${serverId}`;
 }
