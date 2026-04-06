@@ -5,9 +5,19 @@ import type { ServerConfig, ConnectionState, ApiResponse } from 'headlessos-shar
 
 // In Electron production mode (file:// protocol), there's no Vite proxy —
 // API calls must go directly to the backend server.
-const isElectronProd = typeof window !== 'undefined' &&
+export const isElectronProd = typeof window !== 'undefined' &&
   window.location.protocol === 'file:';
-const BASE = isElectronProd ? 'http://localhost:3001/api' : '/api';
+const BACKEND_ORIGIN = 'http://localhost:3001';
+export const API_BASE = isElectronProd ? `${BACKEND_ORIGIN}/api` : '/api';
+const BASE = API_BASE;
+
+/** Resolve a server-relative URL (e.g. /api/wallpapers/...) to an absolute URL in Electron */
+export function resolveServerUrl(path: string): string {
+  if (isElectronProd && path.startsWith('/')) {
+    return `${BACKEND_ORIGIN}${path}`;
+  }
+  return path;
+}
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {

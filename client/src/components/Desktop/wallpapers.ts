@@ -234,7 +234,7 @@ export const DEFAULT_WALLPAPER_ID = 'builtin:celestial';
 
 // ─── API Helpers ─────────────────────────────────────────────────────────────
 
-const API_BASE = '/api';
+import { API_BASE, resolveServerUrl } from '../../lib/api';
 
 export interface WallpaperListResponse {
   system: ImageWallpaper[];
@@ -251,7 +251,7 @@ export async function fetchWallpapers(): Promise<WallpaperListResponse> {
   const mapItems = (
     items: Array<{ id: string; name: string; filename: string; category: 'system' | 'user'; url: string }>,
   ): ImageWallpaper[] =>
-    items.map((item) => ({ ...item, type: 'image' as const }));
+    items.map((item) => ({ ...item, type: 'image' as const, url: resolveServerUrl(item.url) }));
 
   return {
     system: mapItems(data.system ?? []),
@@ -273,7 +273,7 @@ export async function uploadWallpaper(file: File): Promise<ImageWallpaper> {
     throw new Error(err.error ?? 'Upload failed');
   }
   const data = await res.json();
-  return { ...data, type: 'image' as const };
+  return { ...data, type: 'image' as const, url: resolveServerUrl(data.url) };
 }
 
 /** Delete a user wallpaper */

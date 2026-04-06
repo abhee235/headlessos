@@ -12,6 +12,7 @@ import {
   type WallpaperDefinition,
   type ImageWallpaper,
 } from './wallpapers';
+import { resolveServerUrl } from '../../lib/api';
 
 interface WallpaperProps {
   className?: string;
@@ -37,7 +38,7 @@ export function Wallpaper({ className = '' }: WallpaperProps) {
 
   // Build a direct URL for image wallpapers that haven't been resolved yet
   const directImageUrl = isUnresolvedImage
-    ? `/api/wallpapers/${wallpaperId.replace(':', '/')}`
+    ? resolveServerUrl(`/api/wallpapers/${wallpaperId.replace(':', '/')}`)
     : null;
 
   return (
