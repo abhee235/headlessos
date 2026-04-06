@@ -26,7 +26,7 @@
 | M4: Deterministic Parsers | Week 4 | ✅ | 8/8 tasks | [phase-4](phases/phase-4.md) |
 | M5: Polish + Security + Testing | Week 5 | ✅ | 6/6 tasks | [phase-5](phases/phase-5.md) |
 | M6: Desktop UI System | Week 6-7 | ✅ | 11/11 tasks | [phase-6](phases/phase-6.md) |
-| M7: System Settings | Week 8 | 🔄 | 5/6 tasks | [phase-7](phases/phase-7.md) |
+| M7: System Settings | Week 8 | ✅ | 6/6 tasks | [phase-7](phases/phase-7.md) |
 | M8: Server Admin CRUD | Week 9-10 | ✅ | 8/8 tasks | [phase-8](phases/phase-8.md) |
 | M9: Desktop Polish & Core UX | Week 11 | ✅ | 12/12 tasks | — |
 | M10: Advanced Features | Week 12-14 | ✅ | 10/10 tasks | — |
@@ -147,7 +147,7 @@ Example:
 |---------|------|--------|--------------|
 | M7.1 | Terminal Settings | ✅ | Font size, font family, cursor style, scrollback, copy-on-select — persisted + applied |
 | M7.2 | Server Admin App | ✅ | 8 sections, 23 parsers, 11 API endpoints, 51 parser tests — all passing |
-| M7.3 | LLM / AI Configuration | ⬜ | Provider select, API key, model select, usage stats, fallback toggle |
+| M7.3 | LLM / AI Configuration | ⏭️ | Moved to backlog — core functionality covered by M10.7 (LLM Provider Config) |
 | M7.4 | Appearance (Expand) | ✅ | Accent color (8 oklch presets) wired to CSS vars, theme auto mode, desktop icon size — 307 tests passing |
 | M7.5 | General Settings | ✅ | Clock format (12h/24h) wired to Taskbar, auto-refresh interval selector, connection info (server-side deferred to M7.3) |
 | M7.6 | Notifications & Data | ✅ | Toast show/hide toggle, position selector (bottom-right/top-right), clear cache, reset all settings with confirmation |
@@ -237,6 +237,7 @@ Example:
 | B.12 | ~~Server groups / tags~~ | — | **Covered by M11.4** (Server Tags in Fleet) |
 | B.13 | ~~ReAct investigation agent~~ | — | **Covered by M11.5** (AI Investigation Agent) |
 | B.14 | ~~Agent progress streaming~~ | — | **Covered by M11.6** (Agent WebSocket + UI) |
+| B.15 | LLM / AI Configuration Enhancements | Medium | Advanced provider select, per-model API keys, usage stats dashboard, fallback toggle, cost budgets — basic config covered by M10.7 |
 
 ---
 
@@ -246,6 +247,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-04-06 | **M7.3 ⏭️** LLM / AI Configuration moved to backlog (B.15) — core functionality already covered by M10.7. M7 now fully complete (6/6). All 11 milestones (M0–M11) complete. |
 | 2026-04-06 | **M11 ✅** Fleet, Agent & Platform complete (7/7 tasks): M11.1 Fleet Dashboard (fleet route + aggregate stats + server cards UI), M11.2 Electron Wrapper (main.js + preload.js + package.json + macOS menu), M11.3 Plugin Manager UI (Settings page: install from URL, activate/deactivate/remove, permission reference), M11.4 Server Tags (tags field in ServerConfig, fleet route tag support), M11.5 ReAct Agent (InvestigationAgent class with 50+ allowlist patterns, 15 blocked patterns, ReAct loop, AgentView frontend), M11.6 Agent Streaming (WebSocket endpoint + real-time step UI). Also fixed: pinnedAppIds type error, fleet.ts mountPoint/getServers, SettingsView LLM config type. 535 tests (406 server + 129 client) all passing. |
 | 2026-04-10 | **M10 ✅** Advanced Features complete (10/10 tasks): M10.1 Notification Center (store + bell icon + slide-out panel), M10.2 Multi-Server Sidebar (initials, status dots, context menu), M10.3 Drag-and-Drop Upload (multipart backend + XHR progress + drop zone), M10.4 Split-Pane Explorer (ResizablePanelGroup + MiniFileList), M10.5 App Permissions (15 capabilities, overrides, persistence), M10.6 IPC Event Bus (35+ typed events, useEventBus hook), M10.7 LLM Config UI (backend routes + AI settings page), M10.8 Plugin API (Zod manifest schema, registry lifecycle), M10.9 Test Suite (4 test files: event-bus, permissions, plugins, notification-store), M10.10 Performance (React.lazy code splitting, Suspense, Vite manual chunks). |
 | 2026-04-09 | **M9 ✅** Desktop Polish & Core UX complete (12/12 tasks): M9.1 bug fixes (registry IDs, bind address), M9.2 dynamic recently used, M9.3 pin/unpin taskbar, M9.4 keyboard shortcuts reference, M9.5 command palette (Ctrl+K), M9.6 window animations, M9.7 complete snap zones (6 zones + Ctrl+Arrow), M9.8 show desktop (Ctrl+D + peek strip), M9.9 see all apps view, M9.10 start menu keyboard nav, M9.11 wire autoRefreshInterval, M9.12 first-run onboarding wizard. 412 tests (333 server + 79 client) passing. |
