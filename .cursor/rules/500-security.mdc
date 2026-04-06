@@ -1,0 +1,62 @@
+---
+description: Security rules for route handlers, SSH execution, and command handling
+globs: server/src/routes/**/*.ts,server/src/ssh/**/*.ts,server/src/orchestrator/**/*.ts
+---
+
+# Security Rules (CRITICAL)
+
+Read docs/SECURITY.md before writing any code in these files.
+
+## Command Execution
+- NEVER interpolate user input into shell commands: `` exec(`ls ${userPath}`) `` ← FORBIDDEN
+- ALWAYS validate inputs before passing to SSH:
+  - **Paths**: No traversal (`..`), must be absolute, use allowlist of base dirs
+  - **Container IDs**: Hex characters only (`/^[a-f0-9]+$/`)
+  - **PIDs**: Integer only (`/^\d+$/`)
+  - **Service names**: Alphanumeric + hyphen + underscore only
+- Use parameterized commands or builder functions:
+  ```typescript
+  // GOOD: Validated and constructed safely
+  function buildLsCommand(validatedPath: string): string {
+    return `ls -la ${shellEscape(validatedPath)}`;
+  }
+
+  // BAD: Direct interpolation
+  function buildLsCommand(path: string): string {
+    return `ls -la ${path}`; // ← NEVER DO THIS
+  }
+  ```
+
+## File Operations
+- ALL file read/write/delete/rename → SFTP API
+- NEVER use `exec('cat ...')` or `exec('rm ...')` for file operations
+- SFTP is the ONLY safe way to handle file content
+
+## SSH Channel Safety
+- `exec()` channels for one-shot data collection (parallel OK)
+- `shell()` channel for interactive terminal only (one per session)
+- Never reuse channels across requests
+- Always set timeouts on exec channels
+- Close channels when done — leaked channels = leaked resources
+
+## Command Orchestrator Safety
+- ExecutionPlan commands must come from registered command builders
+- Retry logic must have max retry limits (default: 2)
+- Fallback chains must terminate — no circular fallbacks
+- LLM-suggested commands (future ReAct agent) must go through allowlist validation
+
+## API Route Security
+- Validate ALL request parameters with Zod schemas
+- Use Fastify schema validation (built-in)
+- Rate limit SSH-heavy endpoints
+- Never expose raw SSH errors to the client — sanitize error messages
+
+## Validation Functions
+These MUST exist and be used everywhere:
+```typescript
+validatePath(path: string): boolean      // No traversal, absolute path
+validateContainerId(id: string): boolean // Hex only
+validatePid(pid: string): boolean        // Integer only
+validateServiceName(name: string): boolean // Alphanumeric + hyphen + underscore
+shellEscape(input: string): string       // Escape special chars for shell
+```

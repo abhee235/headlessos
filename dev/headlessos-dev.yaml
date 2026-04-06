@@ -1,0 +1,123 @@
+# HeadlessOS — Lima VM Config
+# Creates a lightweight Ubuntu VM that mimics a real VPS
+#
+# Setup:   limactl create --name=headlessos-dev dev/headlessos-dev.yaml
+# Start:   limactl start headlessos-dev
+# Stop:    limactl stop headlessos-dev
+# Delete:  limactl delete headlessos-dev
+# SSH:     ssh -p 2222 testuser@127.0.0.1  (password: testpass)
+
+# VM image
+images:
+  - location: "https://cloud-images.ubuntu.com/releases/22.04/release/ubuntu-22.04-server-cloudimg-amd64.img"
+    arch: "x86_64"
+  - location: "https://cloud-images.ubuntu.com/releases/22.04/release/ubuntu-22.04-server-cloudimg-arm64.img"
+    arch: "aarch64"
+
+# Resource allocation (lightweight for dev)
+cpus: 2
+memory: "2GiB"
+disk: "20GiB"
+
+# Port forwarding — forward host:2222 → guest:2222 (our custom sshd)
+# NOTE: Lima reserves guest port 22 for its own SSH, so we run a
+# second sshd instance on port 2222 specifically for HeadlessOS.
+# We explicitly ignore all other ports to avoid conflicts with host services.
+portForwards:
+  - guestPort: 2222
+    hostPort: 2222
+    proto: tcp
+  - guestPort: 8080
+    hostPort: 8080
+    proto: tcp
+  - guestIP: "0.0.0.0"
+    ignore: true
+    proto: tcp
+
+# Provisioning script — runs on first boot
+provision:
+  - mode: system
+    script: |
+      #!/bin/bash
+      set -eux
+
+      # ---- System packages ----
+      apt-get update
+      apt-get install -y \
+        openssh-server sudo curl wget git htop net-tools \
+        iproute2 procps vim tree nginx python3 \
+        ca-certificates gnupg lsb-release
+
+      # ---- Install Docker (full engine, not just CLI) ----
+      install -m 0755 -d /etc/apt/keyrings
+      curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+        | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+      chmod a+r /etc/apt/keyrings/docker.gpg
+
+      echo \
+        "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+        https://download.docker.com/linux/ubuntu \
+        $(lsb_release -cs) stable" \
+        > /etc/apt/sources.list.d/docker.list
+
+      apt-get update
+      apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+      systemctl enable docker
+      systemctl start docker
+
+      # ---- Create testuser (same creds as Docker-based dev) ----
+      if ! id testuser &>/dev/null; then
+        useradd -m -s /bin/bash testuser
+      fi
+      echo 'testuser:testpass' | chpasswd
+      usermod -aG sudo,docker testuser
+      echo 'testuser ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
+      # Also set root password
+      echo 'root:rootpass' | chpasswd
+
+      # ---- Set up a second sshd on port 2222 for HeadlessOS ----
+      # (Lima uses port 22 internally, so we can't expose it)
+      cp /etc/ssh/sshd_config /etc/ssh/sshd_config_headlessos
+      sed -i 's/^#\?Port .*/Port 2222/' /etc/ssh/sshd_config_headlessos
+      sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config_headlessos
+      sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config_headlessos
+      # Remove Include directives that might override our settings
+      sed -i '/^Include/d' /etc/ssh/sshd_config_headlessos
+
+      # Create systemd service for the second sshd
+      cat > /etc/systemd/system/sshd-headlessos.service <<'EOF'
+      [Unit]
+      Description=HeadlessOS SSH Server (port 2222)
+      After=network.target
+
+      [Service]
+      ExecStart=/usr/sbin/sshd -D -f /etc/ssh/sshd_config_headlessos
+      Restart=always
+
+      [Install]
+      WantedBy=multi-user.target
+      EOF
+
+      # Remove leading spaces from the heredoc (systemd is picky)
+      sed -i 's/^      //' /etc/systemd/system/sshd-headlessos.service
+
+      systemctl daemon-reload
+      systemctl enable sshd-headlessos
+      systemctl start sshd-headlessos
+
+      # ---- Sample files for file explorer ----
+      mkdir -p /home/testuser/projects/myapp
+      echo '# My App' > /home/testuser/projects/myapp/README.md
+      echo 'console.log("hello")' > /home/testuser/projects/myapp/index.js
+      echo '{"name": "myapp"}' > /home/testuser/projects/myapp/package.json
+      mkdir -p /home/testuser/documents
+      echo 'Some notes here' > /home/testuser/documents/notes.txt
+      chown -R testuser:testuser /home/testuser
+
+      # ---- Pull a sample container so Docker view isn't empty ----
+      docker pull nginx:alpine
+      docker run -d --name sample-nginx -p 8080:80 nginx:alpine
+
+      echo "=== HeadlessOS dev VM provisioning complete ==="

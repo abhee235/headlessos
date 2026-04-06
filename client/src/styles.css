@@ -1,0 +1,428 @@
+@import "tailwindcss";
+
+/* Enable class-based dark mode for TailwindCSS 4 */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── HeadlessOS Design Tokens ─────────────────────────────
+   oklch color system · shadcn/ui v2 compatible
+   All tokens registered via @theme inline so TailwindCSS 4
+   auto-generates utilities: bg-background, text-foreground,
+   border-border, bg-primary/10, text-muted-foreground, etc.
+   ──────────────────────────────────────────────────────── */
+
+@theme inline {
+  /* ── Core surface ── */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  /* ── Primary ── */
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  /* ── Secondary ── */
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  /* ── Muted ── */
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  /* ── Accent ── */
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  /* ── Semantic ── */
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+
+  /* ── Border / Input / Ring ── */
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* ── Chrome (window frame, title bar) ── */
+  --color-chrome: var(--chrome);
+  --color-chrome-foreground: var(--chrome-foreground);
+
+  /* ── Taskbar ── */
+  --color-taskbar: var(--taskbar);
+  --color-taskbar-foreground: var(--taskbar-foreground);
+
+  /* ── Sidebar ── */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* ── Charts ── */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* ── Custom: Overlay / Glass / Separator / Dock ── */
+  --color-overlay: var(--overlay);
+  --color-separator: var(--separator);
+  --color-glass: var(--glass);
+  --color-glass-foreground: var(--glass-foreground);
+  --color-glass-border: var(--glass-border);
+  --color-dock-hover: var(--dock-hover);
+  --color-dock-active: var(--dock-active);
+  --color-dock-indicator: var(--dock-indicator);
+
+  /* ── Radius ── */
+  --radius-sm: calc(var(--radius) - 0.25rem);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 0.25rem);
+  --radius-xl: calc(var(--radius) + 0.5rem);
+}
+
+:root {
+  --radius: 0.65rem;
+
+  /* ── Surface ── */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.141 0.005 285.823);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.141 0.005 285.823);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.141 0.005 285.823);
+
+  /* ── Primary ── */
+  --primary: oklch(0.488 0.243 264.376);
+  --primary-foreground: oklch(0.97 0.014 254.604);
+
+  /* ── Secondary ── */
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.21 0.006 285.885);
+
+  /* ── Muted ── */
+  --muted: oklch(0.967 0.001 286.375);
+  --muted-foreground: oklch(0.552 0.016 285.938);
+
+  /* ── Accent ── */
+  --accent: oklch(0.967 0.001 286.375);
+  --accent-foreground: oklch(0.21 0.006 285.885);
+
+  /* ── Semantic ── */
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.97 0.014 254.604);
+  --success: oklch(0.696 0.17 162.48);
+  --success-foreground: oklch(1 0 0);
+  --warning: oklch(0.795 0.184 86.047);
+  --warning-foreground: oklch(0.21 0.006 285.885);
+
+  /* ── Border / Input / Ring ── */
+  --border: oklch(0.92 0.004 286.32);
+  --input: oklch(0.92 0.004 286.32);
+  --ring: oklch(0.708 0 0);
+
+  /* ── Chrome ── */
+  --chrome: oklch(0.965 0.001 286.375);
+  --chrome-foreground: oklch(0.4 0.01 286);
+
+  /* ── Taskbar ── */
+  --taskbar: oklch(1 0 0);
+  --taskbar-foreground: oklch(0.4 0.01 286);
+
+  /* ── Sidebar ── */
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.141 0.005 285.823);
+  --sidebar-primary: oklch(0.546 0.245 262.881);
+  --sidebar-primary-foreground: oklch(0.97 0.014 254.604);
+  --sidebar-accent: oklch(0.967 0.001 286.375);
+  --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
+  --sidebar-border: oklch(0.92 0.004 286.32);
+  --sidebar-ring: oklch(0.708 0 0);
+
+  /* ── Charts ── */
+  --chart-1: oklch(0.809 0.105 251.813);
+  --chart-2: oklch(0.623 0.214 259.815);
+  --chart-3: oklch(0.546 0.245 262.881);
+  --chart-4: oklch(0.488 0.243 264.376);
+  --chart-5: oklch(0.424 0.199 265.638);
+
+  /* ── Overlay / Glass / Separator / Dock ── */
+  --overlay: oklch(0 0 0 / 40%);
+  --separator: oklch(0 0 0 / 6%);
+  --glass: oklch(1 0 0 / 88%);
+  --glass-foreground: oklch(0.141 0.005 285.823);
+  --glass-border: oklch(0 0 0 / 8%);
+  --dock-hover: oklch(1 0 0 / 10%);
+  --dock-active: oklch(1 0 0 / 20%);
+  --dock-indicator: oklch(1 0 0 / 80%);
+}
+
+.dark {
+  --background: oklch(0.141 0.005 285.823);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.21 0.006 285.885);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.21 0.006 285.885);
+  --popover-foreground: oklch(0.985 0 0);
+
+  --primary: oklch(0.488 0.243 264.376);
+  --primary-foreground: oklch(0.97 0.014 254.604);
+
+  --secondary: oklch(0.274 0.006 286.033);
+  --secondary-foreground: oklch(0.985 0 0);
+
+  --muted: oklch(0.274 0.006 286.033);
+  --muted-foreground: oklch(0.705 0.015 286.067);
+
+  --accent: oklch(0.274 0.006 286.033);
+  --accent-foreground: oklch(0.985 0 0);
+
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.141 0.005 285.823);
+  --success: oklch(0.765 0.177 163.223);
+  --success-foreground: oklch(0.141 0.005 285.823);
+  --warning: oklch(0.852 0.199 91.936);
+  --warning-foreground: oklch(0.141 0.005 285.823);
+
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+
+  --chrome: oklch(0.21 0.006 285.885);
+  --chrome-foreground: oklch(0.705 0.015 286.067);
+
+  --taskbar: oklch(0.178 0.005 285.823);
+  --taskbar-foreground: oklch(0.705 0.015 286.067);
+
+  --sidebar: oklch(0.21 0.006 285.885);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.623 0.214 259.815);
+  --sidebar-primary-foreground: oklch(0.97 0.014 254.604);
+  --sidebar-accent: oklch(0.274 0.006 286.033);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.439 0 0);
+
+  --chart-1: oklch(0.809 0.105 251.813);
+  --chart-2: oklch(0.623 0.214 259.815);
+  --chart-3: oklch(0.546 0.245 262.881);
+  --chart-4: oklch(0.488 0.243 264.376);
+  --chart-5: oklch(0.424 0.199 265.638);
+
+  --overlay: oklch(0 0 0 / 60%);
+  --separator: oklch(1 0 0 / 8%);
+  --glass: oklch(0.21 0.006 285.885 / 85%);
+  --glass-foreground: oklch(0.985 0 0);
+  --glass-border: oklch(1 0 0 / 12%);
+  --dock-hover: oklch(1 0 0 / 8%);
+  --dock-active: oklch(1 0 0 / 15%);
+  --dock-indicator: oklch(1 0 0 / 60%);
+}
+
+/* ── Base styles ── */
+* {
+  border-color: var(--border);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Glass utility classes ── */
+.glass {
+  background: var(--glass);
+  backdrop-filter: blur(40px) saturate(1.8);
+  -webkit-backdrop-filter: blur(40px) saturate(1.8);
+}
+
+.glass-subtle {
+  background: oklch(1 0 0 / 45%);
+  backdrop-filter: blur(24px) saturate(1.5);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+}
+
+.dark .glass-subtle {
+  background: oklch(0.21 0.006 285.885 / 55%);
+}
+
+.glass-heavy {
+  background: oklch(1 0 0 / 82%);
+  backdrop-filter: blur(48px) saturate(2);
+  -webkit-backdrop-filter: blur(48px) saturate(2);
+}
+
+.dark .glass-heavy {
+  background: oklch(0.21 0.006 285.885 / 88%);
+}
+
+/* ── Modern shadow presets ── */
+.shadow-glass {
+  box-shadow:
+    0 0 0 1px oklch(0 0 0 / 4%),
+    0 8px 40px -8px oklch(0 0 0 / 8%),
+    0 2px 8px -2px oklch(0 0 0 / 4%);
+}
+
+.dark .shadow-glass {
+  box-shadow:
+    0 0 0 1px oklch(1 0 0 / 6%),
+    0 8px 40px -8px oklch(0 0 0 / 50%),
+    0 2px 8px -2px oklch(0 0 0 / 30%);
+}
+
+.shadow-window {
+  box-shadow:
+    0 0 0 1px oklch(0 0 0 / 6%),
+    0 24px 80px -12px oklch(0 0 0 / 12%),
+    0 8px 24px -8px oklch(0 0 0 / 6%);
+}
+
+.dark .shadow-window {
+  box-shadow:
+    0 0 0 1px oklch(1 0 0 / 8%),
+    0 24px 80px -12px oklch(0 0 0 / 60%),
+    0 8px 24px -8px oklch(0 0 0 / 40%);
+}
+
+.shadow-window-unfocused {
+  box-shadow:
+    0 0 0 1px oklch(0 0 0 / 4%),
+    0 12px 40px -8px oklch(0 0 0 / 6%),
+    0 4px 12px -4px oklch(0 0 0 / 3%);
+}
+
+.dark .shadow-window-unfocused {
+  box-shadow:
+    0 0 0 1px oklch(1 0 0 / 5%),
+    0 12px 40px -8px oklch(0 0 0 / 40%),
+    0 4px 12px -4px oklch(0 0 0 / 30%);
+}
+
+.shadow-dock {
+  box-shadow:
+    0 0 0 1px oklch(0 0 0 / 5%),
+    0 16px 64px -16px oklch(0 0 0 / 10%),
+    0 4px 16px -4px oklch(0 0 0 / 5%);
+}
+
+.dark .shadow-dock {
+  box-shadow:
+    0 0 0 1px oklch(1 0 0 / 6%),
+    0 16px 64px -16px oklch(0 0 0 / 50%),
+    0 4px 16px -4px oklch(0 0 0 / 30%);
+}
+
+/* ── Animations ── */
+@keyframes contextMenuIn {
+  from { opacity: 0; transform: scale(0.96) translateY(-4px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes dialogIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideUpIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes dockBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes windowOpen {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes windowClose {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.92); }
+}
+
+.animate-contextMenuIn {
+  animation: contextMenuIn 0.15s cubic-bezier(0.2, 0, 0, 1) forwards;
+  transform-origin: var(--radix-context-menu-content-transform-origin, top left);
+}
+
+.animate-dialogIn {
+  animation: dialogIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slideUpIn {
+  animation: slideUpIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.15s ease-out forwards;
+}
+
+.animate-scaleIn {
+  animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-windowOpen {
+  animation: windowOpen 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+  20%, 40%, 60%, 80% { transform: translateX(4px); }
+}
+
+.animate-shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+/* ── Scrollbar polish ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: oklch(0 0 0 / 12%);
+  border-radius: 100px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(0 0 0 / 20%);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: oklch(1 0 0 / 10%);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: oklch(1 0 0 / 18%);
+}

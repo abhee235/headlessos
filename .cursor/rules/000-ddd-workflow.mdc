@@ -1,0 +1,76 @@
+---
+description: Core workflow rule — enforces Document-Driven Development for ALL tasks. Always active.
+globs:
+alwaysApply: true
+---
+
+# Document-Driven Development (DDD) Workflow
+
+You are working on HeadlessOS, a project that strictly follows Document-Driven Development.
+**Code is NEVER written before documentation is verified and updated.**
+
+## The DDD Loop (MANDATORY for every task)
+
+```
+1. READ docs first     →  Understand what exists
+2. UPDATE docs         →  Plan the change in documentation
+3. WRITE code          →  Implement what the docs describe
+4. VERIFY alignment    →  Code matches docs exactly
+5. UPDATE PROGRESS.md  →  Mark task complete
+```
+
+## Before Writing ANY Code
+
+You MUST complete this checklist:
+
+- [ ] Read `docs/CONTEXT.md` — do you understand the project?
+- [ ] Read `docs/PROGRESS.md` — what's the current Task ID (e.g., `M1.4`)?
+- [ ] Read the relevant phase doc `docs/phases/phase-{n}.md` — do you have the detailed spec?
+- [ ] Check `docs/TRACEABILITY.md` — what files already exist for this area?
+- [ ] Does the phase doc describe what you need to build? If YES → implement it. If NO → update the phase doc FIRST.
+- [ ] If this is a new architectural decision → add an ADR to `docs/DECISIONS.md` BEFORE coding.
+
+## When You Receive a Task
+
+### Step 1: Locate in Documentation
+Find where this task lives in the docs:
+- Check `docs/PROGRESS.md` for the **Task ID** (e.g., `M1.4`) and status
+- Check `docs/phases/phase-{n}.md` for the **detailed spec**
+- Check `docs/ARCHITECTURE.md` for architectural context
+- Check `docs/TRACEABILITY.md` to see what files already exist for this area
+
+### Step 2: Verify Documentation is Complete
+Before writing code, confirm the phase doc specifies:
+- **What** to build (feature description)
+- **Where** files go (file paths)
+- **How** it connects to other components (dependencies)
+- **Interfaces** (TypeScript types, API contracts)
+- **Verification criteria** (how to know it works)
+
+If any of these are missing → update the phase doc first.
+
+### Step 3: Update Dependency Graph
+If your change affects other components:
+- Update `docs/ARCHITECTURE.md` if data flow changes
+- Update `docs/API_SPEC.md` if API endpoints change
+- Update the relevant `docs/phases/phase-{n}.md` if task dependencies change
+- Update `shared/types.ts` if shared types change
+
+### Step 4: Implement
+NOW you can write code. Follow the spec in the phase doc exactly.
+- Add a header comment to primary files: `// M{x}.{y}: Task Title`
+- Use Task ID in git commits: `feat(M1.4): implement command orchestrator`
+
+### Step 5: Post-Implementation
+- Update `docs/PROGRESS.md` — mark task ✅
+- Update `docs/TRACEABILITY.md` — record files created, commits, verification results
+- If you deviated from the spec → update the phase doc to match reality
+- If you discovered a new task → add it to PROGRESS.md and the phase doc
+
+## NEVER Do These
+
+1. **NEVER write code without checking docs first**
+2. **NEVER add a feature that isn't documented**
+3. **NEVER change architecture without adding an ADR to DECISIONS.md**
+4. **NEVER skip updating PROGRESS.md after completing a task**
+5. **NEVER assume — if docs don't specify something, ask or document it first**

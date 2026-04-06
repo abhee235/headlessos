@@ -1,0 +1,77 @@
+---
+description: Rules for backend TypeScript files in server/src/
+globs: server/src/**/*.ts
+---
+
+# Backend Development Rules
+
+## Code Style
+- TypeScript strict mode — no `any` types unless absolutely unavoidable
+- Async/await over callbacks or raw promises
+- Zod schemas for all data structures that cross boundaries
+- Fastify patterns (register, decorators, schemas) — NOT Express
+
+## Service Pattern (MANDATORY)
+Every backend module MUST extend `BaseService` and register in `ServiceContainer`:
+
+```typescript
+import { BaseService } from '../services/base-service';
+
+export class MyService extends BaseService {
+  protected async _construct(): Promise<void> {
+    // Set up data structures. No cross-service deps here.
+  }
+
+  protected async _init(): Promise<void> {
+    // Wire to other services. this.services.get('name') works here.
+  }
+
+  protected async _destroy(): Promise<void> {
+    // Cleanup: close connections, clear intervals.
+  }
+}
+```
+
+Register in boot sequence: `container.register('my-service', new MyService('my-service'))`
+
+## SSH Rules
+- Use `ssh2` directly — NOT node-ssh or wrappers
+- `exec()` for one-shot data collection (parallel, ephemeral channels)
+- `shell()` for interactive terminal (persistent, one per connection)
+- `sftp()` for file operations (lazy-initialized, reused)
+- NEVER run `exec('cat ...',)` for file reads — use SFTP
+
+## Parsing Pipeline
+All command output goes through `ParsingPipeline.parse()`:
+1. Strip ANSI via `strip-ansi`
+2. Try deterministic parser (regex, <1ms, free)
+3. Fall back to LLM (1-3s, costs money)
+4. Validate with Zod schema
+
+## Command Orchestrator
+Multi-command views use `CommandOrchestrator.execute()`:
+- Define an `ExecutionPlan` with steps
+- Steps run in parallel unless `dependsOn` is specified
+- On parse failure → retry with Zod error context
+- On command failure → try `fallbackCommands`
+
+## Security
+- NEVER interpolate user input into shell commands: `exec(\`rm ${userPath}\`)` ← BANNED
+- Validate: paths (no `../`), container IDs (hex only), PIDs (integer only)
+- Command allowlists for any dynamic command execution
+- See `docs/SECURITY.md` for full rules
+
+## File Locations
+| Purpose | Path |
+|---------|------|
+| Entry point | `server/src/index.ts` |
+| Services | `server/src/services/` |
+| SSH | `server/src/ssh/connection-manager.ts` |
+| Orchestrator | `server/src/orchestrator/orchestrator.ts` |
+| LLM interface | `server/src/llm/provider.ts` |
+| LLM providers | `server/src/llm/providers/` |
+| Parsing pipeline | `server/src/parsers/pipeline.ts` |
+| Deterministic parsers | `server/src/parsers/deterministic/` |
+| Zod schemas | `server/src/parsers/schemas/` |
+| API routes | `server/src/routes/` |
+| Config store | `server/src/config/store.ts` |

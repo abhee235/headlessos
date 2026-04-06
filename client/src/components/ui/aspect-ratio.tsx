@@ -1,0 +1,6 @@
+// shadcn/ui: Aspect Ratio — maintain aspect ratio for media
+import * as AspectRatioPrimitive from "@radix-ui/react-aspect-ratio";
+
+const AspectRatio = AspectRatioPrimitive.Root;
+
+export { AspectRatio };
