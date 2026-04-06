@@ -17,6 +17,11 @@ export function useKeyboardShortcuts() {
   const activeServerId = useAppStore(s => s.activeServerId);
   const toggleStartMenu = useDesktopStore(s => s.toggleStartMenu);
   const closeWindow = useDesktopStore(s => s.closeWindow);
+  const snapWindow = useDesktopStore(s => s.snapWindow);
+  const maximizeWindow = useDesktopStore(s => s.maximizeWindow);
+  const restoreWindow = useDesktopStore(s => s.restoreWindow);
+  const minimizeWindow = useDesktopStore(s => s.minimizeWindow);
+  const toggleShowDesktop = useDesktopStore(s => s.toggleShowDesktop);
   const windows = useDesktopStore(s => s.windows);
 
   useEffect(() => {
@@ -41,6 +46,13 @@ export function useKeyboardShortcuts() {
       if (isMeta && e.code === 'Space') {
         e.preventDefault();
         toggleStartMenu();
+        return;
+      }
+
+      // Ctrl+D — Show/restore desktop
+      if (isMeta && e.key === 'd') {
+        e.preventDefault();
+        toggleShowDesktop();
         return;
       }
 
@@ -69,18 +81,52 @@ export function useKeyboardShortcuts() {
       if (isMeta && e.shiftKey && e.key === 'Escape' && activeServerId) {
         e.preventDefault();
         openTab(
-          { id: 'task-manager', name: 'Task Manager', icon: 'Activity', description: 'Running processes', requiredTools: [], singleInstance: true },
+          { id: 'taskmanager', name: 'Task Manager', icon: 'Activity', description: 'Running processes', requiredTools: [], singleInstance: true },
           activeServerId,
         );
         return;
+      }
+
+      // ── Window snap shortcuts (Ctrl+Arrow) ──
+      const focused = windows.find(w => w.focused && !w.minimized);
+      if (focused && isMeta) {
+        // Ctrl+Up — Maximize
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          if (!focused.maximized) maximizeWindow(focused.id);
+          return;
+        }
+        // Ctrl+Down — Restore / Minimize
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          if (focused.maximized || focused.preSnap) {
+            restoreWindow(focused.id);
+          } else {
+            minimizeWindow(focused.id);
+          }
+          return;
+        }
+        // Ctrl+Left — Snap left
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          snapWindow(focused.id, 'left');
+          return;
+        }
+        // Ctrl+Right — Snap right
+        if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          snapWindow(focused.id, 'right');
+          return;
+        }
       }
     };
 
     window.addEventListener('keydown', handler, true);
     return () => window.removeEventListener('keydown', handler, true);
   }, [
-    toggleStartMenu, openTab, tabs, activeTabId, setActiveTab,
-    closeWindow, windows, activeServerId,
+    toggleStartMenu, toggleShowDesktop, openTab, tabs, activeTabId, setActiveTab,
+    closeWindow, snapWindow, maximizeWindow, restoreWindow, minimizeWindow,
+    windows, activeServerId,
   ]);
 }
 
@@ -93,9 +139,15 @@ export const SHORTCUT_REFERENCE = {
   global: [
     { keys: 'Alt+F4', description: 'Close focused window' },
     { keys: 'Ctrl+Space', description: 'Toggle start menu' },
+    { keys: 'Ctrl+D', description: 'Show desktop' },
+    { keys: 'Ctrl+K', description: 'Open command palette' },
     { keys: 'Ctrl+Tab', description: 'Cycle windows' },
     { keys: 'Ctrl+`', description: 'Open terminal' },
     { keys: 'Ctrl+Shift+Esc', description: 'Open Task Manager' },
+    { keys: 'Ctrl+Up', description: 'Maximize window' },
+    { keys: 'Ctrl+Down', description: 'Restore / Minimize window' },
+    { keys: 'Ctrl+Left', description: 'Snap window left' },
+    { keys: 'Ctrl+Right', description: 'Snap window right' },
   ],
   fileExplorer: [
     { keys: 'Ctrl+C', description: 'Copy selected files' },

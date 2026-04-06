@@ -15,6 +15,7 @@ export interface ServerConfig {
   password?: string;
   privateKeyPath?: string;
   passphrase?: string;
+  tags?: string[];
 }
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';

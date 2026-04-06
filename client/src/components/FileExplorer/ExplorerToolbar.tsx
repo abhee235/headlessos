@@ -8,6 +8,8 @@ import {
   Folder,
   File,
   Grid3x3,
+  PanelLeftClose,
+  Columns2,
 } from 'lucide-react';
 
 export type ViewMode = 'details' | 'list' | 'small-icons' | 'large-icons';
@@ -20,6 +22,8 @@ interface ExplorerToolbarProps {
   onActionComplete: () => void;
   entryCount: number;
   onStartCreate: (type: 'file' | 'folder') => void;
+  splitPane?: boolean;
+  onToggleSplitPane?: () => void;
 }
 
 const VIEW_MODES: { mode: ViewMode; icon: React.ReactNode; label: string }[] = [
@@ -37,6 +41,8 @@ export function ExplorerToolbar({
   onActionComplete,
   entryCount,
   onStartCreate,
+  splitPane,
+  onToggleSplitPane,
 }: ExplorerToolbarProps) {
   return (
     <div className="flex items-center gap-2 px-3 py-2 border-b border-border/30">
@@ -68,6 +74,21 @@ export function ExplorerToolbar({
 
       {/* Item count */}
       <span className="text-[12px] text-foreground/40 mr-1 tabular-nums">{entryCount} items</span>
+
+      {/* Split pane toggle */}
+      {onToggleSplitPane && (
+        <button
+          onClick={onToggleSplitPane}
+          className={`p-2 rounded-lg transition-all duration-150 ${
+            splitPane
+              ? 'bg-primary/10 text-primary'
+              : 'text-foreground/50 hover:text-foreground hover:bg-foreground/4'
+          }`}
+          title={splitPane ? 'Close split pane' : 'Split pane view'}
+        >
+          {splitPane ? <PanelLeftClose className="w-4 h-4" /> : <Columns2 className="w-4 h-4" />}
+        </button>
+      )}
 
       {/* View mode switcher — pill capsule */}
       <div className="flex items-center bg-foreground/[0.05] rounded-full p-0.5">

@@ -78,9 +78,13 @@ export function WindowFrame({ win, children }: WindowFrameProps) {
     const atLeft = clientX <= EDGE;
     const atRight = clientX >= screenW - EDGE;
     const atTop = clientY <= EDGE;
+    const screenH = window.innerHeight;
+    const atBottom = clientY >= screenH - EDGE;
 
     if (atTop && atLeft) return 'top-left';
     if (atTop && atRight) return 'top-right';
+    if (atBottom && atLeft) return 'bottom-left';
+    if (atBottom && atRight) return 'bottom-right';
     if (atTop) return 'maximize';
     if (atLeft) return 'left';
     if (atRight) return 'right';
@@ -208,8 +212,14 @@ export function WindowFrame({ win, children }: WindowFrameProps) {
           ? 'border-black/8 dark:border-white/12'
           : 'border-black/4 dark:border-white/6'
         }
+        animate-windowOpen
       `}
-      style={style}
+      style={{
+        ...style,
+        transition: win.maximized || win.preSnap
+          ? 'top 150ms ease-out, left 150ms ease-out, right 150ms ease-out, bottom 150ms ease-out, width 150ms ease-out, height 150ms ease-out, box-shadow 300ms ease-out'
+          : 'box-shadow 300ms ease-out',
+      }}
       onMouseDown={() => {
         if (!win.focused) focusWindow(win.id);
       }}

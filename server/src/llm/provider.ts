@@ -8,6 +8,8 @@ export interface ParseTextInput<T> {
   command: string;
   schema: ZodSchema<T>;
   context?: string;       // retry context (e.g., Zod error message from previous attempt)
+  systemPrompt?: string;  // override the default system prompt (e.g., for agent mode)
+  userPrompt?: string;    // override the default user prompt (e.g., for agent mode)
 }
 
 export interface ParseImageInput<T> {

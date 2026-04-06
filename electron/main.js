@@ -1,0 +1,174 @@
+// M11.2: Electron Main Process
+// @see docs/phases/phase-6.md (B.9: Electron Wrapper)
+//
+// Loads the HeadlessOS web app in a native window.
+// In dev mode, connects to localhost:3000 (Vite dev server).
+// In production, loads the built client from ../client/dist/.
+
+const { app, BrowserWindow, Menu, shell, dialog } = require('electron');
+const path = require('path');
+
+const IS_DEV = process.argv.includes('--dev') || process.env.NODE_ENV === 'development';
+const DEV_URL = 'http://localhost:3000';
+const PROD_PATH = path.join(__dirname, '..', 'client', 'dist', 'index.html');
+
+let mainWindow = null;
+
+function createWindow() {
+  mainWindow = new BrowserWindow({
+    width: 1400,
+    height: 900,
+    minWidth: 800,
+    minHeight: 600,
+    title: 'HeadlessOS',
+    icon: path.join(__dirname, 'icons', 'icon.png'),
+    backgroundColor: '#09090b', // zinc-950
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+    },
+    // Frameless for custom title bar (matches the web app's design)
+    titleBarStyle: 'hiddenInset',
+    trafficLightPosition: { x: 12, y: 12 },
+    show: false, // Show after ready-to-show to avoid flash
+  });
+
+  // Load the app
+  if (IS_DEV) {
+    mainWindow.loadURL(DEV_URL);
+    // Open DevTools in dev mode
+    mainWindow.webContents.openDevTools({ mode: 'detach' });
+  } else {
+    mainWindow.loadFile(PROD_PATH);
+  }
+
+  // Show window when content is ready (avoids white flash)
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
+    mainWindow.focus();
+  });
+
+  // Open external links in the default browser
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('http')) {
+      shell.openExternal(url);
+    }
+    return { action: 'deny' };
+  });
+
+  // Clean up
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
+}
+
+// ── Application Menu ────────────────────────────────────
+
+function createMenu() {
+  const template = [
+    {
+      label: 'HeadlessOS',
+      submenu: [
+        { label: 'About HeadlessOS', role: 'about' },
+        { type: 'separator' },
+        { label: 'Preferences…', accelerator: 'CmdOrCtrl+,', click: () => {
+          if (mainWindow) {
+            mainWindow.webContents.send('open-settings');
+          }
+        }},
+        { type: 'separator' },
+        { label: 'Hide HeadlessOS', role: 'hide' },
+        { label: 'Hide Others', role: 'hideOthers' },
+        { label: 'Show All', role: 'unhide' },
+        { type: 'separator' },
+        { label: 'Quit', role: 'quit' },
+      ],
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'selectAll' },
+      ],
+    },
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload' },
+        { role: 'forceReload' },
+        { role: 'toggleDevTools' },
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' },
+      ],
+    },
+    {
+      label: 'Window',
+      submenu: [
+        { role: 'minimize' },
+        { role: 'zoom' },
+        { type: 'separator' },
+        { role: 'front' },
+        { type: 'separator' },
+        { role: 'close' },
+      ],
+    },
+    {
+      label: 'Help',
+      submenu: [
+        {
+          label: 'Documentation',
+          click: () => shell.openExternal('https://github.com/headlessos/headlessos'),
+        },
+        {
+          label: 'Report Issue',
+          click: () => shell.openExternal('https://github.com/headlessos/headlessos/issues'),
+        },
+      ],
+    },
+  ];
+
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
+}
+
+// ── App Lifecycle ───────────────────────────────────────
+
+app.whenReady().then(() => {
+  createMenu();
+  createWindow();
+
+  // macOS: Re-create window when dock icon is clicked
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
+  });
+});
+
+// Quit when all windows are closed (except macOS)
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});
+
+// Security: prevent new windows from being created
+app.on('web-contents-created', (_event, contents) => {
+  contents.on('will-navigate', (event, url) => {
+    // Allow navigation within the app
+    if (IS_DEV && url.startsWith(DEV_URL)) return;
+    if (!IS_DEV && url.startsWith('file://')) return;
+    event.preventDefault();
+  });
+});

@@ -12,6 +12,8 @@ import { NavigationPane } from './NavigationPane';
 import { ExplorerToolbar, type ViewMode } from './ExplorerToolbar';
 import { usePreferencesStore } from '../../store/preferences-store';
 import { DisconnectedState } from '@/components/ui/disconnected-state';
+import { UploadDropZone } from './UploadDropZone';
+import { SplitPaneExplorer } from './SplitPaneExplorer';
 
 interface FileExplorerViewProps {
   serverId: string;
@@ -25,6 +27,7 @@ export function FileExplorerView({ serverId }: FileExplorerViewProps) {
   const [viewingFile, setViewingFile] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>(() => usePreferencesStore.getState().explorerViewMode);
   const [selectedCount, setSelectedCount] = useState(0);
+  const [splitPane, setSplitPane] = useState(false);
 
   // Ref to expose FileList's startCreate to the toolbar
   const startCreateRef = useRef<((type: 'file' | 'folder') => void) | null>(null);
@@ -173,10 +176,23 @@ export function FileExplorerView({ serverId }: FileExplorerViewProps) {
           onActionComplete={handleActionComplete}
           entryCount={entries.length}
           onStartCreate={handleStartCreate}
+          splitPane={splitPane}
+          onToggleSplitPane={() => setSplitPane(s => !s)}
         />
 
         {/* File content area */}
-        <div className="flex-1 min-h-0 bg-background">
+        {splitPane ? (
+          <SplitPaneExplorer
+            serverId={serverId}
+            initialPath={currentPath}
+          />
+        ) : (
+        <UploadDropZone
+          serverId={serverId}
+          currentPath={currentPath}
+          onUploadComplete={handleRefresh}
+        >
+          <div className="flex-1 min-h-0 bg-background h-full">
           {loading && (
             <div className="flex items-center justify-center h-full">
               <div className="flex items-center gap-2 text-muted-foreground">
@@ -223,7 +239,9 @@ export function FileExplorerView({ serverId }: FileExplorerViewProps) {
               onSelectionChange={setSelectedCount}
             />
           )}
-        </div>
+          </div>
+        </UploadDropZone>
+        )}
 
         {/* Status bar */}
         <div className="flex items-center justify-between px-3 py-1 border-t border-border/20 text-[11px] text-foreground/40">

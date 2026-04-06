@@ -1,0 +1,45 @@
+{
+  "name": "headlessos-desktop",
+  "version": "0.1.0",
+  "description": "HeadlessOS — Desktop App",
+  "main": "main.js",
+  "author": "HeadlessOS",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win",
+    "build:linux": "electron-builder --linux"
+  },
+  "build": {
+    "appId": "com.headlessos.app",
+    "productName": "HeadlessOS",
+    "directories": {
+      "output": "dist"
+    },
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "icon": "icons/icon.icns",
+      "target": ["dmg", "zip"]
+    },
+    "win": {
+      "icon": "icons/icon.ico",
+      "target": ["nsis", "portable"]
+    },
+    "linux": {
+      "icon": "icons",
+      "target": ["AppImage", "deb"],
+      "category": "Development"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "icons/**"
+    ]
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  }
+}

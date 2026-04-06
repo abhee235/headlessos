@@ -27,7 +27,10 @@
 | M5: Polish + Security + Testing | Week 5 | ✅ | 6/6 tasks | [phase-5](phases/phase-5.md) |
 | M6: Desktop UI System | Week 6-7 | ✅ | 11/11 tasks | [phase-6](phases/phase-6.md) |
 | M7: System Settings | Week 8 | 🔄 | 5/6 tasks | [phase-7](phases/phase-7.md) |
-| M8: Server Admin CRUD | Week 9-10 | 🔄 | 4/8 tasks | [phase-8](phases/phase-8.md) |
+| M8: Server Admin CRUD | Week 9-10 | ✅ | 8/8 tasks | [phase-8](phases/phase-8.md) |
+| M9: Desktop Polish & Core UX | Week 11 | ✅ | 12/12 tasks | — |
+| M10: Advanced Features | Week 12-14 | ✅ | 10/10 tasks | — |
+| M11: Fleet, Agent & Platform | Week 15-16 | ✅ | 7/7 tasks | — |
 
 ---
 
@@ -166,6 +169,56 @@ Example:
 
 ---
 
+## M9: Desktop Polish & Core UX
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| M9.1 | Bug Fixes | ✅ | App registry IDs fixed, Task Manager shortcut, "This PC" icon, desktop refresh, server bind 127.0.0.1 |
+| M9.2 | Dynamic Recently Used | ✅ | recentApps in preferences-store, recordAppUsage, Start Menu dynamic rendering |
+| M9.3 | Dynamic Pin/Unpin Taskbar | ✅ | pinnedAppIds in preferences, pin/unpin context menu, Taskbar dynamic rendering |
+| M9.4 | Keyboard Shortcuts Reference | ✅ | 'keyboard' page in Settings, KeyboardShortcutsPage with 11 global + 9 file explorer shortcuts |
+| M9.5 | Command Palette | ✅ | Ctrl+K searchable palette: Apps, Actions (theme/start menu), Settings pages |
+| M9.6 | Window Animations | ✅ | CSS keyframes windowOpen/windowClose, animate-windowOpen class, smooth snap transitions |
+| M9.7 | Complete Snap Zones | ✅ | bottom-left/bottom-right quarter snap, Ctrl+Arrow keyboard shortcuts |
+| M9.8 | Show Desktop | ✅ | toggleShowDesktop in window-store, thin peek strip in Taskbar, Ctrl+D shortcut |
+| M9.9 | See All Apps View | ✅ | ALL_APPS alphabetical list, "See all"/"Back" toggle in Start Menu |
+| M9.10 | Start Menu Keyboard Nav | ✅ | Arrow key/Enter/Escape navigation, visual focus ring highlight |
+| M9.11 | Wire autoRefreshInterval | ✅ | Dashboard/Docker/Services use preferences autoRefreshInterval (with per-view minimums) |
+| M9.12 | First-Run Onboarding | ✅ | WelcomeDialog 5-step wizard, hasSeenOnboarding preference flag |
+
+---
+
+## M10: Advanced Features
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| M10.1 | Notification Center Panel | ✅ | Zustand store, NotificationBell in system tray, slide-out panel with dismiss/read/clear |
+| M10.2 | Multi-Server Sidebar | ✅ | Fixed left sidebar (w-14), server initials, status indicators, context menu connect/disconnect/remove |
+| M10.3 | Drag-and-Drop File Upload | ✅ | Backend multipart upload endpoint, XHR progress tracking, UploadDropZone overlay with progress bar |
+| M10.4 | Split-Pane File Explorer | ✅ | SplitPaneExplorer with ResizablePanelGroup, MiniFileList per pane, toolbar toggle button |
+| M10.5 | App Permission System | ✅ | 15 capability types, per-app defaults, override grant/revoke, localStorage persistence, risk levels |
+| M10.6 | IPC Pub-Sub Event Bus | ✅ | Typed EventMap (35+ event types), on/once/emit/off, history tracking, useEventBus React hook |
+| M10.7 | LLM Provider Config | ✅ | Backend GET/PUT /api/llm/config + /models routes, AI/LLM settings page in Settings, live provider switching |
+| M10.8 | Plugin / Extension API | ✅ | Zod PluginManifestSchema, PluginRegistry with activate/deactivate lifecycle, disposable cleanup |
+| M10.9 | E2E Test Suite | ✅ | Unit tests for EventBus, PermissionSystem, PluginRegistry, NotificationStore (4 test files, 35+ tests) |
+| M10.10 | Performance Optimization | ✅ | React.lazy code splitting for all views + screens, Suspense boundaries, Vite manual chunks vendor splitting |
+
+---
+
+## M11: Fleet, Agent & Platform
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| M11.1 | Multi-Server Fleet Dashboard | ✅ | Fleet route (GET /api/fleet/overview), FleetDashboardView with server cards, totals bar, auto-refresh |
+| M11.2 | Electron Desktop Wrapper | ✅ | electron/ directory: main.js, preload.js, package.json, macOS menu, hiddenInset title bar |
+| M11.3 | Community Plugin Manager UI | ✅ | Plugins page in Settings: install from URL, activate/deactivate/remove, permission reference |
+| M11.4 | Server Groups & Tags | ✅ | tags?: string[] in ServerConfig, PUT /api/servers/:id/tags, fleet overview includes tags |
+| M11.5 | ReAct Investigation Agent | ✅ | InvestigationAgent class (50+ allowlist, 15 blocked, ReAct loop), agent routes, AgentView frontend, 73 tests |
+| M11.6 | Agent Progress Streaming | ✅ | WebSocket /ws/agent/:id/:sessionId, real-time step display, abort support |
+| M11.7 | Bug Fixes & Type Safety | ✅ | Fixed pinnedAppIds type, fleet.ts mountPoint/getServers, SettingsView LLM config type |
+
+---
+
 ## Backlog (Future)
 
 | # | Task | Priority | Notes |
@@ -177,13 +230,13 @@ Example:
 | B.5 | ~~Nginx/Apache config viewer~~ | — | **Covered by M7.2** (Web Server section) |
 | B.6 | PM2 app | Medium | Node.js process manager |
 | B.7 | ~~Log viewer app~~ | — | **Covered by M7.2** (Logs section) |
-| B.8 | Multi-server overview dashboard | Medium | Aggregate stats across servers |
-| B.9 | Electron wrapper | Low | Desktop app experience |
-| B.10 | Community plugin system | Low | See ADR-012 |
-| B.11 | Keyboard shortcuts | Medium | Ctrl+`, Ctrl+Tab, etc. |
-| B.12 | Server groups / tags | Low | Organize servers |
-| B.13 | ReAct investigation agent | Medium | See ADR-013, ADR-014 |
-| B.14 | Agent progress streaming | Medium | Real-time agent status + abort |
+| B.8 | ~~Multi-server overview dashboard~~ | — | **Covered by M11.1** (Fleet Dashboard) |
+| B.9 | ~~Electron wrapper~~ | — | **Covered by M11.2** (Electron Wrapper) |
+| B.10 | ~~Community plugin system~~ | — | **Covered by M11.3** (Plugin Manager UI) |
+| B.11 | ~~Keyboard shortcuts~~ | — | **Covered by M9.4/M9.5** (keyboard reference + command palette) |
+| B.12 | ~~Server groups / tags~~ | — | **Covered by M11.4** (Server Tags in Fleet) |
+| B.13 | ~~ReAct investigation agent~~ | — | **Covered by M11.5** (AI Investigation Agent) |
+| B.14 | ~~Agent progress streaming~~ | — | **Covered by M11.6** (Agent WebSocket + UI) |
 
 ---
 
@@ -193,6 +246,10 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-04-06 | **M11 ✅** Fleet, Agent & Platform complete (7/7 tasks): M11.1 Fleet Dashboard (fleet route + aggregate stats + server cards UI), M11.2 Electron Wrapper (main.js + preload.js + package.json + macOS menu), M11.3 Plugin Manager UI (Settings page: install from URL, activate/deactivate/remove, permission reference), M11.4 Server Tags (tags field in ServerConfig, fleet route tag support), M11.5 ReAct Agent (InvestigationAgent class with 50+ allowlist patterns, 15 blocked patterns, ReAct loop, AgentView frontend), M11.6 Agent Streaming (WebSocket endpoint + real-time step UI). Also fixed: pinnedAppIds type error, fleet.ts mountPoint/getServers, SettingsView LLM config type. 535 tests (406 server + 129 client) all passing. |
+| 2026-04-10 | **M10 ✅** Advanced Features complete (10/10 tasks): M10.1 Notification Center (store + bell icon + slide-out panel), M10.2 Multi-Server Sidebar (initials, status dots, context menu), M10.3 Drag-and-Drop Upload (multipart backend + XHR progress + drop zone), M10.4 Split-Pane Explorer (ResizablePanelGroup + MiniFileList), M10.5 App Permissions (15 capabilities, overrides, persistence), M10.6 IPC Event Bus (35+ typed events, useEventBus hook), M10.7 LLM Config UI (backend routes + AI settings page), M10.8 Plugin API (Zod manifest schema, registry lifecycle), M10.9 Test Suite (4 test files: event-bus, permissions, plugins, notification-store), M10.10 Performance (React.lazy code splitting, Suspense, Vite manual chunks). |
+| 2026-04-09 | **M9 ✅** Desktop Polish & Core UX complete (12/12 tasks): M9.1 bug fixes (registry IDs, bind address), M9.2 dynamic recently used, M9.3 pin/unpin taskbar, M9.4 keyboard shortcuts reference, M9.5 command palette (Ctrl+K), M9.6 window animations, M9.7 complete snap zones (6 zones + Ctrl+Arrow), M9.8 show desktop (Ctrl+D + peek strip), M9.9 see all apps view, M9.10 start menu keyboard nav, M9.11 wire autoRefreshInterval, M9.12 first-run onboarding wizard. 412 tests (333 server + 79 client) passing. |
+| 2026-04-09 | **M8 ✅** Server Admin CRUD complete (8/8 tasks): M8.5 cron management, M8.6 user/session management, M8.7 network management, M8.8 log enhancements. Fixed M8 progress count (was showing 4/8, all 8 tasks were completed). |
 | 2026-04-08 | **M8.4 ✅** Package Management: validatePackageName/validateSearchQuery validators, apt allowlist expansion (update/install/remove/upgrade/search), parseAptSearchResults parser, 6 new routes (apt update, upgrade-all, install, remove, upgrade, search), 7 new API client functions, PackagesSection rewrite with tabbed UI (Upgradable + Search & Install), per-package upgrade buttons, install/remove with confirmation dialogs, debounced search. 359 tests (280 server + 79 client) passing. |
 | 2026-04-08 | **M7.4-M7.6 ✅** Settings expansion: Appearance (8 oklch accent color presets wired to --primary/--ring CSS vars, theme auto mode with prefers-color-scheme listener, desktop icon size), General (clock format 12h/24h wired to Taskbar, auto-refresh interval select), Notifications & Data (toast show/hide/position, clear cache, reset all settings with ConfirmDialog). Updated preferences-store (6 new fields + ACCENT_PRESETS), rewrote theme-store (auto mode + resolvedTheme), SettingsView (6 pages: General/Appearance/Wallpaper/Terminal/Notifications/About). 307 tests (228 server + 79 client) passing. |
 | 2026-04-08 | **M6 ✅** Desktop UI System complete: M6.3 wallpaper (confirmed done), M6.5 window snap-to-edges + preview overlay, M6.7 clipboard store + copy/move endpoints + context menu wiring, M6.8 toasts (confirmed done), M6.9 useKeyboardShortcuts hook (Alt+F4, Ctrl+Space/Tab/`/Shift+Esc), M6.10 useSelection hook (click/Ctrl/Shift+click, visual highlight, status bar count), M6.11 Lock + Switch User in StartMenu. 292 tests (228 server + 64 client) all passing. |

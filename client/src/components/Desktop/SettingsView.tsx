@@ -15,7 +15,11 @@ import {
   TerminalSquare,
   Settings2,
   Bell,
+  Keyboard,
+  Brain,
+  Puzzle,
 } from 'lucide-react';
+import { SHORTCUT_REFERENCE } from '../../hooks/useKeyboardShortcuts';
 import { usePreferencesStore, ACCENT_PRESETS, type CursorStyle, type DateFormat, type ToastPosition } from '../../store/preferences-store';
 import { useThemeStore, type Theme } from '../../store/theme-store';
 import {
@@ -31,10 +35,11 @@ import { WallpaperPreview } from './Wallpaper';
 import { cn } from '../../lib/utils';
 import { ConfirmDialog } from '../ui/confirm-dialog';
 import { toast } from 'sonner';
+import { fetchLLMConfig, updateLLMConfig, fetchLLMModels, type LLMConfig, type LLMModelInfo } from '../../lib/api';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type PageId = 'general' | 'appearance' | 'wallpaper' | 'terminal' | 'notifications' | 'about';
+type PageId = 'general' | 'appearance' | 'wallpaper' | 'terminal' | 'keyboard' | 'notifications' | 'ai' | 'plugins' | 'about';
 
 interface SidebarEntry {
   id: PageId;
@@ -69,10 +74,28 @@ const SIDEBAR: SidebarEntry[] = [
     iconBg: 'bg-zinc-800',
   },
   {
+    id: 'keyboard',
+    label: 'Keyboard Shortcuts',
+    icon: <Keyboard size={14} className="text-white" />,
+    iconBg: 'bg-amber-500',
+  },
+  {
     id: 'notifications',
     label: 'Notifications',
     icon: <Bell size={14} className="text-white" />,
     iconBg: 'bg-rose-500',
+  },
+  {
+    id: 'ai',
+    label: 'AI / LLM',
+    icon: <Brain size={14} className="text-white" />,
+    iconBg: 'bg-violet-500',
+  },
+  {
+    id: 'plugins',
+    label: 'Plugins',
+    icon: <Puzzle size={14} className="text-white" />,
+    iconBg: 'bg-emerald-500',
   },
   {
     id: 'about',
@@ -1002,6 +1025,203 @@ function NotificationsPage() {
 
 // ─── About Page ─────────────────────────────────────────────────────────────
 
+function KeyboardShortcutsPage() {
+  const sections = [
+    { title: 'Global', shortcuts: SHORTCUT_REFERENCE.global },
+    { title: 'File Explorer', shortcuts: SHORTCUT_REFERENCE.fileExplorer },
+  ];
+
+  return (
+    <div className="space-y-5 max-w-lg">
+      {sections.map((section) => (
+        <div key={section.title}>
+          <SectionHeader title={section.title} />
+          <GroupedCard>
+            {section.shortcuts.map((s, i) => (
+              <div
+                key={s.keys}
+                className={cn(
+                  'flex items-center justify-between px-3 py-2.5 text-[13px]',
+                  i < section.shortcuts.length - 1 && 'border-b border-border',
+                )}
+              >
+                <span className="text-foreground">{s.description}</span>
+                <kbd className="inline-flex items-center gap-0.5">
+                  {s.keys.split('+').map((key, ki) => (
+                    <span key={ki} className="flex items-center gap-0.5">
+                      {ki > 0 && (
+                        <span className="text-muted-foreground text-[10px] mx-0.5">+</span>
+                      )}
+                      <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[11px] font-mono border border-border shadow-sm">
+                        {key}
+                      </span>
+                    </span>
+                  ))}
+                </kbd>
+              </div>
+            ))}
+          </GroupedCard>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── AI / LLM Page (M10.7) ──────────────────────────────────────────────────
+
+function AIPage() {
+  const [config, setConfig] = useState<LLMConfig | null>(null);
+  const [models, setModels] = useState<Record<string, LLMModelInfo[]>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  // Form state
+  const [provider, setProvider] = useState('none');
+  const [apiKey, setApiKey] = useState('');
+  const [model, setModel] = useState('gpt-4o-mini');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [configRes, modelsRes] = await Promise.all([fetchLLMConfig(), fetchLLMModels()]);
+        if (configRes.data) {
+          setConfig(configRes.data);
+          setProvider(configRes.data.provider);
+          setModel(configRes.data.model);
+        }
+        if (modelsRes.data) setModels(modelsRes.data);
+      } catch { /* ignore */ }
+      setLoading(false);
+    })();
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const body: { provider: string; apiKey?: string; model?: string } = { provider };
+      if (provider !== 'none') {
+        if (apiKey) body.apiKey = apiKey;
+        body.model = model;
+      }
+      const res = await updateLLMConfig(body);
+      if (res.success && res.data) {
+        setConfig(res.data);
+        setApiKey('');
+        toast.success('LLM configuration saved');
+      } else {
+        toast.error(res.error ?? 'Failed to save configuration');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Save failed');
+    }
+    setSaving(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <span className="text-sm text-muted-foreground">Loading LLM configuration…</span>
+      </div>
+    );
+  }
+
+  const providerModels = models[provider] ?? [];
+
+  return (
+    <div className="space-y-5">
+      {/* Status */}
+      <GroupedCard>
+        <GroupedRow
+          label="Status"
+          value={
+            <span className={config?.hasApiKey ? 'text-green-400' : 'text-muted-foreground'}>
+              {config?.hasApiKey ? '● Active' : '○ Disabled'}
+            </span>
+          }
+        />
+        <GroupedRow label="Provider" value={config?.provider === 'none' ? 'None' : 'OpenAI'} />
+        <GroupedRow label="Model" value={config?.model || '—'} last />
+      </GroupedCard>
+
+      {/* Provider Selection */}
+      <SectionHeader title="Provider" />
+      <GroupedCard>
+        <GroupedRow
+          label="None (deterministic only)"
+          value={provider === 'none' ? <Check size={16} className="text-primary" /> : null}
+          onClick={() => setProvider('none')}
+        />
+        <GroupedRow
+          label="OpenAI"
+          value={provider === 'openai' ? <Check size={16} className="text-primary" /> : null}
+          onClick={() => setProvider('openai')}
+          last
+        />
+      </GroupedCard>
+
+      {/* API Key (only for OpenAI) */}
+      {provider === 'openai' && (
+        <>
+          <SectionHeader title="API Key" />
+          <GroupedCard>
+            <div className="px-3 py-2">
+              <input
+                type="password"
+                placeholder={config?.hasApiKey ? '••••••••••••••••  (key set)' : 'sk-...'}
+                value={apiKey}
+                onChange={e => setApiKey(e.target.value)}
+                className="w-full bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground/50"
+              />
+            </div>
+          </GroupedCard>
+          <p className="text-[11px] text-muted-foreground">
+            {config?.hasApiKey
+              ? 'API key is configured. Enter a new key to change it.'
+              : 'Enter your OpenAI API key. It is stored in server memory only (not saved to disk).'}
+          </p>
+        </>
+      )}
+
+      {/* Model Selection */}
+      {provider !== 'none' && providerModels.length > 0 && (
+        <>
+          <SectionHeader title="Model" />
+          <GroupedCard>
+            {providerModels.map((m, i) => (
+              <GroupedRow
+                key={m.id}
+                label={`${m.name}${m.recommended ? ' ★' : ''}`}
+                value={
+                  model === m.id ? <Check size={16} className="text-primary" /> : (
+                    <span className="text-[11px] text-muted-foreground">{m.description}</span>
+                  )
+                }
+                onClick={() => setModel(m.id)}
+                last={i === providerModels.length - 1}
+              />
+            ))}
+          </GroupedCard>
+        </>
+      )}
+
+      {/* Save */}
+      <button
+        onClick={handleSave}
+        disabled={saving}
+        className="px-4 py-2 bg-primary text-primary-foreground text-[13px] font-medium rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors"
+      >
+        {saving ? 'Saving…' : 'Save Configuration'}
+      </button>
+
+      {/* Info */}
+      <p className="text-[11px] text-muted-foreground pt-2">
+        LLM parsing is used as a fallback when deterministic parsers cannot handle command output.
+        Deterministic parsers are always tried first and are free.
+      </p>
+    </div>
+  );
+}
+
 function AboutPage() {
   return (
     <div className="space-y-5">
@@ -1032,6 +1252,236 @@ function AboutPage() {
       <p className="text-[11px] text-muted-foreground pt-1">
         A localhost web app that connects to Linux VPS servers via SSH. Nothing is installed on the server.
       </p>
+    </div>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// PLUGINS PAGE (M11.3)
+// ═════════════════════════════════════════════════════════════════════════════
+
+function PluginsPage() {
+  const [plugins, setPlugins] = useState<Array<{
+    id: string;
+    name: string;
+    version: string;
+    description?: string;
+    author?: string;
+    state: 'installed' | 'active' | 'inactive' | 'error';
+    permissions: string[];
+    error?: string;
+  }>>([]);
+  const [installUrl, setInstallUrl] = useState('');
+  const [installing, setInstalling] = useState(false);
+
+  // Load plugins from registry
+  const loadPlugins = useCallback(() => {
+    try {
+      const { pluginRegistry } = require('../../lib/plugins');
+      const all = pluginRegistry.getAll();
+      setPlugins(
+        all.map((e: { manifest: { id: string; name: string; version: string; description?: string; author?: string; permissions: string[] }; state: string; error?: string }) => ({
+          id: e.manifest.id,
+          name: e.manifest.name,
+          version: e.manifest.version,
+          description: e.manifest.description,
+          author: e.manifest.author,
+          state: e.state as 'installed' | 'active' | 'inactive' | 'error',
+          permissions: e.manifest.permissions,
+          error: e.error,
+        })),
+      );
+    } catch {
+      // Plugin registry may not be available
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPlugins();
+  }, [loadPlugins]);
+
+  const handleActivate = async (pluginId: string) => {
+    try {
+      const { pluginRegistry } = await import('../../lib/plugins');
+      await pluginRegistry.activate(pluginId);
+      toast.success(`Plugin "${pluginId}" activated`);
+      loadPlugins();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Activation failed');
+    }
+  };
+
+  const handleDeactivate = async (pluginId: string) => {
+    try {
+      const { pluginRegistry } = await import('../../lib/plugins');
+      await pluginRegistry.deactivate(pluginId);
+      toast.success(`Plugin "${pluginId}" deactivated`);
+      loadPlugins();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Deactivation failed');
+    }
+  };
+
+  const handleUninstall = async (pluginId: string) => {
+    try {
+      const { pluginRegistry } = await import('../../lib/plugins');
+      await pluginRegistry.unregister(pluginId);
+      toast.success(`Plugin "${pluginId}" removed`);
+      loadPlugins();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Removal failed');
+    }
+  };
+
+  const handleInstallFromUrl = async () => {
+    if (!installUrl.trim()) return;
+    setInstalling(true);
+    try {
+      const res = await fetch(installUrl.trim());
+      if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`);
+      const manifest = await res.json();
+      const { pluginRegistry, PluginManifestSchema } = await import('../../lib/plugins');
+      const parsed = PluginManifestSchema.parse(manifest);
+      pluginRegistry.register(parsed);
+      toast.success(`Plugin "${parsed.name}" installed`);
+      setInstallUrl('');
+      loadPlugins();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Install failed');
+    } finally {
+      setInstalling(false);
+    }
+  };
+
+  return (
+    <div className="max-w-xl space-y-5">
+      {/* Install from URL */}
+      <GroupedCard>
+        <div className="px-4 py-3 space-y-2">
+          <p className="text-[12px] font-medium text-foreground">Install plugin from URL</p>
+          <p className="text-[11px] text-muted-foreground">
+            Enter a URL to a plugin manifest JSON file to install a community plugin.
+          </p>
+          <div className="flex items-center gap-2 pt-1">
+            <input
+              type="text"
+              value={installUrl}
+              onChange={(e) => setInstallUrl(e.target.value)}
+              placeholder="https://example.com/plugin-manifest.json"
+              className="flex-1 px-3 py-1.5 text-[12px] bg-background border border-input rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+              onKeyDown={(e) => e.key === 'Enter' && handleInstallFromUrl()}
+            />
+            <button
+              onClick={handleInstallFromUrl}
+              disabled={installing || !installUrl.trim()}
+              className="px-3 py-1.5 text-[12px] font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 transition-colors"
+            >
+              {installing ? 'Installing…' : 'Install'}
+            </button>
+          </div>
+        </div>
+      </GroupedCard>
+
+      {/* Installed plugins list */}
+      <GroupedCard>
+        <div className="px-4 py-3">
+          <p className="text-[12px] font-medium text-foreground mb-3">
+            Installed Plugins ({plugins.length})
+          </p>
+          {plugins.length === 0 ? (
+            <p className="text-[11px] text-muted-foreground py-4 text-center">
+              No plugins installed. Install a plugin from a URL above.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {plugins.map((plugin) => (
+                <div
+                  key={plugin.id}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-border/40 hover:bg-muted/20 transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+                    <Puzzle size={16} className="text-emerald-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[12px] font-medium text-foreground truncate">
+                        {plugin.name}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground font-mono">
+                        v{plugin.version}
+                      </span>
+                      <span
+                        className={cn(
+                          'text-[9px] px-1.5 py-0.5 rounded-full font-medium',
+                          plugin.state === 'active'
+                            ? 'bg-emerald-500/10 text-emerald-500'
+                            : plugin.state === 'error'
+                              ? 'bg-destructive/10 text-destructive'
+                              : 'bg-muted text-muted-foreground',
+                        )}
+                      >
+                        {plugin.state}
+                      </span>
+                    </div>
+                    {plugin.description && (
+                      <p className="text-[11px] text-muted-foreground truncate">{plugin.description}</p>
+                    )}
+                    {plugin.error && (
+                      <p className="text-[10px] text-destructive mt-0.5">{plugin.error}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {plugin.state === 'active' ? (
+                      <button
+                        onClick={() => handleDeactivate(plugin.id)}
+                        className="text-[11px] px-2 py-1 rounded-md bg-muted hover:bg-muted/80 text-muted-foreground transition-colors"
+                      >
+                        Deactivate
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleActivate(plugin.id)}
+                        className="text-[11px] px-2 py-1 rounded-md bg-primary/10 hover:bg-primary/20 text-primary transition-colors"
+                      >
+                        Activate
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleUninstall(plugin.id)}
+                      className="text-[11px] px-2 py-1 rounded-md bg-destructive/10 hover:bg-destructive/20 text-destructive transition-colors"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </GroupedCard>
+
+      {/* Plugin development info */}
+      <GroupedCard>
+        <div className="px-4 py-3 space-y-1.5">
+          <p className="text-[12px] font-medium text-foreground">Creating Plugins</p>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            Plugins are JSON manifest files that define apps, permissions, and lifecycle hooks.
+            A plugin can contribute new apps to the launcher, toolbar items, and settings pages.
+            See the Plugin API documentation for the full schema reference.
+          </p>
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {['fs:read', 'docker:read', 'terminal:access', 'ui:panel', 'llm:invoke'].map((perm) => (
+              <span
+                key={perm}
+                className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
+              >
+                {perm}
+              </span>
+            ))}
+            <span className="text-[10px] text-muted-foreground">+18 more permissions</span>
+          </div>
+        </div>
+      </GroupedCard>
     </div>
   );
 }
@@ -1082,7 +1532,10 @@ export function SettingsView() {
         {page === 'wallpaper' && <WallpaperPage />}
         {page === 'appearance' && <AppearancePage />}
         {page === 'terminal' && <TerminalPage />}
+        {page === 'keyboard' && <KeyboardShortcutsPage />}
         {page === 'notifications' && <NotificationsPage />}
+        {page === 'ai' && <AIPage />}
+        {page === 'plugins' && <PluginsPage />}
         {page === 'about' && <AboutPage />}
       </main>
     </div>

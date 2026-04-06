@@ -8,6 +8,8 @@ import {
   Server,
   Palette,
   Shield,
+  Globe,
+  Bot,
 } from 'lucide-react';
 
 interface FileIconProps {
@@ -230,6 +232,24 @@ export function ServerAdminIcon({ size = 48 }: { size?: number }) {
   return (
     <AppIconBase size={size} fromColor="#34D399" toColor="#059669">
       <Shield size={Math.round(size * 0.52)} color="white" strokeWidth={sw} />
+    </AppIconBase>
+  );
+}
+
+export function FleetIcon({ size = 48 }: { size?: number }) {
+  const sw = size <= 24 ? 2.25 : 1.75;
+  return (
+    <AppIconBase size={size} fromColor="#38BDF8" toColor="#0369A1">
+      <Globe size={Math.round(size * 0.52)} color="white" strokeWidth={sw} />
+    </AppIconBase>
+  );
+}
+
+export function AgentIcon({ size = 48 }: { size?: number }) {
+  const sw = size <= 24 ? 2.25 : 1.75;
+  return (
+    <AppIconBase size={size} fromColor="#A78BFA" toColor="#7C3AED">
+      <Bot size={Math.round(size * 0.52)} color="white" strokeWidth={sw} />
     </AppIconBase>
   );
 }

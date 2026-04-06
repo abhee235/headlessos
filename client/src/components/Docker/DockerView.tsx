@@ -2,6 +2,7 @@
 // @see docs/phases/phase-3.md
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { usePreferencesStore } from '../../store/preferences-store';
 import {
   Box,
   Image,
@@ -710,13 +711,16 @@ export function DockerView({ serverId }: DockerViewProps) {
     loadData();
   }, [loadData]);
 
-  // Auto-refresh every 5 seconds
+  // Auto-refresh based on preference (minimum 5s for Docker)
+  const autoRefreshInterval = usePreferencesStore(s => s.autoRefreshInterval);
   useEffect(() => {
+    if (autoRefreshInterval <= 0) return;
+    const ms = Math.max(autoRefreshInterval * 1000, 5000);
     const interval = setInterval(() => {
       if (!pauseRefreshRef.current) loadData(true);
-    }, 5000);
+    }, ms);
     return () => clearInterval(interval);
-  }, [loadData]);
+  }, [loadData, autoRefreshInterval]);
 
   // ── Loading state ──
   if (loading) {

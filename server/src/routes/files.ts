@@ -301,6 +301,57 @@ export async function fileRoutes(
     return reply.send(stream);
   });
 
+  // ── POST /api/servers/:id/files/upload — upload file via multipart ──
+
+  fastify.post<{
+    Params: { id: string };
+    Querystring: { path?: string };
+  }>('/api/servers/:id/files/upload', async (req, reply) => {
+    const { id } = req.params;
+    const destDir = requireValidPath(req.query.path ?? '/');
+    const sftp = await requireSftp(id);
+
+    const parts = req.parts();
+    const results: Array<{ name: string; size: number; success: boolean }> = [];
+
+    for await (const part of parts) {
+      if (part.type !== 'file') continue;
+
+      const filename = part.filename;
+      if (!filename) continue;
+
+      // Sanitize filename — strip path separators and dangerous chars
+      const safeName = filename.replace(/[/\\]/g, '_').replace(/\.\./g, '_');
+      const remotePath = posix.join(destDir, safeName);
+
+      // Validate resulting path
+      if (!validatePath(remotePath)) {
+        results.push({ name: safeName, size: 0, success: false });
+        continue;
+      }
+
+      // Stream to SFTP
+      const size = await new Promise<number>((resolve, reject) => {
+        const writeStream = sftp.createWriteStream(remotePath);
+        let totalBytes = 0;
+
+        part.file.on('data', (chunk: Buffer) => {
+          totalBytes += chunk.length;
+        });
+
+        part.file.pipe(writeStream);
+
+        writeStream.on('close', () => resolve(totalBytes));
+        writeStream.on('error', (err: Error) => reject(new Error(`Upload failed for ${safeName}: ${err.message}`)));
+        part.file.on('error', (err: Error) => reject(new Error(`Upload stream error for ${safeName}: ${err.message}`)));
+      });
+
+      results.push({ name: safeName, size, success: true });
+    }
+
+    return { success: true, files: results };
+  });
+
   // ── POST /api/servers/:id/files/copy — copy file/dir (exec cp) ──
 
   fastify.post<{

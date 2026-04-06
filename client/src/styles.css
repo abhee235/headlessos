@@ -355,6 +355,16 @@ body {
   to { opacity: 1; transform: scale(1); }
 }
 
+@keyframes windowOpen {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes windowClose {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.92); }
+}
+
 .animate-contextMenuIn {
   animation: contextMenuIn 0.15s cubic-bezier(0.2, 0, 0, 1) forwards;
   transform-origin: var(--radix-context-menu-content-transform-origin, top left);
@@ -374,6 +384,10 @@ body {
 
 .animate-scaleIn {
   animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-windowOpen {
+  animation: windowOpen 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes shake {

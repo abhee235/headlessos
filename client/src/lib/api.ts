@@ -236,6 +236,53 @@ export async function moveFile(serverId: string, sourcePath: string, destPath: s
   });
 }
 
+// ── File Upload (M10.3) ────────────────────────────────
+
+export interface UploadResult {
+  success: boolean;
+  files: Array<{ name: string; size: number; success: boolean }>;
+}
+
+export async function uploadFiles(
+  serverId: string,
+  destPath: string,
+  files: File[],
+  onProgress?: (loaded: number, total: number) => void,
+): Promise<UploadResult> {
+  const formData = new FormData();
+  let totalSize = 0;
+  for (const file of files) {
+    formData.append('files', file, file.name);
+    totalSize += file.size;
+  }
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${BASE}/servers/${serverId}/files/upload?path=${encodeURIComponent(destPath)}`);
+
+    if (onProgress) {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(e.loaded, e.total);
+      };
+    }
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          resolve(JSON.parse(xhr.responseText));
+        } catch {
+          resolve({ success: true, files: [] });
+        }
+      } else {
+        reject(new Error(`Upload failed: ${xhr.statusText}`));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error('Upload failed: network error'));
+    xhr.send(formData);
+  });
+}
+
 // ── Task Manager ────────────────────────────────────────
 
 export interface ProcessData {
@@ -904,4 +951,128 @@ export function getLogExportUrl(serverId: string, opts?: LogQueryOpts): string {
 
 export async function fetchStorageInfo(serverId: string): Promise<{ success: boolean; data?: StorageInfo; error?: string }> {
   return request(`/servers/${serverId}/admin/storage`);
+}
+
+// ── LLM Configuration (M10.7) ───────────────────────────
+
+export interface LLMConfig {
+  provider: 'openai' | 'none';
+  model: string;
+  hasApiKey: boolean;
+}
+
+export interface LLMModelInfo {
+  id: string;
+  name: string;
+  description: string;
+  recommended?: boolean;
+}
+
+export async function fetchLLMConfig(): Promise<{ success: boolean; data?: LLMConfig }> {
+  return request('/llm/config');
+}
+
+export async function updateLLMConfig(config: { provider: string; apiKey?: string; model?: string }): Promise<{ success: boolean; data?: LLMConfig; error?: string }> {
+  return request('/llm/config', { method: 'PUT', body: JSON.stringify(config) });
+}
+
+export async function fetchLLMModels(): Promise<{ success: boolean; data?: Record<string, LLMModelInfo[]> }> {
+  return request('/llm/models');
+}
+
+// ── Fleet Overview (M11.1) ──────────────────────────────
+
+export interface FleetServerSummary {
+  id: string;
+  name: string;
+  host: string;
+  port: number;
+  status: 'connected' | 'connecting' | 'disconnected' | 'error';
+  tags: string[];
+  system?: {
+    hostname: string;
+    os: string;
+    uptime: string;
+    kernel: string;
+    architecture: string;
+  };
+  memory?: {
+    totalMb: number;
+    usedMb: number;
+    usedPercent: number;
+  };
+  disk?: {
+    totalGb: number;
+    usedGb: number;
+    usedPercent: number;
+  };
+  latencyMs?: number;
+  error?: string;
+}
+
+export interface FleetOverview {
+  servers: FleetServerSummary[];
+  totals: {
+    total: number;
+    connected: number;
+    disconnected: number;
+    totalMemoryMb: number;
+    usedMemoryMb: number;
+    totalDiskGb: number;
+    usedDiskGb: number;
+  };
+  fetchedAt: string;
+}
+
+export async function fetchFleetOverview(): Promise<{ success: boolean; data?: FleetOverview }> {
+  return request('/fleet/overview');
+}
+
+export async function updateServerTags(serverId: string, tags: string[]): Promise<{ success: boolean }> {
+  return request(`/servers/${serverId}/tags`, {
+    method: 'PUT',
+    body: JSON.stringify({ tags }),
+  });
+}
+
+// ── ReAct Agent (M11.5) ─────────────────────────────────
+
+export interface AgentStep {
+  stepNumber: number;
+  thought: string;
+  command?: string;
+  output?: string;
+  observation?: string;
+  decision: 'continue' | 'answer' | 'error';
+}
+
+export interface AgentResult {
+  sessionId: string;
+  question: string;
+  steps: AgentStep[];
+  answer: string;
+  totalSteps: number;
+  totalTokens: number;
+  totalLatencyMs: number;
+  status: 'completed' | 'aborted' | 'error' | 'max_steps_reached';
+}
+
+export async function startAgentInvestigation(
+  serverId: string,
+  question: string,
+  options?: { maxSteps?: number; readOnly?: boolean },
+): Promise<{ success: boolean; data?: AgentResult; error?: string }> {
+  return request(`/servers/${serverId}/agent/investigate`, {
+    method: 'POST',
+    body: JSON.stringify({ question, ...options }),
+  });
+}
+
+export async function abortAgentInvestigation(
+  serverId: string,
+  sessionId: string,
+): Promise<{ success: boolean }> {
+  return request(`/servers/${serverId}/agent/${sessionId}/abort`, {
+    method: 'POST',
+  });
 }

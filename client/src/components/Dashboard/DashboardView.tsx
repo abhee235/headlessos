@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { RefreshCw, Clock, Zap, AlertCircle } from 'lucide-react';
 import type { SystemDashboardData, SystemDashboardResponse } from '../../lib/api';
 import { fetchSystemDashboard } from '../../lib/api';
+import { usePreferencesStore } from '../../store/preferences-store';
 import { DisconnectedState } from '@/components/ui/disconnected-state';
 import { DiskCard } from './DiskCard';
 import { MemoryCard } from './MemoryCard';
@@ -50,11 +51,13 @@ export function DashboardView({ serverId }: DashboardViewProps) {
     loadData();
   }, [loadData]);
 
-  // Auto-refresh every 30s
+  // Auto-refresh based on preference
+  const autoRefreshInterval = usePreferencesStore(s => s.autoRefreshInterval);
   useEffect(() => {
-    const interval = setInterval(() => loadData(true), 30_000);
+    if (autoRefreshInterval <= 0) return;
+    const interval = setInterval(() => loadData(true), autoRefreshInterval * 1000);
     return () => clearInterval(interval);
-  }, [loadData]);
+  }, [loadData, autoRefreshInterval]);
 
   // Loading state
   if (loading) {

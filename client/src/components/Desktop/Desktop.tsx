@@ -11,6 +11,8 @@ import {
   TerminalIcon,
   ThisPCIcon,
   ServerAdminIcon,
+  FleetIcon,
+  AgentIcon,
 } from '../ui/FileIcon';
 import {
   ContextMenu,
@@ -75,6 +77,18 @@ const DESKTOP_ICONS: DesktopIcon[] = [
     appId: 'serveradmin',
     label: 'Server Admin',
     IconComponent: ServerAdminIcon,
+  },
+  {
+    id: 'desktop-fleet',
+    appId: 'fleet',
+    label: 'Fleet Overview',
+    IconComponent: FleetIcon,
+  },
+  {
+    id: 'desktop-agent',
+    appId: 'agent',
+    label: 'AI Agent',
+    IconComponent: AgentIcon,
   },
 ];
 
@@ -160,6 +174,7 @@ export function Desktop() {
   });
 
   const handleRefresh = () => {
+    void useAppStore.getState().fetchServers();
     toast.success('Desktop refreshed');
   };
 
@@ -205,8 +220,11 @@ export function Desktop() {
         {!isConnected && (
           <button
             className="flex flex-col items-center justify-center gap-1.5 w-[80px] h-[88px] rounded-2xl hover:bg-white/[0.10] cursor-pointer group transition-all duration-200"
-            onDoubleClick={() => {/* future: open server manager */}}
-            title="No server connected"
+            onDoubleClick={() => {
+              const { startMenuOpen, toggleStartMenu } = useDesktopStore.getState();
+              if (!startMenuOpen) toggleStartMenu();
+            }}
+            title="Open Start Menu to connect a server"
           >
             <div className="transition-transform duration-200 group-hover:scale-110 group-hover:-translate-y-1 drop-shadow-lg opacity-50">
               <ThisPCIcon size={44} />

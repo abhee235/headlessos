@@ -20,9 +20,13 @@ import { dockerRoutes } from './routes/docker.js';
 import { servicesRoutes } from './routes/services.js';
 import { serverAdminRoutes } from './routes/serveradmin.js';
 import { statsRoutes } from './routes/stats.js';
+import { llmRoutes } from './routes/llm.js';
+import { fleetRoutes } from './routes/fleet.js';
+import { agentRoutes } from './routes/agent.js';
 import { allParsers } from './parsers/deterministic/index.js';
 import { OutputCache } from './cache/output-cache.js';
 import { LLMUsageTracker } from './llm/usage-tracker.js';
+import { InvestigationAgent } from './agent/investigation-agent.js';
 
 const PORT = Number(process.env.PORT) || 3001;
 
@@ -36,6 +40,7 @@ async function main(): Promise<void> {
   const orchestrator = new CommandOrchestrator('orchestrator');
   const outputCache = new OutputCache();
   const usageTracker = new LLMUsageTracker();
+  const investigationAgent = new InvestigationAgent(connectionManager, null);
 
   container.register('config', configStore);
   container.register('ssh', connectionManager);
@@ -47,6 +52,7 @@ async function main(): Promise<void> {
     const { OpenAIProvider } = await import('./llm/providers/openai.js');
     const llmProvider = new OpenAIProvider(process.env.OPENAI_API_KEY);
     pipeline.setLLMProvider(llmProvider);
+    investigationAgent.setLLMProvider(llmProvider);
     console.log('🤖 LLM provider: OpenAI');
   } else {
     console.log('⚠️  No OPENAI_API_KEY set — LLM parsing disabled (deterministic parsers only)');
@@ -134,10 +140,13 @@ async function main(): Promise<void> {
   await app.register(servicesRoutes, { connectionManager });
   await app.register(serverAdminRoutes, { connectionManager });
   await app.register(statsRoutes, { usageTracker, outputCache });
+  await app.register(llmRoutes, { pipeline });
+  await app.register(fleetRoutes, { orchestrator, connectionManager, configStore });
+  await app.register(agentRoutes, { connectionManager, agent: investigationAgent });
 
   // -- Start --
   try {
-    await app.listen({ port: PORT, host: '0.0.0.0' });
+    await app.listen({ port: PORT, host: '127.0.0.1' });
     console.log(`🚀 HeadlessOS server running on http://localhost:${PORT}`);
   } catch (err) {
     app.log.error(err);

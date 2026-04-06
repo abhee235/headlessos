@@ -2,6 +2,7 @@
 // @see docs/phases/phase-3.md
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { usePreferencesStore } from '../../store/preferences-store';
 import {
   Server,
   Play,
@@ -194,13 +195,16 @@ export function ServicesView({ serverId }: ServicesViewProps) {
     loadData();
   }, [loadData]);
 
-  // Auto-refresh every 10 seconds
+  // Auto-refresh based on preference (minimum 10s for Services)
+  const autoRefreshInterval = usePreferencesStore(s => s.autoRefreshInterval);
   useEffect(() => {
+    if (autoRefreshInterval <= 0) return;
+    const ms = Math.max(autoRefreshInterval * 1000, 10_000);
     const interval = setInterval(() => {
       if (!pauseRefreshRef.current) loadData(true);
-    }, 10_000);
+    }, ms);
     return () => clearInterval(interval);
-  }, [loadData]);
+  }, [loadData, autoRefreshInterval]);
 
   const handleAction = async (
     serviceName: string,

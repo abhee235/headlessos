@@ -2,8 +2,9 @@
 // @see docs/phases/phase-2.md
 
 import { create } from 'zustand';
+import { usePreferencesStore } from './preferences-store';
 
-export type SnapZone = 'left' | 'right' | 'top-left' | 'top-right' | 'maximize' | null;
+export type SnapZone = 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'maximize' | null;
 
 export interface WindowState {
   id: string;
@@ -47,6 +48,7 @@ interface DesktopState {
   setSnapPreview: (zone: SnapZone) => void;
   toggleStartMenu: () => void;
   closeStartMenu: () => void;
+  toggleShowDesktop: () => void;
 }
 
 let windowCounter = 0;
@@ -124,6 +126,9 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
       nextZIndex: newZ + 1,
       startMenuOpen: false,
     });
+
+    // Track recently used apps (M9.2)
+    usePreferencesStore.getState().recordAppUsage(appId);
   },
 
   closeWindow: (id) => {
@@ -284,6 +289,10 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
             return { ...w, preSnap, maximized: false, x: 0, y: 0, width: Math.round(screenW / 2), height: Math.round(screenH / 2) };
           case 'top-right':
             return { ...w, preSnap, maximized: false, x: Math.round(screenW / 2), y: 0, width: Math.round(screenW / 2), height: Math.round(screenH / 2) };
+          case 'bottom-left':
+            return { ...w, preSnap, maximized: false, x: 0, y: Math.round(screenH / 2), width: Math.round(screenW / 2), height: Math.round(screenH / 2) };
+          case 'bottom-right':
+            return { ...w, preSnap, maximized: false, x: Math.round(screenW / 2), y: Math.round(screenH / 2), width: Math.round(screenW / 2), height: Math.round(screenH / 2) };
           default:
             return w;
         }
@@ -301,5 +310,22 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
 
   closeStartMenu: () => {
     set({ startMenuOpen: false });
+  },
+
+  toggleShowDesktop: () => {
+    set(s => {
+      const visible = s.windows.filter(w => !w.minimized);
+      if (visible.length > 0) {
+        // Minimize all visible windows
+        return {
+          windows: s.windows.map(w => w.minimized ? w : { ...w, minimized: true, focused: false }),
+        };
+      } else {
+        // Restore all minimized windows
+        return {
+          windows: s.windows.map(w => ({ ...w, minimized: false })),
+        };
+      }
+    });
   },
 }));

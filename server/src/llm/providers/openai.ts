@@ -19,13 +19,16 @@ export class OpenAIProvider implements LLMProvider {
   async parseText<T>(input: ParseTextInput<T>): Promise<ParseResult<T>> {
     const start = Date.now();
 
+    const instructions = input.systemPrompt ?? SYSTEM_PROMPT;
+    const userContent = input.userPrompt ?? buildTextPrompt(input.command, input.rawOutput, input.context);
+
     const response = await this.client.responses.parse({
       model: this.model,
-      instructions: SYSTEM_PROMPT,
+      instructions,
       input: [
         {
           role: 'user' as const,
-          content: buildTextPrompt(input.command, input.rawOutput, input.context),
+          content: userContent,
         },
       ],
       text: {

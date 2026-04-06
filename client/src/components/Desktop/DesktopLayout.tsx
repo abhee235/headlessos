@@ -9,6 +9,9 @@ import { Desktop } from './Desktop';
 import { Taskbar } from './Taskbar';
 import { StartMenu } from './StartMenu';
 import { WindowManager } from './WindowManager';
+import { CommandPalette } from './CommandPalette';
+import { WelcomeDialog } from './WelcomeDialog';
+import { NotificationCenter } from './NotificationCenter';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
 
@@ -30,6 +33,10 @@ function SnapPreview({ zone }: { zone: SnapZone }) {
         return { top: 0, left: 0, width: '50%', height: `calc(50% - ${taskbarH / 2}px)` };
       case 'top-right':
         return { top: 0, right: 0, width: '50%', height: `calc(50% - ${taskbarH / 2}px)` };
+      case 'bottom-left':
+        return { bottom: taskbarH, left: 0, width: '50%', height: `calc(50% - ${taskbarH / 2}px)` };
+      case 'bottom-right':
+        return { bottom: taskbarH, right: 0, width: '50%', height: `calc(50% - ${taskbarH / 2}px)` };
       default:
         return {};
     }
@@ -72,6 +79,15 @@ export function DesktopLayout() {
 
         {/* Snap zone preview */}
         <SnapPreview zone={snapPreview} />
+
+        {/* Notification Center — system tray panel */}
+        <NotificationCenter />
+
+        {/* Command Palette — Ctrl+K */}
+        <CommandPalette />
+
+        {/* First-run onboarding */}
+        <WelcomeDialog />
 
         {/* Toast notifications */}
         <Toaster />

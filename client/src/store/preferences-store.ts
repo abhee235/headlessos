@@ -66,6 +66,18 @@ interface UserPreferences {
   showToasts: boolean;
   /** Toast notification position */
   toastPosition: ToastPosition;
+
+  // ── Recently Used (M9.2) ──────────────────────────────────────────────────
+  /** Recently opened app IDs with timestamps */
+  recentApps: Array<{ appId: string; timestamp: number }>;
+
+  // ── Pinned Apps (M9.3) ────────────────────────────────────────────────────
+  /** Pinned app IDs in taskbar */
+  pinnedAppIds: string[];
+
+  // ── Onboarding (M9.12) ────────────────────────────────────────────────────
+  /** Whether the user has seen the first-run onboarding */
+  hasSeenOnboarding: boolean;
 }
 
 interface PreferencesState extends UserPreferences {
@@ -86,6 +98,10 @@ interface PreferencesState extends UserPreferences {
   setDateFormat: (format: DateFormat) => void;
   setShowToasts: (show: boolean) => void;
   setToastPosition: (position: ToastPosition) => void;
+  recordAppUsage: (appId: string) => void;
+  pinApp: (appId: string) => void;
+  unpinApp: (appId: string) => void;
+  markOnboardingSeen: () => void;
   resetAllPreferences: () => void;
   /** Update multiple preferences at once */
   updatePreferences: (partial: Partial<UserPreferences>) => void;
@@ -111,6 +127,9 @@ const DEFAULTS: UserPreferences = {
   dateFormat: '12h',
   showToasts: true,
   toastPosition: 'bottom-right',
+  recentApps: [],
+  pinnedAppIds: ['dashboard', 'files', 'terminal', 'docker', 'taskmanager', 'settings'],
+  hasSeenOnboarding: false,
 };
 
 function loadPreferences(): UserPreferences {
@@ -246,6 +265,34 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => {
       savePreferences({ ...get(), toastPosition: position });
     },
 
+    recordAppUsage: (appId) => {
+      const current = get();
+      const filtered = current.recentApps.filter(r => r.appId !== appId);
+      const updated = [{ appId, timestamp: Date.now() }, ...filtered].slice(0, 8);
+      set({ recentApps: updated });
+      savePreferences({ ...get(), recentApps: updated });
+    },
+
+    pinApp: (appId) => {
+      const current = get();
+      if (current.pinnedAppIds.includes(appId)) return;
+      const updated = [...current.pinnedAppIds, appId];
+      set({ pinnedAppIds: updated });
+      savePreferences({ ...get(), pinnedAppIds: updated });
+    },
+
+    unpinApp: (appId) => {
+      const current = get();
+      const updated = current.pinnedAppIds.filter(id => id !== appId);
+      set({ pinnedAppIds: updated });
+      savePreferences({ ...get(), pinnedAppIds: updated });
+    },
+
+    markOnboardingSeen: () => {
+      set({ hasSeenOnboarding: true });
+      savePreferences({ ...get(), hasSeenOnboarding: true });
+    },
+
     resetAllPreferences: () => {
       set(DEFAULTS);
       savePreferences(DEFAULTS);
@@ -275,6 +322,9 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => {
         dateFormat: updated.dateFormat,
         showToasts: updated.showToasts,
         toastPosition: updated.toastPosition,
+        recentApps: updated.recentApps,
+        pinnedAppIds: updated.pinnedAppIds,
+        hasSeenOnboarding: updated.hasSeenOnboarding,
       });
     },
   };
