@@ -16,13 +16,15 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   fetchSecurityInfo,
   fetchFail2banJailDetail,
@@ -423,33 +425,116 @@ export function SecuritySection({ serverId }: { serverId: string }) {
                   <TableCell className="font-mono text-xs">{u.home}</TableCell>
                   <TableCell className="font-mono text-xs">{u.shell}</TableCell>
                   <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
-                          Actions
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => { setPasswordTarget(u.username); setPasswordInput(''); }}>
-                          <KeyRound size={14} className="mr-2" /> Set Password
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => { setGroupTarget(u.username); setGroupInput(''); }}>
-                          <UserPlus size={14} className="mr-2" /> Add to Group
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={() => setDeleteTarget(u.username)}
-                          disabled={u.username === 'root'}
-                        >
-                          <Trash2 size={14} className="mr-2" /> Delete User
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <div className="flex items-center justify-end gap-0.5">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => { setPasswordTarget(u.username); setPasswordInput(''); }}
+                          >
+                            <KeyRound size={14} />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Set Password</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => { setGroupTarget(u.username); setGroupInput(''); }}
+                          >
+                            <UserPlus size={14} />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Add to Group</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => setDeleteTarget(u.username)}
+                            disabled={u.username === 'root'}
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Delete User</TooltipContent>
+                      </Tooltip>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
+
+          {/* Set Password Dialog */}
+          <Dialog open={passwordTarget !== null} onOpenChange={(open) => { if (!open) setPasswordTarget(null); }}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <KeyRound size={18} /> Set Password
+                </DialogTitle>
+                <DialogDescription>
+                  Set a new password for user &ldquo;{passwordTarget}&rdquo;.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-2 py-2">
+                <Label className="text-sm">New Password</Label>
+                <Input
+                  type="password"
+                  value={passwordInput}
+                  onChange={(e) => setPasswordInput(e.target.value)}
+                  placeholder="Enter new password"
+                  onKeyDown={(e) => e.key === 'Enter' && passwordInput && handleSetPassword()}
+                  autoFocus
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setPasswordTarget(null)} disabled={busy}>Cancel</Button>
+                <Button onClick={handleSetPassword} disabled={busy || !passwordInput}>
+                  {busy && <Loader2 size={14} className="animate-spin mr-1" />}
+                  Set Password
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Add to Group Dialog */}
+          <Dialog open={groupTarget !== null} onOpenChange={(open) => { if (!open) setGroupTarget(null); }}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <UserPlus size={18} /> Add to Group
+                </DialogTitle>
+                <DialogDescription>
+                  Add user &ldquo;{groupTarget}&rdquo; to a system group.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-2 py-2">
+                <Label className="text-sm">Group Name</Label>
+                <Input
+                  value={groupInput}
+                  onChange={(e) => setGroupInput(e.target.value)}
+                  placeholder="sudo, docker, www-data"
+                  onKeyDown={(e) => e.key === 'Enter' && groupInput.trim() && handleAddToGroup()}
+                  autoFocus
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setGroupTarget(null)} disabled={busy}>Cancel</Button>
+                <Button onClick={handleAddToGroup} disabled={busy || !groupInput.trim()}>
+                  {busy && <Loader2 size={14} className="animate-spin mr-1" />}
+                  Add to Group
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {systemUsers.length > 0 && (
             <>
@@ -478,67 +563,26 @@ export function SecuritySection({ serverId }: { serverId: string }) {
             </>
           )}
 
-          {/* Set Password dialog */}
-          {passwordTarget && (
-            <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
-              <h4 className="font-medium text-sm">Set Password for &ldquo;{passwordTarget}&rdquo;</h4>
-              <div className="space-y-1">
-                <Label className="text-xs">New Password</Label>
-                <Input
-                  type="password"
-                  value={passwordInput}
-                  onChange={(e) => setPasswordInput(e.target.value)}
-                  placeholder="Enter new password"
-                  className="max-w-xs text-sm"
-                />
-              </div>
-              <div className="flex items-center gap-2 pt-1">
-                <Button size="sm" onClick={handleSetPassword} disabled={busy || !passwordInput}>
+          {/* Delete User Dialog */}
+          <Dialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-destructive">
+                  <Trash2 size={18} /> Delete User
+                </DialogTitle>
+                <DialogDescription>
+                  Permanently delete user &ldquo;{deleteTarget}&rdquo; and their home directory. This cannot be undone.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setDeleteTarget(null)} disabled={busy}>Cancel</Button>
+                <Button variant="destructive" onClick={() => { void handleDeleteUser(); }} disabled={busy}>
                   {busy && <Loader2 size={14} className="animate-spin mr-1" />}
-                  Set Password
+                  Delete User
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => setPasswordTarget(null)} disabled={busy}>
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Add to Group dialog */}
-          {groupTarget && (
-            <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
-              <h4 className="font-medium text-sm">Add &ldquo;{groupTarget}&rdquo; to Group</h4>
-              <div className="space-y-1">
-                <Label className="text-xs">Group Name</Label>
-                <Input
-                  value={groupInput}
-                  onChange={(e) => setGroupInput(e.target.value)}
-                  placeholder="sudo, docker, www-data"
-                  className="max-w-xs text-sm"
-                />
-              </div>
-              <div className="flex items-center gap-2 pt-1">
-                <Button size="sm" onClick={handleAddToGroup} disabled={busy || !groupInput.trim()}>
-                  {busy && <Loader2 size={14} className="animate-spin mr-1" />}
-                  Add to Group
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => setGroupTarget(null)} disabled={busy}>
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Delete user confirmation */}
-          <ConfirmDialog
-            open={deleteTarget !== null}
-            onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
-            title="Delete User"
-            description={`Permanently delete user "${deleteTarget}" and their home directory? This cannot be undone.`}
-            confirmLabel="Delete"
-            variant="destructive"
-            onConfirm={() => { void handleDeleteUser(); }}
-          />
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         <TabsContent value="ssh" className="mt-3">
