@@ -1,4 +1,4 @@
-// EX1.2: Component tests for DynamicUI renderer + all base widgets
+// EX1.2 + EX1.5: Component tests for DynamicUI renderer + all widgets
 // @see docs/phases/phase-ex1.md
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -17,11 +17,39 @@ vi.mock('react-resizable-panels', () => ({
   Separator: ({ children }: React.PropsWithChildren) => <div data-testid="separator">{children}</div>,
 }));
 
+// Mock recharts (ResponsiveContainer uses ResizeObserver, not available in jsdom)
+vi.mock('recharts', () => {
+  const React = require('react');
+  const createMockChart = (name: string) =>
+    ({ children, ...props }: React.PropsWithChildren<Record<string, unknown>>) =>
+      React.createElement('div', { 'data-testid': `mock-${name}`, ...props }, children);
+
+  return {
+    ResponsiveContainer: ({ children }: React.PropsWithChildren) =>
+      React.createElement('div', { 'data-testid': 'responsive-container' }, children),
+    BarChart: createMockChart('bar-chart'),
+    Bar: ({ dataKey }: { dataKey: string }) => React.createElement('div', { 'data-testid': `bar-${dataKey}` }),
+    LineChart: createMockChart('line-chart'),
+    Line: ({ dataKey }: { dataKey: string }) => React.createElement('div', { 'data-testid': `line-${dataKey}` }),
+    AreaChart: createMockChart('area-chart'),
+    Area: ({ dataKey }: { dataKey: string }) => React.createElement('div', { 'data-testid': `area-${dataKey}` }),
+    PieChart: createMockChart('pie-chart'),
+    Pie: (props: Record<string, unknown>) => React.createElement('div', { 'data-testid': 'pie' }),
+    Cell: () => React.createElement('div', { 'data-testid': 'cell' }),
+    XAxis: () => React.createElement('div', { 'data-testid': 'x-axis' }),
+    YAxis: () => React.createElement('div', { 'data-testid': 'y-axis' }),
+    CartesianGrid: () => React.createElement('div', { 'data-testid': 'cartesian-grid' }),
+    Tooltip: () => null,
+    Legend: () => null,
+  };
+});
+
 // ── Widget Registry ─────────────────────────────────────
 
 describe('Widget Registry', () => {
-  it('has all 7 base widget types registered', () => {
+  it('has all 10 widget types registered (7 base + 3 extended)', () => {
     const types = getRegisteredTypes();
+    // Base widgets (EX1.2)
     expect(types).toContain('table');
     expect(types).toContain('key-value');
     expect(types).toContain('badge-grid');
@@ -29,6 +57,11 @@ describe('Widget Registry', () => {
     expect(types).toContain('progress-bar');
     expect(types).toContain('code-block');
     expect(types).toContain('alert');
+    // Extended widgets (EX1.5)
+    expect(types).toContain('chart');
+    expect(types).toContain('tree');
+    expect(types).toContain('log-viewer');
+    expect(types.length).toBe(10);
   });
 });
 
@@ -616,5 +649,404 @@ describe('DynamicUIPlayground', () => {
         DynamicViewSchema.parse(example.data);
       }).not.toThrow();
     }
+  });
+});
+
+// ── ChartWidget (EX1.5) ─────────────────────────────────
+
+describe('ChartWidget', () => {
+  it('renders a bar chart with title', () => {
+    const view: DynamicView = {
+      title: 'Chart Test',
+      root: {
+        layout: 'stack',
+        gap: 'md',
+        widgets: [{
+          type: 'chart',
+          title: 'Monthly Revenue',
+          chartType: 'bar',
+          data: [
+            { month: 'Jan', revenue: 1200 },
+            { month: 'Feb', revenue: 1800 },
+            { month: 'Mar', revenue: 1500 },
+          ],
+          xKey: 'month',
+          yKeys: [{ key: 'revenue', label: 'Revenue', color: '#4ade80' }],
+          height: 250,
+        }],
+      },
+    };
+    render(<DynamicViewRenderer view={view} />);
+    expect(screen.getByText('Monthly Revenue')).toBeInTheDocument();
+    expect(screen.getByTestId('mock-bar-chart')).toBeInTheDocument();
+    expect(screen.getByTestId('bar-revenue')).toBeInTheDocument();
+  });
+
+  it('renders a line chart with multiple y-keys', () => {
+    const view: DynamicView = {
+      title: 'Line Chart',
+      root: {
+        layout: 'stack',
+        gap: 'md',
+        widgets: [{
+          type: 'chart',
+          title: 'CPU vs Memory',
+          chartType: 'line',
+          data: [
+            { time: '00:00', cpu: 45, mem: 60 },
+            { time: '01:00', cpu: 52, mem: 62 },
+          ],
+          xKey: 'time',
+          yKeys: [
+            { key: 'cpu', label: 'CPU %' },
+            { key: 'mem', label: 'Memory %' },
+          ],
+        }],
+      },
+    };
+    render(<DynamicViewRenderer view={view} />);
+    expect(screen.getByText('CPU vs Memory')).toBeInTheDocument();
+    expect(screen.getByTestId('mock-line-chart')).toBeInTheDocument();
+    expect(screen.getByTestId('line-cpu')).toBeInTheDocument();
+    expect(screen.getByTestId('line-mem')).toBeInTheDocument();
+  });
+
+  it('renders an area chart', () => {
+    const view: DynamicView = {
+      title: 'Area Test',
+      root: {
+        layout: 'stack',
+        gap: 'md',
+        widgets: [{
+          type: 'chart',
+          title: 'Network I/O',
+          chartType: 'area',
+          data: [{ t: '1', rx: 100, tx: 50 }],
+          xKey: 't',
+          yKeys: [{ key: 'rx' }, { key: 'tx' }],
+        }],
+      },
+    };
+    render(<DynamicViewRenderer view={view} />);
+    expect(screen.getByTestId('mock-area-chart')).toBeInTheDocument();
+    expect(screen.getByTestId('area-rx')).toBeInTheDocument();
+    expect(screen.getByTestId('area-tx')).toBeInTheDocument();
+  });
+
+  it('renders a pie chart', () => {
+    const view: DynamicView = {
+      title: 'Pie Test',
+      root: {
+        layout: 'stack',
+        gap: 'md',
+        widgets: [{
+          type: 'chart',
+          title: 'Disk Usage',
+          chartType: 'pie',
+          data: [
+            { name: 'Used', value: 75 },
+            { name: 'Free', value: 25 },
+          ],
+          xKey: 'name',
+          yKeys: [{ key: 'value' }],
+        }],
+      },
+    };
+    render(<DynamicViewRenderer view={view} />);
+    expect(screen.getByText('Disk Usage')).toBeInTheDocument();
+    expect(screen.getByTestId('mock-pie-chart')).toBeInTheDocument();
+  });
+
+  it('renders a donut chart (pie with innerRadius)', () => {
+    const view: DynamicView = {
+      title: 'Donut Test',
+      root: {
+        layout: 'stack',
+        gap: 'md',
+        widgets: [{
+          type: 'chart',
+          title: 'Memory Split',
+          chartType: 'donut',
+          data: [
+            { name: 'Apps', value: 60 },
+            { name: 'Cache', value: 20 },
+            { name: 'Free', value: 20 },
+          ],
+          xKey: 'name',
+          yKeys: [{ key: 'value' }],
+        }],
+      },
+    };
+    render(<DynamicViewRenderer view={view} />);
+    expect(screen.getByText('Memory Split')).toBeInTheDocument();
+    expect(screen.getByTestId('mock-pie-chart')).toBeInTheDocument();
+  });
+});
+
+// ── TreeWidget (EX1.5) ──────────────────────────────────
+
+describe('TreeWidget', () => {
+  it('renders a tree with nested nodes', () => {
+    const view: DynamicView = {
+      title: 'Tree Test',
+      root: {
+        layout: 'stack',
+        gap: 'md',
+        widgets: [{
+          type: 'tree',
+          title: 'File System',
+          nodes: [
+            {
+              label: '/etc',
+              children: [
+                { label: 'nginx', children: [
+                  { label: 'nginx.conf', value: '2.4KB' },
+                ]},
+                { label: 'hosts', value: '1.2KB' },
+              ],
+            },
+          ],
+        }],
+      },
+    };
+    render(<DynamicViewRenderer view={view} />);
+    expect(screen.getByText('File System')).toBeInTheDocument();
+    expect(screen.getByText('/etc')).toBeInTheDocument();
+    expect(screen.getByText('nginx')).toBeInTheDocument();
+    expect(screen.getByText('nginx.conf')).toBeInTheDocument();
+    expect(screen.getByText('2.4KB')).toBeInTheDocument();
+  });
+
+  it('supports 3+ levels of nesting', () => {
+    const view: DynamicView = {
+      title: 'Deep Tree',
+      root: {
+        layout: 'stack',
+        gap: 'md',
+        widgets: [{
+          type: 'tree',
+          nodes: [
+            {
+              label: 'Level 0',
+              children: [{
+                label: 'Level 1',
+                children: [{
+                  label: 'Level 2',
+                  children: [{
+                    label: 'Level 3',
+                    value: 'deep leaf',
+                  }],
+                }],
+              }],
+            },
+          ],
+        }],
+      },
+    };
+    render(<DynamicViewRenderer view={view} />);
+    expect(screen.getByText('Level 0')).toBeInTheDocument();
+    expect(screen.getByText('Level 1')).toBeInTheDocument();
+    expect(screen.getByText('Level 2')).toBeInTheDocument();
+    // Level 3 might not be expanded by default (depth > 1), let's check
+    // Default: depth 0 expanded, depth 1 expanded, depth > 1 collapsed
+    // So Level 2's children (Level 3) should be collapsed
+  });
+
+  it('toggles collapse on click', () => {
+    const view: DynamicView = {
+      title: 'Toggle Tree',
+      root: {
+        layout: 'stack',
+        gap: 'md',
+        widgets: [{
+          type: 'tree',
+          nodes: [{
+            label: 'Parent',
+            children: [{ label: 'Child A' }, { label: 'Child B' }],
+          }],
+        }],
+      },
+    };
+    render(<DynamicViewRenderer view={view} />);
+    
+    // Children should be visible initially (root is expanded)
+    expect(screen.getByText('Child A')).toBeInTheDocument();
+    expect(screen.getByText('Child B')).toBeInTheDocument();
+    
+    // Click parent to collapse
+    fireEvent.click(screen.getByText('Parent'));
+    expect(screen.queryByText('Child A')).not.toBeInTheDocument();
+    expect(screen.queryByText('Child B')).not.toBeInTheDocument();
+    
+    // Click again to expand
+    fireEvent.click(screen.getByText('Parent'));
+    expect(screen.getByText('Child A')).toBeInTheDocument();
+  });
+
+  it('renders empty tree message', () => {
+    const view: DynamicView = {
+      title: 'Empty Tree',
+      root: {
+        layout: 'stack',
+        gap: 'md',
+        widgets: [{
+          type: 'tree',
+          nodes: [],
+        }],
+      },
+    };
+    render(<DynamicViewRenderer view={view} />);
+    expect(screen.getByText('No items')).toBeInTheDocument();
+  });
+
+  it('shows node values beside labels', () => {
+    const view: DynamicView = {
+      title: 'Tree Values',
+      root: {
+        layout: 'stack',
+        gap: 'md',
+        widgets: [{
+          type: 'tree',
+          nodes: [
+            { label: 'config.json', value: '4.2KB' },
+            { label: 'README.md', value: '1.8KB' },
+          ],
+        }],
+      },
+    };
+    render(<DynamicViewRenderer view={view} />);
+    expect(screen.getByText('config.json')).toBeInTheDocument();
+    expect(screen.getByText('4.2KB')).toBeInTheDocument();
+    expect(screen.getByText('README.md')).toBeInTheDocument();
+    expect(screen.getByText('1.8KB')).toBeInTheDocument();
+  });
+});
+
+// ── LogViewerWidget (EX1.5) ─────────────────────────────
+
+describe('LogViewerWidget', () => {
+  it('renders log lines with timestamps and levels', () => {
+    const view: DynamicView = {
+      title: 'Log Test',
+      root: {
+        layout: 'stack',
+        gap: 'md',
+        widgets: [{
+          type: 'log-viewer',
+          title: 'Application Logs',
+          lines: [
+            { timestamp: '2024-01-01 10:00:00', level: 'info', message: 'Server started' },
+            { timestamp: '2024-01-01 10:00:05', level: 'warn', message: 'High memory usage' },
+            { timestamp: '2024-01-01 10:00:10', level: 'error', message: 'Connection refused' },
+          ],
+          maxHeight: '300px',
+        }],
+      },
+    };
+    render(<DynamicViewRenderer view={view} />);
+    expect(screen.getByText('Application Logs')).toBeInTheDocument();
+    expect(screen.getByText('Server started')).toBeInTheDocument();
+    expect(screen.getByText('High memory usage')).toBeInTheDocument();
+    expect(screen.getByText('Connection refused')).toBeInTheDocument();
+
+    // Timestamps shown
+    expect(screen.getByText('2024-01-01 10:00:00')).toBeInTheDocument();
+    expect(screen.getByText('2024-01-01 10:00:05')).toBeInTheDocument();
+  });
+
+  it('renders level badges with correct text', () => {
+    const view: DynamicView = {
+      title: 'Level Test',
+      root: {
+        layout: 'stack',
+        gap: 'md',
+        widgets: [{
+          type: 'log-viewer',
+          lines: [
+            { level: 'error', message: 'Error msg' },
+            { level: 'warn', message: 'Warn msg' },
+            { level: 'info', message: 'Info msg' },
+            { level: 'debug', message: 'Debug msg' },
+          ],
+        }],
+      },
+    };
+    render(<DynamicViewRenderer view={view} />);
+    expect(screen.getByText('error')).toBeInTheDocument();
+    expect(screen.getByText('warn')).toBeInTheDocument();
+    // Multiple 'info' texts might exist (level badge + message)
+    expect(screen.getByText('Info msg')).toBeInTheDocument();
+    expect(screen.getByText('Debug msg')).toBeInTheDocument();
+  });
+
+  it('renders log without timestamps or levels', () => {
+    const view: DynamicView = {
+      title: 'Simple Log',
+      root: {
+        layout: 'stack',
+        gap: 'md',
+        widgets: [{
+          type: 'log-viewer',
+          lines: [
+            { message: 'Plain line 1' },
+            { message: 'Plain line 2' },
+          ],
+        }],
+      },
+    };
+    render(<DynamicViewRenderer view={view} />);
+    expect(screen.getByText('Plain line 1')).toBeInTheDocument();
+    expect(screen.getByText('Plain line 2')).toBeInTheDocument();
+  });
+
+  it('renders empty log message', () => {
+    const view: DynamicView = {
+      title: 'Empty Log',
+      root: {
+        layout: 'stack',
+        gap: 'md',
+        widgets: [{
+          type: 'log-viewer',
+          lines: [],
+        }],
+      },
+    };
+    render(<DynamicViewRenderer view={view} />);
+    expect(screen.getByText('No log entries')).toBeInTheDocument();
+  });
+
+  it('renders in mixed composition with other widgets', () => {
+    const view: DynamicView = {
+      title: 'Mixed Extended',
+      root: {
+        layout: 'stack',
+        gap: 'md',
+        widgets: [
+          {
+            type: 'chart',
+            title: 'Request Rate',
+            chartType: 'bar',
+            data: [{ h: '1pm', reqs: 500 }],
+            xKey: 'h',
+            yKeys: [{ key: 'reqs' }],
+          },
+          {
+            type: 'tree',
+            title: 'Config Tree',
+            nodes: [{ label: 'root', children: [{ label: 'child' }] }],
+          },
+          {
+            type: 'log-viewer',
+            title: 'Recent Logs',
+            lines: [{ level: 'info', message: 'All systems go' }],
+          },
+        ],
+      },
+    };
+    render(<DynamicViewRenderer view={view} />);
+    expect(screen.getByText('Request Rate')).toBeInTheDocument();
+    expect(screen.getByText('Config Tree')).toBeInTheDocument();
+    expect(screen.getByText('Recent Logs')).toBeInTheDocument();
+    expect(screen.getByText('All systems go')).toBeInTheDocument();
   });
 });

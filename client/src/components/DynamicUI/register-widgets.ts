@@ -9,6 +9,9 @@ import { StatCardWidget } from './widgets/StatCardWidget';
 import { ProgressBarWidget } from './widgets/ProgressBarWidget';
 import { CodeBlockWidget } from './widgets/CodeBlockWidget';
 import { AlertWidget } from './widgets/AlertWidget';
+import { ChartWidget } from './widgets/ChartWidget';
+import { TreeWidget } from './widgets/TreeWidget';
+import { LogViewerWidget } from './widgets/LogViewerWidget';
 
 // Register base widget types (EX1.2)
 registerWidget('table', TableWidget);
@@ -19,7 +22,7 @@ registerWidget('progress-bar', ProgressBarWidget);
 registerWidget('code-block', CodeBlockWidget);
 registerWidget('alert', AlertWidget);
 
-// Extended widgets (EX1.5) will be registered here:
-// registerWidget('chart', ChartWidget);
-// registerWidget('tree', TreeWidget);
-// registerWidget('log-viewer', LogViewerWidget);
+// Extended widgets (EX1.5)
+registerWidget('chart', ChartWidget);
+registerWidget('tree', TreeWidget);
+registerWidget('log-viewer', LogViewerWidget);
