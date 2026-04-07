@@ -1,12 +1,12 @@
 // EX1.2: Component tests for DynamicUI renderer + all base widgets
 // @see docs/phases/phase-ex1.md
 
-import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
 import type { DynamicView } from 'headlessos-shared/schemas/dynamic-view';
 
 // Import triggers widget registration
-import { DynamicViewRenderer } from '../../src/components/DynamicUI';
+import { DynamicViewRenderer, DynamicAppWindow } from '../../src/components/DynamicUI';
 import { getRegisteredTypes, clearRegistry } from '../../src/components/DynamicUI/widget-registry';
 
 // ── Widget Registry ─────────────────────────────────────
@@ -498,5 +498,70 @@ describe('Mixed Widget Compositions', () => {
     expect(screen.getByText('Disk')).toBeInTheDocument();
     expect(screen.getByText('↑')).toBeInTheDocument();
     expect(screen.getByText('↓')).toBeInTheDocument();
+  });
+});
+
+// ── DynamicAppWindow ────────────────────────────────────
+
+describe('DynamicAppWindow', () => {
+  const sampleView: DynamicView = {
+    title: 'System Info',
+    description: 'Server overview',
+    root: {
+      layout: 'stack',
+      gap: 'md',
+      widgets: [
+        { type: 'stat-card', title: 'CPU', value: '45%' },
+      ],
+    },
+    meta: {
+      command: 'uname -a',
+      generatedAt: '2024-01-01T00:00:00Z',
+    },
+  };
+
+  it('renders title and content when open', () => {
+    render(<DynamicAppWindow view={sampleView} open={true} onClose={() => {}} />);
+    expect(screen.getByText('System Info')).toBeInTheDocument();
+    expect(screen.getByText('CPU')).toBeInTheDocument();
+    expect(screen.getByText('45%')).toBeInTheDocument();
+  });
+
+  it('does not render when closed', () => {
+    render(<DynamicAppWindow view={sampleView} open={false} onClose={() => {}} />);
+    expect(screen.queryByText('System Info')).not.toBeInTheDocument();
+  });
+
+  it('shows JSON toggle button', () => {
+    render(<DynamicAppWindow view={sampleView} open={true} onClose={() => {}} />);
+    expect(screen.getByText('JSON')).toBeInTheDocument();
+  });
+
+  it('toggles between JSON and preview', () => {
+    render(<DynamicAppWindow view={sampleView} open={true} onClose={() => {}} />);
+    
+    // Click JSON button
+    fireEvent.click(screen.getByText('JSON'));
+    
+    // Should now show raw JSON
+    expect(screen.getByText('Preview')).toBeInTheDocument();
+    const codeEl = document.querySelector('code');
+    expect(codeEl).toBeTruthy();
+    expect(codeEl!.textContent).toContain('"title": "System Info"');
+  });
+
+  it('shows regenerate button when onRegenerate provided', () => {
+    const onRegenerate = vi.fn();
+    render(
+      <DynamicAppWindow view={sampleView} open={true} onClose={() => {}} onRegenerate={onRegenerate} />
+    );
+    expect(screen.getByText('Regenerate')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Regenerate'));
+    expect(onRegenerate).toHaveBeenCalledOnce();
+  });
+
+  it('shows footer metadata', () => {
+    render(<DynamicAppWindow view={sampleView} open={true} onClose={() => {}} />);
+    expect(screen.getByText(/Command: uname -a/)).toBeInTheDocument();
   });
 });
