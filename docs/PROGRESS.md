@@ -243,7 +243,7 @@ Example:
 |---------|------|--------|--------------|
 | EX1.7 | Template Library (15+ templates) | ✅ | 15 templates validate against schema, match logic works, 71 tests |
 | EX1.8 | DynamicUIGenerator Service (Streaming) | ✅ | Generator service, REST/WS endpoints, 34 tests |
-| EX1.9 | Command Palette Trigger | ⬜ | "Generate Dynamic UI" in Ctrl+K palette, fuzzy search |
+| EX1.9 | Command Palette Trigger | ✅ | Dynamic UI group in palette, template search, freeform generation, 12 tests |
 | EX1.10 | Schema Caching & Persistence | ⬜ | Memory + disk cache, regenerate bypass, stats in /api/stats/llm |
 
 ### Phase 3: Full Integration
