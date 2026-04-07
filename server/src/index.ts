@@ -30,6 +30,7 @@ import { LLMUsageTracker } from './llm/usage-tracker.js';
 import { InvestigationAgent } from './agent/investigation-agent.js';
 import { DynamicUIGenerator } from './dynamic-ui/generator.js';
 import { DynamicUIDiskCache } from './cache/dynamic-ui-cache.js';
+import { ModelRouter } from './llm/model-router.js';
 
 const PORT = Number(process.env.PORT) || 3001;
 
@@ -54,12 +55,21 @@ async function main(): Promise<void> {
   container.register('orchestrator', orchestrator);
 
   // LLM provider is optional — configured if OPENAI_API_KEY is set
+  let modelRouter: ModelRouter | null = null;
   if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'sk-your-key-here') {
     const { OpenAIProvider } = await import('./llm/providers/openai.js');
     const llmProvider = new OpenAIProvider(process.env.OPENAI_API_KEY);
     pipeline.setLLMProvider(llmProvider);
     investigationAgent.setLLMProvider(llmProvider);
     dynamicUIGenerator = new DynamicUIGenerator({ llmProvider, outputCache, usageTracker, diskCache });
+
+    // EX2.1: Multi-Model Router
+    modelRouter = new ModelRouter('model-router', {
+      apiKey: process.env.OPENAI_API_KEY,
+      usageTracker,
+    });
+    container.register('model-router', modelRouter);
+
     console.log('🤖 LLM provider: OpenAI');
   } else {
     console.log('⚠️  No OPENAI_API_KEY set — LLM parsing disabled (deterministic parsers only)');
