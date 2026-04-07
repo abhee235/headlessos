@@ -16,6 +16,7 @@
 | Phase 6 | Desktop UI system | Week 6-7 | In progress | [phase-6.md](phases/phase-6.md) |
 | Phase 7 | System settings + Server Admin | Week 8 | In progress | [phase-7.md](phases/phase-7.md) |
 | **Phase EX1** | **Dynamic UI Engine (Experimental)** | **TBD** | **Not started** | [phase-ex1.md](phases/phase-ex1.md) |
+| **Phase EX2** | **UI Generation Agent (Experimental)** | **TBD** | **Not started** | [phase-ex2.md](phases/phase-ex2.md) |
 
 ## Task ID System
 
@@ -43,6 +44,10 @@ Phase 0 (Foundation)
               ├── EX1 P1: JSON→UI Renderer (schema + widgets + layouts)
               ├── EX1 P2: LLM→JSON Generation (templates + streaming generator + command palette)
               └── EX1 P3: Full Integration (terminal capture + live refresh + desktop tabs + actions)
+                    └── Phase EX2 (UI Generation Agent) ← depends on EX1.1 + EX1.2 + EX1.7
+                          ├── EX2 P1: Agent Core (model router + tools + guardrails + context + reactive loop)
+                          ├── EX2 P2: Interactive UIs (FormWidget + write-back + error recovery)
+                          └── EX2 P3: Frontend Integration (agent panel + WebSocket + hooks)
 ```
 
 ## Quick Links

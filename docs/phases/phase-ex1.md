@@ -811,6 +811,59 @@ Rules:
 
 ---
 
+### EX1.15: FormWidget (Editable Config UI)
+
+> **Added for EX2 agent support.** The FormWidget renders editable form fields from the schema
+> so dynamic UIs can act like static UIs — edit a value, click save, and it writes back to the server.
+> Full write-back implementation is in EX2.8 + EX2.9 (phase-ex2.md).
+
+**Goal:** Add a `form` widget type that renders editable fields with client-side validation
+and a submit button. When combined with `writeBack` config (from EX2.9), edited values
+are saved back to the remote server via SFTP.
+
+**Why this belongs in EX1:** The FormWidget is a pure rendering concern — it renders form
+fields from a JSON schema, exactly like all other widgets. The write-back logic (SFTP,
+validation commands, rollback) belongs in EX2, but the widget itself belongs here.
+
+**Schema addition to `WidgetSchema` union:**
+
+```typescript
+FormWidgetSchema = z.object({
+  type: z.literal('form'),
+  title: z.string().optional(),
+  fields: z.array(FormFieldSchema),
+  groups: z.array(z.object({
+    label: z.string(),
+    fieldKeys: z.array(z.string()),
+  })).optional(),
+  writeBack: WriteBackSchema.optional(),  // Defined in EX2.8
+  submitLabel: z.string().default('Save'),
+  readOnly: z.boolean().default(false),
+});
+```
+
+**Component:** `client/src/components/DynamicUI/widgets/FormWidget.tsx`
+- Renders Input, Textarea, Select, Switch, Checkbox based on field type
+- Client-side validation (required, min/max, regex pattern)
+- Grouped fields render as card sections
+- Submit calls `onSubmit` callback (wired to write-back API in EX2.9)
+- Read-only mode disables all fields and hides submit button
+
+**Acceptance Criteria:**
+- [ ] FormWidget added to WidgetSchema discriminated union
+- [ ] All field types render: text, number, boolean, select, textarea
+- [ ] Client-side validation with error messages
+- [ ] Field groups render as separate sections
+- [ ] Read-only mode works
+- [ ] Component tests for each field type
+
+**Files:**
+- `shared/schemas/dynamic-view.ts` — FormFieldSchema + FormWidgetSchema
+- `client/src/components/DynamicUI/widgets/FormWidget.tsx`
+- Tests: `client/tests/components/DynamicUI/widgets/FormWidget.test.tsx`
+
+---
+
 ## Dependency Graph
 
 ```
@@ -821,14 +874,16 @@ EX1.1 (Schema)
   │     └── EX1.5 (Extended widgets)
   │           └── EX1.6 (Layouts)
   │
-  └── EX1.7 (Template Library)
-        └── EX1.8 (Generator + Streaming) ← depends on EX1.1 + EX1.7
-              ├── EX1.9 (Command Palette trigger)
-              ├── EX1.10 (Caching)
-              ├── EX1.11 (Terminal capture)
-              ├── EX1.12 (Live refresh)
-              ├── EX1.13 (Desktop tabs)
-              └── EX1.14 (Actions)
+  ├── EX1.7 (Template Library)
+  │     └── EX1.8 (Generator + Streaming) ← depends on EX1.1 + EX1.7
+  │           ├── EX1.9 (Command Palette trigger)
+  │           ├── EX1.10 (Caching)
+  │           ├── EX1.11 (Terminal capture)
+  │           ├── EX1.12 (Live refresh)
+  │           ├── EX1.13 (Desktop tabs)
+  │           └── EX1.14 (Actions)
+  │
+  └── EX1.15 (FormWidget) ← rendering only; write-back via EX2.9
 ```
 
 ## File Location Summary

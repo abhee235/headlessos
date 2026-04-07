@@ -31,7 +31,8 @@
 | M9: Desktop Polish & Core UX | Week 11 | ✅ | 12/12 tasks | — |
 | M10: Advanced Features | Week 12-14 | ✅ | 10/10 tasks | — |
 | M11: Fleet, Agent & Platform | Week 15-16 | ✅ | 7/7 tasks | — |
-| **EX1: Dynamic UI Engine** | **Experimental** | **⬜** | **0/14 tasks** | [phase-ex1](phases/phase-ex1.md) |
+| **EX1: Dynamic UI Engine** | **Experimental** | **⬜** | **0/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
+| **EX2: UI Generation Agent** | **Experimental** | **⬜** | **0/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
 
 ---
 
@@ -253,6 +254,42 @@ Example:
 | EX1.12 | Live Data Refresh | ⬜ | Widget-level dataSource auto-refresh, pause/resume |
 | EX1.13 | Desktop Tab Integration | ⬜ | Dynamic views as desktop tabs, persistence |
 | EX1.14 | Action Execution from Dynamic UI | ⬜ | Buttons trigger SSH commands, allowlist validated, confirmation |
+| EX1.15 | FormWidget (Editable Config UI) | ⬜ | Form fields render, validation, submit handler, read-only mode |
+
+---
+
+## EX2: UI Generation Agent (Experimental)
+
+> See [ADR-016](DECISIONS.md) and [phase-ex2.md](phases/phase-ex2.md) for full spec.
+> Depends on EX1.1 (DynamicViewSchema), EX1.2 (Renderer), EX1.7 (Template Library)
+
+### Phase 1: Agent Core
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| EX2.1 | Multi-Model Router | ⬜ | Routes reasoning/structured-output/fast/weak, fallback, usage tracking |
+| EX2.2 | Agent Tool System (9 tools) | ⬜ | Tools + tool-converter (OpenAI fn format), tool-result-per-tool-use guarantee |
+| EX2.3 | Three-Tier Security Guardrails | ⬜ | Read/write/deny tiers enforced, injection tests pass |
+| EX2.4 | Planner Phase | ⬜ | Reasoning model produces PlannerHints (intent + expected widgets, NOT step list) |
+| EX2.5 | Reactive Executor | ⬜ | Native function calling loop, inline Zod validation, safety rails |
+| EX2.6 | Post-Generation Reflector | ⬜ | Optional quality check, typed errors, max 2 fix loops |
+| EX2.7 | UI Agent Orchestrator | ⬜ | Stack-based Plan→ReactiveLoop→OptionalReflect, abort, session tracking |
+| EX2.13 | Context Manager | ⬜ | Token tracking, 80% compaction threshold, weak model summarization |
+
+### Phase 2: Interactive UIs + Write-Back
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| EX2.8 | FormWidget Schema + Component | ⬜ | Form fields render, client validation, submit handler |
+| EX2.9 | Write-Back API | ⬜ | Backup→write→validate→rollback flow, SFTP path allowlist |
+| EX2.10 | Error Recovery Strategies | ⬜ | Exponential backoff, typed errors, context compaction, graceful degradation |
+
+### Phase 3: Frontend Integration
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| EX2.11 | Agent UI Panel | ⬜ | Thinking steps, tool calls, safety warnings, progressive preview, abort |
+| EX2.12 | WebSocket Protocol + Hooks | ⬜ | WS endpoint, useUIAgent hook, new event types (safety/rate-limit/compact) |
 
 ---
 
