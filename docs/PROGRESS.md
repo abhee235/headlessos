@@ -288,7 +288,7 @@ Example:
 
 | Task ID | Task | Status | Verification |
 |---------|------|--------|--------------|
-| EX2.11 | Agent UI Panel | ⬜ | Thinking steps, tool calls, safety warnings, progressive preview, abort |
+| EX2.11 | Agent UI Panel | ✅ | All event types rendered, tool timing, abort, collapse, progressive preview, 23 tests |
 | EX2.12 | WebSocket Protocol + Hooks | ⬜ | WS endpoint, useUIAgent hook, new event types (safety/rate-limit/compact) |
 
 ---
