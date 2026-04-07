@@ -3,6 +3,7 @@
 
 import type { z } from 'zod';
 import type { ChartWidgetSchema } from 'headlessos-shared/schemas/dynamic-view';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   ChartContainer,
   ChartTooltip,
@@ -28,16 +29,13 @@ import {
 
 type ChartWidgetData = z.infer<typeof ChartWidgetSchema>;
 
-/** Default palette for chart series when no color is specified */
+/** Default palette uses the theme's --chart-1..5 CSS variables, then cycles */
 const DEFAULT_COLORS = [
-  'oklch(0.65 0.19 145)',   // green
-  'oklch(0.60 0.19 260)',   // blue
-  'oklch(0.70 0.18 50)',    // orange
-  'oklch(0.65 0.20 330)',   // pink
-  'oklch(0.72 0.15 85)',    // yellow
-  'oklch(0.55 0.22 290)',   // purple
-  'oklch(0.68 0.16 175)',   // teal
-  'oklch(0.60 0.17 15)',    // red
+  'var(--chart-1)',
+  'var(--chart-2)',
+  'var(--chart-3)',
+  'var(--chart-4)',
+  'var(--chart-5)',
 ];
 
 function buildChartConfig(yKeys: ChartWidgetData['yKeys']): ChartConfig {
@@ -61,10 +59,13 @@ export function ChartWidget({ widget }: { widget: ChartWidgetData }) {
   const isPie = chartType === 'pie' || chartType === 'donut';
 
   return (
-    <div className="space-y-2">
+    <Card>
       {title && (
-        <h3 className="text-sm font-medium text-foreground">{title}</h3>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        </CardHeader>
       )}
+      <CardContent className={title ? 'pt-0' : 'pt-4'}>
       <ChartContainer config={config} className="w-full" style={{ height }}>
         {isPie ? (
           <PieChart>
@@ -141,6 +142,7 @@ export function ChartWidget({ widget }: { widget: ChartWidgetData }) {
           </AreaChart>
         )}
       </ChartContainer>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

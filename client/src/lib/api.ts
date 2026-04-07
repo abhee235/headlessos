@@ -1156,3 +1156,23 @@ export async function generateDynamicUI(
   );
   return res.data;
 }
+
+export interface RefreshResult {
+  success: boolean;
+  data: unknown;
+  rawOutput: string;
+}
+
+export async function refreshWidgetData(
+  serverId: string,
+  command: string,
+  parseMode: 'json' | 'text' = 'text',
+): Promise<RefreshResult> {
+  return request<RefreshResult>(
+    `/servers/${serverId}/dynamic-ui/refresh`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ command, parseMode }),
+    },
+  );
+}

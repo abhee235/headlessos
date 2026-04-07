@@ -74,6 +74,66 @@ export async function dynamicUIRoutes(
 
   // ── REST: List templates ───────────────────────────────────────
 
+  // ── REST: Widget data refresh (EX1.12) ─────────────────────────
+
+  fastify.post<{
+    Params: { serverId: string };
+    Body: { command: string; parseMode?: 'json' | 'text' };
+  }>('/api/servers/:serverId/dynamic-ui/refresh', async (req, reply) => {
+    const { serverId } = req.params;
+    const { command, parseMode } = req.body;
+
+    if (!command) {
+      return reply.status(400).send({ error: 'Missing field: command' });
+    }
+
+    requireConnected(serverId);
+
+    try {
+      const conn = connectionManager.getConnection(serverId);
+      if (!conn) {
+        return reply.status(404).send({ error: `Server "${serverId}" not connected` });
+      }
+
+      // Run the command via exec
+      const rawOutput = await new Promise<string>((resolve, reject) => {
+        conn.client.exec(command, (err, stream) => {
+          if (err) return reject(err);
+          let output = '';
+          stream.on('data', (data: Buffer) => {
+            output += data.toString();
+          });
+          stream.stderr.on('data', (data: Buffer) => {
+            output += data.toString();
+          });
+          stream.on('close', () => resolve(output));
+          // Timeout after 10s
+          setTimeout(() => {
+            stream.close();
+            reject(new Error('Command timed out'));
+          }, 10000);
+        });
+      });
+
+      // Parse based on mode
+      let data: unknown;
+      if (parseMode === 'json') {
+        try {
+          data = JSON.parse(rawOutput.trim());
+        } catch {
+          data = rawOutput;
+        }
+      } else {
+        data = rawOutput;
+      }
+
+      return reply.send({ success: true, data, rawOutput });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to run refresh command';
+      return reply.status(500).send({ success: false, error: message });
+    }
+  });
+
   fastify.get('/api/dynamic-ui/templates', async () => {
     const templates = registry.listAll();
     return {

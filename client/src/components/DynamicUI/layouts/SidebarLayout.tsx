@@ -26,11 +26,11 @@ export function SidebarLayout({ layout }: { layout: SidebarLayout }) {
   const activeWidgets = (sections[activeId] ?? []) as DeepPartial<Widget>[];
 
   return (
-    <div className="flex gap-0 rounded-lg border border-border overflow-hidden min-h-[200px]">
-      {/* Sidebar navigation */}
-      <nav className="w-48 shrink-0 border-r border-border bg-muted/30">
+    <div className="flex gap-0 rounded-lg border border-border/60 overflow-hidden min-h-[200px]">
+      {/* Sidebar navigation — matches AppWindow.Sidebar styling */}
+      <nav className="w-[200px] shrink-0 border-r border-border/60 bg-sidebar/50">
         <ScrollArea className="h-full">
-          <div className="flex flex-col py-1">
+          <div className="flex flex-col py-2 px-2 space-y-0.5">
             {items.map((item, i) => {
               const id = item.id ?? `item-${i}`;
               return (
@@ -38,11 +38,10 @@ export function SidebarLayout({ layout }: { layout: SidebarLayout }) {
                   key={id}
                   onClick={() => setActiveId(id)}
                   className={cn(
-                    'flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors',
-                    'hover:bg-accent/50',
+                    'flex items-center gap-2 px-3 py-1.5 rounded-lg text-[13px] text-left transition-colors',
                     activeId === id
-                      ? 'bg-accent text-accent-foreground font-medium'
-                      : 'text-muted-foreground',
+                      ? 'bg-primary/12 text-primary font-medium dark:bg-primary/20'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-accent',
                   )}
                 >
                   <span className="truncate">{item.label ?? id}</span>

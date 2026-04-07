@@ -3,6 +3,7 @@
 
 import type { z } from 'zod';
 import type { LogViewerWidgetSchema } from 'headlessos-shared/schemas/dynamic-view';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 
@@ -10,15 +11,15 @@ type LogViewerWidgetData = z.infer<typeof LogViewerWidgetSchema>;
 
 const LEVEL_STYLES: Record<string, string> = {
   error: 'text-destructive',
-  warn: 'text-[oklch(0.75_0.15_75)]',     // amber/yellow
-  info: 'text-[oklch(0.65_0.15_245)]',     // blue
+  warn: 'text-warning',
+  info: 'text-primary',
   debug: 'text-muted-foreground',
 };
 
 const LEVEL_BADGE_STYLES: Record<string, string> = {
   error: 'bg-destructive/15 text-destructive',
-  warn: 'bg-[oklch(0.75_0.15_75/0.15)] text-[oklch(0.75_0.15_75)]',
-  info: 'bg-[oklch(0.65_0.15_245/0.15)] text-[oklch(0.65_0.15_245)]',
+  warn: 'bg-warning/15 text-warning',
+  info: 'bg-primary/15 text-primary',
   debug: 'bg-muted text-muted-foreground',
 };
 
@@ -26,11 +27,14 @@ export function LogViewerWidget({ widget }: { widget: LogViewerWidgetData }) {
   const { title, lines, maxHeight = '400px' } = widget;
 
   return (
-    <div className="space-y-2">
+    <Card>
       {title && (
-        <h3 className="text-sm font-medium text-foreground">{title}</h3>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        </CardHeader>
       )}
-      <div className="rounded-md border border-border bg-card overflow-hidden">
+      <CardContent className={title ? 'pt-0' : 'pt-4'}>
+      <div className="rounded-md border border-border/60 bg-muted/30 overflow-hidden">
         <ScrollArea style={{ maxHeight }}>
           <div className="font-mono text-xs leading-relaxed p-2 space-y-0">
             {lines.length === 0 ? (
@@ -73,6 +77,7 @@ export function LogViewerWidget({ widget }: { widget: LogViewerWidgetData }) {
           </div>
         </ScrollArea>
       </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

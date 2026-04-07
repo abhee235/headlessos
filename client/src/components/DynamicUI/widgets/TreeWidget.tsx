@@ -6,6 +6,7 @@ import type { z } from 'zod';
 import type { TreeWidgetSchema } from 'headlessos-shared/schemas/dynamic-view';
 import type { TreeNode } from 'headlessos-shared/schemas/dynamic-view';
 import { ChevronRight, ChevronDown } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
 type TreeWidgetData = z.infer<typeof TreeWidgetSchema>;
@@ -77,11 +78,14 @@ export function TreeWidget({ widget }: { widget: TreeWidgetData }) {
   const { title, nodes } = widget;
 
   return (
-    <div className="space-y-2">
+    <Card>
       {title && (
-        <h3 className="text-sm font-medium text-foreground">{title}</h3>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        </CardHeader>
       )}
-      <div className="rounded-md border border-border bg-card p-2 font-mono text-[13px]">
+      <CardContent className={title ? 'pt-0' : 'pt-4'}>
+      <div className="rounded-md border border-border/60 bg-muted/30 p-2 font-mono text-[13px]">
         {nodes.length === 0 ? (
           <p className="text-xs text-muted-foreground italic px-2 py-1">
             No items
@@ -97,6 +101,7 @@ export function TreeWidget({ widget }: { widget: TreeWidgetData }) {
           ))
         )}
       </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

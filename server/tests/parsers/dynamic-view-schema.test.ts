@@ -22,6 +22,7 @@ import {
   TabsLayoutSchema,
   SidebarLayoutSchema,
   DynamicViewMetaSchema,
+  DataSourceSchema,
   WIDGET_TYPES,
   LAYOUT_TYPES,
 } from 'headlessos-shared/schemas/dynamic-view';
@@ -777,5 +778,135 @@ describe('OpenAI zodResponseFormat compatibility', () => {
     expect(props).toContain('description');
     expect(props).toContain('icon');
     expect(props).toContain('meta');
+  });
+});
+
+// ── EX1.12: DataSource Schema ───────────────────────────
+
+describe('DataSourceSchema', () => {
+  it('accepts valid dataSource', () => {
+    const result = DataSourceSchema.parse({
+      command: 'df -h',
+      refreshInterval: 10000,
+      parseMode: 'text',
+    });
+    expect(result.command).toBe('df -h');
+    expect(result.refreshInterval).toBe(10000);
+    expect(result.parseMode).toBe('text');
+  });
+
+  it('applies defaults for refreshInterval and parseMode', () => {
+    const result = DataSourceSchema.parse({
+      command: 'free -m',
+    });
+    expect(result.refreshInterval).toBe(30000);
+    expect(result.parseMode).toBe('text');
+  });
+
+  it('rejects refreshInterval below 5000ms', () => {
+    expect(() =>
+      DataSourceSchema.parse({
+        command: 'uptime',
+        refreshInterval: 1000,
+      }),
+    ).toThrow();
+  });
+
+  it('rejects missing command', () => {
+    expect(() =>
+      DataSourceSchema.parse({
+        refreshInterval: 10000,
+      }),
+    ).toThrow();
+  });
+
+  it('accepts json parseMode', () => {
+    const result = DataSourceSchema.parse({
+      command: 'docker stats --no-stream --format json',
+      parseMode: 'json',
+    });
+    expect(result.parseMode).toBe('json');
+  });
+
+  it('rejects invalid parseMode', () => {
+    expect(() =>
+      DataSourceSchema.parse({
+        command: 'ls',
+        parseMode: 'xml',
+      }),
+    ).toThrow();
+  });
+});
+
+describe('Widgets with dataSource', () => {
+  it('table widget accepts optional dataSource', () => {
+    const result = TableWidgetSchema.parse({
+      type: 'table',
+      columns: [{ key: 'name', label: 'Name', type: 'text', sortable: false }],
+      rows: [{ name: 'test' }],
+      dataSource: {
+        command: 'ps aux',
+        refreshInterval: 10000,
+        parseMode: 'text',
+      },
+    });
+    expect(result.dataSource?.command).toBe('ps aux');
+  });
+
+  it('stat-card widget accepts optional dataSource', () => {
+    const result = StatCardWidgetSchema.parse({
+      type: 'stat-card',
+      title: 'CPU',
+      value: '42%',
+      dataSource: {
+        command: "top -bn1 | grep Cpu",
+        refreshInterval: 5000,
+        parseMode: 'text',
+      },
+    });
+    expect(result.dataSource?.command).toContain('top');
+  });
+
+  it('widgets work without dataSource', () => {
+    const result = AlertWidgetSchema.parse({
+      type: 'alert',
+      severity: 'info',
+      message: 'All good',
+    });
+    expect(result.dataSource).toBeUndefined();
+  });
+
+  it('widgets accept null dataSource', () => {
+    const result = CodeBlockWidgetSchema.parse({
+      type: 'code-block',
+      code: 'echo hello',
+      language: 'bash',
+      dataSource: null,
+    });
+    expect(result.dataSource).toBeNull();
+  });
+
+  it('all widget types support dataSource field', () => {
+    const widgetSchemas = [
+      { schema: TableWidgetSchema, base: { type: 'table', columns: [{ key: 'a', label: 'A', type: 'text', sortable: false }], rows: [] } },
+      { schema: KeyValueWidgetSchema, base: { type: 'key-value', pairs: [{ key: 'a', value: 'b', copyable: false }], layout: 'vertical' } },
+      { schema: BadgeGridWidgetSchema, base: { type: 'badge-grid', badges: [{ label: 'a', value: 'b', variant: 'default' }] } },
+      { schema: StatCardWidgetSchema, base: { type: 'stat-card', title: 'X', value: '1' } },
+      { schema: ProgressBarWidgetSchema, base: { type: 'progress-bar', label: 'X', value: 50, max: 100 } },
+      { schema: CodeBlockWidgetSchema, base: { type: 'code-block', code: 'x', language: 'bash' } },
+      { schema: AlertWidgetSchema, base: { type: 'alert', severity: 'info', message: 'ok' } },
+      { schema: ChartWidgetSchema, base: { type: 'chart', chartType: 'bar', xKey: 'name', data: [{ name: 'a', v: 1 }], yKeys: [{ key: 'v' }] } },
+      { schema: TreeWidgetSchema, base: { type: 'tree', nodes: [{ label: 'root', children: [] }] } },
+      { schema: LogViewerWidgetSchema, base: { type: 'log-viewer', lines: [{ message: 'ok' }] } },
+    ];
+
+    for (const { schema, base } of widgetSchemas) {
+      const withDS = schema.parse({
+        ...base,
+        dataSource: { command: 'test', refreshInterval: 5000, parseMode: 'text' },
+      });
+      expect(withDS.dataSource).toBeDefined();
+      expect(withDS.dataSource?.command).toBe('test');
+    }
   });
 });

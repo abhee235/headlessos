@@ -13,6 +13,19 @@ export const BadgeVariantEnum = z.enum([
   'default', 'secondary', 'destructive', 'outline', 'success', 'warning',
 ]);
 
+// ── Data Source (EX1.12: Live Data Refresh) ────────────
+
+export const DataSourceSchema = z.object({
+  /** Command to run on the server for refreshing data */
+  command: z.string(),
+  /** Refresh interval in milliseconds (min 5000, default 30000) */
+  refreshInterval: z.number().min(5000).default(30000),
+  /** How to parse the output: json, text (default text) */
+  parseMode: z.enum(['json', 'text']).default('text'),
+}).describe('Widget-level data source for auto-refresh');
+
+export type DataSource = z.infer<typeof DataSourceSchema>;
+
 // ── Base widget types ──────────────────────────────────
 
 export const TableWidgetSchema = z.object({
@@ -31,6 +44,7 @@ export const TableWidgetSchema = z.object({
   })),
   rows: z.array(z.record(z.string(), z.unknown())),
   footer: z.string().nullable().optional(),
+  dataSource: DataSourceSchema.nullable().optional(),
 });
 
 export const KeyValueWidgetSchema = z.object({
@@ -43,6 +57,7 @@ export const KeyValueWidgetSchema = z.object({
     copyable: z.boolean().default(false),
   })),
   layout: z.enum(['vertical', 'grid-2', 'grid-3', 'grid-4']).default('grid-2'),
+  dataSource: DataSourceSchema.nullable().optional(),
 });
 
 export const BadgeGridWidgetSchema = z.object({
@@ -53,6 +68,7 @@ export const BadgeGridWidgetSchema = z.object({
     value: z.string(),
     variant: BadgeVariantEnum.default('default'),
   })),
+  dataSource: DataSourceSchema.nullable().optional(),
 });
 
 export const StatCardWidgetSchema = z.object({
@@ -63,6 +79,7 @@ export const StatCardWidgetSchema = z.object({
   description: z.string().nullable().optional(),
   trend: z.enum(['up', 'down', 'neutral']).nullable().optional(),
   icon: z.string().nullable().optional().describe('Lucide icon name'),
+  dataSource: DataSourceSchema.nullable().optional(),
 });
 
 export const ProgressBarWidgetSchema = z.object({
@@ -71,6 +88,7 @@ export const ProgressBarWidgetSchema = z.object({
   value: z.number().min(0).max(100),
   label: z.string().nullable().optional(),
   variant: z.enum(['default', 'success', 'warning', 'destructive']).default('default'),
+  dataSource: DataSourceSchema.nullable().optional(),
 });
 
 export const CodeBlockWidgetSchema = z.object({
@@ -79,6 +97,7 @@ export const CodeBlockWidgetSchema = z.object({
   code: z.string(),
   language: z.string().default('text'),
   maxHeight: z.string().nullable().optional().describe('CSS max-height, e.g. "300px"'),
+  dataSource: DataSourceSchema.nullable().optional(),
 });
 
 export const AlertWidgetSchema = z.object({
@@ -86,6 +105,7 @@ export const AlertWidgetSchema = z.object({
   title: z.string().nullable().optional(),
   message: z.string(),
   variant: z.enum(['default', 'destructive', 'success', 'warning']).default('default'),
+  dataSource: DataSourceSchema.nullable().optional(),
 });
 
 // ── Extended widget types (EX1.5) ──────────────────────
@@ -102,6 +122,7 @@ export const ChartWidgetSchema = z.object({
     color: z.string().nullable().optional().describe('CSS color or chart palette key'),
   })),
   height: z.number().default(300),
+  dataSource: DataSourceSchema.nullable().optional(),
 });
 
 // TreeNodeSchema needs z.lazy for recursive children
@@ -125,6 +146,7 @@ export const TreeWidgetSchema = z.object({
   type: z.literal('tree'),
   title: z.string().nullable().optional(),
   nodes: z.array(TreeNodeSchema),
+  dataSource: DataSourceSchema.nullable().optional(),
 });
 
 export const LogViewerWidgetSchema = z.object({
@@ -136,6 +158,7 @@ export const LogViewerWidgetSchema = z.object({
     message: z.string(),
   })),
   maxHeight: z.string().default('400px'),
+  dataSource: DataSourceSchema.nullable().optional(),
 });
 
 // ── Union of all widgets ────────────────────────────────
