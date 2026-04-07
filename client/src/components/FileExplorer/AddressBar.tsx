@@ -116,7 +116,7 @@ export function AddressBar({
               }}
               className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-lg hover:bg-accent/80 text-foreground/60 hover:text-foreground shrink-0 transition-colors"
             >
-              <Folder className="w-3.5 h-3.5 text-amber-500" />
+              <Folder className="w-3.5 h-3.5 text-warning" />
               <span className="text-xs font-medium">/</span>
             </button>
             {parts.map((part, i) => {

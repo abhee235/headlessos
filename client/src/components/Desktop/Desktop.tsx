@@ -414,7 +414,7 @@ export function Desktop() {
     >
       <AppWindow.Body>
         <div className="flex flex-col items-center gap-4 py-4 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-lg shadow-primary/20">
             <Server className="w-8 h-8 text-white" />
           </div>
           <div>

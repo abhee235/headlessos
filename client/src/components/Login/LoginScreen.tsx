@@ -143,7 +143,7 @@ export function LoginScreen() {
       <Wallpaper />
 
       {/* Subtle overlay for contrast */}
-      <div className="absolute inset-0 bg-black/30" />
+      <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" />
 
       {/* Content */}
       <div className="absolute inset-0 flex items-center justify-center">
@@ -152,10 +152,10 @@ export function LoginScreen() {
           <div className="flex flex-col items-center gap-8 animate-fadeIn">
             {/* Title */}
             <div className="text-center">
-              <h1 className="text-white text-2xl font-semibold tracking-tight mb-1">
+              <h1 className="text-white text-2xl font-semibold tracking-tight mb-1 drop-shadow-md">
                 HeadlessOS
               </h1>
-              <p className="text-white/50 text-sm">
+              <p className="text-white/60 text-sm drop-shadow-sm">
                 Select a server to connect
               </p>
             </div>
@@ -163,7 +163,7 @@ export function LoginScreen() {
             {/* Server avatars */}
             <div className="flex flex-wrap justify-center gap-6 max-w-lg">
               {loadingServers && servers.length === 0 && (
-                <div className="flex items-center gap-2 text-white/40">
+                <div className="flex items-center gap-2 text-white/50">
                   <Loader2 className="w-5 h-5 animate-spin" />
                   <span className="text-sm">Loading servers…</span>
                 </div>
@@ -184,10 +184,10 @@ export function LoginScreen() {
                 className="flex flex-col items-center gap-2 group cursor-pointer"
                 onClick={() => { setView('add-server'); setLoginError(null); }}
               >
-                <div className="w-20 h-20 rounded-full bg-white/10 border-2 border-dashed border-white/20 flex items-center justify-center group-hover:bg-white/15 group-hover:border-white/30 transition-all duration-200">
-                  <Plus className="w-8 h-8 text-white/40 group-hover:text-white/60 transition-colors" />
+                <div className="w-20 h-20 rounded-full bg-white/8 border-2 border-dashed border-white/15 flex items-center justify-center group-hover:bg-white/12 group-hover:border-white/25 transition-all duration-300">
+                  <Plus className="w-7 h-7 text-white/40 group-hover:text-white/70 transition-colors duration-300" />
                 </div>
-                <span className="text-white/50 text-xs font-medium group-hover:text-white/70 transition-colors">
+                <span className="text-white/50 text-xs font-medium group-hover:text-white/80 transition-colors duration-300">
                   Add Server
                 </span>
               </button>
@@ -195,7 +195,7 @@ export function LoginScreen() {
 
             {/* Empty state */}
             {servers.length === 0 && !loadingServers && (
-              <p className="text-white/30 text-sm">
+              <p className="text-white/40 text-sm">
                 No servers configured yet. Click "Add Server" to get started.
               </p>
             )}
@@ -210,7 +210,7 @@ export function LoginScreen() {
           >
             {/* Back button */}
             <button
-              className="absolute top-8 left-8 flex items-center gap-2 text-white/50 hover:text-white/80 transition-colors"
+              className="absolute top-8 left-8 flex items-center gap-2 text-white/60 hover:text-white transition-colors duration-200"
               onClick={handleBack}
             >
               <ArrowLeft className="w-4 h-4" />
@@ -218,20 +218,20 @@ export function LoginScreen() {
             </button>
 
             {/* Server avatar (large) */}
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-xl shadow-blue-500/20">
+            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-2xl shadow-primary/25 ring-2 ring-white/10">
               <Server className="w-10 h-10 text-white" />
             </div>
 
             {/* Server name */}
             <div className="text-center">
-              <h2 className="text-white text-xl font-semibold">{selectedServer.name}</h2>
-              <p className="text-white/40 text-sm mt-0.5">
+              <h2 className="text-white text-xl font-semibold drop-shadow-md">{selectedServer.name}</h2>
+              <p className="text-white/50 text-sm mt-1 font-mono text-xs">
                 {selectedServer.username}@{selectedServer.host}:{selectedServer.port}
               </p>
             </div>
 
             {/* Auth method indicator */}
-            <div className="flex items-center gap-2 text-white/30 text-xs">
+            <div className="flex items-center gap-2 text-white/40 text-xs">
               <KeyRound className="w-3.5 h-3.5" />
               <span>
                 {selectedServer.authMethod === 'password'
@@ -250,13 +250,13 @@ export function LoginScreen() {
                     ref={passwordRef}
                     type={showPassword ? 'text' : 'password'}
                     placeholder="Password"
-                    className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/10 text-white placeholder-white/30 text-sm outline-none focus:border-blue-400/50 focus:bg-white/15 transition-all"
+                    className="w-full px-4 py-3 rounded-xl bg-white/8 border border-white/10 text-white placeholder-white/30 text-sm outline-none focus:border-primary/60 focus:bg-white/12 focus:ring-2 focus:ring-primary/20 transition-all duration-200 backdrop-blur-sm"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     disabled={connecting}
                   />
                   <button
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors duration-200"
                     onClick={() => setShowPassword(!showPassword)}
                     type="button"
                     tabIndex={-1}
@@ -270,7 +270,7 @@ export function LoginScreen() {
             {/* SSH Key auth — passphrase field (optional) */}
             {selectedServer.authMethod === 'privateKey' && (
               <div className="w-72 space-y-3">
-                <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-xs">
+                <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-success/10 border border-success/20 text-success text-xs backdrop-blur-sm">
                   <KeyRound className="w-3.5 h-3.5" />
                   SSH key configured
                 </div>
@@ -279,13 +279,13 @@ export function LoginScreen() {
                     ref={passwordRef}
                     type={showPassword ? 'text' : 'password'}
                     placeholder="Key passphrase (if encrypted)"
-                    className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/10 text-white placeholder-white/30 text-sm outline-none focus:border-blue-400/50 focus:bg-white/15 transition-all"
+                    className="w-full px-4 py-3 rounded-xl bg-white/8 border border-white/10 text-white placeholder-white/30 text-sm outline-none focus:border-primary/60 focus:bg-white/12 focus:ring-2 focus:ring-primary/20 transition-all duration-200 backdrop-blur-sm"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     disabled={connecting}
                   />
                   <button
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors duration-200"
                     onClick={() => setShowPassword(!showPassword)}
                     type="button"
                     tabIndex={-1}
@@ -298,7 +298,7 @@ export function LoginScreen() {
 
             {/* Error message */}
             {loginError && (
-              <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 px-4 py-2 rounded-lg">
+              <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 px-4 py-2.5 rounded-xl border border-destructive/15 backdrop-blur-sm">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{loginError}</span>
               </div>
@@ -306,7 +306,7 @@ export function LoginScreen() {
 
             {/* Connect button */}
             <button
-              className="w-72 py-3 rounded-xl bg-blue-500 hover:bg-blue-600 disabled:bg-blue-500/50 text-white font-medium text-sm transition-colors flex items-center justify-center gap-2"
+              className="w-72 py-3 rounded-xl bg-primary hover:bg-primary/90 disabled:bg-primary/40 text-primary-foreground font-medium text-sm transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25 active:scale-[0.98]"
               onClick={handleConnect}
               disabled={connecting}
             >
@@ -327,7 +327,7 @@ export function LoginScreen() {
           <div className="animate-fadeIn">
             {/* Back button */}
             <button
-              className="absolute top-8 left-8 flex items-center gap-2 text-white/50 hover:text-white/80 transition-colors"
+              className="absolute top-8 left-8 flex items-center gap-2 text-white/60 hover:text-white transition-colors duration-200"
               onClick={handleBack}
             >
               <ArrowLeft className="w-4 h-4" />

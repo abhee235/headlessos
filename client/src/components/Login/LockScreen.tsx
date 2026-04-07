@@ -53,16 +53,16 @@ export function LockScreen() {
       <div
         className="absolute inset-0"
         style={{
-          background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.4) 100%)',
+          background: 'radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.35) 100%)',
         }}
       />
 
       {/* Clock + Date — centered, lower third */}
       <div className="absolute inset-0 flex flex-col items-center justify-end pb-[28%] gap-1">
-        <span className="text-white text-[72px] font-light leading-none tracking-tight drop-shadow-lg">
+        <span className="text-white text-[72px] font-extralight leading-none tracking-tight drop-shadow-lg">
           {timeStr}
         </span>
-        <span className="text-white/70 text-lg font-medium tracking-wide drop-shadow-md">
+        <span className="text-white/80 text-lg font-medium tracking-wide drop-shadow-md">
           {dateStr}
         </span>
       </div>
@@ -73,8 +73,8 @@ export function LockScreen() {
           hintVisible ? 'opacity-100' : 'opacity-0'
         }`}
       >
-        <ChevronUp className="w-5 h-5 text-white/40 animate-bounce" />
-        <span className="text-white/40 text-xs font-medium tracking-wider uppercase">
+        <ChevronUp className="w-5 h-5 text-white/50 animate-[slideUpIn_1.5s_ease-in-out_infinite]" />
+        <span className="text-white/50 text-xs font-medium tracking-widest uppercase">
           Click anywhere or press a key
         </span>
       </div>

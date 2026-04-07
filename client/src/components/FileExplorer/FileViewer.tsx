@@ -78,7 +78,7 @@ export function FileViewer({ serverId, filePath, onClose, onSave }: FileViewerPr
           <span className="text-sm text-foreground truncate">{fileName}</span>
           <span className="text-xs text-muted-foreground truncate hidden sm:inline">{filePath}</span>
           {hasChanges && (
-            <span className="text-xs text-amber-500 shrink-0">● modified</span>
+            <span className="text-xs text-warning shrink-0">● modified</span>
           )}
         </div>
 

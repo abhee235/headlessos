@@ -53,49 +53,49 @@ const SIDEBAR: SidebarEntry[] = [
     id: 'general',
     label: 'General',
     icon: <Settings2 size={14} className="text-white" />,
-    iconBg: 'bg-zinc-500',
+    iconBg: 'bg-muted-foreground',
   },
   {
     id: 'appearance',
     label: 'Appearance',
     icon: <Paintbrush size={14} className="text-white" />,
-    iconBg: 'bg-indigo-500',
+    iconBg: 'bg-primary',
   },
   {
     id: 'wallpaper',
     label: 'Wallpaper',
     icon: <Image size={14} className="text-white" />,
-    iconBg: 'bg-cyan-500',
+    iconBg: 'bg-primary/80',
   },
   {
     id: 'terminal',
     label: 'Terminal',
     icon: <TerminalSquare size={14} className="text-white" />,
-    iconBg: 'bg-zinc-800',
+    iconBg: 'bg-muted-foreground/80',
   },
   {
     id: 'keyboard',
     label: 'Keyboard Shortcuts',
     icon: <Keyboard size={14} className="text-white" />,
-    iconBg: 'bg-amber-500',
+    iconBg: 'bg-warning',
   },
   {
     id: 'notifications',
     label: 'Notifications',
     icon: <Bell size={14} className="text-white" />,
-    iconBg: 'bg-rose-500',
+    iconBg: 'bg-destructive',
   },
   {
     id: 'ai',
     label: 'AI / LLM',
     icon: <Brain size={14} className="text-white" />,
-    iconBg: 'bg-violet-500',
+    iconBg: 'bg-primary/70',
   },
   {
     id: 'plugins',
     label: 'Plugins',
     icon: <Puzzle size={14} className="text-white" />,
-    iconBg: 'bg-emerald-500',
+    iconBg: 'bg-success',
   },
   {
     id: 'about',
@@ -218,7 +218,7 @@ function WallpaperThumb({
               e.stopPropagation();
               onDelete();
             }}
-            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
+            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive"
           >
             <Trash2 size={10} className="text-white" />
           </button>
@@ -459,9 +459,9 @@ function ThemeMiniPreview({ mode }: { mode: 'light' | 'dark' | 'auto' }) {
     <div className="w-full h-full rounded flex flex-col p-1.5 gap-1" style={{ background: bg }}>
       {/* Mini title bar */}
       <div className="flex items-center gap-0.5">
-        <div className="w-1 h-1 rounded-full bg-red-400" />
-        <div className="w-1 h-1 rounded-full bg-yellow-400" />
-        <div className="w-1 h-1 rounded-full bg-green-400" />
+        <div className="w-1 h-1 rounded-full bg-destructive" />
+        <div className="w-1 h-1 rounded-full bg-warning" />
+        <div className="w-1 h-1 rounded-full bg-success" />
       </div>
       {/* Mini content bars */}
       <div className="flex-1 flex flex-col gap-0.5 pt-0.5">
@@ -586,14 +586,14 @@ const CURSOR_STYLES: { label: string; value: CursorStyle; preview: React.ReactNo
   {
     label: 'Block',
     value: 'block',
-    preview: <div className="w-2 h-3.5 bg-blue-400 rounded-[1px]" />,
+    preview: <div className="w-2 h-3.5 bg-primary rounded-[1px]" />,
   },
   {
     label: 'Underline',
     value: 'underline',
     preview: (
       <div className="relative w-2 h-3.5">
-        <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-400 rounded-full" />
+        <div className="absolute bottom-0 left-0 w-full h-0.5 bg-primary rounded-full" />
       </div>
     ),
   },
@@ -602,7 +602,7 @@ const CURSOR_STYLES: { label: string; value: CursorStyle; preview: React.ReactNo
     value: 'bar',
     preview: (
       <div className="relative w-2 h-3.5">
-        <div className="absolute top-0 left-0 w-0.5 h-full bg-blue-400 rounded-full" />
+        <div className="absolute top-0 left-0 w-0.5 h-full bg-primary rounded-full" />
       </div>
     ),
   },
@@ -672,17 +672,17 @@ function TerminalPage() {
           className="rounded-lg border border-border bg-[#09090b] p-3 h-18 overflow-hidden"
           style={{ fontFamily, fontSize: `${fontSize}px` }}
         >
-          <span className="text-green-400">user@server</span>
-          <span className="text-zinc-400">:</span>
-          <span className="text-blue-400">~</span>
-          <span className="text-zinc-400">$ </span>
-          <span className="text-zinc-300">ls -la</span>
+          <span className="text-success">user@server</span>
+          <span className="text-muted-foreground">:</span>
+          <span className="text-primary">~</span>
+          <span className="text-muted-foreground">$ </span>
+          <span className="text-foreground/80">ls -la</span>
           <span
             className={cn(
               'inline-block ml-px animate-pulse',
-              cursorStyle === 'block' && 'w-[0.6em] h-[1em] bg-blue-400 align-text-bottom',
-              cursorStyle === 'underline' && 'w-[0.6em] h-0.5 bg-blue-400 align-baseline -mb-px',
-              cursorStyle === 'bar' && 'w-0.5 h-[1em] bg-blue-400 align-text-bottom',
+              cursorStyle === 'block' && 'w-[0.6em] h-[1em] bg-primary align-text-bottom',
+              cursorStyle === 'underline' && 'w-[0.6em] h-0.5 bg-primary align-baseline -mb-px',
+              cursorStyle === 'bar' && 'w-0.5 h-[1em] bg-primary align-text-bottom',
             )}
           />
         </div>
@@ -1134,7 +1134,7 @@ function AIPage() {
         <GroupedRow
           label="Status"
           value={
-            <span className={config?.hasApiKey ? 'text-green-400' : 'text-muted-foreground'}>
+            <span className={config?.hasApiKey ? 'text-success' : 'text-muted-foreground'}>
               {config?.hasApiKey ? '● Active' : '○ Disabled'}
             </span>
           }
@@ -1227,7 +1227,7 @@ function AboutPage() {
     <div className="space-y-5">
       {/* Logo + Version */}
       <div className="flex items-center gap-3 mb-2">
-        <div className="w-14 h-14 rounded-2xl bg-linear-to-br from-blue-600 to-indigo-700 flex items-center justify-center shrink-0 shadow-md">
+        <div className="w-14 h-14 rounded-2xl bg-linear-to-br from-primary to-primary/60 flex items-center justify-center shrink-0 shadow-md">
           <Monitor size={28} className="text-white" />
         </div>
         <div>
@@ -1399,8 +1399,8 @@ function PluginsPage() {
                   key={plugin.id}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-border/40 hover:bg-muted/20 transition-colors"
                 >
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
-                    <Puzzle size={16} className="text-emerald-500" />
+                  <div className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center shrink-0">
+                    <Puzzle size={16} className="text-success" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -1414,7 +1414,7 @@ function PluginsPage() {
                         className={cn(
                           'text-[9px] px-1.5 py-0.5 rounded-full font-medium',
                           plugin.state === 'active'
-                            ? 'bg-emerald-500/10 text-emerald-500'
+                            ? 'bg-success/10 text-success'
                             : plugin.state === 'error'
                               ? 'bg-destructive/10 text-destructive'
                               : 'bg-muted text-muted-foreground',

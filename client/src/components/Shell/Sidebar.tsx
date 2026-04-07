@@ -30,7 +30,7 @@ export function Sidebar() {
     <aside className="flex flex-col w-56 bg-sidebar border-r border-border h-full">
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-        <Server className="w-5 h-5 text-blue-400" />
+        <Server className="w-5 h-5 text-primary" />
         <span className="text-sm font-semibold text-foreground">Servers</span>
       </div>
 
@@ -51,11 +51,11 @@ export function Sidebar() {
           const status = srv.state?.status ?? 'disconnected';
           const statusColor =
             status === 'connected'
-              ? 'bg-green-500'
+              ? 'bg-success'
               : status === 'connecting'
-                ? 'bg-yellow-500 animate-pulse'
+                ? 'bg-warning animate-pulse'
                 : status === 'error'
-                  ? 'bg-red-500'
+                  ? 'bg-destructive'
                   : 'bg-muted-foreground';
 
           return (
@@ -77,7 +77,7 @@ export function Sidebar() {
                 {status === 'connected' ? (
                   <button
                     title="Disconnect"
-                    className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-red-400"
+                    className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-destructive"
                     onClick={e => {
                       e.stopPropagation();
                       disconnectServer(srv.id);
@@ -88,7 +88,7 @@ export function Sidebar() {
                 ) : (
                   <button
                     title="Connect"
-                    className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-green-400"
+                    className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-success"
                     onClick={e => {
                       e.stopPropagation();
                       connectServer(srv.id);
@@ -99,7 +99,7 @@ export function Sidebar() {
                 )}
                 <button
                   title="Remove"
-                  className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-red-400"
+                  className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-destructive"
                   onClick={e => {
                     e.stopPropagation();
                     removeServer(srv.id);

@@ -197,9 +197,9 @@ export function FileList({
 function FileIcon({ type }: { type: string }) {
   switch (type) {
     case 'directory':
-      return <Folder className="w-4 h-4 text-blue-400 shrink-0" />;
+      return <Folder className="w-4 h-4 text-primary shrink-0" />;
     case 'symlink':
-      return <Link2 className="w-4 h-4 text-cyan-400 shrink-0" />;
+      return <Link2 className="w-4 h-4 text-primary/60 shrink-0" />;
     default:
       return <FileText className="w-4 h-4 text-muted-foreground shrink-0" />;
   }

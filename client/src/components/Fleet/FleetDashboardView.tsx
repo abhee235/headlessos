@@ -57,9 +57,9 @@ function ServerCard({ srv }: { srv: FleetServerSummary }) {
           <span
             className={`w-2.5 h-2.5 rounded-full shrink-0 ${
               isConnected
-                ? 'bg-emerald-500'
+                ? 'bg-success'
                 : srv.status === 'connecting'
-                  ? 'bg-amber-400 animate-pulse'
+                  ? 'bg-warning animate-pulse'
                   : 'bg-muted-foreground/30'
             }`}
           />
@@ -198,7 +198,7 @@ function TotalsBar({ totals }: { totals: FleetOverview['totals'] }) {
       </Card>
       <Card className="py-3 px-4">
         <div className="flex items-center gap-2">
-          <Wifi className="w-4 h-4 text-emerald-500" />
+          <Wifi className="w-4 h-4 text-success" />
           <div>
             <div className="text-lg font-bold">{totals.connected}</div>
             <div className="text-[11px] text-muted-foreground">Connected</div>
@@ -207,7 +207,7 @@ function TotalsBar({ totals }: { totals: FleetOverview['totals'] }) {
       </Card>
       <Card className="py-3 px-4">
         <div className="flex items-center gap-2">
-          <MemoryStick className="w-4 h-4 text-blue-500" />
+          <MemoryStick className="w-4 h-4 text-primary" />
           <div>
             <div className="text-lg font-bold">{memPercent}%</div>
             <div className="text-[11px] text-muted-foreground">
@@ -218,7 +218,7 @@ function TotalsBar({ totals }: { totals: FleetOverview['totals'] }) {
       </Card>
       <Card className="py-3 px-4">
         <div className="flex items-center gap-2">
-          <HardDrive className="w-4 h-4 text-amber-500" />
+          <HardDrive className="w-4 h-4 text-warning" />
           <div>
             <div className="text-lg font-bold">{diskPercent}%</div>
             <div className="text-[11px] text-muted-foreground">
