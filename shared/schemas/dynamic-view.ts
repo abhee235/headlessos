@@ -26,6 +26,27 @@ export const DataSourceSchema = z.object({
 
 export type DataSource = z.infer<typeof DataSourceSchema>;
 
+// ── Widget Actions (EX1.14: Action Execution) ─────────
+
+export const WidgetActionSchema = z.object({
+  /** Unique action ID within the widget */
+  id: z.string(),
+  /** Button label */
+  label: z.string(),
+  /** Command template — {placeholder} values are substituted from row data */
+  command: z.string(),
+  /** Whether to show a confirmation dialog before executing */
+  confirm: z.boolean().default(false),
+  /** Confirmation message (shown in dialog when confirm=true) */
+  confirmMessage: z.string().nullable().optional(),
+  /** Button variant */
+  variant: z.enum(['default', 'destructive', 'outline', 'secondary', 'ghost']).default('default'),
+  /** Lucide icon name */
+  icon: z.string().nullable().optional(),
+}).describe('Action button that executes a server command');
+
+export type WidgetAction = z.infer<typeof WidgetActionSchema>;
+
 // ── Base widget types ──────────────────────────────────
 
 export const TableWidgetSchema = z.object({
@@ -44,6 +65,7 @@ export const TableWidgetSchema = z.object({
   })),
   rows: z.array(z.record(z.string(), z.unknown())),
   footer: z.string().nullable().optional(),
+  actions: z.array(WidgetActionSchema).nullable().optional().describe('Action buttons per row'),
   dataSource: DataSourceSchema.nullable().optional(),
 });
 
