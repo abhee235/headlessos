@@ -143,20 +143,20 @@ const validLogViewer = {
 const validStackLayout = {
   layout: 'stack' as const,
   gap: 'md' as const,
-  widgets: [validStatCard, validTable],
+  children: [validStatCard, validTable],
 };
 
 const validGridLayout = {
   layout: 'grid' as const,
   columns: 3,
-  widgets: [validStatCard, validStatCard, validProgressBar],
+  children: [validStatCard, validStatCard, validProgressBar],
 };
 
 const validTabsLayout = {
   layout: 'tabs' as const,
   tabs: [
-    { id: 'overview', label: 'Overview', icon: 'LayoutDashboard', widgets: [validStatCard, validTable] },
-    { id: 'logs', label: 'Logs', widgets: [validLogViewer] },
+    { id: 'overview', label: 'Overview', icon: 'LayoutDashboard', children: [validStatCard, validTable] },
+    { id: 'logs', label: 'Logs', children: [validLogViewer] },
   ],
 };
 
@@ -458,9 +458,9 @@ describe('WidgetSchema (discriminated union)', () => {
   it('WIDGET_TYPES constant matches all registered types', () => {
     expect(WIDGET_TYPES).toEqual([
       'table', 'key-value', 'badge-grid', 'stat-card', 'progress-bar',
-      'code-block', 'alert', 'chart', 'tree', 'log-viewer', 'form',
+      'code-block', 'alert', 'chart', 'tree', 'log-viewer', 'form', 'card-list',
     ]);
-    expect(WIDGET_TYPES).toHaveLength(11);
+    expect(WIDGET_TYPES).toHaveLength(12);
   });
 });
 
@@ -471,12 +471,12 @@ describe('Layout Schemas', () => {
     it('parses valid stack layout', () => {
       const result = StackLayoutSchema.parse(validStackLayout);
       expect(result.layout).toBe('stack');
-      expect(result.widgets).toHaveLength(2);
+      expect(result.children).toHaveLength(2);
       expect(result.gap).toBe('md');
     });
 
     it('defaults gap to md', () => {
-      const result = StackLayoutSchema.parse({ layout: 'stack', widgets: [] });
+      const result = StackLayoutSchema.parse({ layout: 'stack', children: [] });
       expect(result.gap).toBe('md');
     });
   });
@@ -486,23 +486,23 @@ describe('Layout Schemas', () => {
       const result = GridLayoutSchema.parse(validGridLayout);
       expect(result.layout).toBe('grid');
       expect(result.columns).toBe(3);
-      expect(result.widgets).toHaveLength(3);
+      expect(result.children).toHaveLength(3);
     });
 
     it('defaults columns to 2', () => {
-      const result = GridLayoutSchema.parse({ layout: 'grid', widgets: [] });
+      const result = GridLayoutSchema.parse({ layout: 'grid', children: [] });
       expect(result.columns).toBe(2);
     });
 
     it('rejects columns < 1', () => {
       expect(() => GridLayoutSchema.parse({
-        layout: 'grid', columns: 0, widgets: [],
+        layout: 'grid', columns: 0, children: [],
       })).toThrow(ZodError);
     });
 
     it('rejects columns > 4', () => {
       expect(() => GridLayoutSchema.parse({
-        layout: 'grid', columns: 5, widgets: [],
+        layout: 'grid', columns: 5, children: [],
       })).toThrow(ZodError);
     });
   });
@@ -512,7 +512,7 @@ describe('Layout Schemas', () => {
       const result = TabsLayoutSchema.parse(validTabsLayout);
       expect(result.layout).toBe('tabs');
       expect(result.tabs).toHaveLength(2);
-      expect(result.tabs[0].widgets).toHaveLength(2);
+      expect(result.tabs[0].children).toHaveLength(2);
     });
 
     it('requires tabs array', () => {
@@ -522,7 +522,7 @@ describe('Layout Schemas', () => {
     it('each tab requires id and label', () => {
       expect(() => TabsLayoutSchema.parse({
         layout: 'tabs',
-        tabs: [{ widgets: [] }],
+        tabs: [{ children: [] }],
       })).toThrow(ZodError);
     });
   });
@@ -575,7 +575,7 @@ describe('DynamicViewSchema', () => {
   it('accepts minimal view (title + root only)', () => {
     const minimal = {
       title: 'Test',
-      root: { layout: 'stack', widgets: [] },
+      root: { layout: 'stack', children: [] },
     };
     const result = DynamicViewSchema.parse(minimal);
     expect(result.title).toBe('Test');
@@ -586,7 +586,7 @@ describe('DynamicViewSchema', () => {
 
   it('rejects view without title', () => {
     expect(() => DynamicViewSchema.parse({
-      root: { layout: 'stack', widgets: [] },
+      root: { layout: 'stack', children: [] },
     })).toThrow(ZodError);
   });
 
@@ -629,7 +629,7 @@ describe('DynamicViewSchema', () => {
         tabs: [{
           id: 'tab1',
           label: 'Tab 1',
-          widgets: [
+          children: [
             validStatCard,
             validTable,
             validChart,
@@ -640,8 +640,8 @@ describe('DynamicViewSchema', () => {
     };
     const result = DynamicViewSchema.parse(view);
     expect(result.root.layout).toBe('tabs');
-    const tabs = result.root as { tabs: Array<{ widgets: unknown[] }> };
-    expect(tabs.tabs[0].widgets).toHaveLength(4);
+    const tabs = result.root as { tabs: Array<{ children: unknown[] }> };
+    expect(tabs.tabs[0].children).toHaveLength(4);
   });
 });
 
@@ -669,12 +669,12 @@ describe('DynamicViewMetaSchema', () => {
 // ── Edge Cases ──────────────────────────────────────────
 
 describe('Edge Cases', () => {
-  it('handles empty widgets array in stack', () => {
+  it('handles empty children array in stack', () => {
     const result = DynamicViewSchema.parse({
       title: 'Empty',
-      root: { layout: 'stack', widgets: [] },
+      root: { layout: 'stack', children: [] },
     });
-    expect((result.root as { widgets: unknown[] }).widgets).toHaveLength(0);
+    expect((result.root as { children: unknown[] }).children).toHaveLength(0);
   });
 
   it('handles empty tabs array', () => {
@@ -736,7 +736,7 @@ describe('Edge Cases', () => {
       description: null,
       icon: null,
       meta: null,
-      root: { layout: 'stack', widgets: [] },
+      root: { layout: 'stack', children: [] },
     });
     expect(result.description).toBeNull();
     expect(result.icon).toBeNull();
@@ -938,14 +938,14 @@ describe('WidgetActionSchema (EX1.14)', () => {
     expect(result.icon).toBe('Square');
   });
 
-  it('applies defaults for confirm and variant', () => {
+  it('applies defaults for confirm and variant (optional fields)', () => {
     const result = WidgetActionSchema.parse({
       id: 'restart',
       label: 'Restart',
       command: 'systemctl restart {name}',
     });
-    expect(result.confirm).toBe(false);
-    expect(result.variant).toBe('default');
+    expect(result.confirm).toBeUndefined();
+    expect(result.variant).toBeUndefined();
     expect(result.confirmMessage).toBeUndefined();
     expect(result.icon).toBeUndefined();
   });
@@ -1038,7 +1038,7 @@ describe('TableWidgetSchema with actions (EX1.14)', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [{
+        children: [{
           ...baseTable,
           actions: [
             { id: 'stop', label: 'Stop', command: 'docker stop {name}', confirm: true, variant: 'destructive' },
@@ -1046,8 +1046,8 @@ describe('TableWidgetSchema with actions (EX1.14)', () => {
         }],
       },
     });
-    expect(view.root.widgets).toHaveLength(1);
-    const table = view.root.widgets[0] as { actions?: unknown[] };
+    expect(view.root.children).toHaveLength(1);
+    const table = view.root.children[0] as { actions?: unknown[] };
     expect(table.actions).toHaveLength(1);
   });
 });
@@ -1258,10 +1258,10 @@ describe('FormWidgetSchema (EX1.15)', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [baseFormWidget],
+        children: [baseFormWidget],
       },
     });
-    expect(view.root.widgets).toHaveLength(1);
-    expect(view.root.widgets[0]!.type).toBe('form');
+    expect(view.root.children).toHaveLength(1);
+    expect(view.root.children[0]!.type).toBe('form');
   });
 });

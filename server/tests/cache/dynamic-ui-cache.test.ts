@@ -16,7 +16,7 @@ function makeView(title: string): DynamicView {
     root: {
       layout: 'stack' as const,
       gap: 'md' as const,
-      widgets: [
+      children: [
         {
           type: 'code-block' as const,
           code: `Sample output for ${title}`,

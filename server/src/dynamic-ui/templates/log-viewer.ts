@@ -23,7 +23,7 @@ export const logViewerTemplate: UITemplate = {
     root: {
       layout: 'stack',
       gap: 'md',
-      widgets: [
+      children: [
         {
           type: 'badge-grid',
           title: 'Log Summary',

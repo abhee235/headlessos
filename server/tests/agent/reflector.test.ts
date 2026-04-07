@@ -57,7 +57,7 @@ function createMockSchema(overrides?: Partial<DynamicView>): DynamicView {
     root: {
       layout: 'stack',
       gap: 'md',
-      widgets: [
+      children: [
         {
           type: 'table',
           title: 'Filesystem Usage',

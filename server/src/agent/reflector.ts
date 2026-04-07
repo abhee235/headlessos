@@ -39,11 +39,14 @@ NOTE: The schema has ALREADY passed Zod validation. You are checking semantic qu
 
 ## Check for:
 1. Does the schema accurately represent the collected data?
-2. Are widget types appropriate? (tables for lists, stat-cards for metrics, forms for editable configs)
+2. Are widget types appropriate? (tables for lists, stat-cards for metrics, card-list for entity cards, forms for editable configs)
 3. If the user requested an interactive/editable UI, are there form widgets with writeBack configs?
 4. Are there any missing data points that were in the collected output but not in the schema?
 5. Is the layout sensible? (not too many widgets, logical grouping, good use of tabs/sidebar for complex data)
 6. Are badge variants correct? (success for running/active, destructive for error/failed)
+7. Are table features used well? (filters for large tables, emptyState for potentially-empty tables, actionStyle:"dropdown" for 3+ actions, rich columns for compound cells)
+8. Are card-list items used for entity-like data (network interfaces, services, devices) instead of plain tables?
+9. Do tabs/sidebar items have appropriate icons?
 
 ## Typed Feedback (inspired by Aider)
 When reporting issues, include:

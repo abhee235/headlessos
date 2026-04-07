@@ -63,7 +63,9 @@ describe('Widget Registry', () => {
     expect(types).toContain('log-viewer');
     // Form widget (EX1.15)
     expect(types).toContain('form');
-    expect(types.length).toBe(11);
+    // Card-list widget (EX3-P.6)
+    expect(types).toContain('card-list');
+    expect(types.length).toBe(12);
   });
 });
 
@@ -74,7 +76,7 @@ describe('DynamicViewRenderer', () => {
     const view: DynamicView = {
       title: 'Test',
       description: 'A test description',
-      root: { layout: 'stack', gap: 'md', widgets: [] },
+      root: { layout: 'stack', gap: 'md', children: [] },
     };
     render(<DynamicViewRenderer view={view} />);
     expect(screen.getByText('A test description')).toBeInTheDocument();
@@ -93,7 +95,7 @@ describe('DynamicViewRenderer', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [
+        children: [
           { type: 'stat-card', title: 'CPU Usage', value: '45%' },
           { type: 'stat-card', title: 'Memory', value: '78%' },
         ],
@@ -110,7 +112,7 @@ describe('DynamicViewRenderer', () => {
       root: {
         layout: 'grid',
         columns: 2,
-        widgets: [
+        children: [
           { type: 'stat-card', title: 'Metric A', value: '10' },
           { type: 'stat-card', title: 'Metric B', value: '20' },
         ],
@@ -131,7 +133,7 @@ describe('TableWidget', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [{
+        children: [{
           type: 'table',
           title: 'Processes',
           columns: [
@@ -159,7 +161,7 @@ describe('TableWidget', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [{
+        children: [{
           type: 'table',
           columns: [{
             key: 'status',
@@ -182,7 +184,7 @@ describe('TableWidget', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [{
+        children: [{
           type: 'table',
           columns: [{ key: 'a', label: 'A', type: 'text', sortable: false }],
           rows: [{ a: '1' }],
@@ -204,7 +206,7 @@ describe('KeyValueWidget', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [{
+        children: [{
           type: 'key-value',
           title: 'Server Info',
           pairs: [
@@ -233,7 +235,7 @@ describe('BadgeGridWidget', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [{
+        children: [{
           type: 'badge-grid',
           title: 'Services',
           badges: [
@@ -259,7 +261,7 @@ describe('StatCardWidget', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [{
+        children: [{
           type: 'stat-card',
           title: 'CPU Usage',
           value: '45',
@@ -283,7 +285,7 @@ describe('StatCardWidget', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [{
+        children: [{
           type: 'stat-card',
           title: 'Uptime',
           value: '99.9%',
@@ -305,7 +307,7 @@ describe('ProgressBarWidget', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [{
+        children: [{
           type: 'progress-bar',
           title: 'Disk Usage',
           value: 72,
@@ -330,7 +332,7 @@ describe('CodeBlockWidget', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [{
+        children: [{
           type: 'code-block',
           title: 'Config',
           code: 'server {\n  listen 80;\n}',
@@ -358,7 +360,7 @@ describe('AlertWidget', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [{
+        children: [{
           type: 'alert',
           title: 'Warning',
           message: 'Disk space is running low',
@@ -377,7 +379,7 @@ describe('AlertWidget', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [{
+        children: [{
           type: 'alert',
           message: 'Connection lost',
           variant: 'destructive',
@@ -398,7 +400,7 @@ describe('Unknown Widget Handling', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [
+        children: [
           { type: 'stat-card', title: 'Valid', value: '42' },
         ],
       },
@@ -428,7 +430,7 @@ describe('Partial Schema Rendering', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [
+        children: [
           { type: 'stat-card', title: 'First', value: '1' },
         ],
       },
@@ -442,7 +444,7 @@ describe('Partial Schema Rendering', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [
+        children: [
           { type: 'stat-card', title: 'First', value: '1' },
           { type: 'stat-card', title: 'Second', value: '2' },
         ],
@@ -464,7 +466,7 @@ describe('Mixed Widget Compositions', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [
+        children: [
           {
             type: 'alert',
             message: 'System is healthy',
@@ -528,7 +530,7 @@ describe('Mixed Widget Compositions', () => {
       root: {
         layout: 'grid',
         columns: 3,
-        widgets: [
+        children: [
           { type: 'stat-card', title: 'CPU', value: '45', unit: '%', trend: 'up' },
           { type: 'stat-card', title: 'RAM', value: '78', unit: '%', trend: 'down' },
           { type: 'stat-card', title: 'Disk', value: '320', unit: 'GB' },
@@ -553,7 +555,7 @@ describe('DynamicAppWindow', () => {
     root: {
       layout: 'stack',
       gap: 'md',
-      widgets: [
+      children: [
         { type: 'stat-card', title: 'CPU', value: '45%' },
       ],
     },
@@ -663,7 +665,7 @@ describe('ChartWidget', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [{
+        children: [{
           type: 'chart',
           title: 'Monthly Revenue',
           chartType: 'bar',
@@ -690,7 +692,7 @@ describe('ChartWidget', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [{
+        children: [{
           type: 'chart',
           title: 'CPU vs Memory',
           chartType: 'line',
@@ -719,7 +721,7 @@ describe('ChartWidget', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [{
+        children: [{
           type: 'chart',
           title: 'Network I/O',
           chartType: 'area',
@@ -741,7 +743,7 @@ describe('ChartWidget', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [{
+        children: [{
           type: 'chart',
           title: 'Disk Usage',
           chartType: 'pie',
@@ -765,7 +767,7 @@ describe('ChartWidget', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [{
+        children: [{
           type: 'chart',
           title: 'Memory Split',
           chartType: 'donut',
@@ -794,7 +796,7 @@ describe('TreeWidget', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [{
+        children: [{
           type: 'tree',
           title: 'File System',
           nodes: [
@@ -825,7 +827,7 @@ describe('TreeWidget', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [{
+        children: [{
           type: 'tree',
           nodes: [
             {
@@ -860,7 +862,7 @@ describe('TreeWidget', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [{
+        children: [{
           type: 'tree',
           nodes: [{
             label: 'Parent',
@@ -891,7 +893,7 @@ describe('TreeWidget', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [{
+        children: [{
           type: 'tree',
           nodes: [],
         }],
@@ -907,7 +909,7 @@ describe('TreeWidget', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [{
+        children: [{
           type: 'tree',
           nodes: [
             { label: 'config.json', value: '4.2KB' },
@@ -933,7 +935,7 @@ describe('LogViewerWidget', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [{
+        children: [{
           type: 'log-viewer',
           title: 'Application Logs',
           lines: [
@@ -962,7 +964,7 @@ describe('LogViewerWidget', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [{
+        children: [{
           type: 'log-viewer',
           lines: [
             { level: 'error', message: 'Error msg' },
@@ -987,7 +989,7 @@ describe('LogViewerWidget', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [{
+        children: [{
           type: 'log-viewer',
           lines: [
             { message: 'Plain line 1' },
@@ -1007,7 +1009,7 @@ describe('LogViewerWidget', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [{
+        children: [{
           type: 'log-viewer',
           lines: [],
         }],
@@ -1023,7 +1025,7 @@ describe('LogViewerWidget', () => {
       root: {
         layout: 'stack',
         gap: 'md',
-        widgets: [
+        children: [
           {
             type: 'chart',
             title: 'Request Rate',
@@ -1065,12 +1067,12 @@ describe('TabsLayout', () => {
           {
             id: 'overview',
             label: 'Overview',
-            widgets: [{ type: 'stat-card', title: 'CPU', value: '45%' }],
+            children: [{ type: 'stat-card', title: 'CPU', value: '45%' }],
           },
           {
             id: 'details',
             label: 'Details',
-            widgets: [{ type: 'stat-card', title: 'RAM', value: '78%' }],
+            children: [{ type: 'stat-card', title: 'RAM', value: '78%' }],
           },
         ],
       },
@@ -1089,12 +1091,12 @@ describe('TabsLayout', () => {
           {
             id: 'first',
             label: 'First',
-            widgets: [{ type: 'stat-card', title: 'First Metric', value: '10' }],
+            children: [{ type: 'stat-card', title: 'First Metric', value: '10' }],
           },
           {
             id: 'second',
             label: 'Second',
-            widgets: [{ type: 'stat-card', title: 'Second Metric', value: '20' }],
+            children: [{ type: 'stat-card', title: 'Second Metric', value: '20' }],
           },
         ],
       },
@@ -1113,12 +1115,12 @@ describe('TabsLayout', () => {
           {
             id: 'tab-a',
             label: 'Tab A',
-            widgets: [{ type: 'alert', message: 'Content A', variant: 'default' }],
+            children: [{ type: 'alert', message: 'Content A', variant: 'default' }],
           },
           {
             id: 'tab-b',
             label: 'Tab B',
-            widgets: [{ type: 'alert', message: 'Content B', variant: 'default' }],
+            children: [{ type: 'alert', message: 'Content B', variant: 'default' }],
           },
         ],
       },
@@ -1358,7 +1360,7 @@ describe('DynamicUI Store', () => {
     icon: 'Cpu',
     root: {
       layout: 'stack',
-      widgets: [
+      children: [
         { type: 'alert', severity: 'info', message: 'Hello' },
       ],
     },
@@ -1427,7 +1429,7 @@ describe('DynamicUI Store', () => {
   it('falls back to Sparkles when no icon', () => {
     const viewNoIcon: DynamicView = {
       title: 'No Icon',
-      root: { layout: 'stack', widgets: [] },
+      root: { layout: 'stack', children: [] },
     };
     const id = useDynamicUIStore.getState().pinView('srv-1', viewNoIcon);
     expect(useDynamicUIStore.getState().pinnedViews[id].icon).toBe('Sparkles');
@@ -1465,7 +1467,7 @@ describe('DynamicUITabView', () => {
       title: 'Pinned Dashboard',
       root: {
         layout: 'stack',
-        widgets: [
+        children: [
           { type: 'alert', severity: 'info', message: 'Pinned content' },
         ],
       },

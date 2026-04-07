@@ -20,7 +20,7 @@ export const portTableTemplate: UITemplate = {
     root: {
       layout: 'stack',
       gap: 'md',
-      widgets: [
+      children: [
         {
           type: 'badge-grid',
           title: 'Summary',

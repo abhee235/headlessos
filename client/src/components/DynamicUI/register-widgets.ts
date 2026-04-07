@@ -13,6 +13,7 @@ import { ChartWidget } from './widgets/ChartWidget';
 import { TreeWidget } from './widgets/TreeWidget';
 import { LogViewerWidget } from './widgets/LogViewerWidget';
 import { FormWidget } from './widgets/FormWidget';
+import { CardListWidget } from './widgets/CardListWidget';
 
 // Register base widget types (EX1.2)
 registerWidget('table', TableWidget);
@@ -30,3 +31,6 @@ registerWidget('log-viewer', LogViewerWidget);
 
 // Form widget (EX1.15)
 registerWidget('form', FormWidget);
+
+// Card-list widget (EX3-P.6)
+registerWidget('card-list', CardListWidget);

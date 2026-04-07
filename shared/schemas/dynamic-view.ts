@@ -36,16 +36,67 @@ export const WidgetActionSchema = z.object({
   /** Command template — {placeholder} values are substituted from row data */
   command: z.string(),
   /** Whether to show a confirmation dialog before executing */
-  confirm: z.boolean().default(false),
+  confirm: z.boolean().nullable().optional(),
   /** Confirmation message (shown in dialog when confirm=true) */
   confirmMessage: z.string().nullable().optional(),
   /** Button variant */
-  variant: z.enum(['default', 'destructive', 'outline', 'secondary', 'ghost']).default('default'),
+  variant: z.enum(['default', 'destructive', 'outline', 'secondary', 'ghost']).nullable().optional(),
   /** Lucide icon name */
   icon: z.string().nullable().optional(),
 }).describe('Action button that executes a server command');
 
 export type WidgetAction = z.infer<typeof WidgetActionSchema>;
+
+// ── Rich cell segments (EX3-P.3: Compound table cells) ─
+
+export const RichCellSegmentSchema = z.discriminatedUnion('segment', [
+  z.object({
+    segment: z.literal('text'),
+    key: z.string().describe('Row field key to display'),
+    className: z.string().nullable().optional().describe('Extra CSS classes'),
+  }),
+  z.object({
+    segment: z.literal('badge'),
+    key: z.string().describe('Row field key'),
+    variant: BadgeVariantEnum.nullable().optional(),
+    badgeVariant: z.record(z.string(), BadgeVariantEnum)
+      .nullable().optional()
+      .describe('Map value → badge variant'),
+  }),
+  z.object({
+    segment: z.literal('icon'),
+    icon: z.string().describe('Lucide icon name'),
+    key: z.string().nullable().optional().describe('Row field key — show icon when value is truthy'),
+    className: z.string().nullable().optional(),
+  }),
+  z.object({
+    segment: z.literal('dot'),
+    key: z.string().describe('Row field key — show dot when value is truthy'),
+    color: z.string().default('amber').describe('Tailwind color name, e.g. amber, emerald, red'),
+  }),
+]);
+
+export type RichCellSegment = z.infer<typeof RichCellSegmentSchema>;
+
+// ── Table filter config (EX3-P.4: Filter bar) ─────────
+
+export const TableFilterDropdownSchema = z.object({
+  key: z.string().describe('Column key to filter on'),
+  label: z.string().describe('Dropdown button label, e.g. "All Protocols"'),
+  options: z.array(z.object({
+    label: z.string(),
+    value: z.string(),
+  })),
+  icon: z.string().nullable().optional().describe('Lucide icon name for button'),
+});
+
+export const TableFiltersSchema = z.object({
+  search: z.boolean().default(false).describe('Show search input'),
+  searchPlaceholder: z.string().nullable().optional(),
+  dropdowns: z.array(TableFilterDropdownSchema).default([]),
+});
+
+export type TableFilters = z.infer<typeof TableFiltersSchema>;
 
 // ── Base widget types ──────────────────────────────────
 
@@ -55,17 +106,32 @@ export const TableWidgetSchema = z.object({
   columns: z.array(z.object({
     key: z.string(),
     label: z.string(),
-    type: z.enum(['text', 'number', 'badge', 'date', 'bytes', 'percent', 'code']).default('text'),
+    type: z.enum(['text', 'number', 'badge', 'date', 'bytes', 'percent', 'code', 'mono', 'rich']).default('text'),
     sortable: z.boolean().default(false),
     width: z.string().nullable().optional(),
     badgeVariant: z.record(z.string(), BadgeVariantEnum)
       .nullable()
       .optional()
       .describe('Map value → badge variant, e.g. { running: "success", stopped: "destructive" }'),
+    segments: z.array(RichCellSegmentSchema)
+      .nullable()
+      .optional()
+      .describe('Rich cell segments — used when type="rich"'),
   })),
   rows: z.array(z.record(z.string(), z.unknown())),
   footer: z.string().nullable().optional(),
   actions: z.array(WidgetActionSchema).nullable().optional().describe('Action buttons per row'),
+  /** EX3-P.5: How to display row actions */
+  actionStyle: z.enum(['buttons', 'dropdown']).nullable().optional()
+    .describe('buttons (default) = inline buttons, dropdown = ⋯ hover menu'),
+  /** EX3-P.4: Filter bar above the table */
+  filters: TableFiltersSchema.nullable().optional(),
+  /** Custom empty state when rows are empty */
+  emptyState: z.object({
+    icon: z.string().nullable().optional().describe('Lucide icon name for empty state'),
+    title: z.string().describe('Primary empty-state message'),
+    message: z.string().nullable().optional().describe('Secondary helper text'),
+  }).nullable().optional(),
   dataSource: DataSourceSchema.nullable().optional(),
 });
 
@@ -234,6 +300,33 @@ export const FormWidgetSchema = z.object({
   dataSource: DataSourceSchema.nullable().optional(),
 }).describe('Editable form widget for configuration');
 
+// ── Card list widget (EX3-P.6) ─────────────────────────
+
+export const CardListItemSchema = z.object({
+  icon: z.string().nullable().optional().describe('Lucide icon name'),
+  title: z.string().describe('Primary label'),
+  subtitle: z.string().nullable().optional(),
+  badge: z.object({
+    label: z.string(),
+    variant: BadgeVariantEnum.default('default'),
+    dot: z.boolean().default(false).describe('Show colored dot before label'),
+  }).nullable().optional(),
+  details: z.array(z.object({
+    label: z.string(),
+    value: z.string(),
+  })).nullable().optional(),
+});
+
+export type CardListItem = z.infer<typeof CardListItemSchema>;
+
+export const CardListWidgetSchema = z.object({
+  type: z.literal('card-list'),
+  title: z.string().nullable().optional(),
+  items: z.array(CardListItemSchema),
+  actions: z.array(WidgetActionSchema).nullable().optional(),
+  dataSource: DataSourceSchema.nullable().optional(),
+}).describe('Card list widget — renders items as horizontal card rows');
+
 // ── Union of all widgets ────────────────────────────────
 
 export const WidgetSchema = z.discriminatedUnion('type', [
@@ -248,6 +341,7 @@ export const WidgetSchema = z.discriminatedUnion('type', [
   TreeWidgetSchema,
   LogViewerWidgetSchema,
   FormWidgetSchema,
+  CardListWidgetSchema,
 ]);
 
 export type Widget = z.infer<typeof WidgetSchema>;
@@ -255,23 +349,32 @@ export type Widget = z.infer<typeof WidgetSchema>;
 /** All supported widget type strings */
 export const WIDGET_TYPES = [
   'table', 'key-value', 'badge-grid', 'stat-card', 'progress-bar',
-  'code-block', 'alert', 'chart', 'tree', 'log-viewer', 'form',
+  'code-block', 'alert', 'chart', 'tree', 'log-viewer', 'form', 'card-list',
 ] as const;
 
 export type WidgetType = (typeof WIDGET_TYPES)[number];
 
-// ── Layout containers ───────────────────────────────────
+// ── Layout containers (nestable — EX3-P.8) ─────────────
+//
+// Each layout's children array accepts either a Widget or a nested Layout.
+// This enables compositions like "grid of stat cards above tabs" in one view.
+// Maximum nesting depth is enforced by the renderer (default: 4 levels).
+
+/** Lazy ref so layouts can contain sub-layouts without circular issues */
+const LayoutOrWidgetSchema: z.ZodType<unknown> = z.lazy(() =>
+  z.union([WidgetSchema, StackLayoutSchema, GridLayoutSchema, TabsLayoutSchema, SidebarLayoutSchema]),
+);
 
 export const StackLayoutSchema = z.object({
   layout: z.literal('stack'),
   gap: z.enum(['sm', 'md', 'lg']).default('md'),
-  widgets: z.array(WidgetSchema),
+  children: z.array(LayoutOrWidgetSchema),
 });
 
 export const GridLayoutSchema = z.object({
   layout: z.literal('grid'),
   columns: z.number().min(1).max(4).default(2),
-  widgets: z.array(WidgetSchema),
+  children: z.array(LayoutOrWidgetSchema),
 });
 
 export const TabsLayoutSchema = z.object({
@@ -280,7 +383,9 @@ export const TabsLayoutSchema = z.object({
     id: z.string(),
     label: z.string(),
     icon: z.string().nullable().optional(),
-    widgets: z.array(WidgetSchema),
+    /** EX3-P.1: Count badge shown next to tab label */
+    count: z.number().nullable().optional(),
+    children: z.array(LayoutOrWidgetSchema),
   })),
 });
 
@@ -291,7 +396,7 @@ export const SidebarLayoutSchema = z.object({
     label: z.string(),
     icon: z.string().nullable().optional(),
   })),
-  sections: z.record(z.string(), z.array(WidgetSchema)),
+  sections: z.record(z.string(), z.array(LayoutOrWidgetSchema)),
 });
 
 export const LayoutSchema = z.discriminatedUnion('layout', [

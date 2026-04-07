@@ -22,7 +22,7 @@ const VALID_DYNAMIC_VIEW = {
   root: {
     layout: 'stack' as const,
     gap: 'md' as const,
-    widgets: [
+    children: [
       {
         type: 'table' as const,
         title: 'Filesystem Usage',

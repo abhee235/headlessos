@@ -23,7 +23,7 @@ export const securityAuditTemplate: UITemplate = {
     root: {
       layout: 'stack',
       gap: 'md',
-      widgets: [
+      children: [
         {
           type: 'alert',
           title: 'Security Alert',

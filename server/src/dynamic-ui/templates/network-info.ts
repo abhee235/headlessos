@@ -24,7 +24,7 @@ export const networkInfoTemplate: UITemplate = {
     root: {
       layout: 'stack',
       gap: 'md',
-      widgets: [
+      children: [
         {
           type: 'key-value',
           title: 'Network Summary',

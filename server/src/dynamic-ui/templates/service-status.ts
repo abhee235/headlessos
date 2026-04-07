@@ -20,7 +20,7 @@ export const serviceStatusTemplate: UITemplate = {
     root: {
       layout: 'stack',
       gap: 'md',
-      widgets: [
+      children: [
         {
           type: 'key-value',
           title: 'Service Details',

@@ -1,13 +1,11 @@
-// EX1.2: Grid Layout — CSS grid with configurable columns
-// @see docs/phases/phase-ex1.md
+// EX1.2 + EX3-P.8: Grid Layout — CSS grid with configurable columns, nestable children
+// @see docs/phases/phase-ex1.md, docs/phases/phase-ex3.md
 
-import type { DeepPartial } from 'headlessos-shared/schemas/dynamic-view';
-import type { z } from 'zod';
-import type { GridLayoutSchema } from 'headlessos-shared/schemas/dynamic-view';
+import type { DeepPartial, Layout } from 'headlessos-shared/schemas/dynamic-view';
 import { cn } from '@/lib/utils';
-import { WidgetRenderer } from '../WidgetRenderer';
+import { ContentRenderer } from '../ContentRenderer';
 
-type GridLayoutType = z.infer<typeof GridLayoutSchema>;
+type GridLayout = DeepPartial<Layout & { layout: 'grid' }>;
 
 const colsMap: Record<number, string> = {
   1: 'grid-cols-1',
@@ -16,14 +14,14 @@ const colsMap: Record<number, string> = {
   4: 'grid-cols-4',
 };
 
-export function GridLayout({ layout }: { layout: DeepPartial<GridLayoutType> }) {
+export function GridLayout({ layout }: { layout: GridLayout }) {
   const cols = colsMap[(layout.columns as number) ?? 2] ?? 'grid-cols-2';
-  const widgets = (layout.widgets ?? []) as DeepPartial<GridLayoutType>['widgets'] & Array<unknown>;
+  const children = ((layout as Record<string, unknown>).children ?? []) as unknown[];
 
   return (
     <div className={cn('grid gap-4', cols)}>
-      {widgets.map((widget, i) => (
-        <WidgetRenderer key={i} widget={widget as DeepPartial<GridLayoutType['widgets'][number]>} />
+      {children.filter(Boolean).map((child, i) => (
+        <ContentRenderer key={i} item={child as DeepPartial<Layout>} />
       ))}
     </div>
   );

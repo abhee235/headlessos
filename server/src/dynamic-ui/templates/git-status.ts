@@ -21,7 +21,7 @@ export const gitStatusTemplate: UITemplate = {
     root: {
       layout: 'stack',
       gap: 'md',
-      widgets: [
+      children: [
         {
           type: 'key-value',
           title: 'Repository Info',
