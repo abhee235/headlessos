@@ -10,6 +10,7 @@ import {
   Shield,
   Globe,
   Bot,
+  Wand2,
 } from 'lucide-react';
 
 interface FileIconProps {
@@ -250,6 +251,15 @@ export function AgentIcon({ size = 48 }: { size?: number }) {
   return (
     <AppIconBase size={size} fromColor="#A78BFA" toColor="#7C3AED">
       <Bot size={Math.round(size * 0.52)} color="white" strokeWidth={sw} />
+    </AppIconBase>
+  );
+}
+
+export function UIAgentIcon({ size = 48 }: { size?: number }) {
+  const sw = size <= 24 ? 2.25 : 1.75;
+  return (
+    <AppIconBase size={size} fromColor="#34D399" toColor="#059669">
+      <Wand2 size={Math.round(size * 0.52)} color="white" strokeWidth={sw} />
     </AppIconBase>
   );
 }
