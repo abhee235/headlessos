@@ -96,7 +96,8 @@ export const AGENT_WRITE_ALLOWLIST: RegExp[] = [
   // Systemd write operations
   /^systemctl\s+(start|stop|restart|reload|enable|disable)\s+[a-zA-Z0-9_@.-]+$/,
 
-  // Nginx reload
+  // Nginx test & reload
+  /^nginx\s+-t$/,
   /^nginx\s+-s\s+reload$/,
 
   // Package managers (update/install)
