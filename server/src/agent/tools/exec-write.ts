@@ -7,7 +7,7 @@ import { isWriteCommandAllowed } from '../command-allowlist.js';
 
 const ExecWriteCommandParams = z.object({
   command: z.string().describe('The Linux command to execute (must be in write allowlist, e.g. docker start/stop, systemctl restart)'),
-  timeout: z.number().int().positive().max(60000).optional()
+  timeout: z.number().int().min(1).max(60000).optional()
     .describe('Command timeout in ms (default: 30000, max: 60000)'),
 });
 

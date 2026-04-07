@@ -6,7 +6,7 @@ import type { AgentTool, ToolContext, ToolResult } from './types.js';
 
 const SftpReadParams = z.object({
   path: z.string().describe('Absolute path to the file to read'),
-  maxBytes: z.number().int().positive().max(1_048_576).optional()
+  maxBytes: z.number().int().min(1).max(1_048_576).optional()
     .describe('Maximum bytes to read (default: 65536, max: 1MB)'),
 });
 

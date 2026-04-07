@@ -332,11 +332,59 @@ ${hints.templateHint ? `Template hint: Use "${hints.templateHint}" as a starting
 ## Data Sources Needed
 ${hints.dataSourceHints.map((h) => `- ${h}`).join('\n')}
 
+## DynamicViewSchema Reference
+
+The final JSON you pass to generate_schema() MUST conform to this structure exactly:
+
+\`\`\`
+{
+  "title": "string (required)",
+  "description": "string | null (optional)",
+  "icon": "string | null (optional, Lucide icon name)",
+  "root": <LayoutObject>,
+  "meta": { "tool": "string?", "command": "string?", "generatedAt": "string?", "templateId": "string?" } | null
+}
+\`\`\`
+
+### Layout Objects (root.layout is the discriminator)
+
+The \`root\` field MUST be one of these 4 layout types. The discriminator key is \`layout\` (NOT \`type\`):
+
+1. **Stack** (vertical list of widgets):
+   \`{ "layout": "stack", "gap": "sm"|"md"|"lg", "widgets": [<Widget>, ...] }\`
+
+2. **Grid** (columns of widgets):
+   \`{ "layout": "grid", "columns": 1-4, "widgets": [<Widget>, ...] }\`
+
+3. **Tabs** (tabbed sections):
+   \`{ "layout": "tabs", "tabs": [{ "id": "str", "label": "str", "icon": "str?", "widgets": [...] }] }\`
+
+4. **Sidebar** (sidebar + content sections):
+   \`{ "layout": "sidebar", "sidebarItems": [{"id":"str","label":"str","icon":"str?"}], "sections": {"id": [<Widget>, ...]} }\`
+
+### Widget Objects (type is the discriminator)
+
+Each widget has a \`type\` discriminator. Valid types:
+
+- **stat-card**: \`{ "type": "stat-card", "title": "str", "value": "str", "unit": "str?", "description": "str?", "trend": "up"|"down"|"neutral"|null, "icon": "str?" }\`
+- **table**: \`{ "type": "table", "title": "str?", "columns": [{"key":"str","label":"str","type":"text"|"number"|"badge"|"date"|"bytes"|"percent"|"code","sortable":false,"badgeVariant":{"value":"variant"}?}], "rows": [{"key":"value"},...], "actions": [...]? }\`
+- **key-value**: \`{ "type": "key-value", "title": "str?", "pairs": [{"key":"str","value":"str","icon":"str?","copyable":false}], "layout": "vertical"|"grid-2"|"grid-3"|"grid-4" }\`
+- **progress-bar**: \`{ "type": "progress-bar", "title": "str?", "value": 0-100, "label": "str?", "variant": "default"|"success"|"warning"|"destructive" }\`
+- **code-block**: \`{ "type": "code-block", "title": "str?", "code": "str", "language": "str" }\`
+- **alert**: \`{ "type": "alert", "title": "str?", "message": "str", "variant": "default"|"destructive"|"success"|"warning" }\`
+- **badge-grid**: \`{ "type": "badge-grid", "title": "str?", "badges": [{"label":"str","value":"str","variant":"default"|"secondary"|"destructive"|"outline"|"success"|"warning"}] }\`
+- **chart**: \`{ "type": "chart", "title": "str?", "chartType": "bar"|"line"|"area"|"pie"|"donut", "data": [...], "xKey": "str", "yKeys": [{"key":"str","label":"str?","color":"str?"}], "height": 300 }\`
+- **tree**: \`{ "type": "tree", "title": "str?", "nodes": [{"label":"str","value":"str?","children":[...]}] }\`
+- **log-viewer**: \`{ "type": "log-viewer", "title": "str?", "lines": [{"timestamp":"str?","level":"debug"|"info"|"warn"|"error"|null,"message":"str"}], "maxHeight": "400px" }\`
+- **form**: \`{ "type": "form", "title": "str?", "fields": [{"key":"str","label":"str","type":"text"|"number"|"boolean"|"select"|"textarea","value":...}], "submitLabel": "Save" }\`
+
+IMPORTANT: The \`root\` object uses \`layout\` as its discriminator key. Widgets use \`type\` as their discriminator key. Do NOT confuse them.
+
 ## Workflow
 1. Call get_server_context() to understand the server
 2. Use exec_command() and sftp_read() to gather information
 3. Optionally search_templates() for a matching template
-4. When you have enough data, call generate_schema() with a complete DynamicViewSchema
+4. When you have enough data, call generate_schema() with a complete DynamicViewSchema JSON string
 5. If generate_schema() fails Zod validation, you'll see the errors — fix and retry
 
 ## Rules
@@ -344,6 +392,7 @@ ${hints.dataSourceHints.map((h) => `- ${h}`).join('\n')}
 - Use specific commands over broad ones
 - If a command fails, try a fallback (e.g., nginx -T failed → try cat /etc/nginx/nginx.conf)
 - If you need to read actual file content for editing, use sftp_read()
+- The schema JSON passed to generate_schema must be a STRING (JSON.stringify), not an object
 ${hints.securityRequirements.needsWrite ? '- This request may need write-back capability. Include writeBack config in form widgets.' : ''}
 ${hints.securityRequirements.sensitiveData ? '- This involves sensitive data. Mask passwords in the UI.' : ''}`;
 

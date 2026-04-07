@@ -15,6 +15,7 @@ import { Planner } from '../agent/planner.js';
 import { ReactiveExecutor } from '../agent/executor.js';
 import { PostGenerationReflector } from '../agent/reflector.js';
 import { ToolRegistry } from '../agent/tools/tool-registry.js';
+import { ALL_AGENT_TOOLS } from '../agent/tools/index.js';
 import { WriteBackRequestSchema, executeWriteBack } from '../agent/writeback.js';
 import { SecurityError } from '../security/validators.js';
 
@@ -70,7 +71,8 @@ export async function agentUIRoutes(
 
       // Build agent per connection (cheap — just wiring refs)
       const toolRegistry = new ToolRegistry();
-      const planner = new Planner(modelRouter);
+      toolRegistry.registerAll(ALL_AGENT_TOOLS);
+      const planner = new Planner(modelRouter, templateRegistry);
       const executor = new ReactiveExecutor(modelRouter, toolRegistry);
       const reflector = new PostGenerationReflector(modelRouter);
 

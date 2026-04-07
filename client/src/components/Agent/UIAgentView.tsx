@@ -21,6 +21,9 @@ import { Badge } from '@/components/ui/badge';
 import { useUIAgent } from '../../hooks/useUIAgent';
 import { useAgentStore, type AgentSession } from '../../store/agent-store';
 import { AgentPanel, type AgentPanelProps } from './AgentPanel';
+import { openDynamicUIWindow } from '../DynamicUI';
+import { DynamicViewSchema } from 'headlessos-shared/schemas/dynamic-view';
+import { ExternalLink } from 'lucide-react';
 
 // ── Preset prompts ──────────────────────────────────────
 
@@ -83,6 +86,31 @@ export function UIAgentView({ serverId }: UIAgentViewProps) {
     setActiveRequestId(null);
     setPrompt('');
   }, []);
+
+  // Auto-open generated view as a desktop window when generation completes
+  const openedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (
+      activeSession?.status === 'complete' &&
+      activeSession.view &&
+      activeRequestId &&
+      !openedRef.current.has(activeRequestId)
+    ) {
+      openedRef.current.add(activeRequestId);
+      const parsed = DynamicViewSchema.safeParse(activeSession.view);
+      if (parsed.success) {
+        openDynamicUIWindow(serverId, parsed.data, parsed.data.icon ?? undefined);
+      }
+    }
+  }, [activeSession?.status, activeSession?.view, activeRequestId, serverId]);
+
+  const handleOpenInWindow = useCallback(() => {
+    if (!activeSession?.view) return;
+    const parsed = DynamicViewSchema.safeParse(activeSession.view);
+    if (parsed.success) {
+      openDynamicUIWindow(serverId, parsed.data, parsed.data.icon ?? undefined);
+    }
+  }, [activeSession?.view, serverId]);
 
   return (
     <div className="flex flex-col h-full">
@@ -161,23 +189,39 @@ export function UIAgentView({ serverId }: UIAgentViewProps) {
             />
           )}
 
-          {/* Completion summary */}
+          {/* Completion summary + rendered view */}
           {activeSession?.status === 'complete' && activeSession.meta && (
-            <div className="border border-emerald-500/20 rounded-lg p-3 bg-emerald-500/5 space-y-1">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-emerald-500" />
-                <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
-                  View Generated
-                </span>
+            <div className="space-y-4">
+              <div className="border border-emerald-500/20 rounded-lg p-3 bg-emerald-500/5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-emerald-500" />
+                    <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                      View Generated
+                    </span>
+                  </div>
+                  {activeSession.view != null && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleOpenInWindow}
+                      className="h-7 px-2.5 gap-1.5 text-xs"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      Open in Window
+                    </Button>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Completed in {((activeSession.meta.latencyMs ?? 0) / 1000).toFixed(1)}s
+                  {' · '}
+                  {activeSession.meta.stepsCompleted} step{activeSession.meta.stepsCompleted !== 1 ? 's' : ''}
+                  {activeSession.meta.reflectionLoops > 0 && (
+                    <> · {activeSession.meta.reflectionLoops} reflection{activeSession.meta.reflectionLoops !== 1 ? 's' : ''}</>
+                  )}
+                </p>
               </div>
-              <p className="text-[11px] text-muted-foreground">
-                Completed in {((activeSession.meta.latencyMs ?? 0) / 1000).toFixed(1)}s
-                {' · '}
-                {activeSession.meta.stepsCompleted} step{activeSession.meta.stepsCompleted !== 1 ? 's' : ''}
-                {activeSession.meta.reflectionLoops > 0 && (
-                  <> · {activeSession.meta.reflectionLoops} reflection{activeSession.meta.reflectionLoops !== 1 ? 's' : ''}</>
-                )}
-              </p>
+
             </div>
           )}
 

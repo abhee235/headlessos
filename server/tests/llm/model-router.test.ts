@@ -102,8 +102,8 @@ describe('ModelConfig', () => {
       expect(DEFAULT_MODEL_CONFIG.weak).toBeDefined();
     });
 
-    it('reasoning uses o4-mini by default', () => {
-      expect(DEFAULT_MODEL_CONFIG.reasoning.model).toBe('o4-mini');
+    it('reasoning uses gpt-5.4 by default', () => {
+      expect(DEFAULT_MODEL_CONFIG.reasoning.model).toBe('gpt-5.4');
     });
 
     it('structuredOutput uses gpt-4.1 by default', () => {
@@ -140,7 +140,7 @@ describe('ModelConfig', () => {
 
     it('returns defaults when no env vars set', () => {
       const config = loadModelConfig();
-      expect(config.reasoning.model).toBe('o4-mini');
+      expect(config.reasoning.model).toBe('gpt-5.4');
       expect(config.structuredOutput.model).toBe('gpt-4.1');
       expect(config.fast.model).toBe('gpt-4o-mini');
       expect(config.weak.model).toBe('gpt-4o-mini');
