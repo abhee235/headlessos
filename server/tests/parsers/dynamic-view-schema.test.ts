@@ -23,6 +23,7 @@ import {
   SidebarLayoutSchema,
   DynamicViewMetaSchema,
   DataSourceSchema,
+  WidgetActionSchema,
   WIDGET_TYPES,
   LAYOUT_TYPES,
 } from 'headlessos-shared/schemas/dynamic-view';
@@ -908,5 +909,141 @@ describe('Widgets with dataSource', () => {
       expect(withDS.dataSource).toBeDefined();
       expect(withDS.dataSource?.command).toBe('test');
     }
+  });
+});
+
+// ── EX1.14: WidgetActionSchema & Table Actions ──────────────────
+
+describe('WidgetActionSchema (EX1.14)', () => {
+  it('parses a valid action with all fields', () => {
+    const result = WidgetActionSchema.parse({
+      id: 'stop-container',
+      label: 'Stop',
+      command: 'docker stop {id}',
+      confirm: true,
+      confirmMessage: 'Stop this container?',
+      variant: 'destructive',
+      icon: 'Square',
+    });
+    expect(result.id).toBe('stop-container');
+    expect(result.label).toBe('Stop');
+    expect(result.command).toBe('docker stop {id}');
+    expect(result.confirm).toBe(true);
+    expect(result.confirmMessage).toBe('Stop this container?');
+    expect(result.variant).toBe('destructive');
+    expect(result.icon).toBe('Square');
+  });
+
+  it('applies defaults for confirm and variant', () => {
+    const result = WidgetActionSchema.parse({
+      id: 'restart',
+      label: 'Restart',
+      command: 'systemctl restart {name}',
+    });
+    expect(result.confirm).toBe(false);
+    expect(result.variant).toBe('default');
+    expect(result.confirmMessage).toBeUndefined();
+    expect(result.icon).toBeUndefined();
+  });
+
+  it('accepts null for optional fields', () => {
+    const result = WidgetActionSchema.parse({
+      id: 'test',
+      label: 'Test',
+      command: 'echo test',
+      confirmMessage: null,
+      icon: null,
+    });
+    expect(result.confirmMessage).toBeNull();
+    expect(result.icon).toBeNull();
+  });
+
+  it('rejects action without required fields', () => {
+    expect(() => WidgetActionSchema.parse({ id: 'x' })).toThrow(ZodError);
+    expect(() => WidgetActionSchema.parse({ id: 'x', label: 'Y' })).toThrow(ZodError);
+  });
+
+  it('validates variant enum values', () => {
+    const validVariants = ['default', 'destructive', 'outline', 'secondary', 'ghost'];
+    for (const v of validVariants) {
+      const result = WidgetActionSchema.parse({
+        id: 'test', label: 'Test', command: 'echo hi', variant: v,
+      });
+      expect(result.variant).toBe(v);
+    }
+    expect(() => WidgetActionSchema.parse({
+      id: 'test', label: 'Test', command: 'echo hi', variant: 'invalid',
+    })).toThrow(ZodError);
+  });
+});
+
+describe('TableWidgetSchema with actions (EX1.14)', () => {
+  const baseTable = {
+    type: 'table' as const,
+    columns: [{ key: 'name', label: 'Name', type: 'text' as const, sortable: false }],
+    rows: [{ name: 'my-container' }],
+  };
+
+  it('parses table without actions', () => {
+    const result = TableWidgetSchema.parse(baseTable);
+    expect(result.actions).toBeUndefined();
+  });
+
+  it('parses table with null actions', () => {
+    const result = TableWidgetSchema.parse({ ...baseTable, actions: null });
+    expect(result.actions).toBeNull();
+  });
+
+  it('parses table with empty actions array', () => {
+    const result = TableWidgetSchema.parse({ ...baseTable, actions: [] });
+    expect(result.actions).toEqual([]);
+  });
+
+  it('parses table with one action', () => {
+    const result = TableWidgetSchema.parse({
+      ...baseTable,
+      actions: [{
+        id: 'stop',
+        label: 'Stop',
+        command: 'docker stop {name}',
+        confirm: true,
+        confirmMessage: 'Stop container {name}?',
+        variant: 'destructive',
+      }],
+    });
+    expect(result.actions).toHaveLength(1);
+    expect(result.actions![0]!.id).toBe('stop');
+    expect(result.actions![0]!.variant).toBe('destructive');
+  });
+
+  it('parses table with multiple actions', () => {
+    const result = TableWidgetSchema.parse({
+      ...baseTable,
+      actions: [
+        { id: 'restart', label: 'Restart', command: 'docker restart {name}' },
+        { id: 'stop', label: 'Stop', command: 'docker stop {name}', confirm: true, variant: 'destructive' },
+        { id: 'logs', label: 'Logs', command: 'docker logs --tail 50 {name}', variant: 'outline' },
+      ],
+    });
+    expect(result.actions).toHaveLength(3);
+  });
+
+  it('full DynamicView with table actions validates', () => {
+    const view = DynamicViewSchema.parse({
+      title: 'Docker Containers',
+      root: {
+        layout: 'stack',
+        gap: 'md',
+        widgets: [{
+          ...baseTable,
+          actions: [
+            { id: 'stop', label: 'Stop', command: 'docker stop {name}', confirm: true, variant: 'destructive' },
+          ],
+        }],
+      },
+    });
+    expect(view.root.widgets).toHaveLength(1);
+    const table = view.root.widgets[0] as { actions?: unknown[] };
+    expect(table.actions).toHaveLength(1);
   });
 });

@@ -10,6 +10,7 @@ import {
   type DynamicUIMessage,
 } from '../dynamic-ui/generator.js';
 import type { DynamicUIDiskCache } from '../cache/dynamic-ui-cache.js';
+import { validateCommand, shellEscape, SecurityError } from '../security/validators.js';
 
 interface DynamicUIRouteDeps {
   connectionManager: ConnectionManager;
@@ -90,30 +91,8 @@ export async function dynamicUIRoutes(
     requireConnected(serverId);
 
     try {
-      const conn = connectionManager.getConnection(serverId);
-      if (!conn) {
-        return reply.status(404).send({ error: `Server "${serverId}" not connected` });
-      }
-
-      // Run the command via exec
-      const rawOutput = await new Promise<string>((resolve, reject) => {
-        conn.client.exec(command, (err, stream) => {
-          if (err) return reject(err);
-          let output = '';
-          stream.on('data', (data: Buffer) => {
-            output += data.toString();
-          });
-          stream.stderr.on('data', (data: Buffer) => {
-            output += data.toString();
-          });
-          stream.on('close', () => resolve(output));
-          // Timeout after 10s
-          setTimeout(() => {
-            stream.close();
-            reject(new Error('Command timed out'));
-          }, 10000);
-        });
-      });
+      const result = await connectionManager.exec(serverId, command, 10000);
+      const rawOutput = result.stdout || result.stderr;
 
       // Parse based on mode
       let data: unknown;
@@ -131,6 +110,61 @@ export async function dynamicUIRoutes(
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to run refresh command';
       return reply.status(500).send({ success: false, error: message });
+    }
+  });
+
+  // ── REST: Action execution (EX1.14) ────────────────────────────
+
+  fastify.post<{
+    Params: { serverId: string };
+    Body: { command: string; params?: Record<string, string> };
+  }>('/api/servers/:serverId/dynamic-ui/execute-action', async (req, reply) => {
+    const { serverId } = req.params;
+    const { command, params } = req.body;
+
+    if (!command) {
+      return reply.status(400).send({ error: 'Missing field: command' });
+    }
+
+    requireConnected(serverId);
+
+    try {
+      // Substitute {placeholder} values with shell-escaped params
+      let resolvedCommand = command;
+      if (params && typeof params === 'object') {
+        for (const [key, value] of Object.entries(params)) {
+          const placeholder = `{${key}}`;
+          if (resolvedCommand.includes(placeholder)) {
+            resolvedCommand = resolvedCommand.replaceAll(placeholder, shellEscape(String(value)));
+          }
+        }
+      }
+
+      // Validate the resolved command against the allowlist
+      const rule = validateCommand(resolvedCommand);
+
+      // Execute the command (15s timeout for actions)
+      const result = await connectionManager.exec(serverId, resolvedCommand, 15000);
+
+      if (result.exitCode !== 0 && result.stderr) {
+        return reply.status(500).send({
+          success: false,
+          error: `Command failed (exit ${result.exitCode}): ${result.stderr.substring(0, 200)}`,
+        });
+      }
+
+      return reply.send({
+        success: true,
+        output: result.stdout || result.stderr,
+        command: resolvedCommand,
+        risk: rule.risk,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Action execution failed';
+      return reply.status(err instanceof SecurityError ? 403 : 500).send({
+        success: false,
+        error: message,
+      });
     }
   });
 

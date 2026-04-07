@@ -1176,3 +1176,26 @@ export async function refreshWidgetData(
     },
   );
 }
+
+// EX1.14: Execute a widget action on a server
+export interface ActionResult {
+  success: boolean;
+  output?: string;
+  command?: string;
+  risk?: string;
+  error?: string;
+}
+
+export async function executeWidgetAction(
+  serverId: string,
+  command: string,
+  params?: Record<string, string>,
+): Promise<ActionResult> {
+  return request<ActionResult>(
+    `/servers/${serverId}/dynamic-ui/execute-action`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ command, params }),
+    },
+  );
+}

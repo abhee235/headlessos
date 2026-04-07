@@ -1474,3 +1474,189 @@ describe('DynamicUITabView', () => {
     expect(screen.getByText('Pinned content')).toBeInTheDocument();
   });
 });
+
+// ── EX1.14: TableWidget Action Buttons ──────────────────
+
+import { DynamicViewProvider } from '../../src/components/DynamicUI/DynamicViewContext';
+import { TableWidget } from '../../src/components/DynamicUI/widgets/TableWidget';
+
+// Mock the API module
+vi.mock('../../src/lib/api', async () => {
+  const actual = await vi.importActual<Record<string, unknown>>('../../src/lib/api');
+  return {
+    ...actual,
+    executeWidgetAction: vi.fn(),
+  };
+});
+
+import { executeWidgetAction } from '../../src/lib/api';
+
+describe('TableWidget with actions (EX1.14)', () => {
+  const baseColumns = [
+    { key: 'name', label: 'Name', type: 'text' as const, sortable: false },
+    { key: 'status', label: 'Status', type: 'badge' as const, sortable: false },
+  ];
+
+  const baseRows = [
+    { name: 'my-app', status: 'running' },
+    { name: 'db-server', status: 'stopped' },
+  ];
+
+  it('renders table without actions column when no actions', () => {
+    render(
+      <DynamicViewProvider serverId="srv-1">
+        <TableWidget widget={{
+          type: 'table',
+          columns: baseColumns,
+          rows: baseRows,
+        } as never} />
+      </DynamicViewProvider>,
+    );
+    expect(screen.getByText('Name')).toBeInTheDocument();
+    expect(screen.getByText('my-app')).toBeInTheDocument();
+    // No Actions column header
+    expect(screen.queryByText('Actions')).not.toBeInTheDocument();
+  });
+
+  it('renders action buttons when actions are defined', () => {
+    render(
+      <DynamicViewProvider serverId="srv-1">
+        <TableWidget widget={{
+          type: 'table',
+          columns: baseColumns,
+          rows: baseRows,
+          actions: [
+            { id: 'restart', label: 'Restart', command: 'docker restart {name}', confirm: false, variant: 'default' },
+          ],
+        } as never} />
+      </DynamicViewProvider>,
+    );
+    expect(screen.getByText('Actions')).toBeInTheDocument();
+    // One button per row
+    const buttons = screen.getAllByRole('button', { name: 'Restart' });
+    expect(buttons).toHaveLength(2);
+  });
+
+  it('renders multiple action buttons per row', () => {
+    render(
+      <DynamicViewProvider serverId="srv-1">
+        <TableWidget widget={{
+          type: 'table',
+          columns: baseColumns,
+          rows: [{ name: 'test-app', status: 'running' }],
+          actions: [
+            { id: 'restart', label: 'Restart', command: 'docker restart {name}', confirm: false, variant: 'default' },
+            { id: 'stop', label: 'Stop', command: 'docker stop {name}', confirm: true, variant: 'destructive' },
+          ],
+        } as never} />
+      </DynamicViewProvider>,
+    );
+    expect(screen.getByRole('button', { name: 'Restart' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Stop' })).toBeInTheDocument();
+  });
+
+  it('shows confirmation dialog for actions with confirm=true', async () => {
+    render(
+      <DynamicViewProvider serverId="srv-1">
+        <TableWidget widget={{
+          type: 'table',
+          columns: baseColumns,
+          rows: [{ name: 'my-app', status: 'running' }],
+          actions: [
+            {
+              id: 'stop',
+              label: 'Stop',
+              command: 'docker stop {name}',
+              confirm: true,
+              confirmMessage: 'Stop container my-app?',
+              variant: 'destructive',
+            },
+          ],
+        } as never} />
+      </DynamicViewProvider>,
+    );
+    const stopButton = screen.getByRole('button', { name: 'Stop' });
+    fireEvent.click(stopButton);
+
+    // Confirmation dialog should appear
+    expect(screen.getByText('Stop container my-app?')).toBeInTheDocument();
+  });
+
+  it('executes action directly when confirm=false', async () => {
+    const mockExecute = vi.mocked(executeWidgetAction);
+    mockExecute.mockResolvedValueOnce({ success: true, output: 'done' });
+
+    render(
+      <DynamicViewProvider serverId="srv-1">
+        <TableWidget widget={{
+          type: 'table',
+          columns: baseColumns,
+          rows: [{ name: 'my-app', status: 'running' }],
+          actions: [
+            { id: 'restart', label: 'Restart', command: 'docker restart {name}', confirm: false, variant: 'default' },
+          ],
+        } as never} />
+      </DynamicViewProvider>,
+    );
+    const restartButton = screen.getByRole('button', { name: 'Restart' });
+    fireEvent.click(restartButton);
+
+    // Should call executeWidgetAction with correct params
+    expect(mockExecute).toHaveBeenCalledWith(
+      'srv-1',
+      'docker restart {name}',
+      { name: 'my-app', status: 'running' },
+    );
+  });
+
+  it('disables action buttons when no serverId', () => {
+    render(
+      <DynamicViewProvider serverId={null}>
+        <TableWidget widget={{
+          type: 'table',
+          columns: baseColumns,
+          rows: [{ name: 'my-app', status: 'running' }],
+          actions: [
+            { id: 'restart', label: 'Restart', command: 'docker restart {name}', confirm: false, variant: 'default' },
+          ],
+        } as never} />
+      </DynamicViewProvider>,
+    );
+    const button = screen.getByRole('button', { name: 'Restart' });
+    expect(button).toBeDisabled();
+  });
+
+  it('renders destructive variant buttons correctly', () => {
+    render(
+      <DynamicViewProvider serverId="srv-1">
+        <TableWidget widget={{
+          type: 'table',
+          columns: baseColumns,
+          rows: [{ name: 'my-app', status: 'running' }],
+          actions: [
+            { id: 'delete', label: 'Delete', command: 'docker rm {name}', confirm: true, variant: 'destructive' },
+          ],
+        } as never} />
+      </DynamicViewProvider>,
+    );
+    // Button should exist and be enabled
+    const button = screen.getByRole('button', { name: 'Delete' });
+    expect(button).toBeInTheDocument();
+    expect(button).toBeEnabled();
+  });
+
+  it('handles empty actions array gracefully', () => {
+    render(
+      <DynamicViewProvider serverId="srv-1">
+        <TableWidget widget={{
+          type: 'table',
+          columns: baseColumns,
+          rows: baseRows,
+          actions: [],
+        } as never} />
+      </DynamicViewProvider>,
+    );
+    // No actions column
+    expect(screen.queryByText('Actions')).not.toBeInTheDocument();
+  });
+});
