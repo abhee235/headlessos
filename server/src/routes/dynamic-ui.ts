@@ -11,6 +11,7 @@ import {
 } from '../dynamic-ui/generator.js';
 import type { DynamicUIDiskCache } from '../cache/dynamic-ui-cache.js';
 import { validateCommand, shellEscape, SecurityError } from '../security/validators.js';
+import { WriteBackRequestSchema, executeWriteBack } from '../agent/writeback.js';
 
 interface DynamicUIRouteDeps {
   connectionManager: ConnectionManager;
@@ -162,6 +163,42 @@ export async function dynamicUIRoutes(
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Action execution failed';
       return reply.status(err instanceof SecurityError ? 403 : 500).send({
+        success: false,
+        error: message,
+      });
+    }
+  });
+
+  // ── REST: Write-back (EX2.9) ───────────────────────────────────
+
+  fastify.post<{
+    Params: { serverId: string };
+    Body: Record<string, unknown>;
+  }>('/api/servers/:serverId/dynamic-ui/write-back', async (req, reply) => {
+    const { serverId } = req.params;
+    requireConnected(serverId);
+
+    const parsed = WriteBackRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        success: false,
+        error: 'Invalid write-back request',
+        details: parsed.error.issues,
+      });
+    }
+
+    try {
+      const result = await executeWriteBack(serverId, parsed.data, connectionManager);
+      return reply.send(result);
+    } catch (err) {
+      if (err instanceof SecurityError) {
+        return reply.status(403).send({
+          success: false,
+          error: err.message,
+        });
+      }
+      const message = err instanceof Error ? err.message : 'Write-back failed';
+      return reply.status(500).send({
         success: false,
         error: message,
       });
