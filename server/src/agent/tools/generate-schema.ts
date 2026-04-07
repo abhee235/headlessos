@@ -56,12 +56,14 @@ export const generateSchemaTool: AgentTool = {
 
       // Schema is valid — return it as the output
       // The executor will detect generate_schema calls and extract the result
+      // IMPORTANT: metadata.schema MUST be set for the executor to detect completion
       return {
         success: true,
         output: JSON.stringify(result.data),
         metadata: {
           title: (result.data as Record<string, unknown>).title,
           isTerminalTool: true,
+          schema: result.data,
         },
       };
     } catch (err) {

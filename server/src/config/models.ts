@@ -5,7 +5,7 @@
 /**
  * Model roles for the UI Generation Agent.
  * Each role maps to a specific use case:
- * - reasoning: Planning, reflection (o3, o4-mini)
+ * - reasoning: Planning, reflection (gpt-5.4, o4-mini)
  * - structured-output: Schema generation with tools (gpt-4.1, gpt-4o)
  * - fast: Quick tasks, error analysis (gpt-4o-mini)
  * - weak: Cheapest — summaries, classification (gpt-4o-mini)
@@ -40,8 +40,8 @@ export interface ModelConfig {
 export const DEFAULT_MODEL_CONFIG: ModelConfig = {
   reasoning: {
     provider: 'openai',
-    model: 'o4-mini',
-    maxTokens: 16384,
+    model: 'gpt-5.4',
+    maxTokens: 128000,
   },
   structuredOutput: {
     provider: 'openai',
@@ -65,7 +65,7 @@ export const DEFAULT_MODEL_CONFIG: ModelConfig = {
  * Falls back to defaults for any unset value.
  *
  * Environment variables:
- *   MODEL_REASONING        — reasoning model name (default: o4-mini)
+ *   MODEL_REASONING        — reasoning model name (default: gpt-5.4)
  *   MODEL_STRUCTURED       — structured output model (default: gpt-4.1)
  *   MODEL_FAST             — fast model (default: gpt-4o-mini)
  *   MODEL_WEAK             — weak/cheap model (default: gpt-4o-mini)

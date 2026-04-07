@@ -7,7 +7,7 @@ import { isReadCommandAllowed } from '../command-allowlist.js';
 
 const ExecCommandParams = z.object({
   command: z.string().describe('The Linux command to execute (must be in read-only allowlist)'),
-  timeout: z.number().int().positive().max(30000).optional()
+  timeout: z.number().int().min(1).max(30000).optional()
     .describe('Command timeout in ms (default: 15000, max: 30000)'),
 });
 

@@ -5,7 +5,7 @@
 // Provides generate(), abort(), and writeBack() actions.
 // Dispatches events to the Zustand agent-store.
 
-import { useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useAgentStore, type AgentSessionStatus } from '../store/agent-store';
 import type { AgentEventType, AgentMetaType } from '../components/Agent/AgentPanel';
 
@@ -55,9 +55,14 @@ interface ServerMessage {
 
 export function useUIAgent(serverId: string | null): UseUIAgentReturn {
   const wsRef = useRef<WebSocket | null>(null);
-  const connectedRef = useRef(false);
+  const [connected, setConnected] = useState(false);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { addSession, addEvent, completeSession, errorSession, abortSession } = useAgentStore();
+  const serverIdRef = useRef(serverId);
+  serverIdRef.current = serverId;
+
+  // Use refs for store actions so connect() doesn't depend on them
+  const storeRef = useRef(useAgentStore.getState());
+  storeRef.current = useAgentStore.getState();
 
   // ── WebSocket URL builder ──
   const getWsUrl = useCallback((sId: string) => {
@@ -140,10 +145,16 @@ export function useUIAgent(serverId: string | null): UseUIAgentReturn {
     wsRef.current = ws;
 
     ws.onopen = () => {
-      connectedRef.current = true;
+      // Guard: only set connected if this WS is still the active one
+      if (wsRef.current === ws) {
+        setConnected(true);
+      }
     };
 
     ws.onmessage = (event) => {
+      // Guard: ignore messages from stale WS
+      if (wsRef.current !== ws) return;
+
       let msg: ServerMessage;
       try {
         msg = JSON.parse(event.data as string) as ServerMessage;
@@ -153,10 +164,12 @@ export function useUIAgent(serverId: string | null): UseUIAgentReturn {
 
       if (!msg.type || !msg.requestId) return;
 
+      const store = storeRef.current;
+
       // Handle terminal events
       if (msg.type === 'complete') {
         if (msg.view && msg.meta) {
-          completeSession(msg.requestId, msg.view, msg.meta as AgentMetaType);
+          store.completeSession(msg.requestId, msg.view, msg.meta as AgentMetaType);
         }
         // Also add as timeline event
         const evt: AgentEventType = {
@@ -164,19 +177,19 @@ export function useUIAgent(serverId: string | null): UseUIAgentReturn {
           view: msg.view,
           meta: msg.meta as AgentMetaType,
         };
-        addEvent(msg.requestId, evt);
+        store.addEvent(msg.requestId, evt);
         return;
       }
 
       if (msg.type === 'aborted') {
-        abortSession(msg.requestId);
+        store.abortSession(msg.requestId);
         return;
       }
 
       if (msg.type === 'write_back_result') {
         // Dispatch as a special event (no standard AgentEventType for this)
         // Store will receive it via addEvent with a generic type
-        addEvent(msg.requestId, {
+        store.addEvent(msg.requestId, {
           type: 'thinking',
           message: msg.success
             ? 'Write-back completed successfully'
@@ -186,18 +199,22 @@ export function useUIAgent(serverId: string | null): UseUIAgentReturn {
       }
 
       if (msg.type === 'error') {
-        errorSession(msg.requestId, msg.message ?? msg.error ?? 'Unknown error');
+        store.errorSession(msg.requestId, msg.message ?? msg.error ?? 'Unknown error');
       }
 
       // Parse into AgentEventType and dispatch
       const agentEvent = parseServerMessage(msg);
       if (agentEvent) {
-        addEvent(msg.requestId, agentEvent);
+        store.addEvent(msg.requestId, agentEvent);
       }
     };
 
     ws.onclose = () => {
-      connectedRef.current = false;
+      // Guard: only handle close if this WS is still the active one
+      // This prevents stale close handlers from React StrictMode double-effects
+      if (wsRef.current !== ws) return;
+
+      setConnected(false);
       wsRef.current = null;
 
       // Attempt reconnect after 3s if serverId still active
@@ -205,8 +222,8 @@ export function useUIAgent(serverId: string | null): UseUIAgentReturn {
         clearTimeout(reconnectTimeoutRef.current);
       }
       reconnectTimeoutRef.current = setTimeout(() => {
-        if (sId) {
-          connect(sId);
+        if (serverIdRef.current) {
+          connect(serverIdRef.current);
         }
       }, 3000);
     };
@@ -214,7 +231,7 @@ export function useUIAgent(serverId: string | null): UseUIAgentReturn {
     ws.onerror = () => {
       // Error will trigger close event
     };
-  }, [getWsUrl, addEvent, completeSession, errorSession, abortSession]);
+  }, [getWsUrl]);
 
   // ── Connect/disconnect on serverId change ──
 
@@ -224,7 +241,7 @@ export function useUIAgent(serverId: string | null): UseUIAgentReturn {
         wsRef.current.close();
         wsRef.current = null;
       }
-      connectedRef.current = false;
+      setConnected(false);
       return;
     }
 
@@ -238,7 +255,7 @@ export function useUIAgent(serverId: string | null): UseUIAgentReturn {
         wsRef.current.close();
         wsRef.current = null;
       }
-      connectedRef.current = false;
+      setConnected(false);
     };
   }, [serverId, connect]);
 
@@ -247,11 +264,12 @@ export function useUIAgent(serverId: string | null): UseUIAgentReturn {
   const generate = useCallback((prompt: string): string => {
     const requestId = crypto.randomUUID();
 
-    if (!serverId) {
+    if (!serverIdRef.current) {
       throw new Error('No server selected');
     }
 
-    addSession(requestId, serverId, prompt);
+    const store = storeRef.current;
+    store.addSession(requestId, serverIdRef.current, prompt);
 
     const ws = wsRef.current;
     if (ws && ws.readyState === WebSocket.OPEN) {
@@ -261,11 +279,11 @@ export function useUIAgent(serverId: string | null): UseUIAgentReturn {
         prompt,
       }));
     } else {
-      errorSession(requestId, 'WebSocket not connected');
+      store.errorSession(requestId, 'WebSocket not connected');
     }
 
     return requestId;
-  }, [serverId, addSession, errorSession]);
+  }, []);
 
   const abort = useCallback((requestId: string) => {
     const ws = wsRef.current;
@@ -275,8 +293,8 @@ export function useUIAgent(serverId: string | null): UseUIAgentReturn {
         requestId,
       }));
     }
-    abortSession(requestId);
-  }, [abortSession]);
+    storeRef.current.abortSession(requestId);
+  }, []);
 
   const writeBack = useCallback((requestId: string, data: WriteBackData) => {
     const ws = wsRef.current;
@@ -294,6 +312,6 @@ export function useUIAgent(serverId: string | null): UseUIAgentReturn {
     generate,
     abort,
     writeBack,
-    connected: connectedRef.current,
+    connected,
   };
 }
