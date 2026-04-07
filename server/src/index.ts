@@ -23,10 +23,12 @@ import { statsRoutes } from './routes/stats.js';
 import { llmRoutes } from './routes/llm.js';
 import { fleetRoutes } from './routes/fleet.js';
 import { agentRoutes } from './routes/agent.js';
+import { dynamicUIRoutes } from './routes/dynamic-ui.js';
 import { allParsers } from './parsers/deterministic/index.js';
 import { OutputCache } from './cache/output-cache.js';
 import { LLMUsageTracker } from './llm/usage-tracker.js';
 import { InvestigationAgent } from './agent/investigation-agent.js';
+import { DynamicUIGenerator } from './dynamic-ui/generator.js';
 
 const PORT = Number(process.env.PORT) || 3001;
 
@@ -41,6 +43,7 @@ async function main(): Promise<void> {
   const outputCache = new OutputCache();
   const usageTracker = new LLMUsageTracker();
   const investigationAgent = new InvestigationAgent(connectionManager, null);
+  let dynamicUIGenerator = new DynamicUIGenerator({ outputCache, usageTracker });
 
   container.register('config', configStore);
   container.register('ssh', connectionManager);
@@ -53,6 +56,7 @@ async function main(): Promise<void> {
     const llmProvider = new OpenAIProvider(process.env.OPENAI_API_KEY);
     pipeline.setLLMProvider(llmProvider);
     investigationAgent.setLLMProvider(llmProvider);
+    dynamicUIGenerator = new DynamicUIGenerator({ llmProvider, outputCache, usageTracker });
     console.log('🤖 LLM provider: OpenAI');
   } else {
     console.log('⚠️  No OPENAI_API_KEY set — LLM parsing disabled (deterministic parsers only)');
@@ -107,7 +111,7 @@ async function main(): Promise<void> {
   // ── Auto-reconnect hook for data routes ──
   // When a server is disconnected (e.g. after dev server restart), attempt to
   // reconnect transparently using stored credentials before the route handler runs.
-  const dataRoutePattern = /^\/api\/servers\/([^/]+)\/(docker|system|files|taskmanager|services|terminal|serveradmin)/;
+  const dataRoutePattern = /^\/api\/servers\/([^/]+)\/(docker|system|files|taskmanager|services|terminal|serveradmin|dynamic-ui)/;
 
   app.addHook('preHandler', async (req) => {
     const match = req.url.match(dataRoutePattern);
@@ -148,6 +152,7 @@ async function main(): Promise<void> {
   await app.register(llmRoutes, { pipeline });
   await app.register(fleetRoutes, { orchestrator, connectionManager, configStore });
   await app.register(agentRoutes, { connectionManager, agent: investigationAgent });
+  await app.register(dynamicUIRoutes, { connectionManager, generator: dynamicUIGenerator });
 
   // -- Start --
   try {
