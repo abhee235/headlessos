@@ -22,7 +22,7 @@ export const databaseInfoTemplate: UITemplate = {
     root: {
       layout: 'stack',
       gap: 'md',
-      widgets: [
+      children: [
         {
           type: 'key-value',
           title: 'Server Info',

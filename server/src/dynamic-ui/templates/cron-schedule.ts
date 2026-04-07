@@ -21,7 +21,7 @@ export const cronScheduleTemplate: UITemplate = {
     root: {
       layout: 'stack',
       gap: 'md',
-      widgets: [
+      children: [
         {
           type: 'stat-card',
           title: 'Active Jobs',

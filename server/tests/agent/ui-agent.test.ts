@@ -18,7 +18,7 @@ const VALID_DYNAMIC_VIEW: DynamicView = {
   root: {
     layout: 'stack',
     gap: 'md',
-    widgets: [
+    children: [
       {
         type: 'table',
         title: 'Filesystems',

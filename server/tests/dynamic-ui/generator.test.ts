@@ -21,7 +21,7 @@ function createMockLLM(response?: DynamicView): LLMProvider {
     root: {
       layout: 'stack',
       gap: 'md',
-      widgets: [
+      children: [
         {
           type: 'code-block',
           title: 'Output',
@@ -386,7 +386,7 @@ describe('DynamicUIGenerator', () => {
         root: {
           layout: 'grid',
           columns: 2,
-          widgets: [
+          children: [
             {
               type: 'progress-bar',
               title: 'Root Partition',
@@ -411,8 +411,8 @@ describe('DynamicUIGenerator', () => {
 
       const result = await gen.generate(baseInput);
       DynamicViewSchema.parse(result.view);
-      expect((result.view.root as { widgets: unknown[] }).widgets).toHaveLength(2);
-      expect((result.view.root as { widgets: Array<{ type: string }> }).widgets[0].type).toBe('progress-bar');
+      expect((result.view.root as { children: unknown[] }).children).toHaveLength(2);
+      expect((result.view.root as { children: Array<{ type: string }> }).children[0].type).toBe('progress-bar');
     });
   });
 });

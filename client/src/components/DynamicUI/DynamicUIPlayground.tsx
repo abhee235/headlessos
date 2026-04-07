@@ -2,7 +2,7 @@
 // @see docs/phases/phase-ex1.md
 
 import { useState, useMemo, useCallback } from 'react';
-import type { DynamicView } from 'headlessos-shared/schemas/dynamic-view';
+import type { DynamicView, Layout } from 'headlessos-shared/schemas/dynamic-view';
 import { DynamicViewSchema } from 'headlessos-shared/schemas/dynamic-view';
 import { AppWindow } from '@/components/ui/app-window';
 import { DynamicViewRenderer } from './DynamicViewRenderer';
@@ -183,18 +183,37 @@ export function DynamicUIPlayground({ open, onOpenChange }: DynamicUIPlaygroundP
 
 /** Count total widgets across all layouts recursively */
 function countWidgets(view: DynamicView): number {
-  return countLayoutWidgets(view.root);
+  return countLayoutChildren(view.root);
 }
 
-function countLayoutWidgets(layout: DynamicView['root']): number {
+function countLayoutChildren(layout: DynamicView['root']): number {
   switch (layout.layout) {
     case 'stack':
     case 'grid':
-      return layout.widgets.length;
+      return (layout.children as unknown[]).reduce<number>((sum, child) => {
+        if (child && typeof child === 'object' && 'layout' in child && !('type' in child)) {
+          return sum + countLayoutChildren(child as Layout);
+        }
+        return sum + 1;
+      }, 0);
     case 'tabs':
-      return layout.tabs.reduce((sum, tab) => sum + tab.widgets.length, 0);
+      return layout.tabs.reduce<number>((sum, tab) =>
+        sum + (tab.children as unknown[]).reduce<number>((tSum, child) => {
+          if (child && typeof child === 'object' && 'layout' in child && !('type' in child)) {
+            return tSum + countLayoutChildren(child as Layout);
+          }
+          return tSum + 1;
+        }, 0),
+      0);
     case 'sidebar':
-      return Object.values(layout.sections).reduce((sum, widgets) => sum + widgets.length, 0);
+      return Object.values(layout.sections).reduce<number>((sum, items) =>
+        sum + (items as unknown[]).reduce<number>((sSum, child) => {
+          if (child && typeof child === 'object' && 'layout' in child && !('type' in child)) {
+            return sSum + countLayoutChildren(child as Layout);
+          }
+          return sSum + 1;
+        }, 0),
+      0);
     default:
       return 0;
   }

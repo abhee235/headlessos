@@ -31,8 +31,9 @@
 | M9: Desktop Polish & Core UX | Week 11 | ✅ | 12/12 tasks | — |
 | M10: Advanced Features | Week 12-14 | ✅ | 10/10 tasks | — |
 | M11: Fleet, Agent & Platform | Week 15-16 | ✅ | 7/7 tasks | — |
-| **EX1: Dynamic UI Engine** | **Experimental** | **🔄** | **7/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
-| **EX2: UI Generation Agent** | **Experimental** | **⬜** | **0/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
+| **EX1: Dynamic UI Engine** | **Experimental** | **✅** | **15/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
+| **EX2: UI Generation Agent** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
+| **EX3: Advanced UI Rendering & Generation** | **Experimental** | **🔄** | **0/19 tasks** | [phase-ex3](phases/phase-ex3.md) |
 
 ---
 
@@ -290,6 +291,51 @@ Example:
 |---------|------|--------|--------------|
 | EX2.11 | Agent UI Panel | ✅ | All event types rendered, tool timing, abort, collapse, progressive preview, 23 tests |
 | EX2.12 | WebSocket Protocol + Hooks | ✅ | WS /ws/ui-agent/:serverId, useUIAgent hook, agent-store, 55 tests (36 server + 19 client) |
+
+---
+
+## EX3: Advanced UI Rendering & Generation (Experimental)
+
+> See [phase-ex3.md](phases/phase-ex3.md) for full spec. Sub-phases: Widget Primitives, Schema & Prompts, Multi-Step Generation, Unified Window.
+
+### Sub-Phase EX3-P: Widget Primitives (Replicate NetworkSection)
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| EX3-P.1 | Tab Count Badges | ✅ | `count` field on tabs, Badge renders next to label |
+| EX3-P.2 | Monospace Column Type | ✅ | `mono` column type, plain monospace no background |
+| EX3-P.3 | Rich Compound Table Cells | ✅ | `rich` column type with text/badge/icon/dot segments |
+| EX3-P.4 | Table Filters & Search | ✅ | `filters` on table: dropdowns + search bar |
+| EX3-P.5 | Dropdown Action Menu | ✅ | `actionStyle: 'dropdown'` renders ⋯ menu |
+| EX3-P.6 | Card List Widget | ✅ | New `card-list` widget with icon/title/badge/details/actions |
+| EX3-P.7 | NetworkSection Playground Example | ✅ | Full 5-tab replication in playground JSON |
+
+### Sub-Phase EX3-A: Schema, Prompts & Templates
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| EX3-A.1 | Nestable Layouts | ⬜ | LayoutOrWidget union, recursive rendering, depth limit 3 |
+| EX3-A.2 | Layout Template Patterns (Grafana-style) | ⬜ | 10 named patterns with variables, skeletons, population rules |
+| EX3-A.3 | Design System Rules in Prompt | ⬜ | Typography, color semantics, layout rules, threshold conventions |
+| EX3-A.4 | FakeLLM Generator | ⬜ | Fixture replay, recorder, comparator, 5+ fixture files |
+
+### Sub-Phase EX3-B: Multi-Step Progressive Generation
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| EX3-B.1 | Working View & Layout Mutation Tools | ⬜ | set_layout, add_section, add_widgets, update_widget, remove tools |
+| EX3-B.2 | `layout_update` Event Pipeline | ⬜ | Event flows executor → agent → route → hook → store |
+| EX3-B.3 | Early Window Opening & Streaming Bridge | ⬜ | Window opens on first layout_update, streaming-view-store |
+| EX3-B.4 | Updated Executor Prompt (Multi-Step) | ⬜ | Step-by-step workflow, gather→render→gather→render pattern |
+
+### Sub-Phase EX3-C: Unified Window & Visual Polish
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| EX3-C.1 | DynamicUIWindow Component | ⬜ | Sidebar + header + toolbar + body + footer, replaces DynamicAppWindow |
+| EX3-C.2 | DynamicUIToolbar | ⬜ | Contextual controls per widget type, ServerAdmin tab styling |
+| EX3-C.3 | Widget Entrance Animations | ⬜ | 75ms stagger, skeleton states for all 11 widget types |
+| EX3-C.4 | Template Library Expansion | ⬜ | 25+ templates using nested layouts and 10 patterns |
 
 ---
 

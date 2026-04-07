@@ -22,7 +22,7 @@ export const systemOverviewTemplate: UITemplate = {
     root: {
       layout: 'stack',
       gap: 'md',
-      widgets: [
+      children: [
         {
           type: 'key-value',
           title: 'System Information',

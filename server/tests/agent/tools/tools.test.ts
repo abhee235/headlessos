@@ -373,7 +373,7 @@ describe('validate_schema', () => {
     root: {
       layout: 'stack',
       direction: 'vertical',
-      widgets: [],
+      children: [],
     },
   });
 
@@ -425,7 +425,7 @@ describe('generate_schema', () => {
     root: {
       layout: 'stack',
       direction: 'vertical',
-      widgets: [],
+      children: [],
     },
   });
 

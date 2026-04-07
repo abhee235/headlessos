@@ -26,7 +26,7 @@ export const configFileTemplate: UITemplate = {
     root: {
       layout: 'stack',
       gap: 'md',
-      widgets: [
+      children: [
         {
           type: 'key-value',
           title: 'Key Settings',

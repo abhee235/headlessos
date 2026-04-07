@@ -63,7 +63,7 @@ function createMockTemplate(id: string, overrides?: Partial<UITemplate>): UITemp
       root: {
         layout: 'stack',
         direction: 'vertical',
-        widgets: [],
+        children: [],
       },
     },
     ...overrides,

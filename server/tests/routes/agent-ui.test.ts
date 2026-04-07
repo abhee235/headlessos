@@ -396,12 +396,12 @@ describe('Agent UI WebSocket: Message Flow Simulation', () => {
 
     send({ ...{ type: 'thinking', message: 'Planning...' }, requestId });
     send({ ...{ type: 'tool_result', tool: 'exec_command', success: true, outputPreview: 'running', latencyMs: 200 }, requestId });
-    send({ ...{ type: 'generation_complete', view: { title: 'Test', root: { layout: 'stack', gap: 'md', widgets: [] } } }, requestId });
+    send({ ...{ type: 'generation_complete', view: { title: 'Test', root: { layout: 'stack', gap: 'md', children: [] } } }, requestId });
     send({ ...{ type: 'reflection', feedback: 'Looks good', action: 'approve' }, requestId });
     send({
       ...{
         type: 'complete',
-        view: { title: 'Test', root: { layout: 'stack', gap: 'md', widgets: [] } },
+        view: { title: 'Test', root: { layout: 'stack', gap: 'md', children: [] } },
         meta: { sessionId: 's1', latencyMs: 2500, stepsCompleted: 3, reflectionLoops: 1, models: { fast: 'gpt-4.1-mini' } },
       },
       requestId,

@@ -340,7 +340,7 @@ The final JSON you pass to generate_schema() MUST conform to this structure exac
 {
   "title": "string (required)",
   "description": "string | null (optional)",
-  "icon": "string | null (optional, Lucide icon name)",
+  "icon": "string | null (optional, Lucide icon name, PascalCase)",
   "root": <LayoutObject>,
   "meta": { "tool": "string?", "command": "string?", "generatedAt": "string?", "templateId": "string?" } | null
 }
@@ -348,37 +348,96 @@ The final JSON you pass to generate_schema() MUST conform to this structure exac
 
 ### Layout Objects (root.layout is the discriminator)
 
-The \`root\` field MUST be one of these 4 layout types. The discriminator key is \`layout\` (NOT \`type\`):
+The \`root\` field MUST be one of these 4 layout types. The discriminator key is \`layout\` (NOT \`type\`). Layouts are **nestable** — a tab's children or a sidebar's section values can contain other layouts.
 
-1. **Stack** (vertical list of widgets):
-   \`{ "layout": "stack", "gap": "sm"|"md"|"lg", "widgets": [<Widget>, ...] }\`
+1. **Stack** (vertical list of children — widgets or sub-layouts):
+   \`{ "layout": "stack", "gap": "sm"|"md"|"lg", "children": [<Widget|Layout>, ...] }\`
 
-2. **Grid** (columns of widgets):
-   \`{ "layout": "grid", "columns": 1-4, "widgets": [<Widget>, ...] }\`
+2. **Grid** (columns of children — widgets or sub-layouts):
+   \`{ "layout": "grid", "columns": 1-4, "children": [<Widget|Layout>, ...] }\`
 
-3. **Tabs** (tabbed sections):
-   \`{ "layout": "tabs", "tabs": [{ "id": "str", "label": "str", "icon": "str?", "widgets": [...] }] }\`
+3. **Tabs** (tabbed sections — each tab has children that can be widgets or sub-layouts):
+   \`{ "layout": "tabs", "tabs": [{ "id": "str", "label": "str", "icon": "LucideIconName?", "count": number?, "children": [<Widget|Layout>, ...] }] }\`
+   - **icon**: Lucide icon name shown before the tab label (e.g. "Radio", "Activity", "Cable")
+   - **count**: Number shown as a badge after the tab label (e.g. number of items)
 
-4. **Sidebar** (sidebar + content sections):
-   \`{ "layout": "sidebar", "sidebarItems": [{"id":"str","label":"str","icon":"str?"}], "sections": {"id": [<Widget>, ...]} }\`
+4. **Sidebar** (sidebar navigation + content sections — section values can be widgets or sub-layouts):
+   \`{ "layout": "sidebar", "sidebarItems": [{"id":"str","label":"str","icon":"LucideIconName?"}], "sections": {"sectionId": [<Widget|Layout>, ...]} }\`
+   - **icon**: Lucide icon name shown before the sidebar item label
+   - Use sidebar for multi-page app UIs (Server Admin, Settings, etc.)
+   - Sidebar section content can include nested tabs or other layouts
 
 ### Widget Objects (type is the discriminator)
 
 Each widget has a \`type\` discriminator. Valid types:
 
-- **stat-card**: \`{ "type": "stat-card", "title": "str", "value": "str", "unit": "str?", "description": "str?", "trend": "up"|"down"|"neutral"|null, "icon": "str?" }\`
-- **table**: \`{ "type": "table", "title": "str?", "columns": [{"key":"str","label":"str","type":"text"|"number"|"badge"|"date"|"bytes"|"percent"|"code","sortable":false,"badgeVariant":{"value":"variant"}?}], "rows": [{"key":"value"},...], "actions": [...]? }\`
-- **key-value**: \`{ "type": "key-value", "title": "str?", "pairs": [{"key":"str","value":"str","icon":"str?","copyable":false}], "layout": "vertical"|"grid-2"|"grid-3"|"grid-4" }\`
-- **progress-bar**: \`{ "type": "progress-bar", "title": "str?", "value": 0-100, "label": "str?", "variant": "default"|"success"|"warning"|"destructive" }\`
-- **code-block**: \`{ "type": "code-block", "title": "str?", "code": "str", "language": "str" }\`
-- **alert**: \`{ "type": "alert", "title": "str?", "message": "str", "variant": "default"|"destructive"|"success"|"warning" }\`
-- **badge-grid**: \`{ "type": "badge-grid", "title": "str?", "badges": [{"label":"str","value":"str","variant":"default"|"secondary"|"destructive"|"outline"|"success"|"warning"}] }\`
-- **chart**: \`{ "type": "chart", "title": "str?", "chartType": "bar"|"line"|"area"|"pie"|"donut", "data": [...], "xKey": "str", "yKeys": [{"key":"str","label":"str?","color":"str?"}], "height": 300 }\`
-- **tree**: \`{ "type": "tree", "title": "str?", "nodes": [{"label":"str","value":"str?","children":[...]}] }\`
-- **log-viewer**: \`{ "type": "log-viewer", "title": "str?", "lines": [{"timestamp":"str?","level":"debug"|"info"|"warn"|"error"|null,"message":"str"}], "maxHeight": "400px" }\`
-- **form**: \`{ "type": "form", "title": "str?", "fields": [{"key":"str","label":"str","type":"text"|"number"|"boolean"|"select"|"textarea","value":...}], "submitLabel": "Save" }\`
+- **stat-card**: \`{ "type": "stat-card", "title": "str", "value": "str", "unit": "str?", "description": "str?", "trend": "up"|"down"|"neutral"|null, "icon": "LucideIconName?" }\`
 
-IMPORTANT: The \`root\` object uses \`layout\` as its discriminator key. Widgets use \`type\` as their discriminator key. Do NOT confuse them.
+- **table**: Supports columns, rows, filters, actions, and empty state.
+  \`\`\`
+  { "type": "table", "title": "str?",
+    "columns": [{
+      "key": "str", "label": "str",
+      "type": "text"|"number"|"badge"|"date"|"bytes"|"percent"|"code"|"mono"|"rich",
+      "sortable": false, "width": "80px?",
+      "badgeVariant": {"value":"variant"}?,  // when type="badge"
+      "segments": [<RichCellSegment>, ...]?   // when type="rich"
+    }],
+    "rows": [{column_key: value, ...}, ...],
+    "footer": "str?",
+    "actions": [{"id":"str","label":"str","icon":"str?","command":"str","confirm":bool?,"confirmMessage":"str?","variant":"destructive"?}]?,
+    "actionStyle": "buttons"|"dropdown"?,  // dropdown shows actions behind a ⋯ menu
+    "filters": {
+      "search": true, "searchPlaceholder": "str?",
+      "dropdowns": [{"key":"str","label":"str","icon":"str?","options":[{"label":"str","value":"str"}]}]
+    }?,
+    "emptyState": {"icon":"str?","title":"str","message":"str?"}?  // shown when rows is empty
+  }
+  \`\`\`
+  **Column types**:
+  - text: plain text
+  - number: numeric
+  - badge: colored status badge — MUST include badgeVariant map
+  - mono: monospace text (for IPs, hashes, ports)
+  - code: code-formatted
+  - rich: compound cell with multiple segments
+  - date, bytes, percent: formatted display
+
+  **Rich cell segments** (for type="rich" columns):
+  - \`{"segment":"text", "key":"fieldName", "className":"font-mono text-sm"}\` — display a row field as text
+  - \`{"segment":"badge", "key":"fieldName", "variant":"secondary"}\` — badge with fixed variant
+  - \`{"segment":"badge", "key":"fieldName", "badgeVariant":{"Running":"success","DNS":"secondary"}}\` — badge with dynamic variant map
+  - \`{"segment":"icon", "icon":"Lock", "key":"isSecure"}\` — show icon when row[key] is truthy
+  - \`{"segment":"dot", "key":"isPublic", "color":"amber"}\` — colored dot when row[key] is truthy
+
+- **key-value**: \`{ "type": "key-value", "title": "str?", "pairs": [{"key":"str","value":"str","icon":"LucideIconName?","copyable":false}], "layout": "vertical"|"grid-2"|"grid-3"|"grid-4" }\`
+
+- **badge-grid**: \`{ "type": "badge-grid", "title": "str?", "badges": [{"label":"str","value":"str","variant":"default"|"secondary"|"destructive"|"outline"|"success"|"warning"}] }\`
+
+- **progress-bar**: \`{ "type": "progress-bar", "title": "str?", "value": 0-100, "label": "str?", "variant": "default"|"success"|"warning"|"destructive" }\`
+
+- **code-block**: \`{ "type": "code-block", "title": "str?", "code": "str", "language": "str", "maxHeight": "300px?" }\`
+
+- **alert**: \`{ "type": "alert", "title": "str?", "message": "str", "variant": "default"|"destructive"|"success"|"warning" }\`
+
+- **card-list**: Cards with icon, title, status badge (with optional dot), and detail rows.
+  \`{ "type": "card-list", "title": "str?", "items": [{"icon":"str?","title":"str","subtitle":"str?","badge":{"label":"str","variant":"success","dot":true}?,"details":[{"label":"str","value":"str"}]?}] }\`
+  Use for: network interfaces, services, hardware devices — anything that's an "entity with status and properties".
+
+- **chart**: \`{ "type": "chart", "title": "str?", "chartType": "bar"|"line"|"area"|"pie"|"donut", "data": [...], "xKey": "str", "yKeys": [{"key":"str","label":"str?","color":"str?"}], "height": 300 }\`
+
+- **tree**: \`{ "type": "tree", "title": "str?", "nodes": [{"label":"str","value":"str?","icon":"str?","children":[...]}] }\`
+
+- **log-viewer**: \`{ "type": "log-viewer", "title": "str?", "lines": [{"timestamp":"str?","level":"debug"|"info"|"warn"|"error"|null,"message":"str"}], "maxHeight": "400px" }\`
+
+- **form**: \`{ "type": "form", "title": "str?", "fields": [{"key":"str","label":"str","type":"text"|"number"|"boolean"|"select"|"textarea","value":...,"options":[{"label":"str","value":"str"}]?}], "groups":[{"label":"str","fieldKeys":["str"]}]?, "submitLabel": "Save", "readOnly": false }\`
+
+IMPORTANT:
+- The \`root\` object uses \`layout\` as its discriminator key. Widgets use \`type\` as their discriminator key. Do NOT confuse them.
+- Badge variants map: success=running/active/up, destructive=error/failed/down, warning=degraded/pending, secondary=inactive/neutral, outline=neutral
+- Icon names are Lucide PascalCase: Network, Lock, Shield, Radio, Activity, Cable, Route, Globe, etc.
+- For tables with 0 rows, always include emptyState with a meaningful message.
+- Use actionStyle:"dropdown" when a table has 3+ actions (keeps the UI clean).
 
 ## Workflow
 1. Call get_server_context() to understand the server

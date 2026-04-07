@@ -63,7 +63,11 @@ Your job is to analyze a user's request and produce HIGH-LEVEL HINTS that guide 
 - Whether to skip post-generation reflection
 
 ## Widget Types Available
-table, key-value, badge-grid, stat-card, progress-bar, code-block, alert, chart, tree, log-viewer, form
+table, key-value, badge-grid, stat-card, progress-bar, code-block, alert, chart, tree, log-viewer, form, card-list
+
+## Layout Types Available
+stack (vertical), grid (columns), tabs (tabbed sections with icon+count), sidebar (navigation + content)
+Layouts are nestable: tabs inside sidebar sections, grids inside stacks, etc.
 
 ## Interactivity Levels
 - display-only: User just wants to see data (monitoring, logs, status)
