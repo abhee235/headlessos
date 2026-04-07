@@ -1050,3 +1050,176 @@ describe('LogViewerWidget', () => {
     expect(screen.getByText('All systems go')).toBeInTheDocument();
   });
 });
+
+// ── TabsLayout (EX1.6) ─────────────────────────────────
+
+describe('TabsLayout', () => {
+  it('renders tabs with correct labels', () => {
+    const view: DynamicView = {
+      title: 'Tabs Test',
+      root: {
+        layout: 'tabs',
+        tabs: [
+          {
+            id: 'overview',
+            label: 'Overview',
+            widgets: [{ type: 'stat-card', title: 'CPU', value: '45%' }],
+          },
+          {
+            id: 'details',
+            label: 'Details',
+            widgets: [{ type: 'stat-card', title: 'RAM', value: '78%' }],
+          },
+        ],
+      },
+    };
+    render(<DynamicViewRenderer view={view} />);
+    expect(screen.getByText('Overview')).toBeInTheDocument();
+    expect(screen.getByText('Details')).toBeInTheDocument();
+  });
+
+  it('shows first tab content by default', () => {
+    const view: DynamicView = {
+      title: 'Default Tab',
+      root: {
+        layout: 'tabs',
+        tabs: [
+          {
+            id: 'first',
+            label: 'First',
+            widgets: [{ type: 'stat-card', title: 'First Metric', value: '10' }],
+          },
+          {
+            id: 'second',
+            label: 'Second',
+            widgets: [{ type: 'stat-card', title: 'Second Metric', value: '20' }],
+          },
+        ],
+      },
+    };
+    render(<DynamicViewRenderer view={view} />);
+    // First tab content visible
+    expect(screen.getByText('First Metric')).toBeInTheDocument();
+  });
+
+  it('renders both tab panels (active first, inactive hidden)', () => {
+    const view: DynamicView = {
+      title: 'Tab Switch',
+      root: {
+        layout: 'tabs',
+        tabs: [
+          {
+            id: 'tab-a',
+            label: 'Tab A',
+            widgets: [{ type: 'alert', message: 'Content A', variant: 'default' }],
+          },
+          {
+            id: 'tab-b',
+            label: 'Tab B',
+            widgets: [{ type: 'alert', message: 'Content B', variant: 'default' }],
+          },
+        ],
+      },
+    };
+    render(<DynamicViewRenderer view={view} />);
+    // Content A is the active tab and visible
+    expect(screen.getByText('Content A')).toBeInTheDocument();
+
+    // Both tab triggers are rendered
+    const tabA = screen.getByRole('tab', { name: 'Tab A' });
+    const tabB = screen.getByRole('tab', { name: 'Tab B' });
+    expect(tabA).toHaveAttribute('data-state', 'active');
+    expect(tabB).toHaveAttribute('data-state', 'inactive');
+  });
+
+  it('renders empty tabs gracefully', () => {
+    const view: DynamicView = {
+      title: 'Empty Tabs',
+      root: {
+        layout: 'tabs',
+        tabs: [],
+      },
+    };
+    render(<DynamicViewRenderer view={view} />);
+    expect(screen.getByText('No tabs defined')).toBeInTheDocument();
+  });
+});
+
+// ── SidebarLayout (EX1.6) ───────────────────────────────
+
+describe('SidebarLayout', () => {
+  it('renders sidebar items and first section content', () => {
+    const view: DynamicView = {
+      title: 'Sidebar Test',
+      root: {
+        layout: 'sidebar',
+        sidebarItems: [
+          { id: 'general', label: 'General' },
+          { id: 'network', label: 'Network' },
+        ],
+        sections: {
+          general: [{ type: 'stat-card', title: 'Uptime', value: '99.9%' }],
+          network: [{ type: 'stat-card', title: 'Bandwidth', value: '100Mbps' }],
+        },
+      },
+    };
+    render(<DynamicViewRenderer view={view} />);
+    // Sidebar items visible
+    expect(screen.getByText('General')).toBeInTheDocument();
+    expect(screen.getByText('Network')).toBeInTheDocument();
+    // First section content visible
+    expect(screen.getByText('Uptime')).toBeInTheDocument();
+    expect(screen.getByText('99.9%')).toBeInTheDocument();
+  });
+
+  it('navigates between sections on click', () => {
+    const view: DynamicView = {
+      title: 'Sidebar Nav',
+      root: {
+        layout: 'sidebar',
+        sidebarItems: [
+          { id: 'sec-a', label: 'Section A' },
+          { id: 'sec-b', label: 'Section B' },
+        ],
+        sections: {
+          'sec-a': [{ type: 'alert', message: 'Content for A', variant: 'default' }],
+          'sec-b': [{ type: 'alert', message: 'Content for B', variant: 'default' }],
+        },
+      },
+    };
+    render(<DynamicViewRenderer view={view} />);
+    expect(screen.getByText('Content for A')).toBeInTheDocument();
+
+    // Click Section B
+    fireEvent.click(screen.getByText('Section B'));
+    expect(screen.getByText('Content for B')).toBeInTheDocument();
+  });
+
+  it('shows empty message for sections without content', () => {
+    const view: DynamicView = {
+      title: 'Empty Section',
+      root: {
+        layout: 'sidebar',
+        sidebarItems: [
+          { id: 'empty', label: 'Empty Section' },
+        ],
+        sections: {},
+      },
+    };
+    render(<DynamicViewRenderer view={view} />);
+    expect(screen.getByText('No content for this section')).toBeInTheDocument();
+  });
+
+  it('renders empty sidebar items gracefully', () => {
+    const view: DynamicView = {
+      title: 'No Items',
+      root: {
+        layout: 'sidebar',
+        sidebarItems: [],
+        sections: {},
+      },
+    };
+    render(<DynamicViewRenderer view={view} />);
+    expect(screen.getByText('No sidebar items defined')).toBeInTheDocument();
+  });
+});
