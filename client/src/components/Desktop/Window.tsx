@@ -41,13 +41,13 @@ const APP_ICONS: Record<string, LucideIcon> = {
 };
 
 const APP_ACCENT: Record<string, string> = {
-  dashboard: 'bg-blue-500',
-  files: 'bg-amber-500',
-  terminal: 'bg-emerald-500',
-  settings: 'bg-violet-500',
-  taskmanager: 'bg-teal-500',
-  docker: 'bg-cyan-500',
-  services: 'bg-orange-500',
+  dashboard: 'bg-primary',
+  files: 'bg-warning',
+  terminal: 'bg-success',
+  settings: 'bg-primary/70',
+  taskmanager: 'bg-primary/80',
+  docker: 'bg-primary/80',
+  services: 'bg-warning/80',
 };
 
 interface WindowFrameProps {
@@ -302,8 +302,8 @@ export function WindowFrame({ win, children }: WindowFrameProps) {
                 <button
                   className={`flex items-center justify-center w-6 h-6 rounded-lg transition-colors duration-100
                     ${win.focused
-                      ? 'text-foreground/50 hover:text-white hover:bg-red-500'
-                      : 'text-foreground/20 hover:text-white/90 hover:bg-red-500/80'
+                      ? 'text-foreground/50 hover:text-white hover:bg-destructive'
+                      : 'text-foreground/20 hover:text-white/90 hover:bg-destructive/80'
                     }`}
                   onClick={() => closeWindow(win.id)}
                   title="Close"

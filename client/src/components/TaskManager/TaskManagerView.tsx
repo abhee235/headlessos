@@ -20,6 +20,7 @@ import type {
 import { fetchTaskManager } from '../../lib/api';
 import { useDesktopStore } from '../../store/window-store';
 import { DisconnectedState } from '@/components/ui/disconnected-state';
+import { cn } from '@/lib/utils';
 import { ProcessesTab } from './ProcessesTab';
 import { PerformanceTab } from './PerformanceTab';
 
@@ -30,12 +31,12 @@ type TabId = 'processes' | 'performance';
 interface SidebarEntry {
   id: TabId;
   label: string;
-  icon: React.ReactNode;
+  icon: React.ElementType;
 }
 
 const TABS: SidebarEntry[] = [
-  { id: 'processes', label: 'Processes', icon: <Activity size={16} /> },
-  { id: 'performance', label: 'Performance', icon: <Cpu size={16} /> },
+  { id: 'processes', label: 'Processes', icon: Activity },
+  { id: 'performance', label: 'Performance', icon: Cpu },
 ];
 
 // ─── Task Manager View ──────────────────────────────────────────────────────
@@ -52,7 +53,7 @@ export function TaskManagerView({ serverId }: TaskManagerViewProps) {
   const [refreshing, setRefreshing] = useState(false);
 
   // Performance history (keep last 60 data points = 60 seconds at 1s refresh)
-  const [cpuHistory, setCpuHistory] = useState<Array<{ time: number; value: number }>>([]);
+  const [cpuHistory, setCpuHistory] = useState<Array<Record<string, number>>>([]);
   const [memHistory, setMemHistory] = useState<Array<{ time: number; value: number }>>([]);
   const [netHistory, setNetHistory] = useState<Array<{ time: number; rx: number; tx: number }>>([]);
   const [diskHistory, setDiskHistory] = useState<Array<{ time: number; read: number; write: number }>>([]);
@@ -76,9 +77,13 @@ export function TaskManagerView({ serverId }: TaskManagerViewProps) {
 
           const now = tickRef.current++;
 
-          // CPU history
+          // CPU history — overall + per-core
           setCpuHistory((prev) => {
-            const next = [...prev, { time: now, value: res.data!.cpu.overallPercent }];
+            const point: Record<string, number> = { time: now, value: res.data!.cpu.overallPercent };
+            for (const core of res.data!.cpu.cores) {
+              point[`core${core.id}`] = core.percent;
+            }
+            const next = [...prev, point];
             return next.slice(-MAX_HISTORY);
           });
 
@@ -189,29 +194,32 @@ export function TaskManagerView({ serverId }: TaskManagerViewProps) {
 
   return (
     <div className="flex h-full bg-background">
-      {/* ── Left sidebar  — Windows 11 Task Manager style ── */}
-      <nav className="w-12 shrink-0 border-r border-border bg-sidebar flex flex-col items-center py-2 gap-1">
-        {TABS.map((entry) => (
-          <button
-            key={entry.id}
-            onClick={() => setTab(entry.id)}
-            className={`
-              w-9 h-9 rounded-md flex items-center justify-center transition-colors relative group
-              ${
-                tab === entry.id
-                  ? 'bg-primary/15 text-primary'
-                  : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-              }
-            `}
-            title={entry.label}
-          >
-            {/* Active indicator bar — like Windows 11 Task Manager */}
-            {tab === entry.id && (
-              <div className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-primary" />
-            )}
-            {entry.icon}
-          </button>
-        ))}
+      {/* ── Sidebar — Finder-inspired ── */}
+      <nav className="w-50 shrink-0 border-r border-border/40 overflow-y-auto pt-1.5">
+        <div className="px-4 pt-2.5 pb-1.5 text-[11px] font-semibold text-foreground/50 tracking-wide">
+          Task Manager
+        </div>
+        <div className="px-3 pb-2">
+          {TABS.map((entry) => {
+            const Icon = entry.icon;
+            const isActive = tab === entry.id;
+            return (
+              <button
+                key={entry.id}
+                onClick={() => setTab(entry.id)}
+                className={cn(
+                  'flex items-center gap-2 w-full px-2.5 py-2 text-[13px] rounded-md transition-colors outline-none',
+                  isActive
+                    ? 'bg-primary/15 text-primary font-medium'
+                    : 'text-foreground hover:bg-accent/50',
+                )}
+              >
+                <Icon size={20} strokeWidth={1.6} className={cn('shrink-0', isActive && 'text-primary')} />
+                {entry.label}
+              </button>
+            );
+          })}
+        </div>
       </nav>
 
       {/* ── Content area ── */}

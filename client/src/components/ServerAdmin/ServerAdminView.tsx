@@ -75,30 +75,32 @@ export function ServerAdminView({ serverId }: { serverId: string }) {
 
   return (
     <div className="flex h-full">
-      {/* Sidebar */}
-      <nav className="w-48 shrink-0 border-r border-border bg-muted/30 overflow-y-auto">
-        <div className="p-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+      {/* Sidebar — Apple Finder inspired */}
+      <nav className="w-[200px] shrink-0 border-r border-border/40 overflow-y-auto pt-1.5">
+        <div className="px-4 pt-2.5 pb-1.5 text-[11px] font-semibold text-foreground/50 tracking-wide">
           Server Admin
         </div>
-        {SECTIONS.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeSection === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => setActiveSection(item.id)}
-              className={cn(
-                'flex items-center gap-2.5 w-full px-3 py-2 text-sm transition-colors',
-                isActive
-                  ? 'bg-accent text-accent-foreground font-medium'
-                  : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-              )}
-            >
-              <Icon size={16} className="shrink-0" />
-              {item.label}
-            </button>
-          );
-        })}
+        <div className="px-3 pb-2">
+          {SECTIONS.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeSection === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveSection(item.id)}
+                className={cn(
+                  'flex items-center gap-2 w-full px-2.5 py-2 text-[13px] rounded-md transition-colors outline-none',
+                  isActive
+                    ? 'bg-primary/15 text-primary font-medium'
+                    : 'text-foreground hover:bg-accent/50',
+                )}
+              >
+                <Icon size={20} strokeWidth={1.6} className={cn('shrink-0', isActive && 'text-primary')} />
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
       </nav>
 
       {/* Content */}

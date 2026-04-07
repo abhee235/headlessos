@@ -26,6 +26,18 @@ The backend runs commands via SSH `exec()`, the output goes through a **Command 
 5. On command failure: try fallback commands (e.g., `ip` → `ifconfig`)
 6. Aggregate results → return typed JSON to frontend
 
+### Dynamic UI Engine (EX1 — Experimental)
+
+The **core differentiator**: an LLM analyzes terminal output and produces a **DynamicViewSchema** JSON that describes widgets (tables, charts, badges, stat cards, etc.). A generic React renderer turns that JSON into a live visual interface — **no hardcoded React components needed**.
+
+```
+Command Palette / Agent / Terminal → DynamicUIGenerator (streaming LLM)
+    → DynamicViewSchema JSON (incremental via WebSocket)
+    → DynamicViewRenderer (React) → live UI widgets build progressively
+```
+
+Key: The LLM generates JSON **incrementally** — widgets appear one-by-one as the stream arrives, creating a "magical" progressive-build effect. See [ADR-015](DECISIONS.md) and [phase-ex1.md](phases/phase-ex1.md).
+
 ## Tech Stack
 
 - **Backend:** Node.js + Fastify + TypeScript
@@ -58,12 +70,14 @@ headlessOS/
 │   │   ├── deterministic/ # Regex parsers for known commands
 │   │   └── schemas/       # Zod schemas for parsed output
 │   ├── routes/            # API endpoints (servers, system, files, docker, etc.)
-│   └── config/            # Local config store (~/.headlessos/)
+│   ├── config/            # Local config store (~/.headlessos/)
+│   └── dynamic-ui/        # Dynamic UI Engine (EX1): generator, templates, cache
 ├── client/src/
 │   ├── App.tsx
 │   ├── components/        # Per-app UI components
 │   │   ├── Desktop/       # Desktop environment (icons, taskbar, window manager, settings)
 │   │   ├── Dashboard/     # System overview cards
+│   │   ├── DynamicUI/     # Dynamic UI Engine renderer, widgets, layouts, playground
 │   │   ├── FileExplorer/  # File browser
 │   │   ├── Docker/        # Container/image management
 │   │   ├── Services/      # Systemd service management
@@ -105,6 +119,7 @@ ARCHITECTURE.md contains 5 reference patterns extracted from analyzing Puter (v2
 | 3. Process Tree Visualization | Process Manager — recursive `├── └──` tree | Phase 3 |
 | 4. Context Menus | All data views — right-click for contextual actions | Phase 2+ |
 | 5. Single-Instance Tabs | Terminal, Dashboard — focus existing tab, don't duplicate | Phase 2+ |
+| 6. Dynamic UI Engine | LLM → DynamicViewSchema JSON → DynamicViewRenderer → live widgets (streaming) | EX1 |
 
 ## Common Patterns
 
@@ -210,6 +225,7 @@ export function SomeView() {
 | Detailed task specs | [phases/phase-0.md](phases/phase-0.md) through [phase-7.md](phases/phase-7.md) |
 | Task → file → commit audit trail | [TRACEABILITY.md](TRACEABILITY.md) |
 | How apps work, app schema | [APP_REGISTRY.md](APP_REGISTRY.md) |
+| Dynamic UI Engine spec | [phases/phase-ex1.md](phases/phase-ex1.md) |
 | API endpoints (REST + WebSocket) | [API_SPEC.md](API_SPEC.md) |
 | LLM integration, parsing strategy | [LLM_STRATEGY.md](LLM_STRATEGY.md) |
 | Security rules, validation | [SECURITY.md](SECURITY.md) |

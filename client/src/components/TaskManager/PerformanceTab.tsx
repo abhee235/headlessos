@@ -6,10 +6,13 @@ import { useState } from 'react';
 import {
   AreaChart,
   Area,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   ResponsiveContainer,
   CartesianGrid,
+  Tooltip,
 } from 'recharts';
 import { Cpu, MemoryStick, Network, HardDrive } from 'lucide-react';
 import type { CpuStatsData, NetworkIoEntry, DiskIoEntry } from '../../lib/api';
@@ -29,7 +32,7 @@ interface PerformanceTabProps {
   };
   networkIo: NetworkIoEntry[];
   diskIo: DiskIoEntry[];
-  cpuHistory: Array<{ time: number; value: number }>;
+  cpuHistory: Array<Record<string, number>>;
   memHistory: Array<{ time: number; value: number }>;
   netHistory: Array<{ time: number; rx: number; tx: number }>;
   diskHistory: Array<{ time: number; read: number; write: number }>;
@@ -88,6 +91,26 @@ const PANELS: PanelConfig[] = [
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+// Distinct colors for CPU cores (up to 16)
+const CORE_COLORS = [
+  '#6366f1', // indigo
+  '#ec4899', // pink
+  '#f59e0b', // amber
+  '#10b981', // emerald
+  '#3b82f6', // blue
+  '#f97316', // orange
+  '#8b5cf6', // violet
+  '#14b8a6', // teal
+  '#e11d48', // rose
+  '#84cc16', // lime
+  '#06b6d4', // cyan
+  '#d946ef', // fuchsia
+  '#eab308', // yellow
+  '#22d3ee', // sky
+  '#a855f7', // purple
+  '#fb923c', // orange-light
+];
+
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -133,6 +156,45 @@ function MiniChart({
             isAnimationActive={false}
           />
         </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+// CPU mini chart with per-core lines
+function CpuMiniChart({
+  data,
+  coreCount,
+}: {
+  data: Array<Record<string, number>>;
+  coreCount: number;
+}) {
+  const coreKeys = Array.from({ length: coreCount }, (_, i) => `core${i}`);
+  return (
+    <div className="w-full h-8 mt-1">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+          {coreKeys.map((key, i) => (
+            <Line
+              key={key}
+              type="monotone"
+              dataKey={key}
+              stroke={CORE_COLORS[i % CORE_COLORS.length]}
+              strokeWidth={0.8}
+              strokeOpacity={0.5}
+              dot={false}
+              isAnimationActive={false}
+            />
+          ))}
+          <Line
+            type="monotone"
+            dataKey="value"
+            stroke="#818cf8"
+            strokeWidth={1.5}
+            dot={false}
+            isAnimationActive={false}
+          />
+        </LineChart>
       </ResponsiveContainer>
     </div>
   );
@@ -207,7 +269,9 @@ function StatRow({ label, value }: { label: string; value: string }) {
 
 // ─── Detail Panels ──────────────────────────────────────────────────────────
 
-function CpuDetail({ cpu, history }: { cpu: CpuStatsData; history: Array<{ time: number; value: number }> }) {
+function CpuDetail({ cpu, history }: { cpu: CpuStatsData; history: Array<Record<string, number>> }) {
+  const coreKeys = cpu.cores.map((c) => `core${c.id}`);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -222,18 +286,87 @@ function CpuDetail({ cpu, history }: { cpu: CpuStatsData; history: Array<{ time:
         </span>
       </div>
 
-      <FullChart
-        data={history}
-        dataKeys={['value']}
-        colors={['#818cf8']}
-        yDomain={[0, 100]}
-        yFormatter={(v) => `${v}%`}
-        gradientIds={['cpu-full-grad']}
-      />
+      {/* Single graph: thick overall line + thin per-core lines */}
+      <div className="w-full h-52">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={history} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
+            <defs>
+              <linearGradient id="cpu-overall-grad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#818cf8" stopOpacity={0.25} />
+                <stop offset="100%" stopColor="#818cf8" stopOpacity={0.02} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" strokeOpacity={0.5} />
+            <XAxis dataKey="time" hide />
+            <YAxis
+              domain={[0, 100]}
+              width={40}
+              tick={{ fontSize: 10, fill: 'var(--color-muted-foreground)' }}
+              tickFormatter={(v) => `${v}%`}
+              axisLine={false}
+              tickLine={false}
+            />
+            <Tooltip
+              contentStyle={{
+                background: 'var(--color-popover)',
+                border: '1px solid var(--color-border)',
+                borderRadius: '6px',
+                fontSize: 11,
+                padding: '6px 10px',
+              }}
+              labelFormatter={() => ''}
+              formatter={(value, name) => {
+                const v = Number(value);
+                if (name === 'value') return [`${v.toFixed(1)}%`, 'Overall'];
+                const coreNum = String(name).replace('core', '');
+                return [`${v.toFixed(1)}%`, `Core ${coreNum}`];
+              }}
+            />
+            {/* Per-core lines — visible, colored */}
+            {coreKeys.map((key, i) => (
+              <Line
+                key={key}
+                type="monotone"
+                dataKey={key}
+                stroke={CORE_COLORS[i % CORE_COLORS.length]}
+                strokeWidth={1.5}
+                strokeOpacity={0.75}
+                dot={false}
+                isAnimationActive={false}
+              />
+            ))}
+            {/* Overall line — thick, solid */}
+            <Line
+              type="monotone"
+              dataKey="value"
+              stroke="#818cf8"
+              strokeWidth={2.5}
+              dot={false}
+              isAnimationActive={false}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Legend */}
+      <div className="flex flex-wrap gap-x-3 gap-y-1">
+        <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+          <div className="w-4 h-0.5 rounded-full" style={{ background: '#818cf8' }} /> Overall
+        </span>
+        {cpu.cores.map((core, i) => (
+          <span key={core.id} className="flex items-center gap-1 text-[10px] text-muted-foreground">
+            <div
+              className="w-3 h-0.5 rounded-full opacity-80"
+              style={{ background: CORE_COLORS[i % CORE_COLORS.length] }}
+            />
+            Core {core.id}
+          </span>
+        ))}
+      </div>
 
       {/* Core bars */}
       <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-        {cpu.cores.map((core) => (
+        {cpu.cores.map((core, i) => (
           <div key={core.id} className="flex items-center gap-2">
             <span className="text-[10px] text-muted-foreground w-9 shrink-0">
               Core {core.id}
@@ -243,7 +376,8 @@ function CpuDetail({ cpu, history }: { cpu: CpuStatsData; history: Array<{ time:
                 className="h-full rounded-full transition-all duration-300"
                 style={{
                   width: `${core.percent}%`,
-                  background: `linear-gradient(90deg, #6366f1, ${core.percent > 70 ? '#ef4444' : '#818cf8'})`,
+                  background: CORE_COLORS[i % CORE_COLORS.length],
+                  opacity: 0.8,
                 }}
               />
             </div>
@@ -310,7 +444,7 @@ function MemoryDetail({
             title={`Used: ${memory.usedMb} MB`}
           />
           <div
-            className="h-full bg-violet-400/25 transition-all duration-300"
+            className="h-full bg-primary/25 transition-all duration-300"
             style={{
               width: `${((memory.availableMb - memory.freeMb) / memory.totalMb) * 100}%`,
             }}
@@ -319,10 +453,10 @@ function MemoryDetail({
         </div>
         <div className="flex gap-3 text-[10px] text-muted-foreground">
           <span className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-full bg-violet-500" /> Used
+            <div className="w-2 h-2 rounded-full bg-primary" /> Used
           </span>
           <span className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-full bg-violet-400/25" /> Cached
+            <div className="w-2 h-2 rounded-full bg-primary/25" /> Cached
           </span>
           <span className="flex items-center gap-1">
             <div className="w-2 h-2 rounded-full bg-secondary" /> Free
@@ -375,10 +509,10 @@ function DiskDetail({
 
       <div className="flex gap-3 text-[10px] text-muted-foreground">
         <span className="flex items-center gap-1">
-          <div className="w-2 h-2 rounded-full bg-green-500" /> Read
+          <div className="w-2 h-2 rounded-full bg-success" /> Read
         </span>
         <span className="flex items-center gap-1">
-          <div className="w-2 h-2 rounded-full bg-amber-500" /> Write
+          <div className="w-2 h-2 rounded-full bg-warning" /> Write
         </span>
       </div>
 
@@ -423,10 +557,10 @@ function NetworkDetail({
 
       <div className="flex gap-3 text-[10px] text-muted-foreground">
         <span className="flex items-center gap-1">
-          <div className="w-2 h-2 rounded-full bg-amber-500" /> Receive
+          <div className="w-2 h-2 rounded-full bg-warning" /> Receive
         </span>
         <span className="flex items-center gap-1">
-          <div className="w-2 h-2 rounded-full bg-blue-500" /> Send
+          <div className="w-2 h-2 rounded-full bg-primary" /> Send
         </span>
       </div>
 
@@ -512,12 +646,16 @@ export function PerformanceTab({
             <span className="text-[11px] text-muted-foreground tabular-nums">
               {panelValues[panel.id]}
             </span>
-            <MiniChart
-              data={miniData[panel.id]}
-              dataKey={miniKeys[panel.id]}
-              color={panel.lineColor}
-              gradientId={`mini-${panel.id}`}
-            />
+            {panel.id === 'cpu' ? (
+              <CpuMiniChart data={cpuHistory} coreCount={cpu.coreCount} />
+            ) : (
+              <MiniChart
+                data={miniData[panel.id]}
+                dataKey={miniKeys[panel.id]}
+                color={panel.lineColor}
+                gradientId={`mini-${panel.id}`}
+              />
+            )}
           </button>
         ))}
       </div>

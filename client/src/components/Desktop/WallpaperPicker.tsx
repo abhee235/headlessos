@@ -234,7 +234,7 @@ export function WallpaperPicker({ open, onOpenChange }: WallpaperPickerProps) {
                     <button
                       className={cn(
                         'absolute top-1.5 left-1.5 w-6 h-6 rounded-full',
-                        'bg-black/60 hover:bg-red-600 transition-colors',
+                        'bg-black/60 hover:bg-destructive transition-colors',
                         'flex items-center justify-center',
                         'opacity-0 group-hover:opacity-100',
                       )}

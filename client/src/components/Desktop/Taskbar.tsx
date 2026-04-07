@@ -188,7 +188,7 @@ function ServerSwitcher() {
           <PopoverTrigger asChild>
             <button className="flex items-center gap-1.5 h-9 px-2 rounded-md hover:bg-foreground/5 transition-colors cursor-default">
               {isConnected ? (
-                <Wifi className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <Wifi className="w-3.5 h-3.5 text-success shrink-0" />
               ) : (
                 <WifiOff className="w-3.5 h-3.5 text-foreground/40 shrink-0" />
               )}
@@ -241,9 +241,9 @@ function ServerSwitcher() {
                 <span
                   className={`w-2 h-2 rounded-full shrink-0 ${
                     srvConnected
-                      ? 'bg-emerald-500'
+                      ? 'bg-success'
                       : srvConnecting
-                        ? 'bg-amber-400 animate-pulse'
+                        ? 'bg-warning animate-pulse'
                         : 'bg-foreground/20'
                   }`}
                 />
@@ -405,7 +405,7 @@ export function Taskbar() {
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
-        <div className="absolute bottom-0 left-0 right-0 h-13 z-9999 flex items-center justify-center bg-background/80 dark:bg-background/70 backdrop-blur-2xl backdrop-saturate-150 border-t border-foreground/6 shadow-[0_-2px_8px_0_rgba(0,0,0,0.06)]">
+        <div className="absolute bottom-0 left-0 right-0 h-13 z-9999 flex items-center justify-center bg-taskbar/80 dark:bg-taskbar/70 backdrop-blur-2xl backdrop-saturate-150 border-t border-foreground/[0.06] shadow-[0_-1px_12px_0_rgba(0,0,0,0.04)]">
           {/* ── Center: Start + Pinned Apps + Running extras ── */}
           <div className="flex items-center gap-2">
             {/* Start */}

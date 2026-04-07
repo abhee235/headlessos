@@ -15,6 +15,7 @@
 | Phase 5 | Polish, security, testing | Week 5 | Not started | [phase-5.md](phases/phase-5.md) |
 | Phase 6 | Desktop UI system | Week 6-7 | In progress | [phase-6.md](phases/phase-6.md) |
 | Phase 7 | System settings + Server Admin | Week 8 | In progress | [phase-7.md](phases/phase-7.md) |
+| **Phase EX1** | **Dynamic UI Engine (Experimental)** | **TBD** | **Not started** | [phase-ex1.md](phases/phase-ex1.md) |
 
 ## Task ID System
 
@@ -37,7 +38,11 @@ Phase 0 (Foundation)
         │           └── Phase 4 (Deterministic parsers + caching)
         ├── Phase 5 (Security + Testing + Polish) ← can start in parallel with Phase 4
         ├── Phase 6 (Desktop UI System) ← can start after Phase 3
-        └── Phase 7 (System Settings + Server Admin) ← depends on Phase 1 + Phase 6
+        ├── Phase 7 (System Settings + Server Admin) ← depends on Phase 1 + Phase 6
+        └── Phase EX1 (Dynamic UI Engine) ← depends on Phase 1 (LLM + Zod) + Phase 6 (shadcn/ui)
+              ├── EX1 P1: JSON→UI Renderer (schema + widgets + layouts)
+              ├── EX1 P2: LLM→JSON Generation (templates + streaming generator + command palette)
+              └── EX1 P3: Full Integration (terminal capture + live refresh + desktop tabs + actions)
 ```
 
 ## Quick Links

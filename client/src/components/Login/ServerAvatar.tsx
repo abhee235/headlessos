@@ -74,9 +74,9 @@ export function ServerAvatar({ name, host, port, status, onClick }: ServerAvatar
           className={`
             absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full border-2 border-black/50
             ${isConnected
-              ? 'bg-green-500'
+              ? 'bg-success'
               : isConnecting
-                ? 'bg-yellow-500 animate-pulse'
+                ? 'bg-warning animate-pulse'
                 : 'bg-muted-foreground'
             }
           `}
