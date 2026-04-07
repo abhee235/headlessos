@@ -23,6 +23,7 @@ import { statsRoutes } from './routes/stats.js';
 import { llmRoutes } from './routes/llm.js';
 import { fleetRoutes } from './routes/fleet.js';
 import { agentRoutes } from './routes/agent.js';
+import { agentUIRoutes } from './routes/agent-ui.js';
 import { dynamicUIRoutes } from './routes/dynamic-ui.js';
 import { allParsers } from './parsers/deterministic/index.js';
 import { OutputCache } from './cache/output-cache.js';
@@ -166,6 +167,16 @@ async function main(): Promise<void> {
   await app.register(fleetRoutes, { orchestrator, connectionManager, configStore });
   await app.register(agentRoutes, { connectionManager, agent: investigationAgent });
   await app.register(dynamicUIRoutes, { connectionManager, generator: dynamicUIGenerator, diskCache });
+
+  // UI Agent WebSocket (requires LLM)
+  if (modelRouter) {
+    await app.register(agentUIRoutes, {
+      connectionManager,
+      modelRouter,
+      templateRegistry: dynamicUIGenerator.getRegistry(),
+    });
+    console.log('🧙 UI Agent WebSocket enabled');
+  }
 
   // -- Start --
   try {

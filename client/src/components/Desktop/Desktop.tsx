@@ -13,6 +13,7 @@ import {
   ServerAdminIcon,
   FleetIcon,
   AgentIcon,
+  UIAgentIcon,
 } from '../ui/FileIcon';
 import {
   ContextMenu,
@@ -89,6 +90,12 @@ const DESKTOP_ICONS: DesktopIcon[] = [
     appId: 'agent',
     label: 'AI Agent',
     IconComponent: AgentIcon,
+  },
+  {
+    id: 'desktop-ui-agent',
+    appId: 'ui-agent',
+    label: 'UI Agent',
+    IconComponent: UIAgentIcon,
   },
 ];
 

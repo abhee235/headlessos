@@ -97,6 +97,14 @@ export const APPS: AppDefinition[] = [
     requiredTools: [],
     singleInstance: false,
   },
+  {
+    id: 'ui-agent',
+    name: 'UI Agent',
+    icon: 'Wand2',
+    description: 'AI-powered dynamic UI generation via conversational agent',
+    requiredTools: [],
+    singleInstance: false,
+  },
 ];
 
 export function getAppById(id: string): AppDefinition | undefined {
