@@ -1096,3 +1096,63 @@ export async function abortAgentInvestigation(
     method: 'POST',
   });
 }
+
+// ── Dynamic UI ──────────────────────────────────────────
+
+export interface TemplateSummary {
+  id: string;
+  name: string;
+  description: string;
+  tags: string[];
+}
+
+export interface TemplateSearchResult {
+  templateId: string;
+  name: string;
+  matchedPattern: string;
+  confidence: number;
+}
+
+export interface GenerateDynamicUIResult {
+  view: Record<string, unknown>;
+  source: 'cache' | 'llm';
+  templateId?: string;
+  llmStats?: {
+    model: string;
+    inputTokens: number;
+    outputTokens: number;
+    latencyMs: number;
+  };
+}
+
+export async function fetchDynamicUITemplates(): Promise<TemplateSummary[]> {
+  const res = await request<{ success: boolean; data: TemplateSummary[] }>(
+    '/dynamic-ui/templates',
+  );
+  return res.data;
+}
+
+export async function searchDynamicUITemplates(
+  query: string,
+): Promise<TemplateSummary[]> {
+  const res = await request<{ success: boolean; data: TemplateSummary[] }>(
+    `/dynamic-ui/templates/search?q=${encodeURIComponent(query)}`,
+  );
+  return res.data;
+}
+
+export async function generateDynamicUI(
+  serverId: string,
+  tool: string,
+  command: string,
+  rawOutput: string,
+): Promise<GenerateDynamicUIResult> {
+  const res = await request<{ success: boolean; data: GenerateDynamicUIResult }>(
+    `/servers/${serverId}/dynamic-ui/generate`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ tool, command, rawOutput }),
+    },
+  );
+  return res.data;
+}
