@@ -273,7 +273,7 @@ Example:
 | EX2.4 | Planner Phase | ✅ | Reasoning model produces PlannerHints (intent + expected widgets, NOT step list) |
 | EX2.5 | Reactive Executor | ✅ | Native function calling loop, inline Zod validation, safety rails |
 | EX2.6 | Post-Generation Reflector | ✅ | Optional quality check, typed errors, max 2 fix loops |
-| EX2.7 | UI Agent Orchestrator | ⬜ | Stack-based Plan→ReactiveLoop→OptionalReflect, abort, session tracking |
+| EX2.7 | UI Agent Orchestrator | ✅ | Stack-based Plan→ReactiveLoop→OptionalReflect, abort, session tracking |
 | EX2.13 | Context Manager | ⬜ | Token tracking, 80% compaction threshold, weak model summarization |
 
 ### Phase 2: Interactive UIs + Write-Back
