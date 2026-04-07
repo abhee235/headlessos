@@ -254,7 +254,7 @@ Example:
 | EX1.12 | Live Data Refresh | ✅ | Widget-level dataSource auto-refresh, pause/resume |
 | EX1.13 | Desktop Tab Integration | ✅ | Dynamic views as desktop tabs, persistence |
 | EX1.14 | Action Execution from Dynamic UI | ✅ | Buttons trigger SSH commands, allowlist validated, confirmation |
-| EX1.15 | FormWidget (Editable Config UI) | ⬜ | Form fields render, validation, submit handler, read-only mode |
+| EX1.15 | FormWidget (Editable Config UI) | ✅ | Form fields (text/number/boolean/select/textarea), client validation, field groups, read-only mode, 35 tests |
 
 ---
 

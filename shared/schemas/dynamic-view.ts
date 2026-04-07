@@ -183,6 +183,57 @@ export const LogViewerWidgetSchema = z.object({
   dataSource: DataSourceSchema.nullable().optional(),
 });
 
+// ── Form widget (EX1.15) ───────────────────────────────
+
+/** Individual form field definition */
+export const FormFieldSchema = z.object({
+  /** Unique field key (used as form data key) */
+  key: z.string(),
+  /** Display label for the field */
+  label: z.string(),
+  /** Field input type */
+  type: z.enum(['text', 'number', 'boolean', 'select', 'textarea']).default('text'),
+  /** Current/default value */
+  value: z.union([z.string(), z.number(), z.boolean()]).nullable().optional(),
+  /** Placeholder text for text/number/textarea */
+  placeholder: z.string().nullable().optional(),
+  /** Help text displayed below the field */
+  description: z.string().nullable().optional(),
+  /** Whether this field is required */
+  required: z.boolean().default(false),
+  /** Options for select fields */
+  options: z.array(z.object({
+    label: z.string(),
+    value: z.string(),
+  })).nullable().optional(),
+  /** Validation: minimum value (number) or min length (text) */
+  min: z.number().nullable().optional(),
+  /** Validation: maximum value (number) or max length (text) */
+  max: z.number().nullable().optional(),
+  /** Validation: regex pattern for text fields */
+  pattern: z.string().nullable().optional(),
+}).describe('A form field definition');
+
+export type FormField = z.infer<typeof FormFieldSchema>;
+
+/** Group of form fields rendered as a section */
+export const FormFieldGroupSchema = z.object({
+  label: z.string(),
+  fieldKeys: z.array(z.string()),
+}).describe('A group of form fields rendered as a card section');
+
+export type FormFieldGroup = z.infer<typeof FormFieldGroupSchema>;
+
+export const FormWidgetSchema = z.object({
+  type: z.literal('form'),
+  title: z.string().nullable().optional(),
+  fields: z.array(FormFieldSchema),
+  groups: z.array(FormFieldGroupSchema).nullable().optional(),
+  submitLabel: z.string().default('Save'),
+  readOnly: z.boolean().default(false),
+  dataSource: DataSourceSchema.nullable().optional(),
+}).describe('Editable form widget for configuration');
+
 // ── Union of all widgets ────────────────────────────────
 
 export const WidgetSchema = z.discriminatedUnion('type', [
@@ -196,6 +247,7 @@ export const WidgetSchema = z.discriminatedUnion('type', [
   ChartWidgetSchema,
   TreeWidgetSchema,
   LogViewerWidgetSchema,
+  FormWidgetSchema,
 ]);
 
 export type Widget = z.infer<typeof WidgetSchema>;
@@ -203,7 +255,7 @@ export type Widget = z.infer<typeof WidgetSchema>;
 /** All supported widget type strings */
 export const WIDGET_TYPES = [
   'table', 'key-value', 'badge-grid', 'stat-card', 'progress-bar',
-  'code-block', 'alert', 'chart', 'tree', 'log-viewer',
+  'code-block', 'alert', 'chart', 'tree', 'log-viewer', 'form',
 ] as const;
 
 export type WidgetType = (typeof WIDGET_TYPES)[number];

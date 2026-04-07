@@ -12,6 +12,7 @@ import { AlertWidget } from './widgets/AlertWidget';
 import { ChartWidget } from './widgets/ChartWidget';
 import { TreeWidget } from './widgets/TreeWidget';
 import { LogViewerWidget } from './widgets/LogViewerWidget';
+import { FormWidget } from './widgets/FormWidget';
 
 // Register base widget types (EX1.2)
 registerWidget('table', TableWidget);
@@ -26,3 +27,6 @@ registerWidget('alert', AlertWidget);
 registerWidget('chart', ChartWidget);
 registerWidget('tree', TreeWidget);
 registerWidget('log-viewer', LogViewerWidget);
+
+// Form widget (EX1.15)
+registerWidget('form', FormWidget);

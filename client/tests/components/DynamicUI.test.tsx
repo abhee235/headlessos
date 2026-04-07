@@ -47,7 +47,7 @@ vi.mock('recharts', () => {
 // ── Widget Registry ─────────────────────────────────────
 
 describe('Widget Registry', () => {
-  it('has all 10 widget types registered (7 base + 3 extended)', () => {
+  it('has all 11 widget types registered (7 base + 3 extended + 1 form)', () => {
     const types = getRegisteredTypes();
     // Base widgets (EX1.2)
     expect(types).toContain('table');
@@ -61,7 +61,9 @@ describe('Widget Registry', () => {
     expect(types).toContain('chart');
     expect(types).toContain('tree');
     expect(types).toContain('log-viewer');
-    expect(types.length).toBe(10);
+    // Form widget (EX1.15)
+    expect(types).toContain('form');
+    expect(types.length).toBe(11);
   });
 });
 
@@ -1658,5 +1660,232 @@ describe('TableWidget with actions (EX1.14)', () => {
     );
     // No actions column
     expect(screen.queryByText('Actions')).not.toBeInTheDocument();
+  });
+});
+
+// ── EX1.15: FormWidget ──────────────────────────────────
+
+import { FormWidget } from '../../src/components/DynamicUI/widgets/FormWidget';
+
+describe('FormWidget (EX1.15)', () => {
+  it('renders text fields', () => {
+    render(
+      <FormWidget widget={{
+        type: 'form',
+        fields: [
+          { key: 'hostname', label: 'Hostname', type: 'text', value: 'srv-1', required: false },
+        ],
+        submitLabel: 'Save',
+        readOnly: false,
+      } as never} />,
+    );
+    expect(screen.getByLabelText(/Hostname/)).toBeInTheDocument();
+    expect(screen.getByDisplayValue('srv-1')).toBeInTheDocument();
+  });
+
+  it('renders number fields', () => {
+    render(
+      <FormWidget widget={{
+        type: 'form',
+        fields: [
+          { key: 'port', label: 'Port', type: 'number', value: 8080, required: false },
+        ],
+        submitLabel: 'Save',
+        readOnly: false,
+      } as never} />,
+    );
+    expect(screen.getByLabelText(/Port/)).toBeInTheDocument();
+    expect(screen.getByDisplayValue('8080')).toBeInTheDocument();
+  });
+
+  it('renders boolean fields as switches', () => {
+    render(
+      <FormWidget widget={{
+        type: 'form',
+        fields: [
+          { key: 'enabled', label: 'Enabled', type: 'boolean', value: true, required: false },
+        ],
+        submitLabel: 'Save',
+        readOnly: false,
+      } as never} />,
+    );
+    expect(screen.getByLabelText(/Enabled/)).toBeInTheDocument();
+    // Switch should be checked
+    const switchEl = screen.getByRole('switch');
+    expect(switchEl).toBeInTheDocument();
+  });
+
+  it('renders select fields', () => {
+    render(
+      <FormWidget widget={{
+        type: 'form',
+        fields: [
+          {
+            key: 'env',
+            label: 'Environment',
+            type: 'select',
+            value: 'production',
+            required: false,
+            options: [
+              { label: 'Production', value: 'production' },
+              { label: 'Staging', value: 'staging' },
+            ],
+          },
+        ],
+        submitLabel: 'Save',
+        readOnly: false,
+      } as never} />,
+    );
+    expect(screen.getByText(/Environment/)).toBeInTheDocument();
+  });
+
+  it('renders textarea fields', () => {
+    render(
+      <FormWidget widget={{
+        type: 'form',
+        fields: [
+          { key: 'notes', label: 'Notes', type: 'textarea', value: 'Some notes', required: false },
+        ],
+        submitLabel: 'Save',
+        readOnly: false,
+      } as never} />,
+    );
+    expect(screen.getByLabelText(/Notes/)).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Some notes')).toBeInTheDocument();
+  });
+
+  it('shows submit button with custom label', () => {
+    render(
+      <FormWidget widget={{
+        type: 'form',
+        fields: [{ key: 'a', label: 'A', type: 'text', value: '', required: false }],
+        submitLabel: 'Apply Changes',
+        readOnly: false,
+      } as never} />,
+    );
+    expect(screen.getByRole('button', { name: 'Apply Changes' })).toBeInTheDocument();
+  });
+
+  it('hides submit button in read-only mode', () => {
+    render(
+      <FormWidget widget={{
+        type: 'form',
+        fields: [{ key: 'a', label: 'A', type: 'text', value: 'val', required: false }],
+        submitLabel: 'Save',
+        readOnly: true,
+      } as never} />,
+    );
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+  });
+
+  it('disables inputs in read-only mode', () => {
+    render(
+      <FormWidget widget={{
+        type: 'form',
+        fields: [{ key: 'a', label: 'A', type: 'text', value: 'val', required: false }],
+        submitLabel: 'Save',
+        readOnly: true,
+      } as never} />,
+    );
+    expect(screen.getByDisplayValue('val')).toBeDisabled();
+  });
+
+  it('shows required asterisk for required fields', () => {
+    render(
+      <FormWidget widget={{
+        type: 'form',
+        fields: [{ key: 'name', label: 'Name', type: 'text', value: '', required: true }],
+        submitLabel: 'Save',
+        readOnly: false,
+      } as never} />,
+    );
+    // The asterisk should be in the label
+    expect(screen.getByText('*')).toBeInTheDocument();
+  });
+
+  it('shows validation error for required empty field on submit', () => {
+    render(
+      <FormWidget widget={{
+        type: 'form',
+        fields: [{ key: 'name', label: 'Name', type: 'text', value: '', required: true }],
+        submitLabel: 'Save',
+        readOnly: false,
+      } as never} />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(screen.getByText('Name is required')).toBeInTheDocument();
+  });
+
+  it('calls onSubmit with form values when valid', () => {
+    const onSubmit = vi.fn();
+    render(
+      <FormWidget
+        widget={{
+          type: 'form',
+          fields: [
+            { key: 'name', label: 'Name', type: 'text', value: 'test', required: false },
+            { key: 'port', label: 'Port', type: 'number', value: 3000, required: false },
+          ],
+          submitLabel: 'Save',
+          readOnly: false,
+        } as never}
+        onSubmit={onSubmit}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onSubmit).toHaveBeenCalledWith({ name: 'test', port: 3000 });
+  });
+
+  it('renders field groups with headings', () => {
+    render(
+      <FormWidget widget={{
+        type: 'form',
+        fields: [
+          { key: 'hostname', label: 'Hostname', type: 'text', value: '', required: false },
+          { key: 'port', label: 'Port', type: 'number', value: 80, required: false },
+          { key: 'notes', label: 'Notes', type: 'textarea', value: '', required: false },
+        ],
+        groups: [
+          { label: 'Network Settings', fieldKeys: ['hostname', 'port'] },
+          { label: 'Other', fieldKeys: ['notes'] },
+        ],
+        submitLabel: 'Save',
+        readOnly: false,
+      } as never} />,
+    );
+    expect(screen.getByText('Network Settings')).toBeInTheDocument();
+    expect(screen.getByText('Other')).toBeInTheDocument();
+  });
+
+  it('renders title when provided', () => {
+    render(
+      <FormWidget widget={{
+        type: 'form',
+        title: 'Server Configuration',
+        fields: [{ key: 'a', label: 'A', type: 'text', value: '', required: false }],
+        submitLabel: 'Save',
+        readOnly: false,
+      } as never} />,
+    );
+    expect(screen.getByText('Server Configuration')).toBeInTheDocument();
+  });
+
+  it('renders description text for fields', () => {
+    render(
+      <FormWidget widget={{
+        type: 'form',
+        fields: [{
+          key: 'port',
+          label: 'Port',
+          type: 'number',
+          value: 8080,
+          description: 'Must be between 1 and 65535',
+          required: false,
+        }],
+        submitLabel: 'Save',
+        readOnly: false,
+      } as never} />,
+    );
+    expect(screen.getByText('Must be between 1 and 65535')).toBeInTheDocument();
   });
 });
