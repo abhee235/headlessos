@@ -274,7 +274,7 @@ Example:
 | EX2.5 | Reactive Executor | ✅ | Native function calling loop, inline Zod validation, safety rails |
 | EX2.6 | Post-Generation Reflector | ✅ | Optional quality check, typed errors, max 2 fix loops |
 | EX2.7 | UI Agent Orchestrator | ✅ | Stack-based Plan→ReactiveLoop→OptionalReflect, abort, session tracking |
-| EX2.13 | Context Manager | ⬜ | Token tracking, 80% compaction threshold, weak model summarization |
+| EX2.13 | Context Manager | ✅ | Token estimation, 80% threshold compaction, head/tail split, weak model summarization, 28 tests |
 
 ### Phase 2: Interactive UIs + Write-Back
 
