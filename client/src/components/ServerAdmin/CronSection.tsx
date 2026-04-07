@@ -3,7 +3,6 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { RefreshCw, Loader2, AlertCircle, Clock, Plus, Pencil, Trash2 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,6 +19,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { fetchCronInfo, addCronJob, deleteCronJob, editCronJob } from '@/lib/api';
 import type { CronInfo } from '@/lib/api';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 // ── Schedule presets ──────────────────────────────────────────────
 const PRESETS: { label: string; value: string }[] = [
@@ -193,8 +193,8 @@ export function CronSection({ serverId }: { serverId: string }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground">
-        <Loader2 className="animate-spin mr-2" size={18} />
+      <div className="flex items-center justify-center py-20 text-foreground/40">
+        <Loader2 className="animate-spin mr-2" size={20} />
         Loading cron jobs…
       </div>
     );
@@ -202,7 +202,7 @@ export function CronSection({ serverId }: { serverId: string }) {
 
   if (error || !data) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-3 text-muted-foreground">
+      <div className="flex flex-col items-center justify-center py-20 text-foreground/40 gap-3">
         <AlertCircle size={24} />
         <p className="text-sm">{error || 'No data'}</p>
         <Button variant="outline" size="sm" onClick={load}>Retry</Button>
@@ -213,24 +213,25 @@ export function CronSection({ serverId }: { serverId: string }) {
   const isFormValid = form.schedule.trim() && form.command.trim();
 
   return (
-    <div className="p-4 space-y-5">
+    <div className="@container p-6 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Clock size={18} className="text-primary" />
-          <h2 className="text-lg font-semibold">Scheduled Jobs</h2>
-          <Badge variant="secondary" className="text-xs">{data.jobs.length}</Badge>
+        <div className="flex items-center gap-2.5">
+          <Clock size={22} className="text-primary" />
+          <h2 className="text-xl font-bold text-foreground">Scheduled Jobs</h2>
+          <span className="text-xs tabular-nums text-foreground/50 bg-foreground/5 px-2 py-0.5 rounded-full">{data.jobs.length}</span>
         </div>
         <div className="flex items-center gap-2">
           <Button
-            variant="outline"
+            variant="default"
             size="sm"
+            className="h-8 gap-1.5 text-xs font-medium border-border/50"
             onClick={() => { closeForm(); setShowForm(true); }}
             disabled={busy}
           >
-            <Plus size={14} className="mr-1" /> Add Job
+            <Plus size={14} /> Add Job
           </Button>
-          <Button variant="ghost" size="icon" onClick={load} title="Refresh" disabled={busy}>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground/30 hover:text-foreground" onClick={load} title="Refresh" disabled={busy}>
             <RefreshCw size={16} />
           </Button>
         </div>
@@ -238,16 +239,16 @@ export function CronSection({ serverId }: { serverId: string }) {
 
       {/* Add/Edit form */}
       {showForm && (
-        <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
-          <h3 className="font-medium text-sm">
+        <div className="rounded-lg p-4 space-y-3 bg-muted/20">
+          <h3 className="text-sm font-medium text-foreground/70">
             {editIndex !== null ? 'Edit Cron Job' : 'Add Cron Job'}
           </h3>
 
           {/* Preset */}
           <div className="space-y-1">
-            <Label className="text-xs">Schedule Preset</Label>
+            <Label className="text-xs text-foreground/60">Schedule Preset</Label>
             <Select value={form.preset} onValueChange={handlePreset}>
-              <SelectTrigger className="w-64">
+              <SelectTrigger className="w-64 h-8 text-xs shadow-none">
                 <SelectValue placeholder="Select a preset…" />
               </SelectTrigger>
               <SelectContent>
@@ -262,15 +263,15 @@ export function CronSection({ serverId }: { serverId: string }) {
 
           {/* Schedule */}
           <div className="space-y-1">
-            <Label className="text-xs">Schedule (cron expression)</Label>
+            <Label className="text-xs text-foreground/60">Schedule (cron expression)</Label>
             <Input
               value={form.schedule}
               onChange={e => setForm(f => ({ ...f, schedule: e.target.value, preset: '' }))}
               placeholder="* * * * *  or  @hourly"
-              className="font-mono text-sm"
+              className="font-mono h-8 text-xs shadow-none"
             />
             {form.schedule && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-foreground/40">
                 → {humanReadableSchedule(form.schedule.trim())}
               </p>
             )}
@@ -278,22 +279,23 @@ export function CronSection({ serverId }: { serverId: string }) {
 
           {/* Command */}
           <div className="space-y-1">
-            <Label className="text-xs">Command</Label>
+            <Label className="text-xs text-foreground/60">Command</Label>
             <Input
               value={form.command}
               onChange={e => setForm(f => ({ ...f, command: e.target.value }))}
               placeholder="/usr/bin/myscript.sh --flag"
-              className="font-mono text-sm"
+              className="font-mono h-8 text-xs shadow-none"
             />
           </div>
 
           {/* Description */}
           <div className="space-y-1">
-            <Label className="text-xs">Description (optional)</Label>
+            <Label className="text-xs text-foreground/60">Description (optional)</Label>
             <Input
               value={form.description}
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
               placeholder="Backup database nightly"
+              className="h-8 text-xs shadow-none"
             />
           </div>
 
@@ -313,35 +315,35 @@ export function CronSection({ serverId }: { serverId: string }) {
       {/* User crontab jobs */}
       {userJobs.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-sm font-medium text-muted-foreground">User Crontab</h3>
+          <h3 className="text-sm font-medium text-foreground/60">User Crontab</h3>
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead className="w-44">Schedule</TableHead>
-                <TableHead>Command</TableHead>
-                <TableHead className="w-40">Description</TableHead>
-                <TableHead className="w-20 text-right">Actions</TableHead>
+              <TableRow className="hover:bg-transparent border-0">
+                <TableHead className="w-44 text-xs font-medium text-foreground/40 h-9">Schedule</TableHead>
+                <TableHead className="text-xs font-medium text-foreground/40 h-9">Command</TableHead>
+                <TableHead className="w-40 text-xs font-medium text-foreground/40 h-9">Description</TableHead>
+                <TableHead className="w-20 text-right text-xs font-medium text-foreground/40 h-9">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {userJobs.map((job, i) => (
-                <TableRow key={`user-${i}`}>
+                <TableRow key={`user-${i}`} className="border-0 hover:bg-muted/20 group">
                   <TableCell>
-                    <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">
+                    <code className="text-xs bg-muted/30 px-1.5 py-0.5 rounded font-mono">
                       {job.schedule}
                     </code>
-                    <p className="text-xs text-muted-foreground mt-0.5">
+                    <p className="text-xs text-foreground/40 mt-0.5">
                       {humanReadableSchedule(job.schedule)}
                     </p>
                   </TableCell>
                   <TableCell className="font-mono text-xs max-w-md truncate" title={job.command}>
                     {job.command}
                   </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
+                  <TableCell className="text-xs text-foreground/50">
                     {job.description || '—'}
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
+                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Button
                         variant="ghost"
                         size="icon"
@@ -355,7 +357,7 @@ export function CronSection({ serverId }: { serverId: string }) {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-destructive"
+                        className="h-7 w-7 text-foreground/30 hover:text-destructive"
                         onClick={() => setDeleteIndex(i)}
                         disabled={busy}
                         title="Delete"
@@ -374,30 +376,30 @@ export function CronSection({ serverId }: { serverId: string }) {
       {/* System crontab jobs (read-only) */}
       {systemJobs.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-sm font-medium text-muted-foreground">System Crontab (read-only)</h3>
+          <h3 className="text-sm font-medium text-foreground/60">System Crontab (read-only)</h3>
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead className="w-44">Schedule</TableHead>
-                <TableHead>Command</TableHead>
-                <TableHead className="w-40">Description</TableHead>
+              <TableRow className="hover:bg-transparent border-0">
+                <TableHead className="w-44 text-xs font-medium text-foreground/40 h-9">Schedule</TableHead>
+                <TableHead className="text-xs font-medium text-foreground/40 h-9">Command</TableHead>
+                <TableHead className="w-40 text-xs font-medium text-foreground/40 h-9">Description</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {systemJobs.map((job, i) => (
-                <TableRow key={`sys-${i}`}>
+                <TableRow key={`sys-${i}`} className="border-0 hover:bg-muted/20 group">
                   <TableCell>
-                    <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">
+                    <code className="text-xs bg-muted/30 px-1.5 py-0.5 rounded font-mono">
                       {job.schedule}
                     </code>
-                    <p className="text-xs text-muted-foreground mt-0.5">
+                    <p className="text-xs text-foreground/40 mt-0.5">
                       {humanReadableSchedule(job.schedule)}
                     </p>
                   </TableCell>
                   <TableCell className="font-mono text-xs max-w-md truncate" title={job.command}>
                     {job.command}
                   </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
+                  <TableCell className="text-xs text-foreground/50">
                     {job.description || '—'}
                   </TableCell>
                 </TableRow>
@@ -409,9 +411,9 @@ export function CronSection({ serverId }: { serverId: string }) {
 
       {/* Empty state */}
       {data.jobs.length === 0 && !showForm && (
-        <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
-          <Clock size={32} className="opacity-40 mb-2" />
-          <p className="text-sm">No cron jobs found</p>
+        <div className="flex flex-col items-center justify-center py-12 text-foreground/30">
+          <Clock size={32} className="text-foreground/20 mb-2" />
+          <p className="text-sm text-foreground/30">No cron jobs found</p>
           <Button variant="outline" size="sm" className="mt-3" onClick={() => setShowForm(true)}>
             <Plus size={14} className="mr-1" /> Add your first cron job
           </Button>

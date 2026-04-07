@@ -31,6 +31,7 @@
 | M9: Desktop Polish & Core UX | Week 11 | ✅ | 12/12 tasks | — |
 | M10: Advanced Features | Week 12-14 | ✅ | 10/10 tasks | — |
 | M11: Fleet, Agent & Platform | Week 15-16 | ✅ | 7/7 tasks | — |
+| **EX1: Dynamic UI Engine** | **Experimental** | **⬜** | **0/14 tasks** | [phase-ex1](phases/phase-ex1.md) |
 
 ---
 
@@ -219,6 +220,42 @@ Example:
 
 ---
 
+## EX1: Dynamic UI Engine (Experimental)
+
+> LLM-generated dynamic interfaces from terminal output. Any CLI tool gets a visual UI.
+> See [ADR-015](DECISIONS.md) and [phase-ex1.md](phases/phase-ex1.md) for full spec.
+
+### Phase 1: JSON → UI Renderer
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| EX1.1 | DynamicViewSchema (Zod) | ⬜ | Schema compiles, works with zodResponseFormat(), unit tests |
+| EX1.2 | DynamicViewRenderer + Widget Components | ⬜ | 7 base widgets render from JSON, partial schema support |
+| EX1.3 | DynamicAppWindow Wrapper | ⬜ | Opens as AppWindow overlay, sidebar layout maps correctly |
+| EX1.4 | JSON Playground (Dev Tool) | ⬜ | Split-pane editor, live preview, Zod validation feedback |
+| EX1.5 | Extended Widgets (Chart, Tree, LogViewer) | ⬜ | Chart/tree/log widgets render, added to WidgetSchema union |
+| EX1.6 | Tabbed + Sidebar Layouts | ⬜ | Tabs and sidebar layouts work, streaming support |
+
+### Phase 2: LLM → JSON Generation
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| EX1.7 | Template Library (15+ templates) | ⬜ | Templates validate against schema, match logic works |
+| EX1.8 | DynamicUIGenerator Service (Streaming) | ⬜ | Streaming generation, WebSocket endpoint, incremental rendering |
+| EX1.9 | Command Palette Trigger | ⬜ | "Generate Dynamic UI" in Ctrl+K palette, fuzzy search |
+| EX1.10 | Schema Caching & Persistence | ⬜ | Memory + disk cache, regenerate bypass, stats in /api/stats/llm |
+
+### Phase 3: Full Integration
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| EX1.11 | Terminal Buffer Capture | ⬜ | Last 500 lines captured, pattern detection, "Visualize" button |
+| EX1.12 | Live Data Refresh | ⬜ | Widget-level dataSource auto-refresh, pause/resume |
+| EX1.13 | Desktop Tab Integration | ⬜ | Dynamic views as desktop tabs, persistence |
+| EX1.14 | Action Execution from Dynamic UI | ⬜ | Buttons trigger SSH commands, allowlist validated, confirmation |
+
+---
+
 ## Backlog (Future)
 
 | # | Task | Priority | Notes |
@@ -247,6 +284,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-04-11 | **EX1 ⬜** Dynamic UI Engine planned (14 tasks, 3 phases). ADR-015 created. Phase spec: phase-ex1.md. Core feature: LLM generates JSON schemas from terminal output → generic renderer builds live UI with streaming/incremental rendering. |
 | 2026-04-06 | **M7.3 ⏭️** LLM / AI Configuration moved to backlog (B.15) — core functionality already covered by M10.7. M7 now fully complete (6/6). All 11 milestones (M0–M11) complete. |
 | 2026-04-06 | **M11 ✅** Fleet, Agent & Platform complete (7/7 tasks): M11.1 Fleet Dashboard (fleet route + aggregate stats + server cards UI), M11.2 Electron Wrapper (main.js + preload.js + package.json + macOS menu), M11.3 Plugin Manager UI (Settings page: install from URL, activate/deactivate/remove, permission reference), M11.4 Server Tags (tags field in ServerConfig, fleet route tag support), M11.5 ReAct Agent (InvestigationAgent class with 50+ allowlist patterns, 15 blocked patterns, ReAct loop, AgentView frontend), M11.6 Agent Streaming (WebSocket endpoint + real-time step UI). Also fixed: pinnedAppIds type error, fleet.ts mountPoint/getServers, SettingsView LLM config type. 535 tests (406 server + 129 client) all passing. |
 | 2026-04-10 | **M10 ✅** Advanced Features complete (10/10 tasks): M10.1 Notification Center (store + bell icon + slide-out panel), M10.2 Multi-Server Sidebar (initials, status dots, context menu), M10.3 Drag-and-Drop Upload (multipart backend + XHR progress + drop zone), M10.4 Split-Pane Explorer (ResizablePanelGroup + MiniFileList), M10.5 App Permissions (15 capabilities, overrides, persistence), M10.6 IPC Event Bus (35+ typed events, useEventBus hook), M10.7 LLM Config UI (backend routes + AI settings page), M10.8 Plugin API (Zod manifest schema, registry lifecycle), M10.9 Test Suite (4 test files: event-bus, permissions, plugins, notification-store), M10.10 Performance (React.lazy code splitting, Suspense, Vite manual chunks). |

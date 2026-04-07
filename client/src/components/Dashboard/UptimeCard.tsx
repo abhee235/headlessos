@@ -15,9 +15,9 @@ interface UptimeCardProps {
 
 export function UptimeCard({ system }: UptimeCardProps) {
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
+    <div className="rounded-xl border border-border bg-card p-4">
       <div className="flex items-center gap-2 mb-3">
-        <Server className="w-4 h-4 text-blue-400" />
+        <Server className="w-4 h-4 text-primary" />
         <h3 className="text-sm font-medium text-card-foreground">System</h3>
       </div>
 

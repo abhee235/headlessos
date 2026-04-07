@@ -16,10 +16,10 @@ import {
 // ── Type icon map ────────────────────────────────────────
 
 const TYPE_ICON: Record<NotificationType, React.ReactNode> = {
-  info: <Info className="w-4 h-4 text-blue-400" />,
-  success: <CheckCircle className="w-4 h-4 text-emerald-400" />,
-  warning: <AlertTriangle className="w-4 h-4 text-amber-400" />,
-  error: <AlertCircle className="w-4 h-4 text-red-400" />,
+  info: <Info className="w-4 h-4 text-primary" />,
+  success: <CheckCircle className="w-4 h-4 text-success" />,
+  warning: <AlertTriangle className="w-4 h-4 text-warning" />,
+  error: <AlertCircle className="w-4 h-4 text-destructive" />,
 };
 
 function timeAgo(ts: number): string {

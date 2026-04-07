@@ -94,7 +94,7 @@ function MiniFileList({
                 if (entry.type === 'directory') openEntry(entry);
               }}
             >
-              <span className={`text-xs shrink-0 ${entry.type === 'directory' ? 'text-blue-400' : 'text-muted-foreground'}`}>
+              <span className={`text-xs shrink-0 ${entry.type === 'directory' ? 'text-primary' : 'text-muted-foreground'}`}>
                 {entry.type === 'directory' ? '📁' : '📄'}
               </span>
               <span className="text-[13px] text-foreground truncate flex-1">{entry.name}</span>
