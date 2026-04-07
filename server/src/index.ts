@@ -29,6 +29,7 @@ import { OutputCache } from './cache/output-cache.js';
 import { LLMUsageTracker } from './llm/usage-tracker.js';
 import { InvestigationAgent } from './agent/investigation-agent.js';
 import { DynamicUIGenerator } from './dynamic-ui/generator.js';
+import { DynamicUIDiskCache } from './cache/dynamic-ui-cache.js';
 
 const PORT = Number(process.env.PORT) || 3001;
 
@@ -43,7 +44,9 @@ async function main(): Promise<void> {
   const outputCache = new OutputCache();
   const usageTracker = new LLMUsageTracker();
   const investigationAgent = new InvestigationAgent(connectionManager, null);
-  let dynamicUIGenerator = new DynamicUIGenerator({ outputCache, usageTracker });
+  const diskCache = new DynamicUIDiskCache();
+  await diskCache.init();
+  let dynamicUIGenerator = new DynamicUIGenerator({ outputCache, usageTracker, diskCache });
 
   container.register('config', configStore);
   container.register('ssh', connectionManager);
@@ -56,7 +59,7 @@ async function main(): Promise<void> {
     const llmProvider = new OpenAIProvider(process.env.OPENAI_API_KEY);
     pipeline.setLLMProvider(llmProvider);
     investigationAgent.setLLMProvider(llmProvider);
-    dynamicUIGenerator = new DynamicUIGenerator({ llmProvider, outputCache, usageTracker });
+    dynamicUIGenerator = new DynamicUIGenerator({ llmProvider, outputCache, usageTracker, diskCache });
     console.log('🤖 LLM provider: OpenAI');
   } else {
     console.log('⚠️  No OPENAI_API_KEY set — LLM parsing disabled (deterministic parsers only)');
@@ -152,7 +155,7 @@ async function main(): Promise<void> {
   await app.register(llmRoutes, { pipeline });
   await app.register(fleetRoutes, { orchestrator, connectionManager, configStore });
   await app.register(agentRoutes, { connectionManager, agent: investigationAgent });
-  await app.register(dynamicUIRoutes, { connectionManager, generator: dynamicUIGenerator });
+  await app.register(dynamicUIRoutes, { connectionManager, generator: dynamicUIGenerator, diskCache });
 
   // -- Start --
   try {

@@ -6,9 +6,11 @@ import { DynamicViewSchema } from 'headlessos-shared/schemas/dynamic-view';
 import type { LLMProvider, ParseResult } from '../llm/provider.js';
 import type { LLMUsageTracker } from '../llm/usage-tracker.js';
 import type { OutputCache } from '../cache/output-cache.js';
+import type { DynamicUIDiskCache } from '../cache/dynamic-ui-cache.js';
 import { TemplateRegistry } from './template-registry.js';
 import { ALL_TEMPLATES } from './templates/index.js';
 import stripAnsi from 'strip-ansi';
+import { createHash } from 'node:crypto';
 
 // ── System Prompt ──────────────────────────────────────────────────
 
@@ -42,6 +44,8 @@ export interface GenerateInput {
   rawOutput: string;
   /** Server ID for caching */
   serverId: string;
+  /** Bypass all caches and force regeneration */
+  bypassCache?: boolean;
 }
 
 export interface GenerateResult {
@@ -72,17 +76,20 @@ export class DynamicUIGenerator {
   private llmProvider: LLMProvider | null;
   private usageTracker: LLMUsageTracker | null;
   private outputCache: OutputCache | null;
+  private diskCache: DynamicUIDiskCache | null;
 
   constructor(opts?: {
     llmProvider?: LLMProvider;
     usageTracker?: LLMUsageTracker;
     outputCache?: OutputCache;
+    diskCache?: DynamicUIDiskCache;
   }) {
     this.registry = new TemplateRegistry();
     this.registry.registerAll(ALL_TEMPLATES);
     this.llmProvider = opts?.llmProvider ?? null;
     this.usageTracker = opts?.usageTracker ?? null;
     this.outputCache = opts?.outputCache ?? null;
+    this.diskCache = opts?.diskCache ?? null;
   }
 
   /** Get the template registry (for external search/listing). */
@@ -98,14 +105,30 @@ export class DynamicUIGenerator {
    * 4. Call LLM with template hint → validate → cache → return
    */
   async generate(input: GenerateInput): Promise<GenerateResult> {
-    const { tool, command, rawOutput, serverId } = input;
+    const { tool, command, rawOutput, serverId, bypassCache } = input;
     const cacheCommand = `dynamic-ui:${command}`;
 
-    // 1. Check cache
-    if (this.outputCache) {
+    // 1. Check memory cache (unless bypassed, e.g. "Regenerate" button)
+    if (!bypassCache && this.outputCache) {
       const cached = this.outputCache.get<DynamicView>(serverId, cacheCommand, rawOutput);
       if (cached) {
         return { view: cached, source: 'cache' };
+      }
+    }
+
+    // 1b. Check disk cache (second level, survives restarts)
+    if (!bypassCache && this.diskCache) {
+      const diskCached = await this.diskCache.get(
+        serverId,
+        command,
+        this.hashOutput(rawOutput),
+      );
+      if (diskCached) {
+        // Promote to memory cache
+        if (this.outputCache) {
+          this.outputCache.set(serverId, cacheCommand, rawOutput, diskCached);
+        }
+        return { view: diskCached, source: 'cache' };
       }
     }
 
@@ -169,9 +192,18 @@ export class DynamicUIGenerator {
       });
     }
 
-    // 8. Cache result
+    // 8. Cache result (memory + disk)
     if (this.outputCache) {
       this.outputCache.set(serverId, cacheCommand, rawOutput, result.data);
+    }
+    if (this.diskCache) {
+      await this.diskCache.set(
+        serverId,
+        command,
+        this.hashOutput(rawOutput),
+        tool,
+        result.data,
+      );
     }
 
     return {
@@ -185,6 +217,11 @@ export class DynamicUIGenerator {
         latencyMs,
       },
     };
+  }
+
+  /** Hash raw output for disk-cache key. */
+  private hashOutput(rawOutput: string): string {
+    return createHash('sha256').update(rawOutput).digest('hex').slice(0, 16);
   }
 
   /** Build the user prompt sent to the LLM. */

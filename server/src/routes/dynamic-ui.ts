@@ -3,22 +3,25 @@
 
 import type { FastifyInstance } from 'fastify';
 import type { ConnectionManager } from '../ssh/connection-manager.js';
+import { DynamicViewSchema } from 'headlessos-shared/schemas/dynamic-view';
 import {
   DynamicUIGenerator,
   type GenerateInput,
   type DynamicUIMessage,
 } from '../dynamic-ui/generator.js';
+import type { DynamicUIDiskCache } from '../cache/dynamic-ui-cache.js';
 
 interface DynamicUIRouteDeps {
   connectionManager: ConnectionManager;
   generator: DynamicUIGenerator;
+  diskCache?: DynamicUIDiskCache;
 }
 
 export async function dynamicUIRoutes(
   fastify: FastifyInstance,
   opts: DynamicUIRouteDeps,
 ): Promise<void> {
-  const { connectionManager, generator } = opts;
+  const { connectionManager, generator, diskCache } = opts;
   const registry = generator.getRegistry();
 
   // ── Helpers ────────────────────────────────────────────────────
@@ -36,12 +39,12 @@ export async function dynamicUIRoutes(
 
   fastify.post<{
     Params: { serverId: string };
-    Body: { tool: string; command: string; rawOutput: string };
+    Body: { tool: string; command: string; rawOutput: string; bypassCache?: boolean };
   }>('/api/servers/:serverId/dynamic-ui/generate', async (req, reply) => {
     const { serverId } = req.params;
     requireConnected(serverId);
 
-    const { tool, command, rawOutput } = req.body;
+    const { tool, command, rawOutput, bypassCache } = req.body;
     if (!tool || !command || !rawOutput) {
       return reply.status(400).send({
         success: false,
@@ -50,7 +53,10 @@ export async function dynamicUIRoutes(
     }
 
     try {
-      const result = await generator.generate({ tool, command, rawOutput, serverId });
+      const result = await generator.generate({
+        tool, command, rawOutput, serverId,
+        bypassCache: bypassCache ?? false,
+      });
       return {
         success: true,
         data: {
@@ -202,6 +208,58 @@ export async function dynamicUIRoutes(
       });
     },
   );
+
+  // ── Favorites ──────────────────────────────────────────────────
+
+  fastify.get('/api/dynamic-ui/favorites', async (_req, reply) => {
+    if (!diskCache) {
+      return reply.status(501).send({ error: 'Disk cache not available' });
+    }
+    const favorites = await diskCache.getFavorites();
+    return reply.send({ favorites });
+  });
+
+  fastify.post<{
+    Body: { tool: string; command: string; view: Record<string, unknown>; label?: string };
+  }>('/api/dynamic-ui/favorites', async (req, reply) => {
+    if (!diskCache) {
+      return reply.status(501).send({ error: 'Disk cache not available' });
+    }
+    const { tool, command, view, label } = req.body;
+    if (!tool || !command || !view) {
+      return reply.status(400).send({ error: 'Missing fields: tool, command, view' });
+    }
+    const parsed = DynamicViewSchema.safeParse(view);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'Invalid view schema', details: parsed.error.issues });
+    }
+    const favorite = await diskCache.addFavorite(tool, command, parsed.data, label ?? tool);
+    return reply.status(201).send({ favorite });
+  });
+
+  fastify.delete<{ Params: { id: string } }>(
+    '/api/dynamic-ui/favorites/:id',
+    async (req, reply) => {
+      if (!diskCache) {
+        return reply.status(501).send({ error: 'Disk cache not available' });
+      }
+      const removed = await diskCache.removeFavorite(req.params.id);
+      if (!removed) {
+        return reply.status(404).send({ error: 'Favorite not found' });
+      }
+      return reply.status(204).send();
+    },
+  );
+
+  // ── Cache Stats ────────────────────────────────────────────────
+
+  fastify.get('/api/dynamic-ui/cache/stats', async (_req, reply) => {
+    if (!diskCache) {
+      return reply.status(501).send({ error: 'Disk cache not available' });
+    }
+    const stats = await diskCache.getStats();
+    return reply.send({ stats });
+  });
 }
 
 // ── Helpers ────────────────────────────────────────────────────────
