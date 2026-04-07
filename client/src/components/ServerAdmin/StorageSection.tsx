@@ -3,7 +3,6 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { RefreshCw, Loader2, AlertCircle, HardDrive } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -14,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { cn } from '@/lib/utils';
 import { fetchStorageInfo } from '@/lib/api';
 import type { StorageInfo } from '@/lib/api';
 
@@ -43,8 +43,8 @@ export function StorageSection({ serverId }: { serverId: string }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground">
-        <Loader2 className="animate-spin mr-2" size={18} />
+      <div className="flex items-center justify-center py-20 text-foreground/40">
+        <Loader2 className="animate-spin mr-2" size={20} />
         Loading storage info…
       </div>
     );
@@ -52,7 +52,7 @@ export function StorageSection({ serverId }: { serverId: string }) {
 
   if (error || !data) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-3 text-muted-foreground">
+      <div className="flex flex-col items-center justify-center py-20 text-foreground/40 gap-3">
         <AlertCircle size={24} />
         <p className="text-sm">{error || 'No data'}</p>
         <Button variant="outline" size="sm" onClick={load}>Retry</Button>
@@ -61,109 +61,109 @@ export function StorageSection({ serverId }: { serverId: string }) {
   }
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="@container p-6 space-y-4">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <HardDrive size={18} className="text-primary" />
-          <h2 className="text-lg font-semibold">Storage</h2>
+        <div className="flex items-center gap-2.5">
+          <HardDrive size={22} className="text-primary" />
+          <h2 className="text-xl font-bold text-foreground">Storage</h2>
         </div>
-        <Button variant="ghost" size="icon" onClick={load} title="Refresh">
-          <RefreshCw size={16} />
-        </Button>
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground/30 hover:text-foreground" onClick={load} title="Refresh"><RefreshCw size={16} /></Button>
       </div>
 
       <Tabs defaultValue="mounts">
-        <TabsList>
-          <TabsTrigger value="mounts">
-            Mount Points <Badge variant="secondary" className="ml-1 text-xs">{data.mounts.length}</Badge>
+        <TabsList className="h-auto p-1 bg-muted rounded-lg gap-1 w-auto inline-flex">
+          <TabsTrigger value="mounts" className="rounded-md px-3 py-1.5 text-[13px] font-medium text-foreground/50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all hover:text-foreground/70">
+            Mount Points
+            <span className="ml-1.5 text-[11px] tabular-nums opacity-50">{data.mounts.length}</span>
           </TabsTrigger>
-          <TabsTrigger value="directories">
-            Directory Sizes <Badge variant="secondary" className="ml-1 text-xs">{data.dirSizes.length}</Badge>
+          <TabsTrigger value="directories" className="rounded-md px-3 py-1.5 text-[13px] font-medium text-foreground/50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all hover:text-foreground/70">
+            Directory Sizes
+            <span className="ml-1.5 text-[11px] tabular-nums opacity-50">{data.dirSizes.length}</span>
           </TabsTrigger>
-          <TabsTrigger value="swap">
-            Swap <Badge variant="secondary" className="ml-1 text-xs">{data.swap.length}</Badge>
+          <TabsTrigger value="swap" className="rounded-md px-3 py-1.5 text-[13px] font-medium text-foreground/50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all hover:text-foreground/70">
+            Swap
+            <span className="ml-1.5 text-[11px] tabular-nums opacity-50">{data.swap.length}</span>
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="mounts">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Source</TableHead>
-                <TableHead>Target</TableHead>
-                <TableHead>FS Type</TableHead>
-
-                <TableHead>Options</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.mounts.map((m) => (
-                <TableRow key={m.target}>
-                  <TableCell className="font-mono text-xs">{m.source}</TableCell>
-                  <TableCell className="font-mono text-xs">{m.target}</TableCell>
-                  <TableCell className="text-xs">{m.fstype}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground max-w-48 truncate" title={m.options}>
-                    {m.options || '—'}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {data.mounts.length === 0 && (
-                <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">No mount points found</TableCell></TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TabsContent>
-
-        <TabsContent value="directories">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Directory</TableHead>
-                <TableHead className="w-32">Size</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.dirSizes.map((d) => (
-                <TableRow key={d.path}>
-                  <TableCell className="font-mono text-xs">{d.path}</TableCell>
-                  <TableCell className="text-sm font-medium">{d.size}</TableCell>
-                </TableRow>
-              ))}
-              {data.dirSizes.length === 0 && (
-                <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">No directory data</TableCell></TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TabsContent>
-
-        <TabsContent value="swap">
-          {data.swap.length === 0 ? (
-            <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
-              No swap configured
-            </div>
-          ) : (
+        <TabsContent value="mounts" className="mt-4">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Size</TableHead>
-                  <TableHead>Used</TableHead>
-                  <TableHead className="w-20">Priority</TableHead>
+                <TableRow className="hover:bg-transparent border-0">
+                  <TableHead className="text-xs font-medium text-foreground/40 h-9">Source</TableHead>
+                  <TableHead className="text-xs font-medium text-foreground/40 h-9">Target</TableHead>
+                  <TableHead className="text-xs font-medium text-foreground/40 h-9">FS Type</TableHead>
+                  <TableHead className="text-xs font-medium text-foreground/40 h-9">Options</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.swap.map((s) => (
-                  <TableRow key={s.name}>
-                    <TableCell className="font-mono text-xs">{s.name}</TableCell>
-                    <TableCell className="text-xs">{s.type}</TableCell>
-                    <TableCell className="text-xs">{s.size}</TableCell>
-                    <TableCell className="text-xs">{s.used}</TableCell>
-                    <TableCell className="text-xs">{s.priority}</TableCell>
+                {data.mounts.map((m) => (
+                  <TableRow key={m.target} className="border-0 hover:bg-muted/20">
+                    <TableCell className="font-mono text-xs text-foreground/70">{m.source}</TableCell>
+                    <TableCell className="font-mono text-xs font-medium">{m.target}</TableCell>
+                    <TableCell className="text-xs text-foreground/50">{m.fstype}</TableCell>
+                    <TableCell className="text-xs text-foreground/50 max-w-48 truncate" title={m.options}>
+                      {m.options || '—'}
+                    </TableCell>
                   </TableRow>
                 ))}
+                {data.mounts.length === 0 && (
+                  <TableRow><TableCell colSpan={4} className="text-center text-foreground/30 py-12 text-sm">No mount points found</TableCell></TableRow>
+                )}
               </TableBody>
             </Table>
+        </TabsContent>
+
+        <TabsContent value="directories" className="mt-4">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent border-0">
+                  <TableHead className="text-xs font-medium text-foreground/40 h-9">Directory</TableHead>
+                  <TableHead className="w-32 text-xs font-medium text-foreground/40 h-9">Size</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.dirSizes.map((d) => (
+                  <TableRow key={d.path} className="border-0 hover:bg-muted/20">
+                    <TableCell className="font-mono text-xs text-foreground/70">{d.path}</TableCell>
+                    <TableCell className="text-xs font-medium tabular-nums">{d.size}</TableCell>
+                  </TableRow>
+                ))}
+                {data.dirSizes.length === 0 && (
+                  <TableRow><TableCell colSpan={2} className="text-center text-foreground/30 py-12 text-sm">No directory data</TableCell></TableRow>
+                )}
+              </TableBody>
+            </Table>
+        </TabsContent>
+
+        <TabsContent value="swap" className="mt-4">
+          {data.swap.length === 0 ? (
+            <div className="flex items-center justify-center text-foreground/30 text-sm py-12">
+              No swap configured
+            </div>
+          ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent border-0">
+                    <TableHead className="text-xs font-medium text-foreground/40 h-9">Name</TableHead>
+                    <TableHead className="text-xs font-medium text-foreground/40 h-9">Type</TableHead>
+                    <TableHead className="text-xs font-medium text-foreground/40 h-9">Size</TableHead>
+                    <TableHead className="text-xs font-medium text-foreground/40 h-9">Used</TableHead>
+                    <TableHead className="w-20 text-xs font-medium text-foreground/40 h-9">Priority</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.swap.map((s) => (
+                    <TableRow key={s.name} className="border-0 hover:bg-muted/20">
+                      <TableCell className="font-mono text-xs font-medium">{s.name}</TableCell>
+                      <TableCell className="text-xs text-foreground/50">{s.type}</TableCell>
+                      <TableCell className="text-xs tabular-nums">{s.size}</TableCell>
+                      <TableCell className="text-xs tabular-nums">{s.used}</TableCell>
+                      <TableCell className="text-xs tabular-nums">{s.priority}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
           )}
         </TabsContent>
       </Tabs>

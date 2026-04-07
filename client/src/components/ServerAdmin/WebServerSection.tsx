@@ -3,7 +3,6 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { RefreshCw, Loader2, AlertCircle, Globe, CheckCircle2, XCircle, Lock, Power, RotateCw, Eye, FileText } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -20,6 +19,7 @@ import {
   DialogHeader,
   DialogDescription,
 } from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
 import {
   fetchWebServerInfo,
   enableNginxSite,
@@ -169,8 +169,8 @@ export function WebServerSection({ serverId }: { serverId: string }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground">
-        <Loader2 className="animate-spin mr-2" size={18} />
+      <div className="flex items-center justify-center py-20 text-foreground/40">
+        <Loader2 size={20} className="animate-spin mr-2" />
         Loading web server info…
       </div>
     );
@@ -178,9 +178,9 @@ export function WebServerSection({ serverId }: { serverId: string }) {
 
   if (error || !data) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-3 text-muted-foreground">
+      <div className="flex flex-col items-center justify-center py-20 text-foreground/40 gap-3">
         <AlertCircle size={24} />
-        <p className="text-sm">{error || 'No data'}</p>
+        <span className="text-sm">{error || 'No data'}</span>
         <Button variant="outline" size="sm" onClick={load}>Retry</Button>
       </div>
     );
@@ -188,31 +188,37 @@ export function WebServerSection({ serverId }: { serverId: string }) {
 
   if (!data.available) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-3 text-muted-foreground">
+      <div className="flex flex-col items-center justify-center py-20 text-foreground/40 gap-3">
         <Globe size={32} className="opacity-40" />
-        <p className="text-sm">{data.message || 'Nginx is not installed'}</p>
-        <p className="text-xs">Install with: <code className="bg-muted px-1.5 py-0.5 rounded">sudo apt install nginx</code></p>
+        <span className="text-sm">{data.message || 'Nginx is not installed'}</span>
+        <span className="text-xs">Install with: <code className="bg-muted px-1.5 py-0.5 rounded">sudo apt install nginx</code></span>
       </div>
     );
   }
 
   return (
-    <div className="p-4 space-y-5">
+    <div className="@container p-6 space-y-4">
       {/* Header + Actions */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Globe size={18} className="text-primary" />
-          <h2 className="text-lg font-semibold">Web Server (Nginx)</h2>
+        <div className="flex items-center gap-3">
+          <Globe size={22} className="text-primary" />
+          <h2 className="text-xl font-bold text-foreground">Web Server (Nginx)</h2>
           {testResult && (
-            <Badge variant={testResult.success ? 'success' : 'destructive'} className="text-xs">
+            <span className={cn(
+              'inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium',
+              testResult.success
+                ? 'bg-emerald-500/10 text-emerald-600'
+                : 'bg-red-500/10 text-red-600'
+            )}>
               {testResult.success ? 'Config OK' : 'Config Error'}
-            </Badge>
+            </span>
           )}
         </div>
-        <div className="flex gap-1.5">
+        <div className="flex items-center gap-1.5">
           <Button
             variant="outline"
             size="sm"
+            className="h-8 text-xs"
             onClick={handleTestConfig}
             disabled={busy || testing}
             title="Test configuration"
@@ -223,6 +229,7 @@ export function WebServerSection({ serverId }: { serverId: string }) {
           <Button
             variant="outline"
             size="sm"
+            className="h-8 text-xs"
             onClick={handleReload}
             disabled={busy}
             title="Reload nginx"
@@ -233,6 +240,7 @@ export function WebServerSection({ serverId }: { serverId: string }) {
           <Button
             variant="outline"
             size="sm"
+            className="h-8 text-xs"
             onClick={handleRestart}
             disabled={busy}
             title="Restart nginx"
@@ -240,48 +248,53 @@ export function WebServerSection({ serverId }: { serverId: string }) {
             <Power size={14} className="mr-1" />
             Restart
           </Button>
-          <Button variant="ghost" size="icon" onClick={load} title="Refresh">
-            <RefreshCw size={16} />
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground/30 hover:text-foreground" onClick={load} disabled={busy}>
+            <RefreshCw size={16} className={cn(busy && 'animate-spin')} />
           </Button>
         </div>
       </div>
 
       {/* Config Test Error Output */}
       {testResult && !testResult.success && (
-        <div className="p-3 rounded-md bg-destructive/10 border border-destructive/20 text-sm">
-          <div className="flex items-center gap-1.5 mb-1 text-destructive font-medium">
+        <div className="p-3 bg-red-500/5 rounded-lg text-sm">
+          <div className="flex items-center gap-1.5 mb-1 text-red-600 font-medium">
             <XCircle size={14} />
             Config Test Failed
           </div>
-          <pre className="text-xs font-mono whitespace-pre-wrap text-muted-foreground">{testResult.output}</pre>
+          <pre className="text-xs font-mono whitespace-pre-wrap text-foreground/40">{testResult.output}</pre>
         </div>
       )}
 
       {/* Sites */}
       <div>
-        <h3 className="text-sm font-medium mb-2">
-          Sites <Badge variant="secondary" className="ml-1.5 text-xs">{data.sites.length}</Badge>
+        <h3 className="text-sm font-medium text-foreground/60 mb-2">
+          Sites
+          <span className="inline-flex items-center ml-1.5 px-1.5 py-0.5 rounded-full text-[11px] font-medium bg-foreground/5 text-foreground/40">
+            {data.sites.length}
+          </span>
         </h3>
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Site Name</TableHead>
-              <TableHead className="w-24">Status</TableHead>
-              <TableHead className="w-40 text-right">Actions</TableHead>
+            <TableRow className="hover:bg-transparent border-0">
+              <TableHead className="text-xs font-medium text-foreground/40 h-9">Site Name</TableHead>
+              <TableHead className="w-24 text-xs font-medium text-foreground/40 h-9">Status</TableHead>
+              <TableHead className="w-40 text-right text-xs font-medium text-foreground/40 h-9">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {data.sites.map((s) => (
-              <TableRow key={s.name}>
+              <TableRow key={s.name} className="border-0 hover:bg-muted/20 group">
                 <TableCell className="font-mono text-xs">{s.name}</TableCell>
                 <TableCell>
                   {s.enabled ? (
-                    <Badge variant="success" className="text-xs">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-600">
                       <CheckCircle2 size={12} className="mr-1" />
                       Enabled
-                    </Badge>
+                    </span>
                   ) : (
-                    <Badge variant="secondary" className="text-xs">Disabled</Badge>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-foreground/5 text-foreground/40">
+                      Disabled
+                    </span>
                   )}
                 </TableCell>
                 <TableCell className="text-right">
@@ -299,9 +312,9 @@ export function WebServerSection({ serverId }: { serverId: string }) {
                     <Button
                       variant="outline"
                       size="sm"
+                      className="h-8 text-xs"
                       onClick={() => handleToggleSite(s.name, s.enabled)}
                       disabled={busy}
-                      className="text-xs"
                     >
                       {s.enabled ? 'Disable' : 'Enable'}
                     </Button>
@@ -310,7 +323,9 @@ export function WebServerSection({ serverId }: { serverId: string }) {
               </TableRow>
             ))}
             {data.sites.length === 0 && (
-              <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">No sites found</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={3} className="text-center text-foreground/30 py-12 text-sm">No sites found</TableCell>
+              </TableRow>
             )}
           </TableBody>
         </Table>
@@ -318,40 +333,44 @@ export function WebServerSection({ serverId }: { serverId: string }) {
 
       {/* SSL Certificates */}
       <div>
-        <h3 className="text-sm font-medium mb-2">
+        <h3 className="text-sm font-medium text-foreground/60 mb-2">
           <Lock size={14} className="inline mr-1" />
           SSL Certificates
         </h3>
         {data.sslCertificates.length > 0 ? (
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Domain</TableHead>
-                <TableHead>Issuer</TableHead>
-                <TableHead>Expiry</TableHead>
-                <TableHead className="w-28">Days Left</TableHead>
+              <TableRow className="hover:bg-transparent border-0">
+                <TableHead className="text-xs font-medium text-foreground/40 h-9">Domain</TableHead>
+                <TableHead className="text-xs font-medium text-foreground/40 h-9">Issuer</TableHead>
+                <TableHead className="text-xs font-medium text-foreground/40 h-9">Expiry</TableHead>
+                <TableHead className="w-28 text-xs font-medium text-foreground/40 h-9">Days Left</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {data.sslCertificates.map((cert) => (
-                <TableRow key={cert.domain}>
+                <TableRow key={cert.domain} className="border-0 hover:bg-muted/20 group">
                   <TableCell className="font-mono text-xs">{cert.domain}</TableCell>
                   <TableCell className="text-xs">{cert.issuer}</TableCell>
                   <TableCell className="text-xs">{cert.expiry}</TableCell>
                   <TableCell>
-                    <Badge
-                      variant={cert.daysRemaining > 30 ? 'success' : cert.daysRemaining > 7 ? 'warning' : 'destructive'}
-                      className="text-xs"
-                    >
+                    <span className={cn(
+                      'inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium',
+                      cert.daysRemaining > 30
+                        ? 'bg-emerald-500/10 text-emerald-600'
+                        : cert.daysRemaining > 7
+                          ? 'bg-amber-500/10 text-amber-600'
+                          : 'bg-red-500/10 text-red-600'
+                    )}>
                       {cert.daysRemaining}d
-                    </Badge>
+                    </span>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         ) : (
-          <p className="text-sm text-muted-foreground">No SSL certificates found (certbot not installed or no certs issued)</p>
+          <p className="text-foreground/30 py-12 text-sm text-center">No SSL certificates found (certbot not installed or no certs issued)</p>
         )}
       </div>
 
@@ -363,12 +382,12 @@ export function WebServerSection({ serverId }: { serverId: string }) {
             <DialogDescription>Nginx site configuration (read-only)</DialogDescription>
           </DialogHeader>
           {configLoading ? (
-            <div className="flex items-center justify-center h-32 text-muted-foreground">
+            <div className="flex items-center justify-center h-32 text-foreground/40">
               <Loader2 className="animate-spin mr-2" size={16} />
               Loading config…
             </div>
           ) : (
-            <pre className="text-xs font-mono whitespace-pre-wrap bg-muted/50 p-4 rounded-md border border-border overflow-auto max-h-[50vh]">
+            <pre className="text-xs font-mono whitespace-pre-wrap bg-muted/20 p-4 rounded-lg overflow-auto max-h-[50vh]">
               {configContent}
             </pre>
           )}

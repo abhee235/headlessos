@@ -428,6 +428,98 @@ rm -rf /, mkfs, dd if=, shutdown, reboot, init 0,
 
 ---
 
+## ADR-015: Dynamic UI Engine — JSON Schema → LLM-Generated Interfaces
+
+**Status:** Accepted
+**Date:** 2026-04-11
+
+**Context:**
+HeadlessOS currently has hardcoded React components for every view (Dashboard, Docker, Files, etc.). Adding a new tool requires creating a complete React component, backend route, parser, and schema — significant effort even for simple data displays.
+
+The "core differentiator" vision for HeadlessOS is **dynamic UI generation**: an LLM analyzes terminal output and produces a JSON schema that describes widgets (tables, charts, badges, key-value pairs, etc.), and a generic renderer turns that schema into a live visual interface. This eliminates the need for per-tool hardcoded UIs and allows HeadlessOS to visually represent **any** command output without developer effort.
+
+**Options Considered:**
+
+1. **Full LLM generation (LLM invents layout every time)** — Maximum flexibility, but slow (2-5s), expensive, and inconsistent layouts between runs.
+2. **Template-only (pre-built JSON templates, no LLM)** — Fast, free, consistent, but requires a template for every tool (back to square one).
+3. **Hybrid: Template Library + LLM Customization** — LLM picks from a curated template library, customizes fields/labels/colors for the specific data. Falls back to pure generation for unknown tools.
+
+**Decision:** Option 3 — Hybrid Template + LLM.
+
+### Core Architecture
+
+```
+User triggers (Command Palette / Agent)
+    │
+    ▼
+DynamicUIGenerator (backend service)
+    ├── Template Library (15-20 JSON templates for common patterns)
+    ├── LLM Generation (streaming) — picks template OR generates from scratch
+    └── Zod Validation (DynamicViewSchema)
+    │
+    ▼ (WebSocket — incremental JSON chunks)
+    │
+DynamicViewRenderer (React)
+    ├── Renders widgets progressively as JSON arrives
+    ├── Widget components: Table, KV, Badge, Chart, StatCard, CodeBlock, Alert, Progress, Tree, LogViewer
+    └── Layout components: Tabs, Sidebar, Grid
+```
+
+### Key Sub-Decisions
+
+**1. Streaming / Incremental Rendering (CRITICAL)**
+- The LLM generates JSON **incrementally** via streaming (not waiting for full response)
+- Backend streams partial `DynamicViewSchema` chunks to the frontend via WebSocket
+- Frontend `DynamicViewRenderer` renders each widget **as it arrives** in the JSON stream
+- This creates a "magical" progressive build effect — the user sees the UI assembling in real-time
+- Partial schemas are valid: `{ widgets: [widget1] }` renders immediately, then `widget2` appears when it arrives
+- Similar pattern to agent step streaming (M11.6) but for UI elements instead of investigation steps
+
+**2. DynamicViewSchema (Zod)**
+- Single Zod schema defines all possible widget types and layouts
+- Serves dual purpose: runtime validation + `zodResponseFormat()` for LLM structured output
+- Widget types: `table`, `key-value`, `badge-grid`, `stat-card`, `progress-bar`, `code-block`, `alert`, `chart`, `tree`, `log-viewer`, `form`
+- Layout types: `stack` (vertical), `grid`, `tabs`, `sidebar`
+- Each widget has optional `dataSource` for live refresh
+
+**3. DynamicViewRenderer (React)**
+- Generic renderer that maps widget types → React components
+- All widget components use existing shadcn/ui primitives (Table, Card, Badge, Progress, etc.)
+- Handles partial schemas gracefully (renders what's available, shows skeleton for pending)
+- Wrapped in `AppWindow` for overlay display; can also embed in desktop tabs
+
+**4. Template Library**
+- JSON templates for common patterns: system overview, package list, log viewer, config file, port table, user list, etc.
+- Templates are parameterized: `{{ fieldName }}` placeholders filled by LLM or data
+- LLM can select a template and customize it, or generate entirely new JSON for unknown tools
+- Templates live in `server/src/dynamic-ui/templates/`
+
+**5. Trigger Mechanism**
+- Phase 1: Command Palette (user explicitly types tool/package name)
+- Phase 2: Agent integration (investigation agent generates dynamic UIs for its findings)
+- Phase 3: Terminal buffer capture (auto-detect interesting output, offer dynamic view)
+
+**6. Experimental Track**
+- This feature uses task IDs `EX1.1` through `EX1.14` — separate from main milestones
+- Won't disrupt existing hardcoded views — Dynamic UI is additive
+- Hardcoded views remain for core apps (Dashboard, Docker, Files) — dynamic UI extends to new tools
+
+**Consequences:**
+- (+) Any CLI tool gets a visual UI without writing React components
+- (+) Template library ensures consistency for common patterns
+- (+) Streaming makes generation feel instant and "magical" — no loading spinner, just progressive build
+- (+) Zod schema is single source of truth for both validation and LLM generation
+- (+) Experimental track doesn't risk breaking existing functionality
+- (+) Reuses existing infrastructure: shadcn/ui components, WebSocket streaming, LLM provider, Zod pipeline
+- (-) Streaming JSON parsing adds complexity (must handle partial/incomplete structures)
+- (-) Template library needs ongoing curation as new tools are discovered
+- (-) LLM-generated layouts may occasionally be suboptimal (mitigated by templates)
+- (-) Cost per dynamic UI generation (mitigated by caching + template reuse)
+
+**Reference:** See [phases/phase-ex1.md](phases/phase-ex1.md) for the full implementation spec.
+
+---
+
 ## Template for New ADRs
 
 ```markdown

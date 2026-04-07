@@ -502,6 +502,61 @@ An "app" in HeadlessOS is a **module** that:
 
 See [APP_REGISTRY.md](APP_REGISTRY.md) for the full app definition schema.
 
+### 5b. Dynamic UI Engine (EX1)
+
+**Location:** Backend: `server/src/dynamic-ui/`, Frontend: `client/src/components/DynamicUI/`, Schema: `shared/schemas/dynamic-view.ts`
+
+The Dynamic UI Engine is HeadlessOS's **core differentiator**: it generates visual interfaces from **any** terminal output without writing custom React components. An LLM analyzes command output and produces a `DynamicViewSchema` JSON describing widgets and layouts. A generic renderer turns that JSON into live UI.
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      DYNAMIC UI ENGINE PIPELINE                         │
+│                                                                         │
+│  Trigger (Command Palette / Agent / Terminal "Visualize" button)        │
+│      │                                                                  │
+│      ▼                                                                  │
+│  ┌───────────────────────────────────────────────────────────────────┐  │
+│  │  DynamicUIGenerator (Backend Service)                              │  │
+│  │                                                                     │  │
+│  │  1. Search Template Library (15+ JSON templates)                   │  │
+│  │  2. LLM Call (streaming) with zodResponseFormat(DynamicViewSchema) │  │
+│  │  3. Stream partial JSON chunks via WebSocket                       │  │
+│  │  4. Validate complete result with Zod                              │  │
+│  │  5. Cache by (tool + command + outputHash)                         │  │
+│  └───────────────────────────┬───────────────────────────────────────┘  │
+│                              │ WebSocket (incremental JSON)             │
+│                              ▼                                          │
+│  ┌───────────────────────────────────────────────────────────────────┐  │
+│  │  DynamicViewRenderer (React)                                       │  │
+│  │                                                                     │  │
+│  │  Widget components (all use shadcn/ui primitives):                 │  │
+│  │  ┌───────┐ ┌────────┐ ┌───────┐ ┌──────────┐ ┌───────────────┐  │  │
+│  │  │ Table │ │  Chart │ │ Badge │ │ StatCard │ │ProgressBar   │  │  │
+│  │  └───────┘ └────────┘ │ Grid  │ └──────────┘ │CodeBlock/Log │  │  │
+│  │                       └───────┘               └───────────────┘  │  │
+│  │                                                                     │  │
+│  │  Layout components:                                                │  │
+│  │  ┌───────┐ ┌──────┐ ┌──────┐ ┌─────────┐                        │  │
+│  │  │ Stack │ │ Grid │ │ Tabs │ │ Sidebar │                        │  │
+│  │  └───────┘ └──────┘ └──────┘ └─────────┘                        │  │
+│  │                                                                     │  │
+│  │  Renders widgets PROGRESSIVELY as JSON arrives (streaming).        │  │
+│  │  Skeleton placeholders for pending widgets.                        │  │
+│  │  Entrance animations (fade-in) for each new widget.               │  │
+│  └───────────────────────────────────────────────────────────────────┘  │
+│                                                                         │
+│  Displayed in: AppWindow overlay  OR  Desktop tab                      │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**Key design decisions (ADR-015):**
+- **Streaming/incremental rendering** — LLM generates JSON incrementally, UI builds progressively (no loading spinner)
+- **Hybrid template + LLM** — template library for consistency, LLM customizes or generates from scratch
+- **Zod as single source of truth** — `DynamicViewSchema` used for both Zod validation and `zodResponseFormat()` LLM structured output
+- **Existing infrastructure reuse** — WebSocket streaming (like M11.6 agent), shadcn/ui widgets, LLM provider, Zod pipeline
+
+See [ADR-015](DECISIONS.md) for full rationale and [phase-ex1.md](phases/phase-ex1.md) for implementation spec.
+
 ### 5. Frontend Architecture
 
 **Location:** `client/src/`

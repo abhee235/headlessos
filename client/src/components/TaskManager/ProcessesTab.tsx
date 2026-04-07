@@ -64,9 +64,9 @@ function getStatBadge(stat: string): { variant: 'default' | 'success' | 'warning
 
 // CPU/Mem usage color gradient
 function usageColor(pct: number): string {
-  if (pct >= 80) return 'text-red-500';
-  if (pct >= 50) return 'text-orange-400';
-  if (pct >= 20) return 'text-yellow-400';
+  if (pct >= 80) return 'text-destructive';
+  if (pct >= 50) return 'text-warning';
+  if (pct >= 20) return 'text-warning/70';
   return 'text-muted-foreground';
 }
 
@@ -190,14 +190,14 @@ export function ProcessesTab({ processes, serverId, onRefresh, refreshing, onCon
             <button
               onClick={() => handleKill(15)}
               disabled={killing}
-              className="flex items-center gap-1 px-2.5 py-1 text-[11px] rounded-md bg-orange-500/15 text-orange-400 hover:bg-orange-500/25 transition-colors disabled:opacity-50"
+              className="flex items-center gap-1 px-2.5 py-1 text-[11px] rounded-md bg-warning/15 text-warning hover:bg-warning/25 transition-colors disabled:opacity-50"
             >
               End Task
             </button>
             <button
               onClick={() => handleKill(9)}
               disabled={killing}
-              className="flex items-center gap-1 px-2.5 py-1 text-[11px] rounded-md bg-red-500/15 text-red-400 hover:bg-red-500/25 transition-colors disabled:opacity-50"
+              className="flex items-center gap-1 px-2.5 py-1 text-[11px] rounded-md bg-destructive/15 text-destructive hover:bg-destructive/25 transition-colors disabled:opacity-50"
             >
               <Skull size={11} />
               Force Kill

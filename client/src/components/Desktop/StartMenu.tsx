@@ -217,11 +217,11 @@ export function StartMenu() {
 
   const statusDot =
     serverStatus === 'connected'
-      ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50'
+      ? 'bg-success shadow-sm shadow-success/50'
       : serverStatus === 'connecting'
-        ? 'bg-amber-400 animate-pulse'
+        ? 'bg-warning animate-pulse'
         : serverStatus === 'error'
-          ? 'bg-red-500'
+          ? 'bg-destructive'
           : 'bg-foreground/20';
 
   return (
@@ -382,7 +382,7 @@ export function StartMenu() {
       {/* ── Footer: user + server status ── */}
       <div className="flex items-center justify-between px-5 py-2.5 border-t border-separator">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-linear-to-br from-blue-400 to-indigo-500 flex items-center justify-center shadow-sm shadow-blue-500/25">
+          <div className="w-9 h-9 rounded-full bg-linear-to-br from-primary to-primary/60 flex items-center justify-center shadow-sm shadow-primary/25">
             <User className="w-4 h-4 text-white" strokeWidth={2.25} />
           </div>
           <div>
@@ -404,7 +404,7 @@ export function StartMenu() {
           {/* Connect / Disconnect */}
           {activeServer && serverStatus === 'connected' ? (
             <button
-              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-black/5 dark:hover:bg-white/6 text-foreground/35 hover:text-red-500 transition-colors"
+              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-black/5 dark:hover:bg-white/6 text-foreground/35 hover:text-destructive transition-colors"
               title="Disconnect"
               onClick={(e) => {
                 e.stopPropagation();
@@ -415,7 +415,7 @@ export function StartMenu() {
             </button>
           ) : activeServer && serverStatus !== 'connecting' ? (
             <button
-              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-black/5 dark:hover:bg-white/6 text-foreground/35 hover:text-emerald-500 transition-colors"
+              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-black/5 dark:hover:bg-white/6 text-foreground/35 hover:text-success transition-colors"
               title="Connect"
               onClick={(e) => {
                 e.stopPropagation();
@@ -455,7 +455,7 @@ export function StartMenu() {
 
           {/* Sign out */}
           <button
-            className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-black/5 dark:hover:bg-white/6 text-foreground/35 hover:text-red-500 transition-colors"
+              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-black/5 dark:hover:bg-white/6 text-foreground/35 hover:text-destructive transition-colors"
             title="Sign Out"
             onClick={() => {
               closeStartMenu();

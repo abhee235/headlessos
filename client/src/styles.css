@@ -234,10 +234,14 @@
 }
 
 body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text',
+    'Helvetica Neue', system-ui, sans-serif;
   background-color: var(--background);
   color: var(--foreground);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Glass utility classes ── */
@@ -388,6 +392,10 @@ body {
 
 .animate-windowOpen {
   animation: windowOpen 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-windowClose {
+  animation: windowClose 0.12s cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
 @keyframes shake {

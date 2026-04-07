@@ -148,7 +148,7 @@ export function AddServerForm({ onSubmit, onCancel }: AddServerFormProps) {
   };
 
   const inputClass =
-    'w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-white placeholder-white/30 text-sm outline-none focus:border-blue-400/50 focus:bg-white/15 transition-all';
+    'w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-white placeholder-white/30 text-sm outline-none focus:border-primary/50 focus:bg-white/15 transition-all';
 
   const labelClass = 'text-white/50 text-xs font-medium uppercase tracking-wider mb-1.5 block';
 
@@ -165,8 +165,8 @@ export function AddServerForm({ onSubmit, onCancel }: AddServerFormProps) {
 
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
-          <Server className="w-5 h-5 text-blue-400" />
+        <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+          <Server className="w-5 h-5 text-primary" />
         </div>
         <div>
           <h2 className="text-white text-lg font-semibold">Add Server</h2>
@@ -231,7 +231,7 @@ export function AddServerForm({ onSubmit, onCancel }: AddServerFormProps) {
                 className={`
                   flex-1 py-2 rounded-lg text-xs font-medium transition-all
                   ${authMethod === method
-                    ? 'bg-blue-500/20 border border-blue-400/30 text-blue-400'
+                    ? 'bg-primary/20 border border-primary/30 text-primary'
                     : 'bg-white/5 border border-white/10 text-white/40 hover:text-white/60 hover:bg-white/10'
                   }
                 `}
@@ -278,7 +278,7 @@ export function AddServerForm({ onSubmit, onCancel }: AddServerFormProps) {
                     className={`
                       flex-1 py-1.5 px-2 rounded-md text-[11px] font-medium transition-all flex items-center justify-center gap-1.5
                       ${keySource === id
-                        ? 'bg-purple-500/20 border border-purple-400/30 text-purple-400'
+                        ? 'bg-primary/20 border border-primary/30 text-primary'
                         : 'bg-white/5 border border-white/10 text-white/40 hover:text-white/60 hover:bg-white/10'
                       }
                     `}
@@ -316,11 +316,11 @@ export function AddServerForm({ onSubmit, onCancel }: AddServerFormProps) {
                   <div className="relative" ref={dropdownRef}>
                     <button
                       type="button"
-                      className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-sm transition-all hover:bg-white/15 focus:border-blue-400/50"
+                      className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-sm transition-all hover:bg-white/15 focus:border-primary/50"
                       onClick={() => setKeyDropdownOpen(!keyDropdownOpen)}
                     >
                       <div className="flex items-center gap-2">
-                        <KeyRound className="w-3.5 h-3.5 text-blue-400" />
+                        <KeyRound className="w-3.5 h-3.5 text-primary" />
                         <span className="text-white">
                           {selectedKeyName ?? 'Select a key...'}
                         </span>
@@ -348,7 +348,7 @@ export function AddServerForm({ onSubmit, onCancel }: AddServerFormProps) {
                             </div>
                             <span className="text-white/20 text-[10px] font-mono">{key.type}</span>
                             {selectedKeyName === key.name && (
-                              <Check className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                              <Check className="w-3.5 h-3.5 text-primary shrink-0" />
                             )}
                           </button>
                         ))}
@@ -365,7 +365,7 @@ export function AddServerForm({ onSubmit, onCancel }: AddServerFormProps) {
                 )}
                 {/* Key loaded confirmation */}
                 {!loadingKeyContent && privateKeyContent && selectedKeyName && (
-                  <div className="flex items-center gap-2 mt-2 text-green-400/80 text-xs">
+                  <div className="flex items-center gap-2 mt-2 text-success/80 text-xs">
                     <Check className="w-3 h-3" />
                     Key loaded ({privateKeyContent.split('\n').length} lines)
                   </div>
@@ -390,7 +390,7 @@ export function AddServerForm({ onSubmit, onCancel }: AddServerFormProps) {
                   )}
                 </button>
                 {privateKeyContent && (
-                  <div className="flex items-center gap-2 mt-2 text-green-400/80 text-xs">
+                  <div className="flex items-center gap-2 mt-2 text-success/80 text-xs">
                     <Check className="w-3 h-3" />
                     Key loaded ({privateKeyContent.split('\n').length} lines)
                   </div>
@@ -433,7 +433,7 @@ export function AddServerForm({ onSubmit, onCancel }: AddServerFormProps) {
 
         {/* Error */}
         {error && (
-          <p className="text-red-400 text-xs bg-red-500/10 px-3 py-2 rounded-lg">{error}</p>
+          <p className="text-destructive text-xs bg-destructive/10 px-3 py-2 rounded-lg">{error}</p>
         )}
 
         {/* Actions */}
@@ -447,7 +447,7 @@ export function AddServerForm({ onSubmit, onCancel }: AddServerFormProps) {
           </button>
           <button
             type="submit"
-            className="flex-1 py-2.5 rounded-lg bg-blue-500 hover:bg-blue-600 disabled:bg-blue-500/30 disabled:text-white/50 text-white text-sm font-medium transition-all flex items-center justify-center gap-2"
+            className="flex-1 py-2.5 rounded-lg bg-primary hover:bg-primary/90 disabled:bg-primary/30 disabled:text-white/50 text-white text-sm font-medium transition-all flex items-center justify-center gap-2"
             disabled={!canSubmit}
           >
             {submitting ? (
