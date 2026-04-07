@@ -17,6 +17,9 @@ import {
   ChartWidgetSchema,
   TreeWidgetSchema,
   LogViewerWidgetSchema,
+  FormWidgetSchema,
+  FormFieldSchema,
+  FormFieldGroupSchema,
   StackLayoutSchema,
   GridLayoutSchema,
   TabsLayoutSchema,
@@ -455,9 +458,9 @@ describe('WidgetSchema (discriminated union)', () => {
   it('WIDGET_TYPES constant matches all registered types', () => {
     expect(WIDGET_TYPES).toEqual([
       'table', 'key-value', 'badge-grid', 'stat-card', 'progress-bar',
-      'code-block', 'alert', 'chart', 'tree', 'log-viewer',
+      'code-block', 'alert', 'chart', 'tree', 'log-viewer', 'form',
     ]);
-    expect(WIDGET_TYPES).toHaveLength(10);
+    expect(WIDGET_TYPES).toHaveLength(11);
   });
 });
 
@@ -899,6 +902,7 @@ describe('Widgets with dataSource', () => {
       { schema: ChartWidgetSchema, base: { type: 'chart', chartType: 'bar', xKey: 'name', data: [{ name: 'a', v: 1 }], yKeys: [{ key: 'v' }] } },
       { schema: TreeWidgetSchema, base: { type: 'tree', nodes: [{ label: 'root', children: [] }] } },
       { schema: LogViewerWidgetSchema, base: { type: 'log-viewer', lines: [{ message: 'ok' }] } },
+      { schema: FormWidgetSchema, base: { type: 'form', fields: [{ key: 'name', label: 'Name' }] } },
     ];
 
     for (const { schema, base } of widgetSchemas) {
@@ -1045,5 +1049,219 @@ describe('TableWidgetSchema with actions (EX1.14)', () => {
     expect(view.root.widgets).toHaveLength(1);
     const table = view.root.widgets[0] as { actions?: unknown[] };
     expect(table.actions).toHaveLength(1);
+  });
+});
+
+// ── EX1.15: FormFieldSchema & FormWidgetSchema ──────────────────
+
+describe('FormFieldSchema (EX1.15)', () => {
+  it('parses a text field with all properties', () => {
+    const result = FormFieldSchema.parse({
+      key: 'hostname',
+      label: 'Hostname',
+      type: 'text',
+      value: 'server-01',
+      placeholder: 'Enter hostname',
+      description: 'Server hostname',
+      required: true,
+      min: 1,
+      max: 64,
+      pattern: '^[a-z0-9-]+$',
+    });
+    expect(result.key).toBe('hostname');
+    expect(result.type).toBe('text');
+    expect(result.value).toBe('server-01');
+    expect(result.required).toBe(true);
+    expect(result.pattern).toBe('^[a-z0-9-]+$');
+  });
+
+  it('applies default type (text) and required (false)', () => {
+    const result = FormFieldSchema.parse({ key: 'name', label: 'Name' });
+    expect(result.type).toBe('text');
+    expect(result.required).toBe(false);
+  });
+
+  it('parses a number field', () => {
+    const result = FormFieldSchema.parse({
+      key: 'port',
+      label: 'Port',
+      type: 'number',
+      value: 8080,
+      min: 1,
+      max: 65535,
+    });
+    expect(result.type).toBe('number');
+    expect(result.value).toBe(8080);
+    expect(result.min).toBe(1);
+    expect(result.max).toBe(65535);
+  });
+
+  it('parses a boolean field', () => {
+    const result = FormFieldSchema.parse({
+      key: 'enabled',
+      label: 'Enabled',
+      type: 'boolean',
+      value: true,
+    });
+    expect(result.type).toBe('boolean');
+    expect(result.value).toBe(true);
+  });
+
+  it('parses a select field with options', () => {
+    const result = FormFieldSchema.parse({
+      key: 'env',
+      label: 'Environment',
+      type: 'select',
+      value: 'production',
+      options: [
+        { label: 'Production', value: 'production' },
+        { label: 'Staging', value: 'staging' },
+        { label: 'Dev', value: 'dev' },
+      ],
+    });
+    expect(result.type).toBe('select');
+    expect(result.options).toHaveLength(3);
+  });
+
+  it('parses a textarea field', () => {
+    const result = FormFieldSchema.parse({
+      key: 'notes',
+      label: 'Notes',
+      type: 'textarea',
+      value: 'Some notes here',
+    });
+    expect(result.type).toBe('textarea');
+  });
+
+  it('accepts null for optional fields', () => {
+    const result = FormFieldSchema.parse({
+      key: 'test',
+      label: 'Test',
+      value: null,
+      placeholder: null,
+      description: null,
+      options: null,
+      min: null,
+      max: null,
+      pattern: null,
+    });
+    expect(result.value).toBeNull();
+    expect(result.placeholder).toBeNull();
+  });
+
+  it('rejects invalid field type', () => {
+    expect(() =>
+      FormFieldSchema.parse({ key: 'x', label: 'X', type: 'invalid' }),
+    ).toThrow(ZodError);
+  });
+
+  it('rejects missing key or label', () => {
+    expect(() => FormFieldSchema.parse({ label: 'X' })).toThrow(ZodError);
+    expect(() => FormFieldSchema.parse({ key: 'x' })).toThrow(ZodError);
+  });
+});
+
+describe('FormFieldGroupSchema (EX1.15)', () => {
+  it('parses a valid group', () => {
+    const result = FormFieldGroupSchema.parse({
+      label: 'Network Settings',
+      fieldKeys: ['hostname', 'port', 'protocol'],
+    });
+    expect(result.label).toBe('Network Settings');
+    expect(result.fieldKeys).toHaveLength(3);
+  });
+
+  it('rejects missing label', () => {
+    expect(() =>
+      FormFieldGroupSchema.parse({ fieldKeys: ['a'] }),
+    ).toThrow(ZodError);
+  });
+});
+
+describe('FormWidgetSchema (EX1.15)', () => {
+  const baseFormWidget = {
+    type: 'form' as const,
+    fields: [
+      { key: 'hostname', label: 'Hostname', type: 'text' as const, value: 'srv-1' },
+      { key: 'port', label: 'Port', type: 'number' as const, value: 8080 },
+    ],
+  };
+
+  it('parses a minimal form widget', () => {
+    const result = FormWidgetSchema.parse(baseFormWidget);
+    expect(result.type).toBe('form');
+    expect(result.fields).toHaveLength(2);
+    expect(result.submitLabel).toBe('Save');
+    expect(result.readOnly).toBe(false);
+  });
+
+  it('parses form with title and custom submit label', () => {
+    const result = FormWidgetSchema.parse({
+      ...baseFormWidget,
+      title: 'Server Config',
+      submitLabel: 'Apply Changes',
+    });
+    expect(result.title).toBe('Server Config');
+    expect(result.submitLabel).toBe('Apply Changes');
+  });
+
+  it('parses form with groups', () => {
+    const result = FormWidgetSchema.parse({
+      ...baseFormWidget,
+      groups: [
+        { label: 'Network', fieldKeys: ['hostname', 'port'] },
+      ],
+    });
+    expect(result.groups).toHaveLength(1);
+    expect(result.groups![0]!.label).toBe('Network');
+  });
+
+  it('parses read-only form', () => {
+    const result = FormWidgetSchema.parse({
+      ...baseFormWidget,
+      readOnly: true,
+    });
+    expect(result.readOnly).toBe(true);
+  });
+
+  it('parses form with dataSource', () => {
+    const result = FormWidgetSchema.parse({
+      ...baseFormWidget,
+      dataSource: { command: 'cat /etc/config.json', refreshInterval: 10000, parseMode: 'json' },
+    });
+    expect(result.dataSource?.command).toBe('cat /etc/config.json');
+  });
+
+  it('accepts null for optional fields', () => {
+    const result = FormWidgetSchema.parse({
+      ...baseFormWidget,
+      title: null,
+      groups: null,
+      dataSource: null,
+    });
+    expect(result.title).toBeNull();
+    expect(result.groups).toBeNull();
+  });
+
+  it('rejects form without fields', () => {
+    expect(() => FormWidgetSchema.parse({ type: 'form' })).toThrow(ZodError);
+  });
+
+  it('form widget in WidgetSchema union validates', () => {
+    const result = WidgetSchema.parse(baseFormWidget);
+    expect(result.type).toBe('form');
+  });
+
+  it('form widget in full DynamicView validates', () => {
+    const view = DynamicViewSchema.parse({
+      title: 'Config Editor',
+      root: {
+        layout: 'stack',
+        gap: 'md',
+        widgets: [baseFormWidget],
+      },
+    });
+    expect(view.root.widgets).toHaveLength(1);
+    expect(view.root.widgets[0]!.type).toBe('form');
   });
 });
