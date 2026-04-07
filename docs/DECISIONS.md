@@ -520,6 +520,141 @@ DynamicViewRenderer (React)
 
 ---
 
+## ADR-016: Multi-Model UI Generation Agent (Plan → Reactive Execute → Reflect)
+
+**Status:** Accepted (revised 2026-04-08 based on agent architecture research)
+**Date:** 2026-04-07 (revised 2026-04-08)
+
+**Context:**
+The Dynamic UI Engine (ADR-015) generates `DynamicViewSchema` JSON from terminal output. The current `InvestigationAgent` (M11.5) is a simple single-model, single-loop ReAct agent designed only for read-only server diagnosis. It cannot:
+- Generate structured UI schemas (only produces text answers)
+- Use multiple models for different tasks (reasoning vs structured output)
+- Self-correct on Zod validation failures with deep analysis
+- Perform write operations (edit configs, restart services)
+- Plan multi-step tasks before executing them
+- Reflect on output quality and iterate
+
+We need a **UI Generation Agent** — a robust, multi-model agent specialized in generating interactive `DynamicViewSchema` UIs.
+
+**Research (2026-04-08):** Deep-analyzed three production coding agents — **Roo Code**, **Continue**, and **Aider** — to learn battle-tested agentic AI patterns. Key findings documented in [AGENT_RESEARCH_EX2.md](phases/AGENT_RESEARCH_EX2.md).
+
+**Critical insight from research:** All three agents use **reactive tool-calling loops** where the LLM decides tools dynamically via native function calling — NOT rigid pre-planned step sequences. The original "Planner produces a step-by-step tool list → Executor runs them in order" design was replaced with "Planner produces high-level hints → Executor runs a reactive loop with native function calling."
+
+**Options Considered:**
+
+1. **Extend InvestigationAgent** — Add model routing and schema generation to the existing agent.
+2. **New agent class with rigid Plan→Execute→Reflect** — Original design (pre-research).
+3. **New agent class with reactive Plan→Loop→Reflect** — Research-informed design.
+4. **Agent framework (LangChain, AutoGen, CrewAI)** — Use an existing agent framework.
+
+**Decision:** Option 3 — New `UIAgent` class with reactive tool-calling loop, informed by Roo Code/Continue/Aider patterns.
+
+**Rationale:**
+- Option 1 rejected: InvestigationAgent is fundamentally read-only with a flat ReAct loop. Retrofitting adds complexity.
+- Option 2 revised: The rigid plan-then-execute approach fails when commands return unexpected results. Real agents need to react dynamically.
+- Option 3 chosen: Reactive loop with native function calling matches how all successful coding agents work. The LLM decides tools based on observed results, self-corrects on errors inline, and produces output when ready.
+- Option 4 rejected: Massive dependency trees, abstraction overhead, and vendor lock-in.
+
+### Core Architecture: Plan → Reactive Execute → optional Post-Reflect
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     UI Agent Pipeline (v2)                    │
+│                                                              │
+│  ┌──────────────┐    ┌─────────────────────┐    ┌────────┐ │
+│  │   PLANNER    │───▶│  REACTIVE EXECUTOR  │───▶│REFLECT │ │
+│  │ (Reasoning)  │    │  (Structured Output) │    │(opt.)  │ │
+│  │ o3 / o4-mini │    │  GPT-4.1 + fn call  │    │o4-mini │ │
+│  └──────┬───────┘    └──────┬───────────────┘    └────┬───┘ │
+│         │                   │                         │      │
+│  • Parse intent      • Native function calling  • Quality   │
+│  • Expected widgets  • LLM decides tools        • Semantic   │
+│  • Template hint     • Inline Zod validation    • Optional   │
+│  • Skip-reflect?     • Self-corrects errors     • for complex│
+│         │                   │                         │      │
+│         │              Stack-based loop               │      │
+│         │              (from Roo Code)                │      │
+│         │              Safety rails:                  │      │
+│         │              • consecutiveMistakeCount      │      │
+│         │              • toolRepetitionDetector       │      │
+│         │              • maxSteps (20)                │      │
+│         │              • contextCompaction (80%)      │      │
+│         └───────────────────┴─────────────────────────┘      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Key Design Patterns from Research
+
+| Pattern | Source | Our Implementation |
+|---------|--------|--------------------|
+| Native function calling | Roo Code + Continue | Tools as `ChatCompletionTool[]`, `tool_choice: auto` |
+| Stack-based loop | Roo Code `Task.ts` | Explicit `StackItem[]` in UIAgent orchestrator |
+| Tool-result-per-tool-use | Roo Code | Every tool_call gets a result (even when blocked) |
+| Consecutive mistake detection | Roo Code | 3 turns without tools → abort |
+| Tool repetition detection | Roo Code `ToolRepetitionDetector` | Same tool+args 5x → warning |
+| Error-as-context-item | Continue | Tool failures become tool results for self-correction |
+| Architect → Editor delegation | Aider `ArchitectCoder` | Planner (reasoning) → Executor (structured output) |
+| Typed reflection errors | Aider `reflected_message` | `actualData` + `didYouMean` in reflection issues |
+| Weak model for cheap ops | Aider (main/editor/weak) | `weak` model role for summarization, classification |
+| Context compaction at 80% | Continue `compaction.ts` | ContextManager summarizes history with weak model |
+| Exponential backoff | Roo Code `backoffAndAnnounce` | Rate limit → countdown event → retry with doubling delay |
+| Inline Zod "linting" | Aider auto-lint pattern | Zod failures fed as tool results → LLM fixes inline |
+
+### Key Sub-Decisions
+
+**1. Four Model Roles (OpenAI Only)**
+- **Reasoning model** (o3, o4-mini): Planning, post-reflection, error analysis, CoT thinking
+- **Structured output model** (GPT-4.1, GPT-4o): DynamicViewSchema generation via native function calling + `zodResponseFormat()`
+- **Fast model** (GPT-4.1-mini, GPT-4o-mini): Quick decisions, streaming, cheap UI generation
+- **Weak model** (GPT-4.1-nano): Context compaction/summarization, classification — maximum cost savings
+- Model selection is per-phase, not per-request — the agent controls routing
+
+**2. Reactive Execution with Native Function Calling**
+- Executor uses `tools` parameter with `tool_choice: "auto"` — the LLM decides which tools to call
+- No rigid pre-planned step list — the LLM observes tool results and decides next action dynamically
+- `generate_schema` tool is the terminal action — when the LLM calls it, execution ends successfully
+- Every `tool_call` gets a corresponding `tool` message result (even when blocked by security)
+
+**3. Three-Tier Command Security**
+- **READ tier** (always allowed): All `AGENT_READ_ONLY_ALLOWLIST` commands
+- **WRITE tier** (allowlisted, auto-approved): Config edits via SFTP, service management (`systemctl restart/reload`)
+- **DENY tier** (always blocked): `rm -rf /`, `mkfs`, `dd if=`, `shutdown`, pipe-to-shell. Hardcoded, cannot be bypassed.
+
+**4. Inline Self-Correction (Zod-as-Linter)**
+- When the `generate_schema` tool is called, output is validated with Zod immediately
+- If Zod fails → error is returned as the tool result → LLM fixes inline in the same loop
+- This replaces the old design where validation failures required a separate reflection phase
+- Post-generation reflection is optional — only for complex interactive UIs (forms, multi-tab)
+
+**5. Safety Rails (from Roo Code)**
+- `consecutiveMistakeCount`: 3 turns without tool calls → abort with explanation
+- `ToolRepetitionDetector`: Same tool+args called 5x → warning injected
+- `maxSteps`: Hard limit (default 20) prevents infinite loops
+- `didToolFailInCurrentTurn`: Prevents retry flood after tool failure
+
+**6. Context Management (from Continue)**
+- `ContextManager` tracks token usage across the conversation
+- At 80% of model context window → compact history using weak model
+- Prevents context overflow errors in long agent sessions
+
+**Consequences:**
+- (+) Reactive loop produces higher quality output than rigid pre-planned execution
+- (+) Native function calling leverages LLM training — models are optimized for tool use
+- (+) Inline Zod validation reduces LLM calls (no separate reflection for syntax errors)
+- (+) Four model roles optimize cost (weak model for cheap ops, reasoning only when needed)
+- (+) Safety rails prevent infinite loops and runaway costs (battle-tested in Roo Code)
+- (+) Context compaction allows long agent sessions without context window overflow
+- (+) Self-correcting: errors become tool results → LLM fixes inline
+- (+) Dynamic UIs become interactive — config editing, service management
+- (-) More complex than InvestigationAgent (but solves a harder problem)
+- (-) Multiple LLM calls per generation increases cost (mitigated by caching + weak model)
+- (-) Write tier allowlist needs maintenance as new tools are supported
+- (-) Post-reflection is optional, which may miss semantic quality issues in simple mode
+
+**Reference:** See [phases/phase-ex2.md](phases/phase-ex2.md) for the full implementation spec and [phases/AGENT_RESEARCH_EX2.md](phases/AGENT_RESEARCH_EX2.md) for research synthesis.
+
+---
+
 ## Template for New ADRs
 
 ```markdown
