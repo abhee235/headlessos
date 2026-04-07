@@ -5,7 +5,15 @@
   "type": "module",
   "main": "./types.ts",
   "types": "./types.ts",
+  "exports": {
+    ".": "./types.ts",
+    "./schemas/*": "./schemas/*.ts",
+    "./schemas": "./schemas/index.ts"
+  },
   "scripts": {
     "build": "tsc"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
   }
 }
