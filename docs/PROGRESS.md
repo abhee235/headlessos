@@ -282,7 +282,7 @@ Example:
 |---------|------|--------|--------------|
 | EX2.8 | FormWidget Schema + Component | ✅ | Form fields render, client validation, submit handler (done in EX1.15) |
 | EX2.9 | Write-Back API | ✅ | Backup→write→validate→rollback flow, SFTP path allowlist, 26 tests |
-| EX2.10 | Error Recovery Strategies | ⬜ | Exponential backoff, typed errors, context compaction, graceful degradation |
+| EX2.10 | Error Recovery Strategies | ✅ | Exponential backoff, typed errors, context compaction, graceful degradation, 56 tests |
 
 ### Phase 3: Frontend Integration
 
