@@ -1,9 +1,11 @@
-// EX1.2: Layout Renderer — dispatches by layout.layout type
+// EX1.2 + EX1.6: Layout Renderer — dispatches by layout.layout type
 // @see docs/phases/phase-ex1.md
 
 import type { Layout, DeepPartial } from 'headlessos-shared/schemas/dynamic-view';
 import { StackLayout } from './layouts/StackLayout';
 import { GridLayout } from './layouts/GridLayout';
+import { TabsLayout } from './layouts/TabsLayout';
+import { SidebarLayout } from './layouts/SidebarLayout';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -18,21 +20,9 @@ export function LayoutRenderer({ layout }: { layout: DeepPartial<Layout> }) {
     case 'grid':
       return <GridLayout layout={layout as DeepPartial<Layout & { layout: 'grid' }>} />;
     case 'tabs':
-      // TabsLayout — implemented in EX1.6
-      return (
-        <Alert>
-          <AlertTitle>Tabs Layout</AlertTitle>
-          <AlertDescription>Tabs layout will be implemented in EX1.6.</AlertDescription>
-        </Alert>
-      );
+      return <TabsLayout layout={layout as DeepPartial<Layout & { layout: 'tabs' }>} />;
     case 'sidebar':
-      // SidebarLayout — implemented in EX1.6
-      return (
-        <Alert>
-          <AlertTitle>Sidebar Layout</AlertTitle>
-          <AlertDescription>Sidebar layout will be implemented in EX1.6.</AlertDescription>
-        </Alert>
-      );
+      return <SidebarLayout layout={layout as DeepPartial<Layout & { layout: 'sidebar' }>} />;
     default:
       return (
         <Alert variant="destructive">
