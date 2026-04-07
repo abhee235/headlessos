@@ -89,6 +89,14 @@ export const APPS: AppDefinition[] = [
     requiredTools: [],
     singleInstance: false,
   },
+  {
+    id: 'dynamic-ui',
+    name: 'Dynamic View',
+    icon: 'Sparkles',
+    description: 'AI-generated dynamic UI view',
+    requiredTools: [],
+    singleInstance: false,
+  },
 ];
 
 export function getAppById(id: string): AppDefinition | undefined {

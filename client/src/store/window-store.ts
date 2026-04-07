@@ -63,6 +63,7 @@ const APP_DEFAULTS: Record<string, { width: number; height: number }> = {
   docker: { width: 950, height: 600 },
   services: { width: 900, height: 600 },
   serveradmin: { width: 1000, height: 650 },
+  'dynamic-ui': { width: 900, height: 650 },
 };
 
 export const useDesktopStore = create<DesktopState>((set, get) => ({

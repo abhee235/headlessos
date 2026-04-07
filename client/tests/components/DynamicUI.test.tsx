@@ -1337,3 +1337,140 @@ describe('DynamicViewContext', () => {
     expect(screen.getByTestId('server-id').textContent).toBe('none');
   });
 });
+
+// ── EX1.13: Dynamic UI Store ────────────────────────────
+
+import { useDynamicUIStore } from '../../src/store/dynamic-ui-store';
+
+describe('DynamicUI Store', () => {
+  beforeEach(() => {
+    // Reset store
+    useDynamicUIStore.setState({
+      pinnedViews: {},
+      windowToView: {},
+    });
+  });
+
+  const sampleView: DynamicView = {
+    title: 'Test View',
+    icon: 'Cpu',
+    root: {
+      layout: 'stack',
+      widgets: [
+        { type: 'alert', severity: 'info', message: 'Hello' },
+      ],
+    },
+  };
+
+  it('pins a view and returns an ID', () => {
+    const id = useDynamicUIStore.getState().pinView('srv-1', sampleView);
+    expect(id).toBeTruthy();
+    expect(id).toMatch(/^dyn-/);
+    const pinned = useDynamicUIStore.getState().pinnedViews[id];
+    expect(pinned).toBeDefined();
+    expect(pinned.title).toBe('Test View');
+    expect(pinned.icon).toBe('Cpu');
+    expect(pinned.serverId).toBe('srv-1');
+  });
+
+  it('unpins a view', () => {
+    const id = useDynamicUIStore.getState().pinView('srv-1', sampleView);
+    expect(useDynamicUIStore.getState().pinnedViews[id]).toBeDefined();
+    useDynamicUIStore.getState().unpinView(id);
+    expect(useDynamicUIStore.getState().pinnedViews[id]).toBeUndefined();
+  });
+
+  it('links and retrieves window-to-view mapping', () => {
+    const viewId = useDynamicUIStore.getState().pinView('srv-1', sampleView);
+    useDynamicUIStore.getState().linkWindow('win-10', viewId);
+    const result = useDynamicUIStore.getState().getViewForWindow('win-10');
+    expect(result).toBeDefined();
+    expect(result?.title).toBe('Test View');
+  });
+
+  it('returns undefined for unknown window', () => {
+    const result = useDynamicUIStore.getState().getViewForWindow('win-999');
+    expect(result).toBeUndefined();
+  });
+
+  it('unlinks window', () => {
+    const viewId = useDynamicUIStore.getState().pinView('srv-1', sampleView);
+    useDynamicUIStore.getState().linkWindow('win-10', viewId);
+    useDynamicUIStore.getState().unlinkWindow('win-10');
+    expect(useDynamicUIStore.getState().getViewForWindow('win-10')).toBeUndefined();
+  });
+
+  it('cleans up window links when unpinning', () => {
+    const viewId = useDynamicUIStore.getState().pinView('srv-1', sampleView);
+    useDynamicUIStore.getState().linkWindow('win-10', viewId);
+    useDynamicUIStore.getState().unpinView(viewId);
+    expect(useDynamicUIStore.getState().windowToView['win-10']).toBeUndefined();
+  });
+
+  it('supports multiple pinned views', () => {
+    const id1 = useDynamicUIStore.getState().pinView('srv-1', sampleView);
+    const id2 = useDynamicUIStore.getState().pinView('srv-2', {
+      ...sampleView,
+      title: 'Second View',
+    });
+    expect(id1).not.toBe(id2);
+    expect(Object.keys(useDynamicUIStore.getState().pinnedViews)).toHaveLength(2);
+  });
+
+  it('uses custom icon when provided', () => {
+    const id = useDynamicUIStore.getState().pinView('srv-1', sampleView, 'HardDrive');
+    expect(useDynamicUIStore.getState().pinnedViews[id].icon).toBe('HardDrive');
+  });
+
+  it('falls back to Sparkles when no icon', () => {
+    const viewNoIcon: DynamicView = {
+      title: 'No Icon',
+      root: { layout: 'stack', widgets: [] },
+    };
+    const id = useDynamicUIStore.getState().pinView('srv-1', viewNoIcon);
+    expect(useDynamicUIStore.getState().pinnedViews[id].icon).toBe('Sparkles');
+  });
+
+  it('loads from favorites', () => {
+    useDynamicUIStore.getState().loadFromFavorites([
+      { id: 'fav-1', label: 'Favorite 1', view: sampleView },
+      { id: 'fav-2', label: 'Favorite 2', view: { ...sampleView, title: 'Fav 2' } },
+    ]);
+    expect(Object.keys(useDynamicUIStore.getState().pinnedViews)).toHaveLength(2);
+    expect(useDynamicUIStore.getState().pinnedViews['fav-1'].title).toBe('Favorite 1');
+  });
+});
+
+// ── EX1.13: DynamicUITabView ────────────────────────────
+
+import { DynamicUITabView } from '../../src/components/DynamicUI/DynamicUITabView';
+
+describe('DynamicUITabView', () => {
+  beforeEach(() => {
+    useDynamicUIStore.setState({
+      pinnedViews: {},
+      windowToView: {},
+    });
+  });
+
+  it('shows empty state when no view is linked', () => {
+    render(<DynamicUITabView serverId="srv-1" windowId="win-99" />);
+    expect(screen.getByText('No dynamic view found for this window')).toBeInTheDocument();
+  });
+
+  it('renders the pinned view when linked', () => {
+    const viewId = useDynamicUIStore.getState().pinView('srv-1', {
+      title: 'Pinned Dashboard',
+      root: {
+        layout: 'stack',
+        widgets: [
+          { type: 'alert', severity: 'info', message: 'Pinned content' },
+        ],
+      },
+    });
+    useDynamicUIStore.getState().linkWindow('win-5', viewId);
+
+    render(<DynamicUITabView serverId="srv-1" windowId="win-5" />);
+    expect(screen.getByText('Pinned content')).toBeInTheDocument();
+  });
+});
