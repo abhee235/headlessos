@@ -40,8 +40,8 @@ export interface ModelConfig {
 export const DEFAULT_MODEL_CONFIG: ModelConfig = {
   reasoning: {
     provider: 'openai',
-    model: 'gpt-5.4',
-    maxTokens: 128000,
+    model: 'o4-mini',
+    maxTokens: 16384,
   },
   structuredOutput: {
     provider: 'openai',
@@ -65,7 +65,7 @@ export const DEFAULT_MODEL_CONFIG: ModelConfig = {
  * Falls back to defaults for any unset value.
  *
  * Environment variables:
- *   MODEL_REASONING        — reasoning model name (default: gpt-5.4)
+ *   MODEL_REASONING        — reasoning model name (default: o4-mini)
  *   MODEL_STRUCTURED       — structured output model (default: gpt-4.1)
  *   MODEL_FAST             — fast model (default: gpt-4o-mini)
  *   MODEL_WEAK             — weak/cheap model (default: gpt-4o-mini)
