@@ -1,10 +1,11 @@
-// EX1.3: DynamicAppWindow — wraps DynamicViewRenderer in AppWindow overlay
+// EX1.3 + EX1.12: DynamicAppWindow — wraps DynamicViewRenderer in AppWindow overlay
 // @see docs/phases/phase-ex1.md
 
 import { useState } from 'react';
 import type { DynamicView, DeepPartial } from 'headlessos-shared/schemas/dynamic-view';
 import { AppWindow } from '@/components/ui/app-window';
 import { DynamicViewRenderer } from './DynamicViewRenderer';
+import { DynamicViewProvider } from './DynamicViewContext';
 import { Button } from '@/components/ui/button';
 import { Code2, RotateCcw } from 'lucide-react';
 
@@ -19,6 +20,8 @@ interface DynamicAppWindowProps {
   onRegenerate?: () => void;
   /** Whether the view is currently being generated */
   loading?: boolean;
+  /** Server ID for live data refresh (EX1.12) */
+  serverId?: string | null;
 }
 
 export function DynamicAppWindow({
@@ -27,6 +30,7 @@ export function DynamicAppWindow({
   onClose,
   onRegenerate,
   loading = false,
+  serverId = null,
 }: DynamicAppWindowProps) {
   const [showJson, setShowJson] = useState(false);
 
@@ -66,13 +70,15 @@ export function DynamicAppWindow({
       </AppWindow.Toolbar>
 
       <AppWindow.Body>
-        {showJson ? (
-          <pre className="overflow-auto rounded-md bg-muted p-3 text-xs font-mono leading-relaxed max-h-full">
-            <code>{JSON.stringify(view, null, 2)}</code>
-          </pre>
-        ) : (
-          <DynamicViewRenderer view={view} />
-        )}
+        <DynamicViewProvider serverId={serverId}>
+          {showJson ? (
+            <pre className="overflow-auto rounded-md bg-muted p-3 text-xs font-mono leading-relaxed max-h-full">
+              <code>{JSON.stringify(view, null, 2)}</code>
+            </pre>
+          ) : (
+            <DynamicViewRenderer view={view} />
+          )}
+        </DynamicViewProvider>
       </AppWindow.Body>
 
       {meta && (

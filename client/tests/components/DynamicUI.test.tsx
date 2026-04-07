@@ -1223,3 +1223,117 @@ describe('SidebarLayout', () => {
     expect(screen.getByText('No sidebar items defined')).toBeInTheDocument();
   });
 });
+
+// ── EX1.12: RefreshableWidget ───────────────────────────
+
+import { RefreshableWidget } from '../../src/components/DynamicUI/RefreshableWidget';
+
+describe('RefreshableWidget', () => {
+  it('renders children', () => {
+    render(
+      <RefreshableWidget>
+        <div>Widget Content</div>
+      </RefreshableWidget>,
+    );
+    expect(screen.getByText('Widget Content')).toBeInTheDocument();
+  });
+
+  it('shows pulse overlay when refreshing', () => {
+    const { container } = render(
+      <RefreshableWidget refreshing={true}>
+        <div>Content</div>
+      </RefreshableWidget>,
+    );
+    const overlay = container.querySelector('.animate-pulse');
+    expect(overlay).toBeInTheDocument();
+  });
+
+  it('does not show overlay when not refreshing', () => {
+    const { container } = render(
+      <RefreshableWidget refreshing={false}>
+        <div>Content</div>
+      </RefreshableWidget>,
+    );
+    const overlay = container.querySelector('.animate-pulse');
+    expect(overlay).not.toBeInTheDocument();
+  });
+
+  it('shows pause button when not paused and controls enabled', () => {
+    const onPause = vi.fn();
+    render(
+      <RefreshableWidget showControls={true} paused={false} onPause={onPause}>
+        <div>Content</div>
+      </RefreshableWidget>,
+    );
+    const pauseBtn = screen.getByTitle('Pause auto-refresh');
+    expect(pauseBtn).toBeInTheDocument();
+  });
+
+  it('shows resume button when paused', () => {
+    const onResume = vi.fn();
+    render(
+      <RefreshableWidget showControls={true} paused={true} onResume={onResume}>
+        <div>Content</div>
+      </RefreshableWidget>,
+    );
+    const resumeBtn = screen.getByTitle('Resume auto-refresh');
+    expect(resumeBtn).toBeInTheDocument();
+  });
+
+  it('calls onPause when pause button clicked', () => {
+    const onPause = vi.fn();
+    render(
+      <RefreshableWidget showControls={true} paused={false} onPause={onPause}>
+        <div>Content</div>
+      </RefreshableWidget>,
+    );
+    fireEvent.click(screen.getByTitle('Pause auto-refresh'));
+    expect(onPause).toHaveBeenCalledOnce();
+  });
+
+  it('calls onRefresh when refresh button clicked', () => {
+    const onRefresh = vi.fn();
+    render(
+      <RefreshableWidget showControls={true} onRefresh={onRefresh}>
+        <div>Content</div>
+      </RefreshableWidget>,
+    );
+    fireEvent.click(screen.getByTitle('Refresh now'));
+    expect(onRefresh).toHaveBeenCalledOnce();
+  });
+
+  it('hides controls when showControls is false', () => {
+    render(
+      <RefreshableWidget showControls={false}>
+        <div>Content</div>
+      </RefreshableWidget>,
+    );
+    expect(screen.queryByTitle('Refresh now')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Pause auto-refresh')).not.toBeInTheDocument();
+  });
+});
+
+// ── EX1.12: DynamicViewContext ──────────────────────────
+
+import { DynamicViewProvider, useDynamicViewContext } from '../../src/components/DynamicUI/DynamicViewContext';
+
+describe('DynamicViewContext', () => {
+  function TestConsumer() {
+    const { serverId } = useDynamicViewContext();
+    return <div data-testid="server-id">{serverId ?? 'none'}</div>;
+  }
+
+  it('provides serverId to children', () => {
+    render(
+      <DynamicViewProvider serverId="srv-123">
+        <TestConsumer />
+      </DynamicViewProvider>,
+    );
+    expect(screen.getByTestId('server-id').textContent).toBe('srv-123');
+  });
+
+  it('defaults to null when no provider', () => {
+    render(<TestConsumer />);
+    expect(screen.getByTestId('server-id').textContent).toBe('none');
+  });
+});
