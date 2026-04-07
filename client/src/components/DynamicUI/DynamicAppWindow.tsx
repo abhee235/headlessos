@@ -1,13 +1,15 @@
-// EX1.3 + EX1.12: DynamicAppWindow — wraps DynamicViewRenderer in AppWindow overlay
+// EX1.3 + EX1.12 + EX1.13: DynamicAppWindow — wraps DynamicViewRenderer in AppWindow overlay
 // @see docs/phases/phase-ex1.md
 
 import { useState } from 'react';
 import type { DynamicView, DeepPartial } from 'headlessos-shared/schemas/dynamic-view';
+import { DynamicViewSchema } from 'headlessos-shared/schemas/dynamic-view';
 import { AppWindow } from '@/components/ui/app-window';
 import { DynamicViewRenderer } from './DynamicViewRenderer';
 import { DynamicViewProvider } from './DynamicViewContext';
+import { openDynamicUIWindow } from './open-dynamic-ui-window';
 import { Button } from '@/components/ui/button';
-import { Code2, RotateCcw } from 'lucide-react';
+import { Code2, RotateCcw, Pin } from 'lucide-react';
 
 interface DynamicAppWindowProps {
   /** The dynamic view data to render */
@@ -67,6 +69,25 @@ export function DynamicAppWindow({
           <Code2 className="w-3.5 h-3.5 mr-1" />
           {showJson ? 'Preview' : 'JSON'}
         </Button>
+        {serverId && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              // Validate the partial view as a full DynamicView before pinning
+              const parsed = DynamicViewSchema.safeParse(view);
+              if (parsed.success) {
+                openDynamicUIWindow(serverId, parsed.data);
+                onClose();
+              }
+            }}
+            className="h-7 text-xs"
+            title="Open as desktop window"
+          >
+            <Pin className="w-3.5 h-3.5 mr-1" />
+            Pin
+          </Button>
+        )}
       </AppWindow.Toolbar>
 
       <AppWindow.Body>

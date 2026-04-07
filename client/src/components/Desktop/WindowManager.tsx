@@ -17,6 +17,7 @@ const ServicesView = lazy(() => import('../Services/ServicesView').then(m => ({ 
 const ServerAdminView = lazy(() => import('../ServerAdmin/ServerAdminView').then(m => ({ default: m.ServerAdminView })));
 const FleetDashboardView = lazy(() => import('../Fleet/FleetDashboardView').then(m => ({ default: m.FleetDashboardView })));
 const AgentView = lazy(() => import('../Agent/AgentView').then(m => ({ default: m.AgentView })));
+const DynamicUITabView = lazy(() => import('../DynamicUI/DynamicUITabView').then(m => ({ default: m.DynamicUITabView })));
 
 function LazyFallback() {
   return (
@@ -29,7 +30,7 @@ function LazyFallback() {
   );
 }
 
-function WindowContent({ appId, serverId }: { appId: string; serverId: string }) {
+function WindowContent({ appId, serverId, windowId }: { appId: string; serverId: string; windowId: string }) {
   switch (appId) {
     case 'dashboard':
       return (
@@ -91,6 +92,12 @@ function WindowContent({ appId, serverId }: { appId: string; serverId: string })
           <AgentView serverId={serverId} />
         </div>
       );
+    case 'dynamic-ui':
+      return (
+        <div className="h-full overflow-hidden">
+          <DynamicUITabView serverId={serverId} windowId={windowId} />
+        </div>
+      );
     default:
       return (
         <div className="flex items-center justify-center h-full text-white/30 text-sm">
@@ -108,7 +115,7 @@ export function WindowManager() {
       {windows.map(win => (
         <WindowFrame key={win.id} win={win}>
           <Suspense fallback={<LazyFallback />}>
-            <WindowContent appId={win.appId} serverId={win.serverId} />
+            <WindowContent appId={win.appId} serverId={win.serverId} windowId={win.id} />
           </Suspense>
         </WindowFrame>
       ))}

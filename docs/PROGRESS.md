@@ -252,7 +252,7 @@ Example:
 |---------|------|--------|--------------|
 | EX1.11 | Terminal Buffer Capture | ✅ | TerminalBuffer (500 lines), pattern detection (table/json/log/config/list), "Visualize" button, 26 tests |
 | EX1.12 | Live Data Refresh | ✅ | Widget-level dataSource auto-refresh, pause/resume |
-| EX1.13 | Desktop Tab Integration | ⬜ | Dynamic views as desktop tabs, persistence |
+| EX1.13 | Desktop Tab Integration | ✅ | Dynamic views as desktop tabs, persistence |
 | EX1.14 | Action Execution from Dynamic UI | ⬜ | Buttons trigger SSH commands, allowlist validated, confirmation |
 | EX1.15 | FormWidget (Editable Config UI) | ⬜ | Form fields render, validation, submit handler, read-only mode |
 
