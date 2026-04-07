@@ -269,7 +269,7 @@ Example:
 |---------|------|--------|--------------|
 | EX2.1 | Multi-Model Router | ✅ | 4 roles (reasoning/structured-output/fast/weak), fallback chain, usage tracking, runtime config update, 39 tests |
 | EX2.2 | Agent Tool System (9 tools) | ✅ | Tools + tool-converter (OpenAI fn format), tool-result-per-tool-use guarantee |
-| EX2.3 | Three-Tier Security Guardrails | ⬜ | Read/write/deny tiers enforced, injection tests pass |
+| EX2.3 | Three-Tier Security Guardrails | ✅ | Read/write/deny tiers enforced, injection tests pass |
 | EX2.4 | Planner Phase | ⬜ | Reasoning model produces PlannerHints (intent + expected widgets, NOT step list) |
 | EX2.5 | Reactive Executor | ⬜ | Native function calling loop, inline Zod validation, safety rails |
 | EX2.6 | Post-Generation Reflector | ⬜ | Optional quality check, typed errors, max 2 fix loops |
