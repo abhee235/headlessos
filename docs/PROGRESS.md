@@ -31,7 +31,7 @@
 | M9: Desktop Polish & Core UX | Week 11 | ✅ | 12/12 tasks | — |
 | M10: Advanced Features | Week 12-14 | ✅ | 10/10 tasks | — |
 | M11: Fleet, Agent & Platform | Week 15-16 | ✅ | 7/7 tasks | — |
-| **EX1: Dynamic UI Engine** | **Experimental** | **⬜** | **0/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
+| **EX1: Dynamic UI Engine** | **Experimental** | **🔄** | **7/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
 | **EX2: UI Generation Agent** | **Experimental** | **⬜** | **0/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
 
 ---
@@ -230,18 +230,18 @@ Example:
 
 | Task ID | Task | Status | Verification |
 |---------|------|--------|--------------|
-| EX1.1 | DynamicViewSchema (Zod) | ⬜ | Schema compiles, works with zodResponseFormat(), unit tests |
-| EX1.2 | DynamicViewRenderer + Widget Components | ⬜ | 7 base widgets render from JSON, partial schema support |
-| EX1.3 | DynamicAppWindow Wrapper | ⬜ | Opens as AppWindow overlay, sidebar layout maps correctly |
-| EX1.4 | JSON Playground (Dev Tool) | ⬜ | Split-pane editor, live preview, Zod validation feedback |
-| EX1.5 | Extended Widgets (Chart, Tree, LogViewer) | ⬜ | Chart/tree/log widgets render, added to WidgetSchema union |
-| EX1.6 | Tabbed + Sidebar Layouts | ⬜ | Tabs and sidebar layouts work, streaming support |
+| EX1.1 | DynamicViewSchema (Zod) | ✅ | Schema compiles, works with zodResponseFormat(), 71 unit tests |
+| EX1.2 | DynamicViewRenderer + Widget Components | ✅ | 7 base widgets render from JSON, partial schema support, 21 tests |
+| EX1.3 | DynamicAppWindow Wrapper | ✅ | Opens as AppWindow overlay, sidebar layout maps correctly, 6 tests |
+| EX1.4 | JSON Playground (Dev Tool) | ✅ | Split-pane editor, live preview, Zod validation feedback, 6 tests |
+| EX1.5 | Extended Widgets (Chart, Tree, LogViewer) | ✅ | Chart/tree/log widgets render, added to WidgetSchema union, 15 tests |
+| EX1.6 | Tabbed + Sidebar Layouts | ✅ | Tabs and sidebar layouts work, theme-aligned styling, 8 tests |
 
 ### Phase 2: LLM → JSON Generation
 
 | Task ID | Task | Status | Verification |
 |---------|------|--------|--------------|
-| EX1.7 | Template Library (15+ templates) | ⬜ | Templates validate against schema, match logic works |
+| EX1.7 | Template Library (15+ templates) | ✅ | 15 templates validate against schema, match logic works, 71 tests |
 | EX1.8 | DynamicUIGenerator Service (Streaming) | ⬜ | Streaming generation, WebSocket endpoint, incremental rendering |
 | EX1.9 | Command Palette Trigger | ⬜ | "Generate Dynamic UI" in Ctrl+K palette, fuzzy search |
 | EX1.10 | Schema Caching & Persistence | ⬜ | Memory + disk cache, regenerate bypass, stats in /api/stats/llm |
