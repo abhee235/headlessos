@@ -6,8 +6,16 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import type { DynamicView } from 'headlessos-shared/schemas/dynamic-view';
 
 // Import triggers widget registration
-import { DynamicViewRenderer, DynamicAppWindow } from '../../src/components/DynamicUI';
+import { DynamicViewRenderer, DynamicAppWindow, DynamicUIPlayground } from '../../src/components/DynamicUI';
 import { getRegisteredTypes, clearRegistry } from '../../src/components/DynamicUI/widget-registry';
+import { EXAMPLE_VIEWS } from '../../src/components/DynamicUI/playground-examples';
+
+// Mock react-resizable-panels (not compatible with jsdom)
+vi.mock('react-resizable-panels', () => ({
+  Group: ({ children, ...props }: React.PropsWithChildren<Record<string, unknown>>) => <div data-testid="panel-group" {...props}>{children}</div>,
+  Panel: ({ children }: React.PropsWithChildren) => <div data-testid="panel">{children}</div>,
+  Separator: ({ children }: React.PropsWithChildren) => <div data-testid="separator">{children}</div>,
+}));
 
 // ── Widget Registry ─────────────────────────────────────
 
@@ -563,5 +571,50 @@ describe('DynamicAppWindow', () => {
   it('shows footer metadata', () => {
     render(<DynamicAppWindow view={sampleView} open={true} onClose={() => {}} />);
     expect(screen.getByText(/Command: uname -a/)).toBeInTheDocument();
+  });
+});
+
+// ── DynamicUIPlayground ─────────────────────────────────
+
+describe('DynamicUIPlayground', () => {
+  it('renders when open with example views', () => {
+    render(<DynamicUIPlayground open={true} onOpenChange={() => {}} />);
+    expect(screen.getByText('Dynamic UI Playground')).toBeInTheDocument();
+    expect(screen.getByText('JSON Schema')).toBeInTheDocument();
+    expect(screen.getByText('Live Preview')).toBeInTheDocument();
+  });
+
+  it('does not render when closed', () => {
+    render(<DynamicUIPlayground open={false} onOpenChange={() => {}} />);
+    expect(screen.queryByText('Dynamic UI Playground')).not.toBeInTheDocument();
+  });
+
+  it('shows valid status for default example', () => {
+    render(<DynamicUIPlayground open={true} onOpenChange={() => {}} />);
+    expect(screen.getByText('Valid')).toBeInTheDocument();
+  });
+
+  it('has import and export buttons', () => {
+    render(<DynamicUIPlayground open={true} onOpenChange={() => {}} />);
+    expect(screen.getByText('Import')).toBeInTheDocument();
+    expect(screen.getByText('Export')).toBeInTheDocument();
+  });
+
+  it('shows validation error for invalid JSON', () => {
+    render(<DynamicUIPlayground open={true} onOpenChange={() => {}} />);
+    const editor = screen.getByTestId('json-editor');
+    fireEvent.change(editor, { target: { value: '{ invalid json' } });
+    expect(screen.getByText('Invalid')).toBeInTheDocument();
+    expect(screen.getByText('Validation Error')).toBeInTheDocument();
+  });
+
+  it('example views all validate against schema', () => {
+    // Verify all example views are valid DynamicView schemas
+    for (const example of EXAMPLE_VIEWS) {
+      expect(() => {
+        const { DynamicViewSchema } = require('headlessos-shared/schemas/dynamic-view');
+        DynamicViewSchema.parse(example.data);
+      }).not.toThrow();
+    }
   });
 });
