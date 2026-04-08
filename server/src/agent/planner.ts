@@ -31,6 +31,18 @@ export const PlannerHintsSchema = z.object({
   dataSourceHints: z.array(z.string()).describe(
     'Types of information needed (e.g., "nginx config", "process list", "disk usage"). NOT specific commands — the executor decides commands.',
   ),
+  suggestedLayout: z.enum(['stack', 'grid', 'tabs', 'sidebar']).describe(
+    'The root layout type best suited for this request. ' +
+    'sidebar = multi-category data (e.g. System + Docker + Network), best for complex overview UIs. ' +
+    'tabs = multiple views of same domain (e.g. Overview + Logs + Config). ' +
+    'grid = side-by-side metrics or cards. ' +
+    'stack = simple vertical list for single-topic data.',
+  ),
+  suggestedSections: z.array(z.string()).nullable().optional().describe(
+    'For sidebar/tabs layouts: names of the sections/tabs to create (e.g. ["System", "Docker", "Network"]). ' +
+    'The executor will create a skeleton with these sections and fill them progressively. ' +
+    'Omit or set null for stack/grid layouts.',
+  ),
   securityRequirements: SecurityRequirementsSchema,
   estimatedComplexity: z.enum(['simple', 'medium', 'complex']).describe(
     'simple = 1-2 commands, single widget; medium = 3-5 commands, multi-widget; complex = 6+ commands, tabs, forms',
@@ -69,6 +81,21 @@ table, key-value, badge-grid, stat-card, progress-bar, code-block, alert, chart,
 stack (vertical), grid (columns), tabs (tabbed sections with icon+count), sidebar (navigation + content)
 Layouts are nestable: tabs inside sidebar sections, grids inside stacks, etc.
 
+## Layout Selection Guide (for suggestedLayout)
+- **stack**: Simple vertical list — best for single-topic, 1-2 widgets (e.g. "show disk usage")
+- **grid**: Side-by-side columns — best for comparing metrics or dashboard cards
+- **tabs**: Tabbed sections with icon+count — best for multiple views of the same domain (e.g. Overview + Logs + Config)
+- **sidebar**: Navigation rail + content sections — best for complex multi-category data (e.g. System + Docker + Network)
+
+For medium/complex requests, PREFER sidebar or tabs.
+For simple single-topic requests, stack or grid is fine.
+
+## Section Planning (for suggestedSections)
+When you choose sidebar or tabs layout, also provide suggestedSections — the names of sections/tabs to create.
+These map 1:1 with dataSourceHints. Each section gets its own data-gathering phase.
+Example: dataSourceHints=["system health", "docker containers", "network"] → suggestedSections=["System", "Docker", "Network"]
+Omit or set null for stack/grid layouts.
+
 ## Interactivity Levels
 - display-only: User just wants to see data (monitoring, logs, status)
 - interactive: User wants to edit values and save back (configs, settings)
@@ -80,15 +107,23 @@ Available templates will be listed below. If no template fits, set templateHint 
 
 ## Examples
 User: "Show me disk usage"
-→ simple, display-only, expectedWidgets: ["stat-card", "table"], dataSourceHints: ["filesystem usage"],
-  skipPostReflection: true
+→ simple, display-only, suggestedLayout: "stack", expectedWidgets: ["stat-card", "table"],
+  dataSourceHints: ["filesystem usage"], skipPostReflection: true
+
+User: "Show me a system overview"
+→ complex, display-only, suggestedLayout: "sidebar", suggestedSections: ["System", "Docker", "Network"],
+  expectedWidgets: ["alert", "key-value", "stat-card", "progress-bar", "table"],
+  dataSourceHints: ["system health and resources", "docker containers", "network ports and interfaces"],
+  skipPostReflection: false
 
 User: "Show nginx config and let me edit it"
-→ medium, interactive, expectedWidgets: ["form", "code-block"], needsWrite: true, needsSFTP: true,
+→ medium, interactive, suggestedLayout: "tabs", suggestedSections: ["Config", "Status"],
+  expectedWidgets: ["form", "code-block"], needsWrite: true, needsSFTP: true,
   dataSourceHints: ["nginx configuration", "nginx status"], skipPostReflection: false
 
 User: "Manage Docker containers"
-→ complex, full-management, expectedWidgets: ["table", "stat-card", "form"],
+→ complex, full-management, suggestedLayout: "tabs", suggestedSections: ["Containers", "Images", "Networks"],
+  expectedWidgets: ["table", "stat-card", "form"],
   dataSourceHints: ["container list", "docker stats", "container logs"],
   skipPostReflection: false`;
 

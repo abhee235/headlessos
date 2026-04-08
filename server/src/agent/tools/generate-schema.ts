@@ -10,12 +10,21 @@ import { DynamicViewSchema } from 'headlessos-shared/schemas/dynamic-view';
 import type { AgentTool, ToolContext, ToolResult } from './types.js';
 
 const GenerateSchemaParams = z.object({
-  schema: z.string().describe('The final DynamicViewSchema as a JSON string. Must be valid against DynamicViewSchema — use validate_schema first to check.'),
+  schema: z.string().describe(
+    'The FINAL complete DynamicViewSchema as a JSON string. Must be valid against DynamicViewSchema. ' +
+    'This MUST contain ALL data from all sections — it is the complete, finished view. ' +
+    'Call this ONLY after all update_view() calls and all data gathering is done.'
+  ),
 });
 
 export const generateSchemaTool: AgentTool = {
   name: 'generate_schema',
-  description: 'Submit the final DynamicViewSchema. This is the terminal tool — calling it signals that the UI schema generation is complete. The schema must be valid JSON that conforms to DynamicViewSchema. Always use validate_schema first to check for errors.',
+  description:
+    'Submit the FINAL complete DynamicViewSchema. This is the TERMINAL tool — calling it ends the session. ' +
+    'The schema must contain ALL gathered data (every section fully populated). ' +
+    'Only call this AFTER you have: (1) sent skeleton via update_view, (2) gathered all data, ' +
+    '(3) sent progressive updates via update_view for each section. ' +
+    'The schema is validated against DynamicViewSchema with Zod — if it fails, fix the errors and retry.',
   parameters: GenerateSchemaParams,
   securityTier: 'local',
 

@@ -37,6 +37,7 @@ export type AgentEventType =
   | { type: 'thinking'; message: string }
   | { type: 'tool_result'; tool: string; success: boolean; outputPreview: string; latencyMs: number }
   | { type: 'tool_blocked'; tool: string; reason: string }
+  | { type: 'partial_view'; view: unknown }
   | { type: 'generation_complete'; view: unknown }
   | { type: 'reflection'; feedback: string; action: 'approve' | 'fix' }
   | { type: 'safety_warning'; warning: 'consecutive_mistakes' | 'tool_repetition'; tool?: string; message?: string }
@@ -301,6 +302,15 @@ function getStepDisplay(event: AgentEventType): {
         icon: <CheckCircle2 className="w-4 h-4 text-green-400" />,
         label: 'Schema generated — Zod validation passed',
         color: 'border-green-500/20 bg-green-500/5',
+        content: null,
+        expandable: false,
+      };
+
+    case 'partial_view':
+      return {
+        icon: <Eye className="w-4 h-4 text-emerald-400" />,
+        label: 'View updated — progressive render',
+        color: 'border-emerald-500/20 bg-emerald-500/5',
         content: null,
         expandable: false,
       };

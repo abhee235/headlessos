@@ -48,6 +48,7 @@ function createDefaultHints(overrides?: Partial<PlannerHints>): PlannerHints {
     expectedWidgets: ['stat-card', 'table'],
     templateHint: null,
     dataSourceHints: ['filesystem usage'],
+    suggestedLayout: 'stack',
     securityRequirements: {
       needsWrite: false,
       needsSFTP: false,
@@ -178,9 +179,9 @@ describe('ReactiveExecutor', () => {
 
   describe('DEFAULT_EXECUTOR_CONFIG', () => {
     it('has correct defaults', () => {
-      expect(DEFAULT_EXECUTOR_CONFIG.maxSteps).toBe(20);
+      expect(DEFAULT_EXECUTOR_CONFIG.maxSteps).toBe(30);
       expect(DEFAULT_EXECUTOR_CONFIG.maxConsecutiveMistakes).toBe(3);
-      expect(DEFAULT_EXECUTOR_CONFIG.maxToolRepetitions).toBe(5);
+      expect(DEFAULT_EXECUTOR_CONFIG.maxToolRepetitions).toBe(8);
     });
   });
 

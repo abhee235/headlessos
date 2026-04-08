@@ -22,6 +22,8 @@ export interface AgentSession {
   events: Array<{ id: number; event: AgentEventType; timestamp: number }>;
   /** Current session status */
   status: AgentSessionStatus;
+  /** Progressive partial view (updated live during generation) */
+  partialView: Record<string, unknown> | null;
   /** Final generated view (set on 'complete') */
   view: unknown | null;
   /** Session metadata (set on 'complete') */
@@ -41,6 +43,7 @@ interface AgentStoreState {
   // Actions
   addSession: (requestId: string, serverId: string, prompt: string) => void;
   addEvent: (requestId: string, event: AgentEventType) => void;
+  updatePartialView: (requestId: string, view: Record<string, unknown>) => void;
   completeSession: (requestId: string, view: unknown, meta: AgentMetaType) => void;
   errorSession: (requestId: string, message: string) => void;
   abortSession: (requestId: string) => void;
@@ -67,6 +70,7 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
         prompt,
         events: [],
         status: 'running',
+        partialView: null,
         view: null,
         meta: null,
         errorMessage: null,
@@ -92,6 +96,20 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
           ...session.events,
           { id: counter, event, timestamp: Date.now() },
         ],
+      });
+      return { sessions };
+    });
+  },
+
+  updatePartialView: (requestId, view) => {
+    set((state) => {
+      const sessions = new Map(state.sessions);
+      const session = sessions.get(requestId);
+      if (!session) return state;
+
+      sessions.set(requestId, {
+        ...session,
+        partialView: view,
       });
       return { sessions };
     });

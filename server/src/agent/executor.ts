@@ -22,6 +22,7 @@ export type AgentEvent =
   | { type: 'thinking'; message: string }
   | { type: 'tool_result'; tool: string; success: boolean; outputPreview: string; latencyMs: number }
   | { type: 'tool_blocked'; tool: string; reason: string }
+  | { type: 'partial_view'; view: Record<string, unknown> }
   | { type: 'generation_complete'; view: DynamicView }
   | { type: 'reflection'; feedback: string; action: 'approve' | 'fix' }
   | { type: 'safety_warning'; warning: 'consecutive_mistakes' | 'tool_repetition'; tool?: string; message?: string }
@@ -30,18 +31,18 @@ export type AgentEvent =
 // ── Executor Config ──
 
 export interface ExecutorConfig {
-  /** Maximum loop iterations (default: 20) */
+  /** Maximum loop iterations (default: 30 — progressive rendering needs more steps) */
   maxSteps: number;
   /** Consecutive turns without tool calls before abort (default: 3, from Roo Code) */
   maxConsecutiveMistakes: number;
-  /** Same tool call N times before warning (default: 5, from Roo Code) */
+  /** Same tool call N times before warning (default: 8, higher because update_view is called often) */
   maxToolRepetitions: number;
 }
 
 export const DEFAULT_EXECUTOR_CONFIG: ExecutorConfig = {
-  maxSteps: 20,
+  maxSteps: 30,
   maxConsecutiveMistakes: 3,
-  maxToolRepetitions: 5,
+  maxToolRepetitions: 8,
 };
 
 // ── Reactive Executor ──
@@ -225,6 +226,14 @@ export class ReactiveExecutor {
               );
             }
 
+            // Track update_view calls (progressive rendering — non-terminal)
+            if (toolName === 'update_view' && result.success && result.metadata?.partialView) {
+              yield {
+                type: 'partial_view',
+                view: result.metadata.partialView as Record<string, unknown>,
+              };
+            }
+
             // Track generate_schema calls
             if (toolName === 'generate_schema' && result.success && result.metadata?.schema) {
               schemaCallResult = { toolCallId: toolCall.id, schema: result.metadata.schema };
@@ -318,8 +327,12 @@ export class ReactiveExecutor {
     hints: PlannerHints,
     reflectionIssues?: ReflectionIssue[],
   ): string {
+    // Build layout guidance from planner hints
+    const layoutGuidance = this.buildLayoutGuidance(hints);
+
     let prompt = `You are HeadlessOS's UI Generation Agent (Executor).
 Your job is to gather data from a Linux server via tools and produce a DynamicViewSchema.
+The user sees the UI build up LIVE — use update_view() to show progress as you work.
 
 ## User's Intent
 ${hints.intent}
@@ -329,8 +342,11 @@ A DynamicViewSchema JSON object with these widgets: ${hints.expectedWidgets.join
 Interactivity: ${hints.interactivityLevel}
 ${hints.templateHint ? `Template hint: Use "${hints.templateHint}" as a starting point.` : ''}
 
+## Layout Plan
+${layoutGuidance}
+
 ## Data Sources Needed
-${hints.dataSourceHints.map((h) => `- ${h}`).join('\n')}
+${hints.dataSourceHints.map((h, i) => `${i + 1}. ${h}`).join('\n')}
 
 ## DynamicViewSchema Reference
 
@@ -439,14 +455,43 @@ IMPORTANT:
 - For tables with 0 rows, always include emptyState with a meaningful message.
 - Use actionStyle:"dropdown" when a table has 3+ actions (keeps the UI clean).
 
-## Workflow
-1. Call get_server_context() to understand the server
-2. Use exec_command() and sftp_read() to gather information
-3. Optionally search_templates() for a matching template
-4. When you have enough data, call generate_schema() with a complete DynamicViewSchema JSON string
-5. If generate_schema() fails Zod validation, you'll see the errors — fix and retry
+## Workflow — Progressive Rendering (MANDATORY)
 
-## Rules
+You MUST follow this exact workflow. The user sees the UI window build up LIVE as you work.
+
+### Step-by-step:
+
+1. **get_server_context()** — Understand the server (OS, installed tools, etc.)
+
+2. **update_view() with SKELETON** — Immediately send a skeleton layout. This opens the UI window for the user right away. The skeleton has the full structure but empty sections. Example for a sidebar layout:
+   \`\`\`json
+   {"title":"My View","icon":"Server","description":"Loading...","root":{"layout":"sidebar","sidebarItems":[{"id":"sys","label":"System","icon":"Cpu"},{"id":"docker","label":"Docker","icon":"Container"}],"sections":{"sys":[],"docker":[]}}}
+   \`\`\`
+   The frontend shows animated skeleton placeholders for empty sections.
+
+3. **exec_command() — gather data for FIRST section** — Run the commands needed for the first section.
+
+4. **update_view() with first section filled** — Send the full view with the first section populated and other sections still empty. Include ALL data gathered so far.
+
+5. **exec_command() — gather data for NEXT section** — Run commands for the next section.
+
+6. **update_view() with next section filled** — Send the full view with all gathered sections. Each update_view() must include ALL previously gathered data PLUS the new section.
+
+7. **Repeat steps 5-6** for each remaining section.
+
+8. **generate_schema() with COMPLETE view** — When ALL sections are populated, call generate_schema() with the FINAL complete JSON. This validates against DynamicViewSchema and terminates the loop.
+
+### Critical Rules:
+- ALWAYS send a skeleton update_view() BEFORE gathering any data. The user must see something immediately.
+- Every update_view() call must be CUMULATIVE — include all previously gathered data plus new data.
+- Do NOT skip update_view() calls between sections — the progressive feel depends on frequent updates.
+- generate_schema() is the LAST tool you call. It validates strictly and ends the session.
+- update_view() accepts partial/incomplete JSON — generate_schema() does NOT.
+- Pass view JSON as a STRING to both update_view() and generate_schema().
+
+${this.buildProgressiveExample(hints)}
+
+## General Rules
 - Gather all needed data BEFORE calling generate_schema()
 - Use specific commands over broad ones
 - If a command fails, try a fallback (e.g., nginx -T failed → try cat /etc/nginx/nginx.conf)
@@ -464,8 +509,135 @@ ${reflectionIssues.map((issue, i) => `${i + 1}. [${issue.severity}] ${issue.desc
     return prompt;
   }
 
+  /**
+   * Build layout guidance section from planner hints.
+   * Tells the executor which layout to use and what sections to create.
+   */
+  private buildLayoutGuidance(hints: PlannerHints): string {
+    const layout = hints.suggestedLayout ?? 'stack';
+    const sections = hints.suggestedSections;
+
+    switch (layout) {
+      case 'sidebar': {
+        const sectionList = sections?.length
+          ? sections.map((s, i) => `  ${i + 1}. "${s}" — data: ${hints.dataSourceHints[i] ?? 'general'}`).join('\n')
+          : hints.dataSourceHints.map((d, i) => `  ${i + 1}. Section for: ${d}`).join('\n');
+        return `Use a **sidebar** layout with these sections:\n${sectionList}\n\nCreate sidebarItems for all sections immediately in the skeleton, then fill each section\'s content after gathering its data. Add an appropriate Lucide icon to each sidebar item.`;
+      }
+      case 'tabs': {
+        const tabList = sections?.length
+          ? sections.map((s, i) => `  ${i + 1}. "${s}" tab — data: ${hints.dataSourceHints[i] ?? 'general'}`).join('\n')
+          : hints.dataSourceHints.map((d, i) => `  ${i + 1}. Tab for: ${d}`).join('\n');
+        return `Use a **tabs** layout with these tabs:\n${tabList}\n\nCreate all tabs immediately in the skeleton with empty children, then fill each tab after gathering its data. Add an appropriate Lucide icon to each tab.`;
+      }
+      case 'grid':
+        return `Use a **grid** layout with ${Math.min(hints.expectedWidgets.length, 4)} columns. Place stat-cards, progress-bars, or small widgets side by side.`;
+      case 'stack':
+      default:
+        return `Use a **stack** layout (vertical). Place widgets in a logical top-to-bottom order.`;
+    }
+  }
+
+  /**
+   * Build a concrete progressive rendering example based on the layout type.
+   * This few-shot example teaches the LLM exactly what tool calls to make.
+   */
+  private buildProgressiveExample(hints: PlannerHints): string {
+    const layout = hints.suggestedLayout ?? 'stack';
+    const sections = hints.suggestedSections;
+
+    // Only add the example for multi-section layouts
+    if ((layout !== 'sidebar' && layout !== 'tabs') || !sections?.length) {
+      return '';
+    }
+
+    if (layout === 'sidebar') {
+      const sidebarItems = sections.map((s, i) => {
+        const id = s.toLowerCase().replace(/\s+/g, '-');
+        return `{"id":"${id}","label":"${s}","icon":"${this.pickIconForSection(s)}"}`;
+      });
+      const emptySections = sections.map(s => {
+        const id = s.toLowerCase().replace(/\s+/g, '-');
+        return `"${id}":[]`;
+      });
+
+      return `## Example: Progressive Sidebar Pattern
+
+Here is exactly how to build a sidebar layout progressively. Follow this pattern:
+
+\`\`\`
+Step 1: get_server_context()
+Step 2: update_view(${JSON.stringify(JSON.stringify({title: hints.intent.substring(0, 30), description: 'Loading...', icon: 'Server', root: {layout: 'sidebar', sidebarItems: 'ITEMS', sections: 'SECTIONS'}})).replace('"ITEMS"', `[${sidebarItems.join(',')}]`).replace('"SECTIONS"', `{${emptySections.join(',')}}`)})
+  → User sees the sidebar with ${sections.length} empty sections (skeleton placeholders)
+Step 3: exec_command() x N — gather data for "${sections[0]}"
+Step 4: update_view(...) — same JSON but "${sections[0].toLowerCase().replace(/\s+/g, '-')}" section now has widgets
+  → User sees ${sections[0]} section populate with real data
+${sections.slice(1).map((s, i) => `Step ${5 + i * 2}: exec_command() x N — gather data for "${s}"
+Step ${6 + i * 2}: update_view(...) — cumulative, "${s.toLowerCase().replace(/\s+/g, '-')}" section now filled too
+  → User sees ${s} section populate`).join('\n')}
+Final: generate_schema(...) — complete view with ALL sections filled
+\`\`\`
+`;
+    }
+
+    // tabs layout example
+    const tabItems = sections.map(s => {
+      const id = s.toLowerCase().replace(/\s+/g, '-');
+      return `{"id":"${id}","label":"${s}","icon":"${this.pickIconForSection(s)}","children":[]}`;
+    });
+
+    return `## Example: Progressive Tabs Pattern
+
+Here is exactly how to build a tabs layout progressively:
+
+\`\`\`
+Step 1: get_server_context()
+Step 2: update_view({"title":"...","root":{"layout":"tabs","tabs":[${tabItems.join(',')}]}})
+  → User sees ${sections.length} empty tabs (skeleton placeholders in each)
+Step 3: exec_command() x N — gather data for "${sections[0]}" tab
+Step 4: update_view(...) — same but "${sections[0]}" tab now has widget children
+${sections.slice(1).map((s, i) => `Step ${5 + i * 2}: exec_command() x N — gather data for "${s}" tab
+Step ${6 + i * 2}: update_view(...) — cumulative, "${s}" tab filled too`).join('\n')}
+Final: generate_schema(...) — complete view with ALL tabs filled
+\`\`\`
+`;
+  }
+
+  /**
+   * Pick a reasonable Lucide icon name for a section based on its label.
+   */
+  private pickIconForSection(label: string): string {
+    const lower = label.toLowerCase();
+    if (lower.includes('system') || lower.includes('health') || lower.includes('overview')) return 'Cpu';
+    if (lower.includes('docker') || lower.includes('container')) return 'Container';
+    if (lower.includes('network') || lower.includes('port')) return 'Network';
+    if (lower.includes('disk') || lower.includes('storage')) return 'HardDrive';
+    if (lower.includes('memory') || lower.includes('ram')) return 'MemoryStick';
+    if (lower.includes('process') || lower.includes('task')) return 'Activity';
+    if (lower.includes('log')) return 'FileText';
+    if (lower.includes('config') || lower.includes('setting')) return 'Settings';
+    if (lower.includes('user') || lower.includes('account')) return 'Users';
+    if (lower.includes('service') || lower.includes('daemon')) return 'Cog';
+    if (lower.includes('nginx') || lower.includes('web')) return 'Globe';
+    if (lower.includes('ssh') || lower.includes('security')) return 'Shield';
+    if (lower.includes('image')) return 'Layers';
+    if (lower.includes('volume')) return 'Database';
+    if (lower.includes('cron') || lower.includes('schedule')) return 'Clock';
+    return 'LayoutDashboard';
+  }
+
   private buildInitialUserMessage(hints: PlannerHints): string {
-    return `Generate a ${hints.estimatedComplexity} ${hints.interactivityLevel} UI: ${hints.intent}`;
+    const sections = hints.suggestedSections;
+    const layout = hints.suggestedLayout ?? 'stack';
+
+    let msg = `Generate a ${hints.estimatedComplexity} ${hints.interactivityLevel} UI: ${hints.intent}`;
+
+    if ((layout === 'sidebar' || layout === 'tabs') && sections?.length) {
+      msg += `\n\nUse a ${layout} layout with these sections: ${sections.join(', ')}.`;
+      msg += `\nBuild it progressively: skeleton first → fill each section after gathering its data → generate_schema last.`;
+    }
+
+    return msg;
   }
 }
 

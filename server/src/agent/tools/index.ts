@@ -20,6 +20,7 @@ export { validateSchemaTool } from './validate-schema.js';
 export { generateSchemaTool } from './generate-schema.js';
 export { grepOutputTool } from './grep-output.js';
 export { getServerContextTool, clearServerContextCache } from './get-server-context.js';
+export { updateViewTool } from './update-view.js';
 
 // ── All Default Tools ───────────────────────────────────
 import { execCommandTool } from './exec-command.js';
@@ -31,10 +32,11 @@ import { validateSchemaTool } from './validate-schema.js';
 import { generateSchemaTool } from './generate-schema.js';
 import { grepOutputTool } from './grep-output.js';
 import { getServerContextTool } from './get-server-context.js';
+import { updateViewTool } from './update-view.js';
 import type { AgentTool } from './types.js';
 
 /**
- * All 9 default agent tools.
+ * All 10 default agent tools.
  * Register these in a ToolRegistry for use by the orchestrator.
  */
 export const ALL_AGENT_TOOLS: AgentTool[] = [
@@ -47,4 +49,5 @@ export const ALL_AGENT_TOOLS: AgentTool[] = [
   generateSchemaTool,
   grepOutputTool,
   getServerContextTool,
+  updateViewTool,
 ];

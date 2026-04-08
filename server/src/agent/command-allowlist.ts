@@ -21,7 +21,7 @@ export const AGENT_READ_ONLY_ALLOWLIST: RegExp[] = [
   /^file\s+/,
 
   // Disk & storage
-  /^df\s+(-[hHTPi]+\s*)+$/,
+  /^df\s+(-[hHTPi]+\s*)+((--output=\S+\s*)*(-x\s+\S+\s*)*)?$/,
   /^du\s+(-[shx]+\s+)*(\/[^\s;|&]*)?$/,
   /^lsblk(\s+(-[flo]+))?$/,
   /^findmnt(\s+(-[lnr]+))?/,
@@ -34,15 +34,21 @@ export const AGENT_READ_ONLY_ALLOWLIST: RegExp[] = [
   /^top\s+-b\s*-?n\s*1/,
   /^top\s+-bn\s*1/,
   /^uptime$/,
+  /^lscpu$/,
+  /^nproc$/,
+  /^lshw(\s+-short)?$/,
+  /^lspci(\s+-[v]+)?$/,
+  /^sensors$/,
 
   // Processes
-  /^ps\s+(aux|ef|axo\s+)/,
+  /^ps\s+(aux|ef|axo\s+|-eo\s+)/,
   /^pgrep\s+/,
 
   // Network
-  /^ip\s+((-brief\s+)?addr|route|link|neigh)/,
+  /^ip\s+((-brief|-br|-o|-j)\s+)*(-[46]\s+)*(a(ddr(ess)?)?|r(oute)?|l(ink)?|n(eigh)?)(\s+show)?/,
   /^ss\s+(-[tlunpa46]+\s*)+/,
   /^netstat\s+(-[tlunpa]+\s*)+$/,
+  /^ifconfig(\s+(-a|[a-z0-9]+))?$/,
   /^nslookup\s+/,
   /^dig\s+/,
   /^ping\s+-c\s*[1-5]\s+/,
@@ -54,6 +60,9 @@ export const AGENT_READ_ONLY_ALLOWLIST: RegExp[] = [
   /^uname\s+-[a-z]+$/,
   /^who(\s+-[a-z]+)*$/,
   /^w$/,
+  /^id(\s+\S+)?$/,
+  /^timedatectl(\s+status)?$/,
+  /^hostnamectl(\s+status)?$/,
   /^last(\s+-\d+)?(\s+-[a-z]+)*$/,
   /^dmesg(\s+--time-format=\S+)?(\s+\|\s+tail\s+-n\s+\d+)?$/,
 
@@ -65,18 +74,22 @@ export const AGENT_READ_ONLY_ALLOWLIST: RegExp[] = [
   /^cat\s+\/var\/log\//,
 
   // Docker (read-only)
-  /^docker\s+ps(\s+-[a]+)?(\s+--format\s+\S+)?$/,
-  /^docker\s+images(\s+--format\s+\S+)?$/,
+  /^docker\s+ps(\s+-[aq]+)*(\s+--format\s+['"]?[^;|&]*['"]?)?(\s+--no-trunc)?$/,
+  /^docker\s+images(\s+--format\s+['"]?[^;|&]*['"]?)?$/,
+  /^docker\s+info(\s+--format\s+['"]?[^;|&]*['"]?)?$/,
   /^docker\s+inspect\s+/,
   /^docker\s+logs\s+(--tail\s+\d+\s+)?/,
   /^docker\s+stats\s+--no-stream/,
+  /^docker\s+version(\s+--format\s+['"]?[^;|&]*['"]?)?$/,
   /^docker\s+compose\s+(ps|ls|config)/,
+  /^docker\s+network\s+(ls|inspect)(\s+--format\s+['"]?[^;|&]*['"]?)?/,
+  /^docker\s+volume\s+ls(\s+--format\s+['"]?[^;|&]*['"]?)?$/,
 
   // Systemd (read-only)
   /^systemctl\s+(status|list-units|list-unit-files|is-active|is-enabled|show)\s+/,
-  /^systemctl\s+list-units(\s+--type=\S+)?(\s+--state=\S+)?$/,
-  /^systemctl\s+--failed$/,
-  /^systemctl\s+list-units\s+--state=failed$/,
+  /^systemctl\s+list-units(\s+--type=\S+)?(\s+--state=\S+)?(\s+--no-pager)?(\s+--no-legend)?$/,
+  /^systemctl\s+--failed(\s+--no-pager)?(\s+--no-legend)?$/,
+  /^systemctl\s+list-units\s+--state=failed(\s+--no-pager)?(\s+--no-legend)?$/,
 
   // Nginx (read-only)
   /^nginx\s+-t/,
@@ -169,20 +182,29 @@ export const WRITE_ALLOWED_PATHS: RegExp[] = [
 export function isReadCommandAllowed(cmd: string): boolean {
   const trimmed = cmd.trim();
 
+  if (!trimmed) return false;
+
   for (const blocked of BLOCKED_PATTERNS) {
     if (blocked.test(trimmed)) return false;
   }
 
-  const segments = trimmed.split(/\s*\|\s*/);
+  // Split on && and ; first (each chained command is validated independently)
+  const chainedCommands = trimmed.split(/\s*(?:&&|;)\s*/).filter(Boolean);
 
-  for (let i = 0; i < segments.length; i++) {
-    const seg = segments[i]!.trim();
-    if (i === 0) {
-      const allowed = AGENT_READ_ONLY_ALLOWLIST.some(re => re.test(seg));
-      if (!allowed) return false;
-    } else {
-      const isFilter = PIPE_FILTERS.some(re => re.test(seg));
-      if (!isFilter) return false;
+  if (chainedCommands.length === 0) return false;
+
+  for (const chainCmd of chainedCommands) {
+    const segments = chainCmd.trim().split(/\s*\|\s*/);
+
+    for (let i = 0; i < segments.length; i++) {
+      const seg = segments[i]!.trim();
+      if (i === 0) {
+        const allowed = AGENT_READ_ONLY_ALLOWLIST.some(re => re.test(seg));
+        if (!allowed) return false;
+      } else {
+        const isFilter = PIPE_FILTERS.some(re => re.test(seg));
+        if (!isFilter) return false;
+      }
     }
   }
 

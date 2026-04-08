@@ -1,4 +1,5 @@
 // EX1.3 + EX1.12 + EX1.13: DynamicAppWindow — wraps DynamicViewRenderer in AppWindow overlay
+// Window chrome always includes a sidebar (lifted from LLM layout) for consistent navigation.
 // @see docs/phases/phase-ex1.md
 
 import { useState } from 'react';
@@ -7,9 +8,12 @@ import { DynamicViewSchema } from 'headlessos-shared/schemas/dynamic-view';
 import { AppWindow } from '@/components/ui/app-window';
 import { DynamicViewRenderer } from './DynamicViewRenderer';
 import { DynamicViewProvider } from './DynamicViewContext';
+import { SectionContent } from './SectionContent';
+import { useDynamicSidebar } from './useDynamicSidebar';
 import { openDynamicUIWindow } from './open-dynamic-ui-window';
 import { Button } from '@/components/ui/button';
 import { Code2, RotateCcw, Pin } from 'lucide-react';
+import { getLucideIcon } from './widgets/icon-helper';
 
 interface DynamicAppWindowProps {
   /** The dynamic view data to render */
@@ -35,6 +39,7 @@ export function DynamicAppWindow({
   serverId = null,
 }: DynamicAppWindowProps) {
   const [showJson, setShowJson] = useState(false);
+  const { items, activeId, setActiveId, activeChildren } = useDynamicSidebar(view);
 
   const title = (view.title as string) ?? 'Dynamic View';
   const meta = view.meta as DynamicView['meta'] | undefined;
@@ -47,6 +52,24 @@ export function DynamicAppWindow({
       description={view.description as string | undefined}
       size="lg"
     >
+      {/* Window-level sidebar — always present for consistent navigation */}
+      {items.length > 0 && (
+        <AppWindow.Sidebar>
+          <AppWindow.SidebarGroup>
+            {items.map((item) => (
+              <AppWindow.SidebarItem
+                key={item.id}
+                id={item.id}
+                label={item.label}
+                icon={item.icon ? getLucideIcon(item.icon) : undefined}
+                active={item.id === activeId}
+                onClick={() => setActiveId(item.id)}
+              />
+            ))}
+          </AppWindow.SidebarGroup>
+        </AppWindow.Sidebar>
+      )}
+
       <AppWindow.Toolbar>
         {onRegenerate && (
           <Button
@@ -97,7 +120,7 @@ export function DynamicAppWindow({
               <code>{JSON.stringify(view, null, 2)}</code>
             </pre>
           ) : (
-            <DynamicViewRenderer view={view} />
+            <SectionContent>{activeChildren}</SectionContent>
           )}
         </DynamicViewProvider>
       </AppWindow.Body>

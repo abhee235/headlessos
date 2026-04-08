@@ -40,6 +40,7 @@ function createDefaultHints(overrides?: Partial<PlannerHints>): PlannerHints {
     expectedWidgets: ['stat-card', 'table'],
     templateHint: null,
     dataSourceHints: ['filesystem usage'],
+    suggestedLayout: 'stack',
     securityRequirements: {
       needsWrite: false,
       needsSFTP: false,
