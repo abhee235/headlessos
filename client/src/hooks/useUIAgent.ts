@@ -92,6 +92,8 @@ export function useUIAgent(serverId: string | null): UseUIAgentReturn {
           tool: msg.tool ?? '',
           reason: msg.reason ?? '',
         };
+      case 'partial_view':
+        return { type: 'partial_view', view: msg.view };
       case 'generation_complete':
         return { type: 'generation_complete', view: msg.view };
       case 'reflection':
@@ -196,6 +198,11 @@ export function useUIAgent(serverId: string | null): UseUIAgentReturn {
             : `Write-back failed: ${msg.error ?? 'unknown'}`,
         } as AgentEventType);
         return;
+      }
+
+      // Handle partial_view — update the live partial view in the store
+      if (msg.type === 'partial_view' && msg.view) {
+        store.updatePartialView(msg.requestId, msg.view as Record<string, unknown>);
       }
 
       if (msg.type === 'error') {

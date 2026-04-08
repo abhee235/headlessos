@@ -1,9 +1,11 @@
 // EX1.6 + EX3-P.8: Sidebar Layout — side navigation with nestable section content
 // @see docs/phases/phase-ex1.md, docs/phases/phase-ex3.md
+// @see docs/PROGRESSIVE_RENDERING.md — skeleton placeholders for progressive rendering
 
 import { useState } from 'react';
 import type { DeepPartial, Layout } from 'headlessos-shared/schemas/dynamic-view';
 import { ContentRenderer } from '../ContentRenderer';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getLucideIcon } from '../widgets/icon-helper';
@@ -64,9 +66,18 @@ export function SidebarLayout({ layout }: { layout: SidebarLayout }) {
       <div className="flex-1 p-4">
         <ScrollArea className="h-full">
           {activeChildren.length === 0 ? (
-            <p className="text-sm text-muted-foreground italic">
-              No content for this section
-            </p>
+            <div className="space-y-4 animate-pulse">
+              <Skeleton className="h-5 w-32" />
+              <div className="grid grid-cols-3 gap-3">
+                <Skeleton className="h-20 w-full rounded-lg" />
+                <Skeleton className="h-20 w-full rounded-lg" />
+                <Skeleton className="h-20 w-full rounded-lg" />
+              </div>
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-3/4" />
+              <Skeleton className="h-8 w-5/6" />
+              <Skeleton className="h-32 w-full rounded-lg" />
+            </div>
           ) : (
             <div className="space-y-4">
               {activeChildren.filter(Boolean).map((child, ci) => (

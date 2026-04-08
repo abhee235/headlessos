@@ -1,9 +1,11 @@
 // EX2.12+: UI Agent View — conversational UI generation agent
 // @see docs/phases/phase-ex2.md — EX2.12
+// @see docs/PROGRESSIVE_RENDERING.md — progressive incremental rendering
 //
 // Frontend view for the UI Agent. Users enter a prompt describing what
 // they want to see, and the agent generates a Dynamic UI view in real-time.
 // Shows the agent's thinking process via AgentPanel as events stream in.
+// Opens a DynamicAppWindow on first partial_view for progressive rendering.
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
@@ -22,8 +24,10 @@ import { useUIAgent } from '../../hooks/useUIAgent';
 import { useAgentStore, type AgentSession } from '../../store/agent-store';
 import { AgentPanel, type AgentPanelProps } from './AgentPanel';
 import { openDynamicUIWindow } from '../DynamicUI';
+import { DynamicAppWindow } from '../DynamicUI/DynamicAppWindow';
 import { DynamicViewSchema } from 'headlessos-shared/schemas/dynamic-view';
-import { ExternalLink } from 'lucide-react';
+import type { DynamicView, DeepPartial } from 'headlessos-shared/schemas/dynamic-view';
+import { ExternalLink, Eye } from 'lucide-react';
 
 // ── Preset prompts ──────────────────────────────────────
 
@@ -85,9 +89,26 @@ export function UIAgentView({ serverId }: UIAgentViewProps) {
   const handleReset = useCallback(() => {
     setActiveRequestId(null);
     setPrompt('');
+    setShowPreview(false);
   }, []);
 
-  // Auto-open generated view as a desktop window when generation completes
+  // Progressive rendering: show inline DynamicAppWindow preview
+  const [showPreview, setShowPreview] = useState(false);
+
+  // Auto-show preview when first partial_view arrives
+  const previewOpenedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (
+      activeSession?.partialView &&
+      activeRequestId &&
+      !previewOpenedRef.current.has(activeRequestId)
+    ) {
+      previewOpenedRef.current.add(activeRequestId);
+      setShowPreview(true);
+    }
+  }, [activeSession?.partialView, activeRequestId]);
+
+  // Auto-open as desktop window when generation completes
   const openedRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (
@@ -103,6 +124,14 @@ export function UIAgentView({ serverId }: UIAgentViewProps) {
       }
     }
   }, [activeSession?.status, activeSession?.view, activeRequestId, serverId]);
+
+  // Get the current view to display — prefer final view, fall back to partial
+  const currentView: DeepPartial<DynamicView> | null =
+    activeSession?.view
+      ? (activeSession.view as DeepPartial<DynamicView>)
+      : activeSession?.partialView
+        ? (activeSession.partialView as DeepPartial<DynamicView>)
+        : null;
 
   const handleOpenInWindow = useCallback(() => {
     if (!activeSession?.view) return;
@@ -187,6 +216,39 @@ export function UIAgentView({ serverId }: UIAgentViewProps) {
               onAbort={isRunning ? handleAbort : undefined}
               className="border-none p-0"
             />
+          )}
+
+          {/* Progressive live preview — shown during generation */}
+          {activeSession && currentView && isRunning && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Eye className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
+                  <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                    Building view…
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowPreview(!showPreview)}
+                  className="h-6 px-2 text-[10px]"
+                >
+                  {showPreview ? 'Hide' : 'Show'} Preview
+                </Button>
+              </div>
+              {showPreview && (
+                <div className="border border-emerald-500/20 rounded-lg overflow-hidden bg-background/50">
+                  <DynamicAppWindow
+                    view={currentView}
+                    open={true}
+                    onClose={() => setShowPreview(false)}
+                    loading={true}
+                    serverId={serverId}
+                  />
+                </div>
+              )}
+            </div>
           )}
 
           {/* Completion summary + rendered view */}

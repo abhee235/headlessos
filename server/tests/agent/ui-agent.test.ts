@@ -39,6 +39,7 @@ function createDefaultHints(overrides?: Partial<PlannerHints>): PlannerHints {
     expectedWidgets: ['table'],
     templateHint: null,
     dataSourceHints: ['disk usage'],
+    suggestedLayout: 'stack',
     securityRequirements: { needsWrite: false, needsSFTP: false, sensitiveData: false },
     estimatedComplexity: 'simple',
     skipPostReflection: true,

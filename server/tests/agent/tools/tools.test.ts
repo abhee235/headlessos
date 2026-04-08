@@ -47,12 +47,12 @@ function createMockContext(overrides?: Partial<ToolContext>): ToolContext {
 
 describe('ALL_AGENT_TOOLS', () => {
   it('exports exactly 9 tools', () => {
-    expect(ALL_AGENT_TOOLS).toHaveLength(9);
+    expect(ALL_AGENT_TOOLS).toHaveLength(10);
   });
 
   it('all tools have unique names', () => {
     const names = ALL_AGENT_TOOLS.map(t => t.name);
-    expect(new Set(names).size).toBe(9);
+    expect(new Set(names).size).toBe(10);
   });
 
   it('all tools have required properties', () => {
@@ -76,6 +76,7 @@ describe('ALL_AGENT_TOOLS', () => {
       'search_templates',
       'sftp_read',
       'sftp_write',
+      'update_view',
       'validate_schema',
     ]);
   });
@@ -91,6 +92,7 @@ describe('ALL_AGENT_TOOLS', () => {
     expect(tierMap['generate_schema']).toBe('local');
     expect(tierMap['grep_output']).toBe('local');
     expect(tierMap['get_server_context']).toBe('read');
+    expect(tierMap['update_view']).toBe('local');
   });
 });
 

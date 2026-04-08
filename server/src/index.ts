@@ -1,6 +1,13 @@
 // M0.4 + M1: Fastify Server — wired with all Phase 1 services
 // @see docs/phases/phase-0.md, docs/phases/phase-1.md
 
+import 'dotenv/config';
+import { resolve } from 'node:path';
+import { config as dotenvConfig } from 'dotenv';
+
+// Load .env from project root (one level up from server/)
+dotenvConfig({ path: resolve(import.meta.dirname, '../../.env') });
+
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import websocket from '@fastify/websocket';
@@ -57,6 +64,9 @@ async function main(): Promise<void> {
 
   // LLM provider is optional — configured if OPENAI_API_KEY is set
   let modelRouter: ModelRouter | null = null;
+  // FakeSSHProxy used in fake mode to intercept SSH calls for fake-server
+  let agentConnectionManager: ConnectionManager | { getState: Function; exec: Function; getSftp: Function; connect: Function; disconnect: Function; name: string } = connectionManager;
+
   if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'sk-your-key-here') {
     const { OpenAIProvider } = await import('./llm/providers/openai.js');
     const llmProvider = new OpenAIProvider(process.env.OPENAI_API_KEY);
@@ -72,12 +82,49 @@ async function main(): Promise<void> {
     container.register('model-router', modelRouter);
 
     console.log('🤖 LLM provider: OpenAI');
+  } else if (process.env.LLM_PROVIDER === 'fake') {
+    // ── FakeLLM mode — scripted responses for live UI testing ──
+    const { FakeLLMProvider, createFakeModelRouter } = await import('./llm/providers/fake-llm.js');
+    const { FakeSSHProxy, createFakeServerOutputs } = await import('./llm/providers/fake-ssh-proxy.js');
+    const { PROGRESSIVE_SYSTEM_OVERVIEW_SCENARIO } = await import('./llm/providers/fake-progressive-scenario.js');
+
+    const fakeLLM = new FakeLLMProvider(PROGRESSIVE_SYSTEM_OVERVIEW_SCENARIO, 'fake-model', true /* looping */, {
+      simulateDelay: true,
+      delayMultiplier: 0.5, // Half-speed for snappy but visible delays
+    });
+    modelRouter = createFakeModelRouter(fakeLLM) as unknown as ModelRouter;
+
+    const fakeSSH = new FakeSSHProxy(connectionManager, createFakeServerOutputs());
+    agentConnectionManager = fakeSSH;
+
+    console.log('🎭 LLM provider: FakeLLM (dev mode — progressive system-overview scenario)');
+    console.log('   Use serverId "fake-server" to test the agent pipeline');
   } else {
     console.log('⚠️  No OPENAI_API_KEY set — LLM parsing disabled (deterministic parsers only)');
   }
 
   await container.boot();
   console.log('✅ Service container booted');
+
+  // Seed fake-server into config store when in fake mode
+  if (process.env.LLM_PROVIDER === 'fake') {
+    const existing = await configStore.getServer('fake-server');
+    if (!existing) {
+      // Push directly to the in-memory array with a fixed ID
+      const fakeConfig = {
+        id: 'fake-server',
+        name: 'Fake Server (Dev)',
+        host: '127.0.0.1',
+        port: 2222,
+        username: 'testuser',
+        authMethod: 'password' as const,
+        password: 'testpass',
+      };
+      // Use internal push to avoid randomUUID — the save() is fine
+      (configStore as any).servers.push(fakeConfig);
+      console.log('   📦 Seeded "fake-server" into server list');
+    }
+  }
 
   // Register deterministic parsers
   for (const parser of allParsers) {
@@ -96,7 +143,7 @@ async function main(): Promise<void> {
   await app.register(cors, {
     // Allow Vite dev server and Electron production mode (file:// sends origin: null)
     origin: (origin, cb) => {
-      const allowed = !origin || origin === 'null' || origin === 'http://localhost:3000';
+      const allowed = !origin || origin === 'null' || /^http:\/\/localhost:\d+$/.test(origin);
       cb(null, allowed);
     },
     credentials: true,
@@ -153,7 +200,7 @@ async function main(): Promise<void> {
   });
 
   // Register routes
-  await app.register(serverRoutes, { connectionManager, configStore });
+  await app.register(serverRoutes, { connectionManager: agentConnectionManager as ConnectionManager, configStore });
   await app.register(terminalRoutes, { connectionManager });
   await app.register(systemRoutes, { orchestrator, connectionManager });
   await app.register(fileRoutes, { connectionManager });
@@ -171,7 +218,7 @@ async function main(): Promise<void> {
   // UI Agent WebSocket (requires LLM)
   if (modelRouter) {
     await app.register(agentUIRoutes, {
-      connectionManager,
+      connectionManager: agentConnectionManager as ConnectionManager,
       modelRouter,
       templateRegistry: dynamicUIGenerator.getRegistry(),
     });

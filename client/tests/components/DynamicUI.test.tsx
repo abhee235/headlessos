@@ -567,7 +567,8 @@ describe('DynamicAppWindow', () => {
 
   it('renders title and content when open', () => {
     render(<DynamicAppWindow view={sampleView} open={true} onClose={() => {}} />);
-    expect(screen.getByText('System Info')).toBeInTheDocument();
+    // Title appears in both title bar and sidebar nav item
+    expect(screen.getAllByText('System Info').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('CPU')).toBeInTheDocument();
     expect(screen.getByText('45%')).toBeInTheDocument();
   });
@@ -1199,7 +1200,7 @@ describe('SidebarLayout', () => {
     expect(screen.getByText('Content for B')).toBeInTheDocument();
   });
 
-  it('shows empty message for sections without content', () => {
+  it('shows skeleton placeholders for sections without content', () => {
     const view: DynamicView = {
       title: 'Empty Section',
       root: {
@@ -1211,7 +1212,9 @@ describe('SidebarLayout', () => {
       },
     };
     render(<DynamicViewRenderer view={view} />);
-    expect(screen.getByText('No content for this section')).toBeInTheDocument();
+    // Skeletons are rendered for empty sections (progressive rendering)
+    const skeletons = document.querySelectorAll('.animate-pulse');
+    expect(skeletons.length).toBeGreaterThan(0);
   });
 
   it('renders empty sidebar items gracefully', () => {
