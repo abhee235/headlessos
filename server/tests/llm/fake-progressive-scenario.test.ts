@@ -23,7 +23,7 @@ describe('progressive system overview scenario', () => {
   });
 
   it('planner hints have correct structure', () => {
-    expect(PROGRESSIVE_PLANNER_HINTS.intent).toContain('sidebar');
+    expect(PROGRESSIVE_PLANNER_HINTS.intent).toContain('system overview');
     expect(PROGRESSIVE_PLANNER_HINTS.estimatedComplexity).toBe('complex');
     expect(PROGRESSIVE_PLANNER_HINTS.expectedWidgets).toContain('table');
     expect(PROGRESSIVE_PLANNER_HINTS.skipPostReflection).toBe(true);
@@ -34,19 +34,16 @@ describe('progressive system overview scenario', () => {
     expect(result.success).toBe(true);
   });
 
-  it('gold view has sidebar layout with 3 sections', () => {
-    const root = PROGRESSIVE_GOLD_VIEW.root as Record<string, unknown>;
-    expect(root.layout).toBe('sidebar');
-
-    const sidebarItems = root.sidebarItems as Array<{ id: string }>;
+  it('gold view has 3 sections with sidebarItems', () => {
+    const sidebarItems = PROGRESSIVE_GOLD_VIEW.sidebarItems as Array<{ id: string }>;
     expect(sidebarItems).toHaveLength(3);
     expect(sidebarItems.map(i => i.id)).toEqual(['system', 'docker', 'network']);
 
-    const sections = root.sections as Record<string, unknown[]>;
+    const sections = PROGRESSIVE_GOLD_VIEW.sections as Record<string, unknown>;
     expect(Object.keys(sections)).toEqual(['system', 'docker', 'network']);
-    expect(sections.system.length).toBeGreaterThan(0);
-    expect(sections.docker.length).toBeGreaterThan(0);
-    expect(sections.network.length).toBeGreaterThan(0);
+    expect(sections.system).toBeTruthy();
+    expect(sections.docker).toBeTruthy();
+    expect(sections.network).toBeTruthy();
   });
 
   it('chat flow includes update_view calls', () => {
@@ -81,11 +78,11 @@ describe('progressive system overview scenario', () => {
     });
 
     // First view should be a skeleton (empty sections)
-    const firstSections = views[0].root.sections;
+    const firstSections = views[0].sections as Record<string, unknown>;
     expect(Object.keys(firstSections).length).toBe(0);
 
     // Last view should have all 3 sections filled
-    const lastSections = views[views.length - 1].root.sections;
+    const lastSections = views[views.length - 1].sections as Record<string, unknown>;
     expect(Object.keys(lastSections).length).toBe(3);
   });
 });

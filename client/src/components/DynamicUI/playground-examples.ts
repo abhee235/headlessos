@@ -17,48 +17,51 @@ export const EXAMPLE_VIEWS: PlaygroundExample[] = [
       title: 'System Overview',
       description: 'Server health metrics at a glance',
       icon: 'Activity',
-      root: {
-        layout: 'stack',
-        gap: 'md',
-        children: [
-          {
-            type: 'alert',
-            message: 'All systems operational',
-            variant: 'success',
-          },
-          {
-            type: 'key-value',
-            title: 'Server Info',
-            pairs: [
-              { key: 'Hostname', value: 'web-prod-01', copyable: false },
-              { key: 'OS', value: 'Ubuntu 22.04 LTS', copyable: false },
-              { key: 'Kernel', value: '5.15.0-91-generic', copyable: false },
-              { key: 'Uptime', value: '42 days, 3 hours', copyable: false },
-            ],
-            layout: 'grid-2',
-          },
-          {
-            type: 'progress-bar',
-            title: 'CPU Usage',
-            value: 45,
-            label: '4 cores',
-            variant: 'default',
-          },
-          {
-            type: 'progress-bar',
-            title: 'Memory',
-            value: 78,
-            label: '6.2 GB / 8 GB',
-            variant: 'warning',
-          },
-          {
-            type: 'progress-bar',
-            title: 'Disk',
-            value: 64,
-            label: '320 GB / 500 GB',
-            variant: 'default',
-          },
-        ],
+      sidebarItems: [{ id: 'main', label: 'System', icon: 'Activity' }],
+      sections: {
+        main: {
+          layout: 'stack',
+          gap: 'md',
+          children: [
+            {
+              type: 'alert',
+              message: 'All systems operational',
+              variant: 'success',
+            },
+            {
+              type: 'key-value',
+              title: 'Server Info',
+              pairs: [
+                { key: 'Hostname', value: 'web-prod-01', copyable: false },
+                { key: 'OS', value: 'Ubuntu 22.04 LTS', copyable: false },
+                { key: 'Kernel', value: '5.15.0-91-generic', copyable: false },
+                { key: 'Uptime', value: '42 days, 3 hours', copyable: false },
+              ],
+              layout: 'grid-2',
+            },
+            {
+              type: 'progress-bar',
+              title: 'CPU Usage',
+              value: 45,
+              label: '4 cores',
+              variant: 'default',
+            },
+            {
+              type: 'progress-bar',
+              title: 'Memory',
+              value: 78,
+              label: '6.2 GB / 8 GB',
+              variant: 'warning',
+            },
+            {
+              type: 'progress-bar',
+              title: 'Disk',
+              value: 64,
+              label: '320 GB / 500 GB',
+              variant: 'default',
+            },
+          ],
+        },
       },
       meta: {
         command: 'uname -a && free -h && df -h',
@@ -73,10 +76,12 @@ export const EXAMPLE_VIEWS: PlaygroundExample[] = [
       title: 'Docker Containers',
       description: 'Running containers on this host',
       icon: 'Box',
-      root: {
-        layout: 'stack',
-        gap: 'md',
-        children: [
+      sidebarItems: [{ id: 'main', label: 'Docker', icon: 'Box' }],
+      sections: {
+        main: {
+          layout: 'stack',
+          gap: 'md',
+          children: [
           {
             type: 'badge-grid',
             title: 'Container Status',
@@ -111,6 +116,7 @@ export const EXAMPLE_VIEWS: PlaygroundExample[] = [
             footer: '7 containers total',
           },
         ],
+        },
       },
       meta: {
         command: 'docker ps -a --format json',
@@ -124,17 +130,20 @@ export const EXAMPLE_VIEWS: PlaygroundExample[] = [
     data: {
       title: 'Performance Metrics',
       icon: 'BarChart3',
-      root: {
-        layout: 'grid',
-        columns: 3,
-        children: [
-          { type: 'stat-card', title: 'CPU', value: '45', unit: '%', trend: 'up', description: '+3% from last hour' },
-          { type: 'stat-card', title: 'Memory', value: '6.2', unit: 'GB', trend: 'neutral' },
-          { type: 'stat-card', title: 'Disk I/O', value: '124', unit: 'MB/s', trend: 'down', description: '-15% from peak' },
-          { type: 'stat-card', title: 'Network In', value: '2.4', unit: 'Gbps', trend: 'up' },
-          { type: 'stat-card', title: 'Network Out', value: '1.8', unit: 'Gbps', trend: 'neutral' },
-          { type: 'stat-card', title: 'Uptime', value: '99.97', unit: '%' },
-        ],
+      sidebarItems: [{ id: 'main', label: 'Metrics', icon: 'BarChart3' }],
+      sections: {
+        main: {
+          layout: 'grid',
+          columns: 3,
+          children: [
+            { type: 'stat-card', title: 'CPU', value: '45', unit: '%', trend: 'up', description: '+3% from last hour' },
+            { type: 'stat-card', title: 'Memory', value: '6.2', unit: 'GB', trend: 'neutral' },
+            { type: 'stat-card', title: 'Disk I/O', value: '124', unit: 'MB/s', trend: 'down', description: '-15% from peak' },
+            { type: 'stat-card', title: 'Network In', value: '2.4', unit: 'Gbps', trend: 'up' },
+            { type: 'stat-card', title: 'Network Out', value: '1.8', unit: 'Gbps', trend: 'neutral' },
+            { type: 'stat-card', title: 'Uptime', value: '99.97', unit: '%' },
+          ],
+        },
       },
     },
   },
@@ -145,10 +154,12 @@ export const EXAMPLE_VIEWS: PlaygroundExample[] = [
       title: 'Nginx Configuration',
       description: 'Active virtual hosts',
       icon: 'Globe',
-      root: {
-        layout: 'stack',
-        gap: 'md',
-        children: [
+      sidebarItems: [{ id: 'main', label: 'Nginx', icon: 'Globe' }],
+      sections: {
+        main: {
+          layout: 'stack',
+          gap: 'md',
+          children: [
           {
             type: 'code-block',
             title: 'Default Server Block',
@@ -177,6 +188,7 @@ export const EXAMPLE_VIEWS: PlaygroundExample[] = [
             variant: 'warning',
           },
         ],
+        },
       },
       meta: {
         command: 'cat /etc/nginx/sites-enabled/default',
@@ -192,8 +204,10 @@ export const EXAMPLE_VIEWS: PlaygroundExample[] = [
       title: 'Network',
       description: 'Listening ports, connections, interfaces, routes, and DNS',
       icon: 'Network',
-      root: {
-        layout: 'tabs',
+      sidebarItems: [{ id: 'main', label: 'Network', icon: 'Network' }],
+      sections: {
+        main: {
+          layout: 'tabs',
         tabs: [
           // ── Tab 1: Listening Ports ──────────────────────────────
           {
@@ -460,6 +474,7 @@ export const EXAMPLE_VIEWS: PlaygroundExample[] = [
             ],
           },
         ],
+        },
       },
       meta: {
         command: 'ss -tlnp && ss -tnp && ip addr && ip route && cat /etc/resolv.conf',
@@ -472,10 +487,13 @@ export const EXAMPLE_VIEWS: PlaygroundExample[] = [
     name: 'Minimal (Empty)',
     data: {
       title: 'Empty View',
-      root: {
-        layout: 'stack',
-        gap: 'md',
-        children: [],
+      sidebarItems: [{ id: 'main', label: 'Empty View' }],
+      sections: {
+        main: {
+          layout: 'stack',
+          gap: 'md',
+          children: [],
+        },
       },
     },
   },
@@ -487,10 +505,12 @@ export const EXAMPLE_VIEWS: PlaygroundExample[] = [
       title: 'Packages',
       description: 'System package management',
       icon: 'Package',
-      root: {
-        layout: 'stack',
-        gap: 'md',
-        children: [
+      sidebarItems: [{ id: 'main', label: 'Packages', icon: 'Package' }],
+      sections: {
+        main: {
+          layout: 'stack',
+          gap: 'md',
+          children: [
           // ── Row of stat cards (nested grid inside stack) ──
           {
             layout: 'grid',
@@ -573,6 +593,7 @@ export const EXAMPLE_VIEWS: PlaygroundExample[] = [
             ],
           },
         ],
+        },
       },
       meta: {
         command: 'dpkg --list | wc -l && apt list --upgradable 2>/dev/null',
@@ -580,7 +601,7 @@ export const EXAMPLE_VIEWS: PlaygroundExample[] = [
       },
     },
   },
-  // ── Server Admin — sidebar layout with nested tabs ──
+  // ── Server Admin — multi-section with nested tabs ──
   {
     id: 'server-admin',
     name: 'Server Admin',
@@ -588,20 +609,21 @@ export const EXAMPLE_VIEWS: PlaygroundExample[] = [
       title: 'Server Admin',
       description: 'Server configuration and management',
       icon: 'Shield',
-      root: {
-        layout: 'sidebar',
-        sidebarItems: [
-          { id: 'network', label: 'Network', icon: 'Network' },
-          { id: 'firewall', label: 'Firewall', icon: 'ShieldAlert' },
-          { id: 'security', label: 'Security', icon: 'Lock' },
-          { id: 'webserver', label: 'Web Server', icon: 'Globe' },
-          { id: 'packages', label: 'Packages', icon: 'Package' },
-          { id: 'cron', label: 'Cron Jobs', icon: 'Clock' },
-          { id: 'logs', label: 'Logs', icon: 'ScrollText' },
-          { id: 'storage', label: 'Storage', icon: 'HardDrive' },
-        ],
-        sections: {
-          network: [
+      sidebarItems: [
+        { id: 'network', label: 'Network', icon: 'Network' },
+        { id: 'firewall', label: 'Firewall', icon: 'ShieldAlert' },
+        { id: 'security', label: 'Security', icon: 'Lock' },
+        { id: 'webserver', label: 'Web Server', icon: 'Globe' },
+        { id: 'packages', label: 'Packages', icon: 'Package' },
+        { id: 'cron', label: 'Cron Jobs', icon: 'Clock' },
+        { id: 'logs', label: 'Logs', icon: 'ScrollText' },
+        { id: 'storage', label: 'Storage', icon: 'HardDrive' },
+      ],
+      sections: {
+        network: {
+          layout: 'stack',
+          gap: 'md',
+          children: [
             {
               type: 'key-value',
               title: 'Network Configuration',
@@ -639,7 +661,11 @@ export const EXAMPLE_VIEWS: PlaygroundExample[] = [
               ],
             },
           ],
-          firewall: [
+        },
+        firewall: {
+          layout: 'stack',
+          gap: 'md',
+          children: [
             {
               type: 'alert',
               title: 'UFW Active',
@@ -669,133 +695,135 @@ export const EXAMPLE_VIEWS: PlaygroundExample[] = [
               actionStyle: 'dropdown',
             },
           ],
-          security: [
+        },
+        security: {
+          layout: 'tabs',
+          tabs: [
             {
-              layout: 'tabs',
-              tabs: [
+              id: 'sessions',
+              label: 'Active Sessions',
+              icon: 'Users',
+              count: 2,
+              children: [
                 {
-                  id: 'sessions',
-                  label: 'Active Sessions',
-                  icon: 'Users',
-                  count: 2,
-                  children: [
-                    {
-                      type: 'table',
-                      columns: [
-                        { key: 'user', label: 'User', type: 'text', sortable: false },
-                        { key: 'ip', label: 'IP Address', type: 'mono', sortable: false },
-                        { key: 'loginAt', label: 'Login Time', type: 'text', sortable: false },
-                        { key: 'idle', label: 'Idle', type: 'text', sortable: false, width: '80px' },
-                      ],
-                      rows: [
-                        { user: 'root', ip: '192.168.1.100', loginAt: '2024-01-15 09:23', idle: '0s' },
-                        { user: 'deploy', ip: '10.0.0.50', loginAt: '2024-01-15 08:45', idle: '12m' },
-                      ],
-                      actions: [
-                        { id: 'kill', label: 'Kill Session', icon: 'LogOut', command: 'pkill -u {user}', confirm: true, confirmMessage: 'Terminate session for {user}?', variant: 'destructive' },
-                      ],
-                      actionStyle: 'dropdown',
-                    },
+                  type: 'table',
+                  columns: [
+                    { key: 'user', label: 'User', type: 'text', sortable: false },
+                    { key: 'ip', label: 'IP Address', type: 'mono', sortable: false },
+                    { key: 'loginAt', label: 'Login Time', type: 'text', sortable: false },
+                    { key: 'idle', label: 'Idle', type: 'text', sortable: false, width: '80px' },
+                  ],
+                  rows: [
+                    { user: 'root', ip: '192.168.1.100', loginAt: '2024-01-15 09:23', idle: '0s' },
+                    { user: 'deploy', ip: '10.0.0.50', loginAt: '2024-01-15 08:45', idle: '12m' },
+                  ],
+                  actions: [
+                    { id: 'kill', label: 'Kill Session', icon: 'LogOut', command: 'pkill -u {user}', confirm: true, confirmMessage: 'Terminate session for {user}?', variant: 'destructive' },
+                  ],
+                  actionStyle: 'dropdown',
+                },
+              ],
+            },
+            {
+              id: 'users',
+              label: 'Users',
+              icon: 'UserCog',
+              count: 4,
+              children: [
+                {
+                  type: 'table',
+                  columns: [
+                    { key: 'username', label: 'Username', type: 'text', sortable: true },
+                    { key: 'uid', label: 'UID', type: 'mono', sortable: false, width: '70px' },
+                    { key: 'groups', label: 'Groups', type: 'text', sortable: false },
+                    { key: 'shell', label: 'Shell', type: 'mono', sortable: false },
+                    { key: 'sudo', label: 'Sudo', type: 'badge', sortable: false, width: '80px', badgeVariant: { Yes: 'warning', No: 'secondary' } },
+                  ],
+                  rows: [
+                    { username: 'root', uid: '0', groups: 'root', shell: '/bin/bash', sudo: 'Yes' },
+                    { username: 'deploy', uid: '1001', groups: 'deploy,docker', shell: '/bin/bash', sudo: 'Yes' },
+                    { username: 'www-data', uid: '33', groups: 'www-data', shell: '/usr/sbin/nologin', sudo: 'No' },
+                    { username: 'postgres', uid: '114', groups: 'postgres', shell: '/bin/bash', sudo: 'No' },
                   ],
                 },
+              ],
+            },
+            {
+              id: 'ssh-config',
+              label: 'SSH Config',
+              icon: 'KeyRound',
+              children: [
                 {
-                  id: 'users',
-                  label: 'Users',
-                  icon: 'UserCog',
-                  count: 4,
-                  children: [
-                    {
-                      type: 'table',
-                      columns: [
-                        { key: 'username', label: 'Username', type: 'text', sortable: true },
-                        { key: 'uid', label: 'UID', type: 'mono', sortable: false, width: '70px' },
-                        { key: 'groups', label: 'Groups', type: 'text', sortable: false },
-                        { key: 'shell', label: 'Shell', type: 'mono', sortable: false },
-                        { key: 'sudo', label: 'Sudo', type: 'badge', sortable: false, width: '80px', badgeVariant: { Yes: 'warning', No: 'secondary' } },
-                      ],
-                      rows: [
-                        { username: 'root', uid: '0', groups: 'root', shell: '/bin/bash', sudo: 'Yes' },
-                        { username: 'deploy', uid: '1001', groups: 'deploy,docker', shell: '/bin/bash', sudo: 'Yes' },
-                        { username: 'www-data', uid: '33', groups: 'www-data', shell: '/usr/sbin/nologin', sudo: 'No' },
-                        { username: 'postgres', uid: '114', groups: 'postgres', shell: '/bin/bash', sudo: 'No' },
-                      ],
-                    },
+                  type: 'key-value',
+                  title: 'SSH Configuration',
+                  pairs: [
+                    { key: 'Port', value: '22', icon: 'Hash' },
+                    { key: 'PermitRootLogin', value: 'prohibit-password', icon: 'ShieldAlert' },
+                    { key: 'PasswordAuth', value: 'no', icon: 'Lock' },
+                    { key: 'PubkeyAuth', value: 'yes', icon: 'Key' },
+                    { key: 'MaxAuthTries', value: '3', icon: 'ShieldCheck' },
+                    { key: 'X11 Forwarding', value: 'no', icon: 'Monitor' },
+                  ],
+                  layout: 'grid-2',
+                },
+              ],
+            },
+            {
+              id: 'login-history',
+              label: 'Login History',
+              icon: 'History',
+              children: [
+                {
+                  type: 'table',
+                  columns: [
+                    { key: 'user', label: 'User', type: 'text', sortable: false },
+                    { key: 'ip', label: 'From', type: 'mono', sortable: false },
+                    { key: 'time', label: 'Time', type: 'text', sortable: false },
+                    { key: 'result', label: 'Result', type: 'badge', sortable: false, badgeVariant: { Success: 'success', Failed: 'destructive' } },
+                  ],
+                  rows: [
+                    { user: 'root', ip: '192.168.1.100', time: 'Jan 15 09:23', result: 'Success' },
+                    { user: 'deploy', ip: '10.0.0.50', time: 'Jan 15 08:45', result: 'Success' },
+                    { user: 'admin', ip: '203.0.113.42', time: 'Jan 15 03:17', result: 'Failed' },
+                    { user: 'root', ip: '198.51.100.7', time: 'Jan 14 22:01', result: 'Failed' },
+                    { user: 'deploy', ip: '10.0.0.50', time: 'Jan 14 18:30', result: 'Success' },
                   ],
                 },
+              ],
+            },
+            {
+              id: 'fail2ban',
+              label: 'Fail2ban',
+              icon: 'ShieldCheck',
+              children: [
                 {
-                  id: 'ssh-config',
-                  label: 'SSH Config',
-                  icon: 'KeyRound',
-                  children: [
-                    {
-                      type: 'key-value',
-                      title: 'SSH Configuration',
-                      pairs: [
-                        { key: 'Port', value: '22', icon: 'Hash' },
-                        { key: 'PermitRootLogin', value: 'prohibit-password', icon: 'ShieldAlert' },
-                        { key: 'PasswordAuth', value: 'no', icon: 'Lock' },
-                        { key: 'PubkeyAuth', value: 'yes', icon: 'Key' },
-                        { key: 'MaxAuthTries', value: '3', icon: 'ShieldCheck' },
-                        { key: 'X11 Forwarding', value: 'no', icon: 'Monitor' },
-                      ],
-                      layout: 'grid-2',
-                    },
-                  ],
+                  type: 'alert',
+                  title: 'Fail2ban Active',
+                  message: '2 jails configured, 14 IPs currently banned.',
+                  variant: 'success',
                 },
                 {
-                  id: 'login-history',
-                  label: 'Login History',
-                  icon: 'History',
-                  children: [
-                    {
-                      type: 'table',
-                      columns: [
-                        { key: 'user', label: 'User', type: 'text', sortable: false },
-                        { key: 'ip', label: 'From', type: 'mono', sortable: false },
-                        { key: 'time', label: 'Time', type: 'text', sortable: false },
-                        { key: 'result', label: 'Result', type: 'badge', sortable: false, badgeVariant: { Success: 'success', Failed: 'destructive' } },
-                      ],
-                      rows: [
-                        { user: 'root', ip: '192.168.1.100', time: 'Jan 15 09:23', result: 'Success' },
-                        { user: 'deploy', ip: '10.0.0.50', time: 'Jan 15 08:45', result: 'Success' },
-                        { user: 'admin', ip: '203.0.113.42', time: 'Jan 15 03:17', result: 'Failed' },
-                        { user: 'root', ip: '198.51.100.7', time: 'Jan 14 22:01', result: 'Failed' },
-                        { user: 'deploy', ip: '10.0.0.50', time: 'Jan 14 18:30', result: 'Success' },
-                      ],
-                    },
+                  type: 'table',
+                  title: 'Active Jails',
+                  columns: [
+                    { key: 'jail', label: 'Jail', type: 'text', sortable: false },
+                    { key: 'status', label: 'Status', type: 'badge', sortable: false, badgeVariant: { active: 'success', inactive: 'secondary' } },
+                    { key: 'banned', label: 'Banned IPs', type: 'text', sortable: false, width: '100px' },
+                    { key: 'totalBans', label: 'Total Bans', type: 'text', sortable: false, width: '100px' },
                   ],
-                },
-                {
-                  id: 'fail2ban',
-                  label: 'Fail2ban',
-                  icon: 'ShieldCheck',
-                  children: [
-                    {
-                      type: 'alert',
-                      title: 'Fail2ban Active',
-                      message: '2 jails configured, 14 IPs currently banned.',
-                      variant: 'success',
-                    },
-                    {
-                      type: 'table',
-                      title: 'Active Jails',
-                      columns: [
-                        { key: 'jail', label: 'Jail', type: 'text', sortable: false },
-                        { key: 'status', label: 'Status', type: 'badge', sortable: false, badgeVariant: { active: 'success', inactive: 'secondary' } },
-                        { key: 'banned', label: 'Banned IPs', type: 'text', sortable: false, width: '100px' },
-                        { key: 'totalBans', label: 'Total Bans', type: 'text', sortable: false, width: '100px' },
-                      ],
-                      rows: [
-                        { jail: 'sshd', status: 'active', banned: 12, totalBans: 847 },
-                        { jail: 'nginx-http-auth', status: 'active', banned: 2, totalBans: 31 },
-                      ],
-                    },
+                  rows: [
+                    { jail: 'sshd', status: 'active', banned: 12, totalBans: 847 },
+                    { jail: 'nginx-http-auth', status: 'active', banned: 2, totalBans: 31 },
                   ],
                 },
               ],
             },
           ],
-          webserver: [
+        },
+        webserver: {
+          layout: 'stack',
+          gap: 'md',
+          children: [
             {
               type: 'badge-grid',
               title: 'Nginx Status',
@@ -821,18 +849,20 @@ export const EXAMPLE_VIEWS: PlaygroundExample[] = [
               ],
             },
           ],
-          packages: [
-            {
-              layout: 'grid',
-              columns: 3,
-              children: [
-                { type: 'stat-card', title: 'Installed', value: '530', icon: 'Package' },
-                { type: 'stat-card', title: 'Upgradable', value: '12', icon: 'ArrowUpCircle', trend: 'up' },
-                { type: 'stat-card', title: 'Auto-removable', value: '3', icon: 'Trash2' },
-              ],
-            },
+        },
+        packages: {
+          layout: 'grid',
+          columns: 3,
+          children: [
+            { type: 'stat-card', title: 'Installed', value: '530', icon: 'Package' },
+            { type: 'stat-card', title: 'Upgradable', value: '12', icon: 'ArrowUpCircle', trend: 'up' },
+            { type: 'stat-card', title: 'Auto-removable', value: '3', icon: 'Trash2' },
           ],
-          cron: [
+        },
+        cron: {
+          layout: 'stack',
+          gap: 'md',
+          children: [
             {
               type: 'table',
               title: 'Scheduled Tasks',
@@ -850,7 +880,11 @@ export const EXAMPLE_VIEWS: PlaygroundExample[] = [
               ],
             },
           ],
-          logs: [
+        },
+        logs: {
+          layout: 'stack',
+          gap: 'md',
+          children: [
             {
               type: 'code-block',
               title: 'Recent System Logs',
@@ -864,7 +898,11 @@ Jan 15 09:00:00 web-prod-01 cron[8901]: (root) CMD (/usr/local/bin/logrotate.sh)
               maxHeight: '240px',
             },
           ],
-          storage: [
+        },
+        storage: {
+          layout: 'stack',
+          gap: 'md',
+          children: [
             {
               type: 'progress-bar',
               title: 'Root (/)',

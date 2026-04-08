@@ -181,12 +181,15 @@ export function DynamicUIPlayground({ open, onOpenChange }: DynamicUIPlaygroundP
   );
 }
 
-/** Count total widgets across all layouts recursively */
+/** Count total widgets across all sections recursively */
 function countWidgets(view: DynamicView): number {
-  return countLayoutChildren(view.root);
+  return Object.values(view.sections).reduce<number>(
+    (sum, layout) => sum + countLayoutChildren(layout),
+    0,
+  );
 }
 
-function countLayoutChildren(layout: DynamicView['root']): number {
+function countLayoutChildren(layout: Layout): number {
   switch (layout.layout) {
     case 'stack':
     case 'grid':
@@ -203,15 +206,6 @@ function countLayoutChildren(layout: DynamicView['root']): number {
             return tSum + countLayoutChildren(child as Layout);
           }
           return tSum + 1;
-        }, 0),
-      0);
-    case 'sidebar':
-      return Object.values(layout.sections).reduce<number>((sum, items) =>
-        sum + (items as unknown[]).reduce<number>((sSum, child) => {
-          if (child && typeof child === 'object' && 'layout' in child && !('type' in child)) {
-            return sSum + countLayoutChildren(child as Layout);
-          }
-          return sSum + 1;
         }, 0),
       0);
     default:

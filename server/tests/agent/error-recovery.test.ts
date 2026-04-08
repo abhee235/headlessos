@@ -126,12 +126,12 @@ describe('createZodErrorContext', () => {
     const zodError = {
       issues: [
         { path: ['title'], message: 'Required', code: 'invalid_type' },
-        { path: ['root'], message: 'Required', code: 'invalid_type' },
+        { path: ['sections'], message: 'Required', code: 'invalid_type' },
       ],
     };
     const ctx = createZodErrorContext(zodError);
     expect(ctx.message).toContain('title');
-    expect(ctx.message).toContain('root');
+    expect(ctx.message).toContain('sections');
   });
 
   it('handles empty issues array', () => {

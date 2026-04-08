@@ -362,7 +362,7 @@ export type WidgetType = (typeof WIDGET_TYPES)[number];
 
 /** Lazy ref so layouts can contain sub-layouts without circular issues */
 const LayoutOrWidgetSchema: z.ZodType<unknown> = z.lazy(() =>
-  z.union([WidgetSchema, StackLayoutSchema, GridLayoutSchema, TabsLayoutSchema, SidebarLayoutSchema]),
+  z.union([WidgetSchema, StackLayoutSchema, GridLayoutSchema, TabsLayoutSchema]),
 );
 
 export const StackLayoutSchema = z.object({
@@ -389,27 +389,16 @@ export const TabsLayoutSchema = z.object({
   })),
 });
 
-export const SidebarLayoutSchema = z.object({
-  layout: z.literal('sidebar'),
-  sidebarItems: z.array(z.object({
-    id: z.string(),
-    label: z.string(),
-    icon: z.string().nullable().optional(),
-  })),
-  sections: z.record(z.string(), z.array(LayoutOrWidgetSchema)),
-});
-
 export const LayoutSchema = z.discriminatedUnion('layout', [
   StackLayoutSchema,
   GridLayoutSchema,
   TabsLayoutSchema,
-  SidebarLayoutSchema,
 ]);
 
 export type Layout = z.infer<typeof LayoutSchema>;
 
 /** All supported layout type strings */
-export const LAYOUT_TYPES = ['stack', 'grid', 'tabs', 'sidebar'] as const;
+export const LAYOUT_TYPES = ['stack', 'grid', 'tabs'] as const;
 
 export type LayoutType = (typeof LAYOUT_TYPES)[number];
 
@@ -422,6 +411,15 @@ export const DynamicViewMetaSchema = z.object({
   templateId: z.string().nullable().optional().describe('Template used, if any'),
 });
 
+/** Sidebar navigation item — always rendered in window chrome */
+export const SidebarItemSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  icon: z.string().nullable().optional(),
+});
+
+export type SidebarItem = z.infer<typeof SidebarItemSchema>;
+
 export const DynamicViewSchema = z.object({
   /** Display title for the window */
   title: z.string(),
@@ -429,8 +427,10 @@ export const DynamicViewSchema = z.object({
   description: z.string().nullable().optional(),
   /** Lucide icon name */
   icon: z.string().nullable().optional(),
-  /** The root layout container */
-  root: LayoutSchema,
+  /** Sidebar navigation items — always present, rendered in window chrome */
+  sidebarItems: z.array(SidebarItemSchema),
+  /** Content sections keyed by sidebar item ID — each section is a layout (stack/grid/tabs) */
+  sections: z.record(z.string(), LayoutSchema),
   /** Metadata about generation */
   meta: DynamicViewMetaSchema.nullable().optional(),
 });

@@ -40,7 +40,7 @@ export function DynamicUITabView({ serverId, windowId }: DynamicUITabViewProps) 
 
 /** Inner content with sidebar — separated so useDynamicSidebar gets a stable view */
 function DynamicUITabViewContent({ view }: { view: Parameters<typeof useDynamicSidebar>[0] }) {
-  const { items, activeId, setActiveId, activeChildren } = useDynamicSidebar(view);
+  const { items, activeId, setActiveId, activeLayout } = useDynamicSidebar(view);
 
   return (
     <div className="flex h-full">
@@ -76,7 +76,7 @@ function DynamicUITabViewContent({ view }: { view: Parameters<typeof useDynamicS
       {/* Content area */}
       <ScrollArea className="flex-1 min-h-0">
         <div className="p-4">
-          <SectionContent>{activeChildren}</SectionContent>
+          <SectionContent layout={activeLayout} />
         </div>
       </ScrollArea>
     </div>

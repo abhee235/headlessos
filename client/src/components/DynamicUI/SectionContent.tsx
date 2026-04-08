@@ -1,21 +1,22 @@
-// EX1: SectionContent — renders the children of an active sidebar section
+// EX1: SectionContent — renders the content of an active sidebar section
+// Each section is a Layout (stack/grid/tabs) rendered via LayoutRenderer.
 // Used by DynamicAppWindow and DynamicUITabView to display content for the selected nav item.
 
 import type { Layout, DeepPartial } from 'headlessos-shared/schemas/dynamic-view';
-import { ContentRenderer } from './ContentRenderer';
+import { LayoutRenderer } from './LayoutRenderer';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface SectionContentProps {
-  /** Array of children (widgets/layouts) to render for the active section */
-  children: unknown[];
+  /** The Layout object to render for the active section (null = loading/empty) */
+  layout: DeepPartial<Layout> | null;
 }
 
 /**
  * Renders the content for a given sidebar section.
- * Shows skeleton placeholders when the content is still loading (empty array during progressive rendering).
+ * Shows skeleton placeholders when the section is still loading (null during progressive rendering).
  */
-export function SectionContent({ children }: SectionContentProps) {
-  if (children.length === 0) {
+export function SectionContent({ layout }: SectionContentProps) {
+  if (!layout) {
     return (
       <div className="space-y-4 animate-pulse">
         <Skeleton className="h-5 w-32" />
@@ -32,11 +33,5 @@ export function SectionContent({ children }: SectionContentProps) {
     );
   }
 
-  return (
-    <div className="space-y-4">
-      {children.filter(Boolean).map((child, ci) => (
-        <ContentRenderer key={ci} item={child as DeepPartial<Layout>} />
-      ))}
-    </div>
-  );
+  return <LayoutRenderer layout={layout} />;
 }

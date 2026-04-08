@@ -18,7 +18,9 @@ export const cronScheduleTemplate: UITemplate = {
     title: 'Scheduled Jobs',
     description: 'Cron jobs and systemd timers',
     icon: 'Clock',
-    root: {
+    sidebarItems: [{ id: 'main', label: 'Schedule' }],
+    sections: {
+      main: {
       layout: 'stack',
       gap: 'md',
       children: [
@@ -68,6 +70,7 @@ export const cronScheduleTemplate: UITemplate = {
           ],
         },
       ],
+      },
     },
   },
 };

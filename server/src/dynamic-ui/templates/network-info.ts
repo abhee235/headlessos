@@ -21,7 +21,9 @@ export const networkInfoTemplate: UITemplate = {
     title: 'Network Information',
     description: 'Network interfaces, addresses, routes, and DNS',
     icon: 'Globe',
-    root: {
+    sidebarItems: [{ id: 'main', label: 'Network' }],
+    sections: {
+      main: {
       layout: 'stack',
       gap: 'md',
       children: [
@@ -76,6 +78,7 @@ export const networkInfoTemplate: UITemplate = {
           ],
         },
       ],
+      },
     },
   },
 };

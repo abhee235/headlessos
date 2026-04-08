@@ -5,7 +5,6 @@ import type { Layout, DeepPartial } from 'headlessos-shared/schemas/dynamic-view
 import { StackLayout } from './layouts/StackLayout';
 import { GridLayout } from './layouts/GridLayout';
 import { TabsLayout } from './layouts/TabsLayout';
-import { SidebarLayout } from './layouts/SidebarLayout';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -21,8 +20,6 @@ export function LayoutRenderer({ layout }: { layout: DeepPartial<Layout> }) {
       return <GridLayout layout={layout as DeepPartial<Layout & { layout: 'grid' }>} />;
     case 'tabs':
       return <TabsLayout layout={layout as DeepPartial<Layout & { layout: 'tabs' }>} />;
-    case 'sidebar':
-      return <SidebarLayout layout={layout as DeepPartial<Layout & { layout: 'sidebar' }>} />;
     default:
       return (
         <Alert variant="destructive">

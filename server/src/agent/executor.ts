@@ -357,14 +357,17 @@ The final JSON you pass to generate_schema() MUST conform to this structure exac
   "title": "string (required)",
   "description": "string | null (optional)",
   "icon": "string | null (optional, Lucide icon name, PascalCase)",
-  "root": <LayoutObject>,
+  "sidebarItems": [{"id":"string","label":"string","icon":"string|null"}],
+  "sections": { "sidebarItemId": <LayoutObject> },
   "meta": { "tool": "string?", "command": "string?", "generatedAt": "string?", "templateId": "string?" } | null
 }
 \`\`\`
 
-### Layout Objects (root.layout is the discriminator)
+**IMPORTANT**: \`sidebarItems\` and \`sections\` are TOP-LEVEL fields. There is NO \`root\` field. Each section maps a sidebar item ID to a Layout (stack/grid/tabs). Every sidebar item MUST have a matching section key.
 
-The \`root\` field MUST be one of these 4 layout types. The discriminator key is \`layout\` (NOT \`type\`). Layouts are **nestable** — a tab's children or a sidebar's section values can contain other layouts.
+### Layout Objects (layout is the discriminator)
+
+Each section value MUST be one of these 3 layout types. The discriminator key is \`layout\` (NOT \`type\`). Layouts are **nestable** — a tab's children can contain other layouts.
 
 1. **Stack** (vertical list of children — widgets or sub-layouts):
    \`{ "layout": "stack", "gap": "sm"|"md"|"lg", "children": [<Widget|Layout>, ...] }\`
@@ -377,11 +380,7 @@ The \`root\` field MUST be one of these 4 layout types. The discriminator key is
    - **icon**: Lucide icon name shown before the tab label (e.g. "Radio", "Activity", "Cable")
    - **count**: Number shown as a badge after the tab label (e.g. number of items)
 
-4. **Sidebar** (sidebar navigation + content sections — section values can be widgets or sub-layouts):
-   \`{ "layout": "sidebar", "sidebarItems": [{"id":"str","label":"str","icon":"LucideIconName?"}], "sections": {"sectionId": [<Widget|Layout>, ...]} }\`
-   - **icon**: Lucide icon name shown before the sidebar item label
-   - Use sidebar for multi-page app UIs (Server Admin, Settings, etc.)
-   - Sidebar section content can include nested tabs or other layouts
+NOTE: There is NO sidebar layout type. The sidebar is rendered by the window chrome from the top-level sidebarItems. Do NOT try to create a layout with \`layout: "sidebar"\`.
 
 ### Widget Objects (type is the discriminator)
 
@@ -449,7 +448,7 @@ Each widget has a \`type\` discriminator. Valid types:
 - **form**: \`{ "type": "form", "title": "str?", "fields": [{"key":"str","label":"str","type":"text"|"number"|"boolean"|"select"|"textarea","value":...,"options":[{"label":"str","value":"str"}]?}], "groups":[{"label":"str","fieldKeys":["str"]}]?, "submitLabel": "Save", "readOnly": false }\`
 
 IMPORTANT:
-- The \`root\` object uses \`layout\` as its discriminator key. Widgets use \`type\` as their discriminator key. Do NOT confuse them.
+- The section values use \`layout\` as their discriminator key. Widgets use \`type\` as their discriminator key. Do NOT confuse them.
 - Badge variants map: success=running/active/up, destructive=error/failed/down, warning=degraded/pending, secondary=inactive/neutral, outline=neutral
 - Icon names are Lucide PascalCase: Network, Lock, Shield, Radio, Activity, Cable, Route, Globe, etc.
 - For tables with 0 rows, always include emptyState with a meaningful message.
@@ -463,9 +462,9 @@ You MUST follow this exact workflow. The user sees the UI window build up LIVE a
 
 1. **get_server_context()** — Understand the server (OS, installed tools, etc.)
 
-2. **update_view() with SKELETON** — Immediately send a skeleton layout. This opens the UI window for the user right away. The skeleton has the full structure but empty sections. Example for a sidebar layout:
+2. **update_view() with SKELETON** — Immediately send a skeleton layout. This opens the UI window for the user right away. The skeleton has the full structure but empty sections. Example:
    \`\`\`json
-   {"title":"My View","icon":"Server","description":"Loading...","root":{"layout":"sidebar","sidebarItems":[{"id":"sys","label":"System","icon":"Cpu"},{"id":"docker","label":"Docker","icon":"Container"}],"sections":{"sys":[],"docker":[]}}}
+   {"title":"My View","icon":"Server","description":"Loading...","sidebarItems":[{"id":"sys","label":"System","icon":"Cpu"},{"id":"docker","label":"Docker","icon":"Container"}],"sections":{"sys":{"layout":"stack","gap":"md","children":[]},"docker":{"layout":"stack","gap":"md","children":[]}}}
    \`\`\`
    The frontend shows animated skeleton placeholders for empty sections.
 
@@ -517,25 +516,28 @@ ${reflectionIssues.map((issue, i) => `${i + 1}. [${issue.severity}] ${issue.desc
     const layout = hints.suggestedLayout ?? 'stack';
     const sections = hints.suggestedSections;
 
+    // Sections guidance — always present since top-level sidebarItems/sections are mandatory
+    const sectionList = sections?.length
+      ? sections.map((s, i) => `  ${i + 1}. "${s}" — data: ${hints.dataSourceHints[i] ?? 'general'}`).join('\n')
+      : hints.dataSourceHints.map((d, i) => `  ${i + 1}. Section for: ${d}`).join('\n');
+
+    let guidance = `Create these sidebar sections (top-level sidebarItems + sections fields):\n${sectionList}\n\nAdd an appropriate Lucide icon to each sidebar item.`;
+
+    // Layout guidance — for the content inside each section
     switch (layout) {
-      case 'sidebar': {
-        const sectionList = sections?.length
-          ? sections.map((s, i) => `  ${i + 1}. "${s}" — data: ${hints.dataSourceHints[i] ?? 'general'}`).join('\n')
-          : hints.dataSourceHints.map((d, i) => `  ${i + 1}. Section for: ${d}`).join('\n');
-        return `Use a **sidebar** layout with these sections:\n${sectionList}\n\nCreate sidebarItems for all sections immediately in the skeleton, then fill each section\'s content after gathering its data. Add an appropriate Lucide icon to each sidebar item.`;
-      }
-      case 'tabs': {
-        const tabList = sections?.length
-          ? sections.map((s, i) => `  ${i + 1}. "${s}" tab — data: ${hints.dataSourceHints[i] ?? 'general'}`).join('\n')
-          : hints.dataSourceHints.map((d, i) => `  ${i + 1}. Tab for: ${d}`).join('\n');
-        return `Use a **tabs** layout with these tabs:\n${tabList}\n\nCreate all tabs immediately in the skeleton with empty children, then fill each tab after gathering its data. Add an appropriate Lucide icon to each tab.`;
-      }
+      case 'tabs':
+        guidance += `\n\nInside each section, use a **tabs** layout if the section has multiple sub-views.`;
+        break;
       case 'grid':
-        return `Use a **grid** layout with ${Math.min(hints.expectedWidgets.length, 4)} columns. Place stat-cards, progress-bars, or small widgets side by side.`;
+        guidance += `\n\nInside each section, use a **grid** layout with ${Math.min(hints.expectedWidgets.length, 4)} columns for side-by-side widgets.`;
+        break;
       case 'stack':
       default:
-        return `Use a **stack** layout (vertical). Place widgets in a logical top-to-bottom order.`;
+        guidance += `\n\nInside each section, use a **stack** layout (vertical) for a logical top-to-bottom flow.`;
+        break;
     }
+
+    return guidance;
   }
 
   /**
@@ -543,63 +545,37 @@ ${reflectionIssues.map((issue, i) => `${i + 1}. [${issue.severity}] ${issue.desc
    * This few-shot example teaches the LLM exactly what tool calls to make.
    */
   private buildProgressiveExample(hints: PlannerHints): string {
-    const layout = hints.suggestedLayout ?? 'stack';
     const sections = hints.suggestedSections;
 
-    // Only add the example for multi-section layouts
-    if ((layout !== 'sidebar' && layout !== 'tabs') || !sections?.length) {
+    // Only add the example when we have named sections
+    if (!sections?.length) {
       return '';
     }
 
-    if (layout === 'sidebar') {
-      const sidebarItems = sections.map((s, i) => {
-        const id = s.toLowerCase().replace(/\s+/g, '-');
-        return `{"id":"${id}","label":"${s}","icon":"${this.pickIconForSection(s)}"}`;
-      });
-      const emptySections = sections.map(s => {
-        const id = s.toLowerCase().replace(/\s+/g, '-');
-        return `"${id}":[]`;
-      });
+    const sidebarItems = sections.map((s) => {
+      const id = s.toLowerCase().replace(/\s+/g, '-');
+      return `{"id":"${id}","label":"${s}","icon":"${this.pickIconForSection(s)}"}`;
+    });
+    const emptySections = sections.map(s => {
+      const id = s.toLowerCase().replace(/\s+/g, '-');
+      return `"${id}":{"layout":"stack","gap":"md","children":[]}`;
+    });
 
-      return `## Example: Progressive Sidebar Pattern
+    return `## Example: Progressive Sections Pattern
 
-Here is exactly how to build a sidebar layout progressively. Follow this pattern:
+Here is exactly how to build a multi-section view progressively. Follow this pattern:
 
 \`\`\`
 Step 1: get_server_context()
-Step 2: update_view(${JSON.stringify(JSON.stringify({title: hints.intent.substring(0, 30), description: 'Loading...', icon: 'Server', root: {layout: 'sidebar', sidebarItems: 'ITEMS', sections: 'SECTIONS'}})).replace('"ITEMS"', `[${sidebarItems.join(',')}]`).replace('"SECTIONS"', `{${emptySections.join(',')}}`)})
+Step 2: update_view(${JSON.stringify(JSON.stringify({title: hints.intent.substring(0, 30), description: 'Loading...', icon: 'Server', sidebarItems: 'ITEMS', sections: 'SECTIONS'})).replace('"ITEMS"', `[${sidebarItems.join(',')}]`).replace('"SECTIONS"', `{${emptySections.join(',')}}`)})  
   → User sees the sidebar with ${sections.length} empty sections (skeleton placeholders)
 Step 3: exec_command() x N — gather data for "${sections[0]}"
-Step 4: update_view(...) — same JSON but "${sections[0].toLowerCase().replace(/\s+/g, '-')}" section now has widgets
+Step 4: update_view(...) — same JSON but "${sections[0].toLowerCase().replace(/\s+/g, '-')}" section now has widgets in its children
   → User sees ${sections[0]} section populate with real data
 ${sections.slice(1).map((s, i) => `Step ${5 + i * 2}: exec_command() x N — gather data for "${s}"
 Step ${6 + i * 2}: update_view(...) — cumulative, "${s.toLowerCase().replace(/\s+/g, '-')}" section now filled too
   → User sees ${s} section populate`).join('\n')}
 Final: generate_schema(...) — complete view with ALL sections filled
-\`\`\`
-`;
-    }
-
-    // tabs layout example
-    const tabItems = sections.map(s => {
-      const id = s.toLowerCase().replace(/\s+/g, '-');
-      return `{"id":"${id}","label":"${s}","icon":"${this.pickIconForSection(s)}","children":[]}`;
-    });
-
-    return `## Example: Progressive Tabs Pattern
-
-Here is exactly how to build a tabs layout progressively:
-
-\`\`\`
-Step 1: get_server_context()
-Step 2: update_view({"title":"...","root":{"layout":"tabs","tabs":[${tabItems.join(',')}]}})
-  → User sees ${sections.length} empty tabs (skeleton placeholders in each)
-Step 3: exec_command() x N — gather data for "${sections[0]}" tab
-Step 4: update_view(...) — same but "${sections[0]}" tab now has widget children
-${sections.slice(1).map((s, i) => `Step ${5 + i * 2}: exec_command() x N — gather data for "${s}" tab
-Step ${6 + i * 2}: update_view(...) — cumulative, "${s}" tab filled too`).join('\n')}
-Final: generate_schema(...) — complete view with ALL tabs filled
-\`\`\`
 `;
   }
 
@@ -628,13 +604,12 @@ Final: generate_schema(...) — complete view with ALL tabs filled
 
   private buildInitialUserMessage(hints: PlannerHints): string {
     const sections = hints.suggestedSections;
-    const layout = hints.suggestedLayout ?? 'stack';
 
     let msg = `Generate a ${hints.estimatedComplexity} ${hints.interactivityLevel} UI: ${hints.intent}`;
 
-    if ((layout === 'sidebar' || layout === 'tabs') && sections?.length) {
-      msg += `\n\nUse a ${layout} layout with these sections: ${sections.join(', ')}.`;
-      msg += `\nBuild it progressively: skeleton first → fill each section after gathering its data → generate_schema last.`;
+    if (sections?.length) {
+      msg += `\n\nCreate these sidebar sections: ${sections.join(', ')}.`;
+      msg += `\nBuild it progressively: skeleton first (sidebarItems + empty sections) → fill each section after gathering its data → generate_schema last.`;
     }
 
     return msg;

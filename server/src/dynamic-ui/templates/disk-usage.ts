@@ -18,7 +18,9 @@ export const diskUsageTemplate: UITemplate = {
     title: 'Disk Usage',
     description: 'Filesystem utilization and storage analysis',
     icon: 'HardDrive',
-    root: {
+    sidebarItems: [{ id: 'main', label: 'Storage' }],
+    sections: {
+      main: {
       layout: 'stack',
       gap: 'md',
       children: [
@@ -73,6 +75,7 @@ export const diskUsageTemplate: UITemplate = {
           variant: 'warning',
         },
       ],
+      },
     },
   },
 };

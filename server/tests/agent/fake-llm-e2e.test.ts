@@ -108,14 +108,19 @@ describe('FakeLLM End-to-End Pipeline', () => {
       expect(view.description).toBe(SYSTEM_OVERVIEW_GOLD_VIEW.description);
       expect(view.icon).toBe(SYSTEM_OVERVIEW_GOLD_VIEW.icon);
 
-      // Root layout = stack
-      expect(view.root.layout).toBe('stack');
+      // Should have sidebarItems and sections
+      expect(view.sidebarItems).toBeDefined();
+      expect(Object.keys(view.sections).length).toBeGreaterThan(0);
+
+      // Main section layout = stack
+      const mainSection = view.sections.main as Record<string, unknown>;
+      expect(mainSection.layout).toBe('stack');
 
       // Count children — should match gold standard
-      if ('children' in view.root) {
-        const goldRoot = SYSTEM_OVERVIEW_GOLD_VIEW.root;
-        if ('children' in goldRoot) {
-          expect(view.root.children).toHaveLength(goldRoot.children.length);
+      if ('children' in mainSection) {
+        const goldSection = SYSTEM_OVERVIEW_GOLD_VIEW.sections.main as Record<string, unknown>;
+        if ('children' in goldSection) {
+          expect((mainSection.children as unknown[])).toHaveLength((goldSection.children as unknown[]).length);
         }
       }
     });
@@ -226,7 +231,10 @@ describe('FakeLLM End-to-End Pipeline', () => {
           }
         }
       }
-      walk(view.root);
+      // Walk all sections
+      for (const section of Object.values(view.sections)) {
+        walk(section);
+      }
 
       // Should contain the expected widget types
       expect(widgetTypes.has('alert')).toBe(true);

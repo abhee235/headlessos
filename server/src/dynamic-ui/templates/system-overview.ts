@@ -19,7 +19,9 @@ export const systemOverviewTemplate: UITemplate = {
     title: 'System Overview',
     description: 'Server system information and resource utilization',
     icon: 'Monitor',
-    root: {
+    sidebarItems: [{ id: 'main', label: 'Overview' }],
+    sections: {
+      main: {
       layout: 'stack',
       gap: 'md',
       children: [
@@ -67,6 +69,7 @@ export const systemOverviewTemplate: UITemplate = {
           variant: 'default',
         },
       ],
+      },
     },
   },
 };

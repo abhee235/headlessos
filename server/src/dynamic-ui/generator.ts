@@ -32,9 +32,9 @@ export const DYNAMIC_UI_SYSTEM_PROMPT = `You are a UI generator for HeadlessOS. 
 
 ## Layout Rules
 - Prefer **stack** for most views, **grid** for stat-card/metric collections
-- Use **tabs** for multi-section data (e.g., Ports + Connections + Interfaces). Tabs support icon (Lucide name) and count (number badge).
-- Use **sidebar** for app-level navigation (e.g., Server Admin sections). Sidebar items support icon.
-- Layouts are **nestable**: tabs inside a sidebar section, grids inside a stack, etc.
+- Use **tabs** for multi-section data within a section (e.g., Ports + Connections + Interfaces). Tabs support icon (Lucide name) and count (number badge).
+- Layouts are **nestable**: tabs inside a section, grids inside a stack, etc.
+- Note: There is NO sidebar layout — the sidebar is rendered by the window chrome from top-level sidebarItems.
 
 ## Badge Variants
 success = running/active/ok/up, destructive = error/failed/down/critical, warning = degraded/pending/slow, secondary = inactive/disabled/unknown, outline = neutral

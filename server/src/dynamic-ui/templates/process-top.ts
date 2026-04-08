@@ -19,7 +19,9 @@ export const processTopTemplate: UITemplate = {
     title: 'Top Processes',
     description: 'Processes sorted by resource consumption',
     icon: 'Activity',
-    root: {
+    sidebarItems: [{ id: 'main', label: 'Processes' }],
+    sections: {
+      main: {
       layout: 'stack',
       gap: 'md',
       children: [
@@ -78,6 +80,7 @@ export const processTopTemplate: UITemplate = {
           footer: 'Showing top 5 of 247 processes',
         },
       ],
+      },
     },
   },
 };

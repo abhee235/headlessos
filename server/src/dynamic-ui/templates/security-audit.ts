@@ -20,7 +20,9 @@ export const securityAuditTemplate: UITemplate = {
     title: 'Security Audit',
     description: 'Login attempts, firewall status, and security alerts',
     icon: 'Shield',
-    root: {
+    sidebarItems: [{ id: 'main', label: 'Audit' }],
+    sections: {
+      main: {
       layout: 'stack',
       gap: 'md',
       children: [
@@ -85,6 +87,7 @@ export const securityAuditTemplate: UITemplate = {
           yKeys: [{ key: 'attempts', label: 'Failed Attempts' }],
         },
       ],
+      },
     },
   },
 };

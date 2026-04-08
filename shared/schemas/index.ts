@@ -22,8 +22,8 @@ export {
   StackLayoutSchema,
   GridLayoutSchema,
   TabsLayoutSchema,
-  SidebarLayoutSchema,
   LayoutSchema,
+  SidebarItemSchema,
   LAYOUT_TYPES,
   // Top-level schema
   DynamicViewSchema,
@@ -37,6 +37,7 @@ export type {
   WidgetType,
   Layout,
   LayoutType,
+  SidebarItem,
   DynamicView,
   DynamicViewMeta,
   TreeNode,

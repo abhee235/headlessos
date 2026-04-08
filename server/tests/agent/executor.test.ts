@@ -19,23 +19,26 @@ import { z } from 'zod';
 
 const VALID_DYNAMIC_VIEW = {
   title: 'Disk Usage',
-  root: {
-    layout: 'stack' as const,
-    gap: 'md' as const,
-    children: [
-      {
-        type: 'table' as const,
-        title: 'Filesystem Usage',
-        columns: [
-          { key: 'filesystem', label: 'Filesystem' },
-          { key: 'size', label: 'Size' },
-          { key: 'used', label: 'Used' },
-        ],
-        rows: [
-          { filesystem: '/dev/sda1', size: '50G', used: '20G' },
-        ],
-      },
-    ],
+  sidebarItems: [{ id: 'main', label: 'Disk' }],
+  sections: {
+    main: {
+      layout: 'stack' as const,
+      gap: 'md' as const,
+      children: [
+        {
+          type: 'table' as const,
+          title: 'Filesystem Usage',
+          columns: [
+            { key: 'filesystem', label: 'Filesystem' },
+            { key: 'size', label: 'Size' },
+            { key: 'used', label: 'Used' },
+          ],
+          rows: [
+            { filesystem: '/dev/sda1', size: '50G', used: '20G' },
+          ],
+        },
+      ],
+    },
   },
 };
 
@@ -49,6 +52,7 @@ function createDefaultHints(overrides?: Partial<PlannerHints>): PlannerHints {
     templateHint: null,
     dataSourceHints: ['filesystem usage'],
     suggestedLayout: 'stack',
+    suggestedSections: ['Disk Usage'],
     securityRequirements: {
       needsWrite: false,
       needsSFTP: false,
@@ -416,7 +420,7 @@ describe('ReactiveExecutor', () => {
     });
 
     it('feeds Zod errors back as tool results for self-correction', async () => {
-      const invalidSchema = { title: 'Test' }; // Missing root
+      const invalidSchema = { title: 'Test' }; // Missing sidebarItems and sections
       const invalidGenerateTool = createGenerateSchemaTool(invalidSchema);
       const validGenerateTool = createGenerateSchemaTool(VALID_DYNAMIC_VIEW);
 

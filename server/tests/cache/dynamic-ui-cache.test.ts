@@ -13,16 +13,19 @@ import type { DynamicView } from 'headlessos-shared/schemas/dynamic-view';
 function makeView(title: string): DynamicView {
   return {
     title,
-    root: {
-      layout: 'stack' as const,
-      gap: 'md' as const,
-      children: [
-        {
-          type: 'code-block' as const,
-          code: `Sample output for ${title}`,
-          language: 'text',
-        },
-      ],
+    sidebarItems: [{ id: 'main', label: title }],
+    sections: {
+      main: {
+        layout: 'stack' as const,
+        gap: 'md' as const,
+        children: [
+          {
+            type: 'code-block' as const,
+            code: `Sample output for ${title}`,
+            language: 'text',
+          },
+        ],
+      },
     },
   };
 }

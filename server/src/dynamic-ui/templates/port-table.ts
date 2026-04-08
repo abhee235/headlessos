@@ -17,7 +17,9 @@ export const portTableTemplate: UITemplate = {
     title: 'Listening Ports',
     description: 'Active network ports and associated processes',
     icon: 'Network',
-    root: {
+    sidebarItems: [{ id: 'main', label: 'Ports' }],
+    sections: {
+      main: {
       layout: 'stack',
       gap: 'md',
       children: [
@@ -68,6 +70,7 @@ export const portTableTemplate: UITemplate = {
           footer: '6 listening ports',
         },
       ],
+      },
     },
   },
 };

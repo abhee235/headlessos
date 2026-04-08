@@ -76,13 +76,16 @@ describe('DynamicViewRenderer', () => {
     const view: DynamicView = {
       title: 'Test',
       description: 'A test description',
-      root: { layout: 'stack', gap: 'md', children: [] },
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: { layout: 'stack', gap: 'md', children: [] },
+      },
     };
     render(<DynamicViewRenderer view={view} />);
     expect(screen.getByText('A test description')).toBeInTheDocument();
   });
 
-  it('renders skeleton when root is missing (streaming)', () => {
+  it('renders skeleton when sections is missing (streaming)', () => {
     render(<DynamicViewRenderer view={{}} />);
     // Skeleton should be visible
     const skeletons = document.querySelectorAll('.animate-pulse');
@@ -92,13 +95,16 @@ describe('DynamicViewRenderer', () => {
   it('renders stack layout with widgets', () => {
     const view: DynamicView = {
       title: 'Test',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'stack',
         gap: 'md',
         children: [
           { type: 'stat-card', title: 'CPU Usage', value: '45%' },
           { type: 'stat-card', title: 'Memory', value: '78%' },
         ],
+      },
       },
     };
     render(<DynamicViewRenderer view={view} />);
@@ -109,13 +115,16 @@ describe('DynamicViewRenderer', () => {
   it('renders grid layout with widgets', () => {
     const view: DynamicView = {
       title: 'Test Grid',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'grid',
         columns: 2,
         children: [
           { type: 'stat-card', title: 'Metric A', value: '10' },
           { type: 'stat-card', title: 'Metric B', value: '20' },
         ],
+      },
       },
     };
     render(<DynamicViewRenderer view={view} />);
@@ -130,7 +139,9 @@ describe('TableWidget', () => {
   it('renders table with headers and rows', () => {
     const view: DynamicView = {
       title: 'Table Test',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'stack',
         gap: 'md',
         children: [{
@@ -146,6 +157,7 @@ describe('TableWidget', () => {
           ],
         }],
       },
+      },
     };
     render(<DynamicViewRenderer view={view} />);
     expect(screen.getByText('Processes')).toBeInTheDocument();
@@ -158,7 +170,9 @@ describe('TableWidget', () => {
   it('renders badge columns with variant mapping', () => {
     const view: DynamicView = {
       title: 'Badge Table',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'stack',
         gap: 'md',
         children: [{
@@ -173,6 +187,7 @@ describe('TableWidget', () => {
           rows: [{ status: 'running' }],
         }],
       },
+      },
     };
     render(<DynamicViewRenderer view={view} />);
     expect(screen.getByText('running')).toBeInTheDocument();
@@ -181,7 +196,9 @@ describe('TableWidget', () => {
   it('renders footer text', () => {
     const view: DynamicView = {
       title: 'Footer Test',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'stack',
         gap: 'md',
         children: [{
@@ -190,6 +207,7 @@ describe('TableWidget', () => {
           rows: [{ a: '1' }],
           footer: 'Showing 1 of 100 rows',
         }],
+      },
       },
     };
     render(<DynamicViewRenderer view={view} />);
@@ -203,7 +221,9 @@ describe('KeyValueWidget', () => {
   it('renders key-value pairs', () => {
     const view: DynamicView = {
       title: 'KV Test',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'stack',
         gap: 'md',
         children: [{
@@ -215,6 +235,7 @@ describe('KeyValueWidget', () => {
           ],
           layout: 'grid-2',
         }],
+      },
       },
     };
     render(<DynamicViewRenderer view={view} />);
@@ -232,7 +253,9 @@ describe('BadgeGridWidget', () => {
   it('renders badges with labels and values', () => {
     const view: DynamicView = {
       title: 'Badge Test',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'stack',
         gap: 'md',
         children: [{
@@ -243,6 +266,7 @@ describe('BadgeGridWidget', () => {
             { label: 'mysql', value: 'stopped', variant: 'destructive' },
           ],
         }],
+      },
       },
     };
     render(<DynamicViewRenderer view={view} />);
@@ -258,7 +282,9 @@ describe('StatCardWidget', () => {
   it('renders value with unit and trend', () => {
     const view: DynamicView = {
       title: 'Stat Test',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'stack',
         gap: 'md',
         children: [{
@@ -269,6 +295,7 @@ describe('StatCardWidget', () => {
           trend: 'up',
           description: 'Last 5 minutes',
         }],
+      },
       },
     };
     render(<DynamicViewRenderer view={view} />);
@@ -282,7 +309,9 @@ describe('StatCardWidget', () => {
   it('renders minimal stat card (title + value only)', () => {
     const view: DynamicView = {
       title: 'Min Stat',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'stack',
         gap: 'md',
         children: [{
@@ -290,6 +319,7 @@ describe('StatCardWidget', () => {
           title: 'Uptime',
           value: '99.9%',
         }],
+      },
       },
     };
     render(<DynamicViewRenderer view={view} />);
@@ -304,7 +334,9 @@ describe('ProgressBarWidget', () => {
   it('renders progress bar with label and value', () => {
     const view: DynamicView = {
       title: 'Progress Test',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'stack',
         gap: 'md',
         children: [{
@@ -314,6 +346,7 @@ describe('ProgressBarWidget', () => {
           label: '/dev/sda1',
           variant: 'warning',
         }],
+      },
       },
     };
     render(<DynamicViewRenderer view={view} />);
@@ -329,7 +362,9 @@ describe('CodeBlockWidget', () => {
   it('renders code block with language label', () => {
     const view: DynamicView = {
       title: 'Code Test',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'stack',
         gap: 'md',
         children: [{
@@ -338,6 +373,7 @@ describe('CodeBlockWidget', () => {
           code: 'server {\n  listen 80;\n}',
           language: 'nginx',
         }],
+      },
       },
     };
     render(<DynamicViewRenderer view={view} />);
@@ -357,7 +393,9 @@ describe('AlertWidget', () => {
   it('renders alert with title and message', () => {
     const view: DynamicView = {
       title: 'Alert Test',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'stack',
         gap: 'md',
         children: [{
@@ -366,6 +404,7 @@ describe('AlertWidget', () => {
           message: 'Disk space is running low',
           variant: 'warning',
         }],
+      },
       },
     };
     render(<DynamicViewRenderer view={view} />);
@@ -376,7 +415,9 @@ describe('AlertWidget', () => {
   it('renders destructive alert', () => {
     const view: DynamicView = {
       title: 'Error Alert',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'stack',
         gap: 'md',
         children: [{
@@ -384,6 +425,7 @@ describe('AlertWidget', () => {
           message: 'Connection lost',
           variant: 'destructive',
         }],
+      },
       },
     };
     render(<DynamicViewRenderer view={view} />);
@@ -397,12 +439,15 @@ describe('Unknown Widget Handling', () => {
   it('shows error alert for unknown widget type', () => {
     const view: DynamicView = {
       title: 'Unknown Test',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'stack',
         gap: 'md',
         children: [
           { type: 'stat-card', title: 'Valid', value: '42' },
         ],
+      },
       },
     };
 
@@ -419,7 +464,7 @@ describe('Partial Schema Rendering', () => {
   it('handles partial view with missing widgets gracefully', () => {
     // Simulates streaming where only partial data has arrived
     render(<DynamicViewRenderer view={{ title: 'Loading...' }} />);
-    // Should show skeleton since root is missing
+    // Should show skeleton since sections are missing
     const skeletons = document.querySelectorAll('.animate-pulse');
     expect(skeletons.length).toBeGreaterThan(0);
   });
@@ -427,12 +472,15 @@ describe('Partial Schema Rendering', () => {
   it('renders available widgets in a growing array', () => {
     const view: DynamicView = {
       title: 'Streaming',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'stack',
         gap: 'md',
         children: [
           { type: 'stat-card', title: 'First', value: '1' },
         ],
+      },
       },
     };
     const { rerender } = render(<DynamicViewRenderer view={view} />);
@@ -441,13 +489,16 @@ describe('Partial Schema Rendering', () => {
     // Add second widget (simulates stream progress)
     const updated: DynamicView = {
       ...view,
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'stack',
         gap: 'md',
         children: [
           { type: 'stat-card', title: 'First', value: '1' },
           { type: 'stat-card', title: 'Second', value: '2' },
         ],
+      },
       },
     };
     rerender(<DynamicViewRenderer view={updated} />);
@@ -463,7 +514,9 @@ describe('Mixed Widget Compositions', () => {
     const view: DynamicView = {
       title: 'System Dashboard',
       description: 'Overview of server metrics',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'stack',
         gap: 'md',
         children: [
@@ -502,6 +555,7 @@ describe('Mixed Widget Compositions', () => {
           },
         ],
       },
+      },
     };
     render(<DynamicViewRenderer view={view} />);
 
@@ -527,7 +581,9 @@ describe('Mixed Widget Compositions', () => {
   it('renders grid layout with stat cards', () => {
     const view: DynamicView = {
       title: 'Metrics Grid',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'grid',
         columns: 3,
         children: [
@@ -535,6 +591,7 @@ describe('Mixed Widget Compositions', () => {
           { type: 'stat-card', title: 'RAM', value: '78', unit: '%', trend: 'down' },
           { type: 'stat-card', title: 'Disk', value: '320', unit: 'GB' },
         ],
+      },
       },
     };
     render(<DynamicViewRenderer view={view} />);
@@ -552,12 +609,15 @@ describe('DynamicAppWindow', () => {
   const sampleView: DynamicView = {
     title: 'System Info',
     description: 'Server overview',
-    root: {
+    sidebarItems: [{ id: 'main', label: 'Main' }],
+    sections: {
+      main: {
       layout: 'stack',
       gap: 'md',
       children: [
         { type: 'stat-card', title: 'CPU', value: '45%' },
       ],
+    },
     },
     meta: {
       command: 'uname -a',
@@ -663,7 +723,9 @@ describe('ChartWidget', () => {
   it('renders a bar chart with title', () => {
     const view: DynamicView = {
       title: 'Chart Test',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'stack',
         gap: 'md',
         children: [{
@@ -680,6 +742,7 @@ describe('ChartWidget', () => {
           height: 250,
         }],
       },
+      },
     };
     render(<DynamicViewRenderer view={view} />);
     expect(screen.getByText('Monthly Revenue')).toBeInTheDocument();
@@ -690,7 +753,9 @@ describe('ChartWidget', () => {
   it('renders a line chart with multiple y-keys', () => {
     const view: DynamicView = {
       title: 'Line Chart',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'stack',
         gap: 'md',
         children: [{
@@ -708,6 +773,7 @@ describe('ChartWidget', () => {
           ],
         }],
       },
+      },
     };
     render(<DynamicViewRenderer view={view} />);
     expect(screen.getByText('CPU vs Memory')).toBeInTheDocument();
@@ -719,7 +785,9 @@ describe('ChartWidget', () => {
   it('renders an area chart', () => {
     const view: DynamicView = {
       title: 'Area Test',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'stack',
         gap: 'md',
         children: [{
@@ -731,6 +799,7 @@ describe('ChartWidget', () => {
           yKeys: [{ key: 'rx' }, { key: 'tx' }],
         }],
       },
+      },
     };
     render(<DynamicViewRenderer view={view} />);
     expect(screen.getByTestId('mock-area-chart')).toBeInTheDocument();
@@ -741,7 +810,9 @@ describe('ChartWidget', () => {
   it('renders a pie chart', () => {
     const view: DynamicView = {
       title: 'Pie Test',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'stack',
         gap: 'md',
         children: [{
@@ -756,6 +827,7 @@ describe('ChartWidget', () => {
           yKeys: [{ key: 'value' }],
         }],
       },
+      },
     };
     render(<DynamicViewRenderer view={view} />);
     expect(screen.getByText('Disk Usage')).toBeInTheDocument();
@@ -765,7 +837,9 @@ describe('ChartWidget', () => {
   it('renders a donut chart (pie with innerRadius)', () => {
     const view: DynamicView = {
       title: 'Donut Test',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'stack',
         gap: 'md',
         children: [{
@@ -781,6 +855,7 @@ describe('ChartWidget', () => {
           yKeys: [{ key: 'value' }],
         }],
       },
+      },
     };
     render(<DynamicViewRenderer view={view} />);
     expect(screen.getByText('Memory Split')).toBeInTheDocument();
@@ -794,7 +869,9 @@ describe('TreeWidget', () => {
   it('renders a tree with nested nodes', () => {
     const view: DynamicView = {
       title: 'Tree Test',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'stack',
         gap: 'md',
         children: [{
@@ -813,6 +890,7 @@ describe('TreeWidget', () => {
           ],
         }],
       },
+      },
     };
     render(<DynamicViewRenderer view={view} />);
     expect(screen.getByText('File System')).toBeInTheDocument();
@@ -825,7 +903,9 @@ describe('TreeWidget', () => {
   it('supports 3+ levels of nesting', () => {
     const view: DynamicView = {
       title: 'Deep Tree',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'stack',
         gap: 'md',
         children: [{
@@ -847,6 +927,7 @@ describe('TreeWidget', () => {
           ],
         }],
       },
+      },
     };
     render(<DynamicViewRenderer view={view} />);
     expect(screen.getByText('Level 0')).toBeInTheDocument();
@@ -860,7 +941,9 @@ describe('TreeWidget', () => {
   it('toggles collapse on click', () => {
     const view: DynamicView = {
       title: 'Toggle Tree',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'stack',
         gap: 'md',
         children: [{
@@ -870,6 +953,7 @@ describe('TreeWidget', () => {
             children: [{ label: 'Child A' }, { label: 'Child B' }],
           }],
         }],
+      },
       },
     };
     render(<DynamicViewRenderer view={view} />);
@@ -891,13 +975,16 @@ describe('TreeWidget', () => {
   it('renders empty tree message', () => {
     const view: DynamicView = {
       title: 'Empty Tree',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'stack',
         gap: 'md',
         children: [{
           type: 'tree',
           nodes: [],
         }],
+      },
       },
     };
     render(<DynamicViewRenderer view={view} />);
@@ -907,7 +994,9 @@ describe('TreeWidget', () => {
   it('shows node values beside labels', () => {
     const view: DynamicView = {
       title: 'Tree Values',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'stack',
         gap: 'md',
         children: [{
@@ -917,6 +1006,7 @@ describe('TreeWidget', () => {
             { label: 'README.md', value: '1.8KB' },
           ],
         }],
+      },
       },
     };
     render(<DynamicViewRenderer view={view} />);
@@ -933,7 +1023,9 @@ describe('LogViewerWidget', () => {
   it('renders log lines with timestamps and levels', () => {
     const view: DynamicView = {
       title: 'Log Test',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'stack',
         gap: 'md',
         children: [{
@@ -946,6 +1038,7 @@ describe('LogViewerWidget', () => {
           ],
           maxHeight: '300px',
         }],
+      },
       },
     };
     render(<DynamicViewRenderer view={view} />);
@@ -962,7 +1055,9 @@ describe('LogViewerWidget', () => {
   it('renders level badges with correct text', () => {
     const view: DynamicView = {
       title: 'Level Test',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'stack',
         gap: 'md',
         children: [{
@@ -974,6 +1069,7 @@ describe('LogViewerWidget', () => {
             { level: 'debug', message: 'Debug msg' },
           ],
         }],
+      },
       },
     };
     render(<DynamicViewRenderer view={view} />);
@@ -987,7 +1083,9 @@ describe('LogViewerWidget', () => {
   it('renders log without timestamps or levels', () => {
     const view: DynamicView = {
       title: 'Simple Log',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'stack',
         gap: 'md',
         children: [{
@@ -998,6 +1096,7 @@ describe('LogViewerWidget', () => {
           ],
         }],
       },
+      },
     };
     render(<DynamicViewRenderer view={view} />);
     expect(screen.getByText('Plain line 1')).toBeInTheDocument();
@@ -1007,13 +1106,16 @@ describe('LogViewerWidget', () => {
   it('renders empty log message', () => {
     const view: DynamicView = {
       title: 'Empty Log',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'stack',
         gap: 'md',
         children: [{
           type: 'log-viewer',
           lines: [],
         }],
+      },
       },
     };
     render(<DynamicViewRenderer view={view} />);
@@ -1023,7 +1125,9 @@ describe('LogViewerWidget', () => {
   it('renders in mixed composition with other widgets', () => {
     const view: DynamicView = {
       title: 'Mixed Extended',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'stack',
         gap: 'md',
         children: [
@@ -1047,6 +1151,7 @@ describe('LogViewerWidget', () => {
           },
         ],
       },
+      },
     };
     render(<DynamicViewRenderer view={view} />);
     expect(screen.getByText('Request Rate')).toBeInTheDocument();
@@ -1062,7 +1167,9 @@ describe('TabsLayout', () => {
   it('renders tabs with correct labels', () => {
     const view: DynamicView = {
       title: 'Tabs Test',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'tabs',
         tabs: [
           {
@@ -1077,6 +1184,7 @@ describe('TabsLayout', () => {
           },
         ],
       },
+      },
     };
     render(<DynamicViewRenderer view={view} />);
     expect(screen.getByText('Overview')).toBeInTheDocument();
@@ -1086,7 +1194,9 @@ describe('TabsLayout', () => {
   it('shows first tab content by default', () => {
     const view: DynamicView = {
       title: 'Default Tab',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'tabs',
         tabs: [
           {
@@ -1101,6 +1211,7 @@ describe('TabsLayout', () => {
           },
         ],
       },
+      },
     };
     render(<DynamicViewRenderer view={view} />);
     // First tab content visible
@@ -1110,7 +1221,9 @@ describe('TabsLayout', () => {
   it('renders both tab panels (active first, inactive hidden)', () => {
     const view: DynamicView = {
       title: 'Tab Switch',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'tabs',
         tabs: [
           {
@@ -1124,6 +1237,7 @@ describe('TabsLayout', () => {
             children: [{ type: 'alert', message: 'Content B', variant: 'default' }],
           },
         ],
+      },
       },
     };
     render(<DynamicViewRenderer view={view} />);
@@ -1140,9 +1254,12 @@ describe('TabsLayout', () => {
   it('renders empty tabs gracefully', () => {
     const view: DynamicView = {
       title: 'Empty Tabs',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'tabs',
         tabs: [],
+      },
       },
     };
     render(<DynamicViewRenderer view={view} />);
@@ -1150,86 +1267,7 @@ describe('TabsLayout', () => {
   });
 });
 
-// ── SidebarLayout (EX1.6) ───────────────────────────────
 
-describe('SidebarLayout', () => {
-  it('renders sidebar items and first section content', () => {
-    const view: DynamicView = {
-      title: 'Sidebar Test',
-      root: {
-        layout: 'sidebar',
-        sidebarItems: [
-          { id: 'general', label: 'General' },
-          { id: 'network', label: 'Network' },
-        ],
-        sections: {
-          general: [{ type: 'stat-card', title: 'Uptime', value: '99.9%' }],
-          network: [{ type: 'stat-card', title: 'Bandwidth', value: '100Mbps' }],
-        },
-      },
-    };
-    render(<DynamicViewRenderer view={view} />);
-    // Sidebar items visible
-    expect(screen.getByText('General')).toBeInTheDocument();
-    expect(screen.getByText('Network')).toBeInTheDocument();
-    // First section content visible
-    expect(screen.getByText('Uptime')).toBeInTheDocument();
-    expect(screen.getByText('99.9%')).toBeInTheDocument();
-  });
-
-  it('navigates between sections on click', () => {
-    const view: DynamicView = {
-      title: 'Sidebar Nav',
-      root: {
-        layout: 'sidebar',
-        sidebarItems: [
-          { id: 'sec-a', label: 'Section A' },
-          { id: 'sec-b', label: 'Section B' },
-        ],
-        sections: {
-          'sec-a': [{ type: 'alert', message: 'Content for A', variant: 'default' }],
-          'sec-b': [{ type: 'alert', message: 'Content for B', variant: 'default' }],
-        },
-      },
-    };
-    render(<DynamicViewRenderer view={view} />);
-    expect(screen.getByText('Content for A')).toBeInTheDocument();
-
-    // Click Section B
-    fireEvent.click(screen.getByText('Section B'));
-    expect(screen.getByText('Content for B')).toBeInTheDocument();
-  });
-
-  it('shows skeleton placeholders for sections without content', () => {
-    const view: DynamicView = {
-      title: 'Empty Section',
-      root: {
-        layout: 'sidebar',
-        sidebarItems: [
-          { id: 'empty', label: 'Empty Section' },
-        ],
-        sections: {},
-      },
-    };
-    render(<DynamicViewRenderer view={view} />);
-    // Skeletons are rendered for empty sections (progressive rendering)
-    const skeletons = document.querySelectorAll('.animate-pulse');
-    expect(skeletons.length).toBeGreaterThan(0);
-  });
-
-  it('renders empty sidebar items gracefully', () => {
-    const view: DynamicView = {
-      title: 'No Items',
-      root: {
-        layout: 'sidebar',
-        sidebarItems: [],
-        sections: {},
-      },
-    };
-    render(<DynamicViewRenderer view={view} />);
-    expect(screen.getByText('No sidebar items defined')).toBeInTheDocument();
-  });
-});
 
 // ── EX1.12: RefreshableWidget ───────────────────────────
 
@@ -1361,11 +1399,14 @@ describe('DynamicUI Store', () => {
   const sampleView: DynamicView = {
     title: 'Test View',
     icon: 'Cpu',
-    root: {
+    sidebarItems: [{ id: 'main', label: 'Main' }],
+    sections: {
+      main: {
       layout: 'stack',
       children: [
         { type: 'alert', severity: 'info', message: 'Hello' },
       ],
+    },
     },
   };
 
@@ -1432,7 +1473,10 @@ describe('DynamicUI Store', () => {
   it('falls back to Sparkles when no icon', () => {
     const viewNoIcon: DynamicView = {
       title: 'No Icon',
-      root: { layout: 'stack', children: [] },
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: { layout: 'stack', children: [] },
+      },
     };
     const id = useDynamicUIStore.getState().pinView('srv-1', viewNoIcon);
     expect(useDynamicUIStore.getState().pinnedViews[id].icon).toBe('Sparkles');
@@ -1468,11 +1512,14 @@ describe('DynamicUITabView', () => {
   it('renders the pinned view when linked', () => {
     const viewId = useDynamicUIStore.getState().pinView('srv-1', {
       title: 'Pinned Dashboard',
-      root: {
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
         layout: 'stack',
         children: [
           { type: 'alert', severity: 'info', message: 'Pinned content' },
         ],
+      },
       },
     });
     useDynamicUIStore.getState().linkWindow('win-5', viewId);

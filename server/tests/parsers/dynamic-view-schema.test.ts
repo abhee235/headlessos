@@ -23,7 +23,6 @@ import {
   StackLayoutSchema,
   GridLayoutSchema,
   TabsLayoutSchema,
-  SidebarLayoutSchema,
   DynamicViewMetaSchema,
   DataSourceSchema,
   WidgetActionSchema,
@@ -160,23 +159,12 @@ const validTabsLayout = {
   ],
 };
 
-const validSidebarLayout = {
-  layout: 'sidebar' as const,
-  sidebarItems: [
-    { id: 'general', label: 'General', icon: 'Settings' },
-    { id: 'network', label: 'Network', icon: 'Network' },
-  ],
-  sections: {
-    general: [validKeyValue, validProgressBar],
-    network: [validTable],
-  },
-};
-
 const validDynamicView = {
   title: 'Server Dashboard',
   description: 'Overview of web-01',
   icon: 'Server',
-  root: validStackLayout,
+  sidebarItems: [{ id: 'main', label: 'System' }],
+  sections: { main: validStackLayout },
   meta: {
     tool: 'dashboard',
     command: 'df -h && free -m',
@@ -527,23 +515,11 @@ describe('Layout Schemas', () => {
     });
   });
 
-  describe('SidebarLayout', () => {
-    it('parses valid sidebar layout', () => {
-      const result = SidebarLayoutSchema.parse(validSidebarLayout);
-      expect(result.layout).toBe('sidebar');
-      expect(result.sidebarItems).toHaveLength(2);
-      expect(Object.keys(result.sections)).toHaveLength(2);
-    });
-
-    it('requires sidebarItems and sections', () => {
-      expect(() => SidebarLayoutSchema.parse({ layout: 'sidebar' })).toThrow(ZodError);
-    });
-  });
 });
 
 describe('LayoutSchema (discriminated union)', () => {
   it('accepts all layout types', () => {
-    const layouts = [validStackLayout, validGridLayout, validTabsLayout, validSidebarLayout];
+    const layouts = [validStackLayout, validGridLayout, validTabsLayout];
     for (const layout of layouts) {
       expect(() => LayoutSchema.parse(layout)).not.toThrow();
     }
@@ -553,9 +529,13 @@ describe('LayoutSchema (discriminated union)', () => {
     expect(() => LayoutSchema.parse({ layout: 'unknown' })).toThrow(ZodError);
   });
 
+  it('rejects sidebar layout type', () => {
+    expect(() => LayoutSchema.parse({ layout: 'sidebar', sidebarItems: [], sections: {} })).toThrow(ZodError);
+  });
+
   it('LAYOUT_TYPES constant matches all registered types', () => {
-    expect(LAYOUT_TYPES).toEqual(['stack', 'grid', 'tabs', 'sidebar']);
-    expect(LAYOUT_TYPES).toHaveLength(4);
+    expect(LAYOUT_TYPES).toEqual(['stack', 'grid', 'tabs']);
+    expect(LAYOUT_TYPES).toHaveLength(3);
   });
 });
 
@@ -567,15 +547,16 @@ describe('DynamicViewSchema', () => {
     expect(result.title).toBe('Server Dashboard');
     expect(result.description).toBe('Overview of web-01');
     expect(result.icon).toBe('Server');
-    expect(result.root.layout).toBe('stack');
+    expect(result.sections.main.layout).toBe('stack');
     expect(result.meta?.tool).toBe('dashboard');
     expect(result.meta?.templateId).toBe('system-overview');
   });
 
-  it('accepts minimal view (title + root only)', () => {
+  it('accepts minimal view (title + sidebarItems + sections)', () => {
     const minimal = {
       title: 'Test',
-      root: { layout: 'stack', children: [] },
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: { main: { layout: 'stack', children: [] } },
     };
     const result = DynamicViewSchema.parse(minimal);
     expect(result.title).toBe('Test');
@@ -586,61 +567,81 @@ describe('DynamicViewSchema', () => {
 
   it('rejects view without title', () => {
     expect(() => DynamicViewSchema.parse({
-      root: { layout: 'stack', children: [] },
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: { main: { layout: 'stack', children: [] } },
     })).toThrow(ZodError);
   });
 
-  it('rejects view without root', () => {
-    expect(() => DynamicViewSchema.parse({ title: 'Test' })).toThrow(ZodError);
+  it('rejects view without sections', () => {
+    expect(() => DynamicViewSchema.parse({ title: 'Test', sidebarItems: [] })).toThrow(ZodError);
   });
 
-  it('parses view with grid layout root', () => {
+  it('rejects view without sidebarItems', () => {
+    expect(() => DynamicViewSchema.parse({ title: 'Test', sections: { main: { layout: 'stack', children: [] } } })).toThrow(ZodError);
+  });
+
+  it('parses view with grid layout section', () => {
     const view = {
       title: 'Grid View',
-      root: validGridLayout,
+      sidebarItems: [{ id: 'main', label: 'Grid' }],
+      sections: { main: validGridLayout },
     };
     const result = DynamicViewSchema.parse(view);
-    expect(result.root.layout).toBe('grid');
+    expect(result.sections.main.layout).toBe('grid');
   });
 
-  it('parses view with tabs layout root', () => {
+  it('parses view with tabs layout section', () => {
     const view = {
       title: 'Tabbed View',
-      root: validTabsLayout,
+      sidebarItems: [{ id: 'main', label: 'Tabs' }],
+      sections: { main: validTabsLayout },
     };
     const result = DynamicViewSchema.parse(view);
-    expect(result.root.layout).toBe('tabs');
+    expect(result.sections.main.layout).toBe('tabs');
   });
 
-  it('parses view with sidebar layout root', () => {
+  it('parses view with multiple sections', () => {
     const view = {
-      title: 'Sidebar View',
-      root: validSidebarLayout,
+      title: 'Multi-Section View',
+      sidebarItems: [
+        { id: 'overview', label: 'Overview' },
+        { id: 'details', label: 'Details' },
+      ],
+      sections: {
+        overview: validStackLayout,
+        details: validGridLayout,
+      },
     };
     const result = DynamicViewSchema.parse(view);
-    expect(result.root.layout).toBe('sidebar');
+    expect(result.sidebarItems).toHaveLength(2);
+    expect(Object.keys(result.sections)).toHaveLength(2);
+    expect(result.sections.overview.layout).toBe('stack');
+    expect(result.sections.details.layout).toBe('grid');
   });
 
   it('validates nested widgets within layouts', () => {
     const view = {
       title: 'Nested',
-      root: {
-        layout: 'tabs' as const,
-        tabs: [{
-          id: 'tab1',
-          label: 'Tab 1',
-          children: [
-            validStatCard,
-            validTable,
-            validChart,
-            validCodeBlock,
-          ],
-        }],
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
+          layout: 'tabs' as const,
+          tabs: [{
+            id: 'tab1',
+            label: 'Tab 1',
+            children: [
+              validStatCard,
+              validTable,
+              validChart,
+              validCodeBlock,
+            ],
+          }],
+        },
       },
     };
     const result = DynamicViewSchema.parse(view);
-    expect(result.root.layout).toBe('tabs');
-    const tabs = result.root as { tabs: Array<{ children: unknown[] }> };
+    expect(result.sections.main.layout).toBe('tabs');
+    const tabs = result.sections.main as { tabs: Array<{ children: unknown[] }> };
     expect(tabs.tabs[0].children).toHaveLength(4);
   });
 });
@@ -672,17 +673,19 @@ describe('Edge Cases', () => {
   it('handles empty children array in stack', () => {
     const result = DynamicViewSchema.parse({
       title: 'Empty',
-      root: { layout: 'stack', children: [] },
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: { main: { layout: 'stack', children: [] } },
     });
-    expect((result.root as { children: unknown[] }).children).toHaveLength(0);
+    expect((result.sections.main as { children: unknown[] }).children).toHaveLength(0);
   });
 
   it('handles empty tabs array', () => {
     const result = DynamicViewSchema.parse({
       title: 'No Tabs',
-      root: { layout: 'tabs', tabs: [] },
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: { main: { layout: 'tabs', tabs: [] } },
     });
-    expect((result.root as { tabs: unknown[] }).tabs).toHaveLength(0);
+    expect((result.sections.main as { tabs: unknown[] }).tabs).toHaveLength(0);
   });
 
   it('handles table with empty rows', () => {
@@ -736,7 +739,8 @@ describe('Edge Cases', () => {
       description: null,
       icon: null,
       meta: null,
-      root: { layout: 'stack', children: [] },
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: { main: { layout: 'stack', children: [] } },
     });
     expect(result.description).toBeNull();
     expect(result.icon).toBeNull();
@@ -778,7 +782,8 @@ describe('OpenAI zodResponseFormat compatibility', () => {
     const props = Object.keys(format.json_schema.schema?.properties ?? {});
 
     expect(props).toContain('title');
-    expect(props).toContain('root');
+    expect(props).toContain('sidebarItems');
+    expect(props).toContain('sections');
     expect(props).toContain('description');
     expect(props).toContain('icon');
     expect(props).toContain('meta');
@@ -1035,20 +1040,23 @@ describe('TableWidgetSchema with actions (EX1.14)', () => {
   it('full DynamicView with table actions validates', () => {
     const view = DynamicViewSchema.parse({
       title: 'Docker Containers',
-      root: {
-        layout: 'stack',
-        gap: 'md',
-        children: [{
-          ...baseTable,
-          actions: [
-            { id: 'stop', label: 'Stop', command: 'docker stop {name}', confirm: true, variant: 'destructive' },
-          ],
-        }],
+      sidebarItems: [{ id: 'main', label: 'Docker' }],
+      sections: {
+        main: {
+          layout: 'stack',
+          gap: 'md',
+          children: [{
+            ...baseTable,
+            actions: [
+              { id: 'stop', label: 'Stop', command: 'docker stop {name}', confirm: true, variant: 'destructive' },
+            ],
+          }],
+        },
       },
     });
-    expect(view.root.children).toHaveLength(1);
-    const table = view.root.children[0] as { actions?: unknown[] };
-    expect(table.actions).toHaveLength(1);
+    const mainSection = view.sections.main as { children: Array<{ actions?: unknown[] }> };
+    expect(mainSection.children).toHaveLength(1);
+    expect(mainSection.children[0].actions).toHaveLength(1);
   });
 });
 
@@ -1255,13 +1263,17 @@ describe('FormWidgetSchema (EX1.15)', () => {
   it('form widget in full DynamicView validates', () => {
     const view = DynamicViewSchema.parse({
       title: 'Config Editor',
-      root: {
-        layout: 'stack',
-        gap: 'md',
-        children: [baseFormWidget],
+      sidebarItems: [{ id: 'main', label: 'Config' }],
+      sections: {
+        main: {
+          layout: 'stack',
+          gap: 'md',
+          children: [baseFormWidget],
+        },
       },
     });
-    expect(view.root.children).toHaveLength(1);
-    expect(view.root.children[0]!.type).toBe('form');
+    const mainSection = view.sections.main as { children: Array<{ type: string }> };
+    expect(mainSection.children).toHaveLength(1);
+    expect(mainSection.children[0]!.type).toBe('form');
   });
 });
