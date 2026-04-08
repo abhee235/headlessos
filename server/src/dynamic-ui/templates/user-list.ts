@@ -20,7 +20,9 @@ export const userListTemplate: UITemplate = {
     title: 'System Users',
     description: 'User accounts and current sessions',
     icon: 'Users',
-    root: {
+    sidebarItems: [{ id: 'main', label: 'Users' }],
+    sections: {
+      main: {
       layout: 'stack',
       gap: 'md',
       children: [
@@ -75,6 +77,7 @@ export const userListTemplate: UITemplate = {
           footer: 'Showing 4 of 24 users',
         },
       ],
+      },
     },
   },
 };

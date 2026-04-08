@@ -20,7 +20,9 @@ export const logViewerTemplate: UITemplate = {
     title: 'Log Viewer',
     description: 'Application and system log output',
     icon: 'ScrollText',
-    root: {
+    sidebarItems: [{ id: 'main', label: 'Logs' }],
+    sections: {
+      main: {
       layout: 'stack',
       gap: 'md',
       children: [
@@ -50,6 +52,7 @@ export const logViewerTemplate: UITemplate = {
           ],
         },
       ],
+      },
     },
   },
 };

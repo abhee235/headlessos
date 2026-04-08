@@ -19,7 +19,9 @@ export const databaseInfoTemplate: UITemplate = {
     title: 'Database Status',
     description: 'Database server status and performance metrics',
     icon: 'Database',
-    root: {
+    sidebarItems: [{ id: 'main', label: 'Database' }],
+    sections: {
+      main: {
       layout: 'stack',
       gap: 'md',
       children: [
@@ -87,6 +89,7 @@ export const databaseInfoTemplate: UITemplate = {
           yKeys: [{ key: 'connections', label: 'Active Connections' }],
         },
       ],
+      },
     },
   },
 };

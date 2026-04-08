@@ -39,7 +39,7 @@ export function DynamicAppWindow({
   serverId = null,
 }: DynamicAppWindowProps) {
   const [showJson, setShowJson] = useState(false);
-  const { items, activeId, setActiveId, activeChildren } = useDynamicSidebar(view);
+  const { items, activeId, setActiveId, activeLayout } = useDynamicSidebar(view);
 
   const title = (view.title as string) ?? 'Dynamic View';
   const meta = view.meta as DynamicView['meta'] | undefined;
@@ -120,7 +120,7 @@ export function DynamicAppWindow({
               <code>{JSON.stringify(view, null, 2)}</code>
             </pre>
           ) : (
-            <SectionContent>{activeChildren}</SectionContent>
+            <SectionContent layout={activeLayout} />
           )}
         </DynamicViewProvider>
       </AppWindow.Body>

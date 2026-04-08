@@ -18,17 +18,20 @@ import { LLMUsageTracker } from '../../src/llm/usage-tracker.js';
 function createMockLLM(response?: DynamicView): LLMProvider {
   const defaultView: DynamicView = {
     title: 'Test View',
-    root: {
-      layout: 'stack',
-      gap: 'md',
-      children: [
-        {
-          type: 'code-block',
-          title: 'Output',
-          code: 'parsed data',
-          language: 'text',
-        },
-      ],
+    sidebarItems: [{ id: 'main', label: 'Test' }],
+    sections: {
+      main: {
+        layout: 'stack',
+        gap: 'md',
+        children: [
+          {
+            type: 'code-block',
+            title: 'Output',
+            code: 'parsed data',
+            language: 'text',
+          },
+        ],
+      },
     },
   };
   const view = response ?? defaultView;
@@ -383,25 +386,28 @@ describe('DynamicUIGenerator', () => {
       const customView: DynamicView = {
         title: 'Disk Usage',
         description: 'Current disk utilization',
-        root: {
-          layout: 'grid',
-          columns: 2,
-          children: [
-            {
-              type: 'progress-bar',
-              title: 'Root Partition',
-              value: 42,
-              label: '42% used',
-            },
-            {
-              type: 'key-value',
-              title: 'Disk Info',
-              pairs: [
-                { key: 'Filesystem', value: '/dev/sda1' },
-                { key: 'Total', value: '50G' },
-              ],
-            },
-          ],
+        sidebarItems: [{ id: 'main', label: 'Disk' }],
+        sections: {
+          main: {
+            layout: 'grid',
+            columns: 2,
+            children: [
+              {
+                type: 'progress-bar',
+                title: 'Root Partition',
+                value: 42,
+                label: '42% used',
+              },
+              {
+                type: 'key-value',
+                title: 'Disk Info',
+                pairs: [
+                  { key: 'Filesystem', value: '/dev/sda1' },
+                  { key: 'Total', value: '50G' },
+                ],
+              },
+            ],
+          },
         },
       };
 
@@ -411,8 +417,9 @@ describe('DynamicUIGenerator', () => {
 
       const result = await gen.generate(baseInput);
       DynamicViewSchema.parse(result.view);
-      expect((result.view.root as { children: unknown[] }).children).toHaveLength(2);
-      expect((result.view.root as { children: Array<{ type: string }> }).children[0].type).toBe('progress-bar');
+      const mainSection = result.view.sections.main as { children: Array<{ type: string }> };
+      expect(mainSection.children).toHaveLength(2);
+      expect(mainSection.children[0].type).toBe('progress-bar');
     });
   });
 });

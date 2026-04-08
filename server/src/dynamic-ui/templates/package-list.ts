@@ -20,7 +20,9 @@ export const packageListTemplate: UITemplate = {
     title: 'Installed Packages',
     description: 'Package listing with version and status information',
     icon: 'Package',
-    root: {
+    sidebarItems: [{ id: 'main', label: 'Packages' }],
+    sections: {
+      main: {
       layout: 'stack',
       gap: 'md',
       children: [
@@ -59,6 +61,7 @@ export const packageListTemplate: UITemplate = {
           footer: 'Showing 5 of 342 packages',
         },
       ],
+      },
     },
   },
 };

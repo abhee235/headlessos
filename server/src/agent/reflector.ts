@@ -42,12 +42,12 @@ NOTE: The schema has ALREADY passed Zod validation. You are checking semantic qu
 2. Are widget types appropriate? (tables for lists, stat-cards for metrics, card-list for entity cards, forms for editable configs)
 3. If the user requested an interactive/editable UI, are there form widgets with writeBack configs?
 4. Are there any missing data points that were in the collected output but not in the schema?
-5. Is the layout sensible? (not too many widgets, logical grouping, good use of tabs/sidebar for complex data)
+5. Is the layout sensible? (not too many widgets, logical grouping, good use of tabs for complex data within sections)
 6. Are badge variants correct? (success for running/active, destructive for error/failed)
 7. Are table features used well? (filters for large tables, emptyState for potentially-empty tables, actionStyle:"dropdown" for 3+ actions, rich columns for compound cells)
 8. Are card-list items used for entity-like data (network interfaces, services, devices) instead of plain tables?
-9. Do tabs/sidebar items have appropriate icons?
-10. If planner suggested a layout (sidebar/tabs/grid/stack), does the final schema use that layout? A different layout is OK if justified, but it should still feel organized.
+9. Do tabs items have appropriate icons?
+10. Does the schema have correctly structured sidebarItems and sections? Every section should have a matching sidebarItem.
 11. Are ALL collected data sections represented in the schema? Every exec_command result should appear in at least one widget — missing data is a critical issue.
 
 ## Typed Feedback (inspired by Aider)

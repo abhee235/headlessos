@@ -274,7 +274,7 @@ describe('useUIAgent Hook (EX2.12)', () => {
     act(() => {
       useAgentStore.getState().completeSession(
         'req-1',
-        { title: 'System Info', root: { layout: 'stack', gap: 'md', widgets: [] } },
+        { title: 'System Info', sidebarItems: [{ id: 'main', label: 'System' }], sections: { main: { layout: 'stack', gap: 'md', children: [] } } },
         meta,
       );
     });

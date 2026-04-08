@@ -17,7 +17,9 @@ export const serviceStatusTemplate: UITemplate = {
     title: 'Service Status',
     description: 'Systemd service details and journal output',
     icon: 'Settings',
-    root: {
+    sidebarItems: [{ id: 'main', label: 'Service' }],
+    sections: {
+      main: {
       layout: 'stack',
       gap: 'md',
       children: [
@@ -55,6 +57,7 @@ export const serviceStatusTemplate: UITemplate = {
           ],
         },
       ],
+      },
     },
   },
 };

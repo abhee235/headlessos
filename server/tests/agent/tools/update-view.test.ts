@@ -30,27 +30,24 @@ describe('update_view tool', () => {
     expect(result.metadata?.isProgressiveUpdate).toBe(true);
   });
 
-  it('accepts a valid partial view with root only', async () => {
+  it('accepts a valid partial view with sections only', async () => {
     const result = await updateViewTool.execute(
-      { view: JSON.stringify({ root: { layout: 'stack', gap: 'md', children: [] } }) },
+      { view: JSON.stringify({ sidebarItems: [{ id: 'main', label: 'Main' }], sections: { main: { layout: 'stack', gap: 'md', children: [] } } }) },
       mockContext,
     );
     expect(result.success).toBe(true);
-    expect(result.metadata?.partialView).toHaveProperty('root');
+    expect(result.metadata?.partialView).toHaveProperty('sections');
   });
 
-  it('accepts a sidebar skeleton with empty sections', async () => {
+  it('accepts a skeleton with empty sections', async () => {
     const skeleton = {
       title: 'System Overview',
       icon: 'Activity',
-      root: {
-        layout: 'sidebar',
-        sidebarItems: [
-          { id: 'system', label: 'System', icon: 'Cpu' },
-          { id: 'docker', label: 'Docker', icon: 'Box' },
-        ],
-        sections: {},
-      },
+      sidebarItems: [
+        { id: 'system', label: 'System', icon: 'Cpu' },
+        { id: 'docker', label: 'Docker', icon: 'Box' },
+      ],
+      sections: {},
     };
     const result = await updateViewTool.execute(
       { view: JSON.stringify(skeleton) },
@@ -65,12 +62,9 @@ describe('update_view tool', () => {
       title: 'Full View',
       description: 'A complete view',
       icon: 'Activity',
-      root: {
-        layout: 'sidebar',
-        sidebarItems: [{ id: 'sys', label: 'System', icon: 'Cpu' }],
-        sections: {
-          sys: [{ type: 'alert', title: 'OK', message: 'All good', variant: 'success' }],
-        },
+      sidebarItems: [{ id: 'sys', label: 'System', icon: 'Cpu' }],
+      sections: {
+        sys: { layout: 'stack', gap: 'md', children: [{ type: 'alert', title: 'OK', message: 'All good', variant: 'success' }] },
       },
     };
     const result = await updateViewTool.execute(
@@ -99,9 +93,9 @@ describe('update_view tool', () => {
     expect(result.error).toContain('JSON object');
   });
 
-  it('rejects object without title or root', async () => {
+  it('rejects object without title or sidebarItems', async () => {
     const result = await updateViewTool.execute(
-      { view: JSON.stringify({ description: 'no title or root' }) },
+      { view: JSON.stringify({ description: 'no title or sidebarItems' }) },
       mockContext,
     );
     expect(result.success).toBe(false);

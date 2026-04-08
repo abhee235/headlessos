@@ -1,7 +1,8 @@
 // EX1.2: DynamicViewRenderer — root renderer for DynamicView JSON
+// Renders all sections vertically. Used by the playground for previewing views.
 // @see docs/phases/phase-ex1.md
 
-import type { DynamicView, DeepPartial } from 'headlessos-shared/schemas/dynamic-view';
+import type { DynamicView, DeepPartial, Layout } from 'headlessos-shared/schemas/dynamic-view';
 import { LayoutRenderer } from './LayoutRenderer';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -10,7 +11,10 @@ interface DynamicViewRendererProps {
 }
 
 export function DynamicViewRenderer({ view }: DynamicViewRendererProps) {
-  if (!view.root) {
+  const sections = (view.sections ?? {}) as Record<string, DeepPartial<Layout>>;
+  const sectionEntries = Object.entries(sections);
+
+  if (sectionEntries.length === 0) {
     return (
       <div className="space-y-4 p-4">
         <Skeleton className="h-6 w-48" />
@@ -20,11 +24,18 @@ export function DynamicViewRenderer({ view }: DynamicViewRendererProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {view.description && (
         <p className="text-sm text-muted-foreground">{view.description}</p>
       )}
-      <LayoutRenderer layout={view.root} />
+      {sectionEntries.map(([id, layout]) => (
+        <div key={id}>
+          {sectionEntries.length > 1 && (
+            <h3 className="text-sm font-medium text-muted-foreground mb-2 capitalize">{id}</h3>
+          )}
+          <LayoutRenderer layout={layout} />
+        </div>
+      ))}
     </div>
   );
 }

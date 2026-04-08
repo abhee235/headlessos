@@ -23,7 +23,9 @@ export const configFileTemplate: UITemplate = {
     title: 'Configuration File',
     description: 'Parsed configuration with key settings highlighted',
     icon: 'FileCode',
-    root: {
+    sidebarItems: [{ id: 'main', label: 'Configuration' }],
+    sections: {
+      main: {
       layout: 'stack',
       gap: 'md',
       children: [
@@ -48,6 +50,7 @@ export const configFileTemplate: UITemplate = {
           code: 'worker_processes auto;\nevents {\n    worker_connections 1024;\n}\nhttp {\n    include /etc/nginx/mime.types;\n    default_type application/octet-stream;\n    gzip on;\n    server {\n        listen 80;\n        server_name example.com;\n        root /var/www/html;\n    }\n}',
         },
       ],
+      },
     },
   },
 };

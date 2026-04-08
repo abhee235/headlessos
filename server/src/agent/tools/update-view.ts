@@ -55,11 +55,11 @@ export const updateViewTool: AgentTool = {
       }
 
       const view = parsed as Record<string, unknown>;
-      if (!view.title && !view.root) {
+      if (!view.title && !view.sidebarItems && !view.sections) {
         return {
           success: false,
           output: '',
-          error: 'View must have at least a "title" or "root" field.',
+          error: 'View must have at least a "title", "sidebarItems", or "sections" field.',
         };
       }
 

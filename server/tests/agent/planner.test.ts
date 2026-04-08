@@ -41,6 +41,7 @@ function createDefaultHints(overrides?: Partial<PlannerHints>): PlannerHints {
     templateHint: null,
     dataSourceHints: ['filesystem usage'],
     suggestedLayout: 'stack',
+    suggestedSections: ['Disk Usage'],
     securityRequirements: {
       needsWrite: false,
       needsSFTP: false,
@@ -61,10 +62,12 @@ function createMockTemplate(id: string, overrides?: Partial<UITemplate>): UITemp
     matchPatterns: [],
     schema: {
       title: 'Test',
-      root: {
-        layout: 'stack',
-        direction: 'vertical',
-        children: [],
+      sidebarItems: [{ id: 'main', label: 'Test' }],
+      sections: {
+        main: {
+          layout: 'stack',
+          children: [],
+        },
       },
     },
     ...overrides,

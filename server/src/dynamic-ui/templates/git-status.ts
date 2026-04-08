@@ -18,7 +18,9 @@ export const gitStatusTemplate: UITemplate = {
     title: 'Git Repository',
     description: 'Repository status and recent activity',
     icon: 'GitBranch',
-    root: {
+    sidebarItems: [{ id: 'main', label: 'Repository' }],
+    sections: {
+      main: {
       layout: 'stack',
       gap: 'md',
       children: [
@@ -79,6 +81,7 @@ export const gitStatusTemplate: UITemplate = {
           ],
         },
       ],
+      },
     },
   },
 };

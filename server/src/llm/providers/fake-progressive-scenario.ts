@@ -1,8 +1,9 @@
-// Progressive FakeLLM Scenario: System Overview with Sidebar Layout
+// Progressive FakeLLM Scenario: System Overview with Sections
 // @see docs/PROGRESSIVE_RENDERING.md
 //
 // Pre-scripted responses that demonstrate progressive incremental rendering.
-// Uses update_view to send partial sidebar views, then generate_schema for final.
+// Uses update_view to send partial views with top-level sidebarItems + sections,
+// then generate_schema for final. Each section is a Layout (stack/grid/tabs).
 //
 // Flow: get_context → update_view(skeleton) → exec(system) → update_view(+system)
 //       → exec(docker) → update_view(+docker) → exec(network) → update_view(+network)
@@ -16,7 +17,7 @@ import type { ChatWithToolsResult } from '../provider.js';
 // ── Planner Hints ──
 
 export const PROGRESSIVE_PLANNER_HINTS: PlannerHints = {
-  intent: 'Show comprehensive system overview with resource usage, docker containers, and network ports in a sidebar layout',
+  intent: 'Show comprehensive system overview with resource usage, docker containers, and network ports',
   interactivityLevel: 'display-only',
   expectedWidgets: ['alert', 'key-value', 'stat-card', 'progress-bar', 'table'],
   templateHint: null,
@@ -30,7 +31,7 @@ export const PROGRESSIVE_PLANNER_HINTS: PlannerHints = {
     'ss -tlnp (listening ports)',
     'ip addr (network interfaces)',
   ],
-  suggestedLayout: 'sidebar',
+  suggestedLayout: 'stack',
   suggestedSections: ['System', 'Docker', 'Network'],
   securityRequirements: {
     needsWrite: false,
@@ -41,38 +42,36 @@ export const PROGRESSIVE_PLANNER_HINTS: PlannerHints = {
   skipPostReflection: true,
 };
 
-// ── Sidebar Skeleton (empty sections) ──
+// ── Skeleton (empty sections) ──
 
-const SIDEBAR_SKELETON = {
+const VIEW_SKELETON = {
   title: 'System Overview',
   description: 'Server health, containers, and network at a glance',
   icon: 'Activity',
-  root: {
-    layout: 'sidebar',
-    sidebarItems: [
-      { id: 'system', label: 'System', icon: 'Cpu' },
-      { id: 'docker', label: 'Docker', icon: 'Box' },
-      { id: 'network', label: 'Network', icon: 'Network' },
-    ],
-    sections: {},
-  },
+  sidebarItems: [
+    { id: 'system', label: 'System', icon: 'Cpu' },
+    { id: 'docker', label: 'Docker', icon: 'Box' },
+    { id: 'network', label: 'Network', icon: 'Network' },
+  ],
+  sections: {},
 };
 
 // ── System section filled ──
 
-const SIDEBAR_WITH_SYSTEM = {
+const VIEW_WITH_SYSTEM = {
   title: 'System Overview',
   description: 'Server health, containers, and network at a glance',
   icon: 'Activity',
-  root: {
-    layout: 'sidebar',
-    sidebarItems: [
-      { id: 'system', label: 'System', icon: 'Cpu' },
-      { id: 'docker', label: 'Docker', icon: 'Box' },
-      { id: 'network', label: 'Network', icon: 'Network' },
-    ],
-    sections: {
-      system: [
+  sidebarItems: [
+    { id: 'system', label: 'System', icon: 'Cpu' },
+    { id: 'docker', label: 'Docker', icon: 'Box' },
+    { id: 'network', label: 'Network', icon: 'Network' },
+  ],
+  sections: {
+    system: {
+      layout: 'stack' as const,
+      gap: 'md' as const,
+      children: [
         {
           type: 'alert',
           title: 'System Status',
@@ -150,13 +149,14 @@ const SIDEBAR_WITH_SYSTEM = {
 
 // ── System + Docker sections filled ──
 
-const SIDEBAR_WITH_DOCKER = {
-  ...SIDEBAR_WITH_SYSTEM,
-  root: {
-    ...SIDEBAR_WITH_SYSTEM.root,
-    sections: {
-      ...SIDEBAR_WITH_SYSTEM.root.sections,
-      docker: [
+const VIEW_WITH_DOCKER = {
+  ...VIEW_WITH_SYSTEM,
+  sections: {
+    ...VIEW_WITH_SYSTEM.sections,
+    docker: {
+      layout: 'stack' as const,
+      gap: 'md' as const,
+      children: [
         {
           layout: 'grid',
           columns: 3,
@@ -215,12 +215,13 @@ const SIDEBAR_WITH_DOCKER = {
 // ── All 3 sections filled (final gold view) ──
 
 export const PROGRESSIVE_GOLD_VIEW: DynamicView = {
-  ...SIDEBAR_WITH_DOCKER,
-  root: {
-    ...SIDEBAR_WITH_DOCKER.root,
-    sections: {
-      ...SIDEBAR_WITH_DOCKER.root.sections,
-      network: [
+  ...VIEW_WITH_DOCKER,
+  sections: {
+    ...VIEW_WITH_DOCKER.sections,
+    network: {
+      layout: 'stack' as const,
+      gap: 'md' as const,
+      children: [
         {
           type: 'table',
           title: 'Listening Ports',
@@ -293,7 +294,7 @@ const TURN_1: ChatWithToolsResult = {
   finishReason: 'tool_calls',
 };
 
-// Turn 2: update_view — sidebar skeleton (window opens!)
+// Turn 2: update_view — skeleton with empty sections (window opens!)
 const TURN_2: ChatWithToolsResult = {
   message: {
     role: 'assistant',
@@ -303,7 +304,7 @@ const TURN_2: ChatWithToolsResult = {
       type: 'function',
       function: {
         name: 'update_view',
-        arguments: JSON.stringify({ view: JSON.stringify(SIDEBAR_SKELETON) }),
+        arguments: JSON.stringify({ view: JSON.stringify(VIEW_SKELETON) }),
       },
     }],
   },
@@ -357,7 +358,7 @@ const TURN_4: ChatWithToolsResult = {
       type: 'function',
       function: {
         name: 'update_view',
-        arguments: JSON.stringify({ view: JSON.stringify(SIDEBAR_WITH_SYSTEM) }),
+        arguments: JSON.stringify({ view: JSON.stringify(VIEW_WITH_SYSTEM) }),
       },
     }],
   },
@@ -401,7 +402,7 @@ const TURN_6: ChatWithToolsResult = {
       type: 'function',
       function: {
         name: 'update_view',
-        arguments: JSON.stringify({ view: JSON.stringify(SIDEBAR_WITH_DOCKER) }),
+        arguments: JSON.stringify({ view: JSON.stringify(VIEW_WITH_DOCKER) }),
       },
     }],
   },

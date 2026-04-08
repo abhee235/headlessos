@@ -18,7 +18,9 @@ export const dockerOverviewTemplate: UITemplate = {
     title: 'Docker Containers',
     description: 'Container status and resource utilization',
     icon: 'Container',
-    root: {
+    sidebarItems: [{ id: 'main', label: 'Containers' }],
+    sections: {
+      main: {
       layout: 'stack',
       gap: 'md',
       children: [
@@ -67,6 +69,7 @@ export const dockerOverviewTemplate: UITemplate = {
           footer: '5 running, 2 stopped',
         },
       ],
+      },
     },
   },
 };

@@ -372,10 +372,12 @@ describe('search_templates', () => {
 describe('validate_schema', () => {
   const validSchema = JSON.stringify({
     title: 'Test View',
-    root: {
-      layout: 'stack',
-      direction: 'vertical',
-      children: [],
+    sidebarItems: [{ id: 'main', label: 'Test' }],
+    sections: {
+      main: {
+        layout: 'stack',
+        children: [],
+      },
     },
   });
 
@@ -424,10 +426,12 @@ describe('validate_schema', () => {
 describe('generate_schema', () => {
   const validSchema = JSON.stringify({
     title: 'Generated View',
-    root: {
-      layout: 'stack',
-      direction: 'vertical',
-      children: [],
+    sidebarItems: [{ id: 'main', label: 'Generated' }],
+    sections: {
+      main: {
+        layout: 'stack',
+        children: [],
+      },
     },
   });
 
@@ -445,7 +449,7 @@ describe('generate_schema', () => {
   it('rejects invalid schema', async () => {
     const ctx = createMockContext();
     const result = await generateSchemaTool.execute(
-      { schema: JSON.stringify({ title: 'No root' }) },
+      { schema: JSON.stringify({ title: 'No sections' }) },
       ctx,
     );
 
