@@ -626,6 +626,111 @@ None (all changes to existing files).
 
 ---
 
+## EX4: LLM Observatory — Completed
+
+> Phoenix-inspired embedded LLM tracing. 16/16 tasks complete. 133 backend tests + 75 frontend tests = 208 new tests.
+
+### EX4-A.1: Trace & Span Zod Schemas
+- **Status:** ✅ Complete
+- **Files created:** `shared/schemas/observatory.ts`
+- **Files modified:** `shared/schemas/index.ts`
+- **Tests:** `server/tests/observatory/schemas.test.ts` — 42 tests
+- **Verification:** All schemas validate, reject invalid data, infer correct types
+
+### EX4-A.2: TraceStore (In-Memory Ring Buffer)
+- **Status:** ✅ Complete
+- **Files created:** `server/src/observatory/trace-store.ts`
+- **Tests:** `server/tests/observatory/trace-store.test.ts` — 35 tests
+- **Verification:** Ring buffer FIFO eviction, cumulative rollup, tree building, event emission
+
+### EX4-A.3: Instrumentation Context (AsyncLocalStorage)
+- **Status:** ✅ Complete
+- **Files created:** `server/src/observatory/context.ts`
+- **Tests:** `server/tests/observatory/context.test.ts` — 14 tests
+- **Verification:** withTrace/withSpan auto parent-child linking, async context propagation
+
+### EX4-B.1: Instrument ModelRouter
+- **Status:** ✅ Complete
+- **Files modified:** `server/src/llm/model-router.ts`
+- **Tests:** `server/tests/llm/model-router-spans.test.ts` — 7 tests
+- **Verification:** reason/chat/fast/summarize create LLM spans with model, tokens, content
+
+### EX4-B.2: Instrument Agent Pipeline
+- **Status:** ✅ Complete
+- **Files modified:** `server/src/agent/ui-agent.ts`, `executor.ts`, `planner.ts`, `reflector.ts`, `investigation-agent.ts`
+- **Tests:** `server/tests/agent/agent-spans.test.ts` — 11 tests
+- **Verification:** UIAgent/Executor/Planner/Reflector/InvestigationAgent emit spans
+
+### EX4-B.3: Instrument DynamicUIGenerator
+- **Status:** ✅ Complete
+- **Files modified:** `server/src/dynamic-ui/generator.ts`
+- **Tests:** `server/tests/dynamic-ui/generator-spans.test.ts` — 5 tests
+- **Verification:** Generator creates traces with CHAIN root and LLMGenerate child span
+
+### EX4-C.1: Observatory REST Routes
+- **Status:** ✅ Complete
+- **Files created:** `server/src/routes/observatory.ts`
+- **Files modified:** `server/src/index.ts`
+- **Tests:** `server/tests/routes/observatory.test.ts` — 19 tests (REST + WS)
+- **Verification:** GET traces/traceId/spanId/stats, POST clear, content stripping
+
+### EX4-C.2: WebSocket Live Trace Events
+- **Status:** ✅ Complete
+- **Files modified:** `server/src/routes/observatory.ts`
+- **Tests:** Included in `server/tests/routes/observatory.test.ts`
+- **Verification:** WS /ws/observatory broadcasts trace:start/end, span:start/end events
+
+### EX4-D.1: Observatory App Registration
+- **Status:** ✅ Complete
+- **Files created:** `client/src/components/Observatory/ObservatoryView.tsx`
+- **Files modified:** `client/src/components/ui/FileIcon.tsx` (ObservatoryIcon), `client/src/lib/apps.ts`, `client/src/components/Desktop/WindowManager.tsx`, `client/src/components/Desktop/Window.tsx`, `client/src/store/window-store.ts`, `client/src/components/Desktop/StartMenu.tsx`
+- **Tests:** `client/tests/components/Observatory/registration.test.ts` — 3 tests
+- **Verification:** Desktop app, Start Menu, Command Palette, lazy loading
+
+### EX4-D.2: Trace List View
+- **Status:** ✅ Complete
+- **Files created:** `client/src/components/Observatory/TraceListView.tsx`, `client/src/store/observatory-store.ts`
+- **Tests:** `client/tests/components/Observatory/TraceListView.test.tsx` — 10 tests, `client/tests/store/observatory-store.test.ts` — 17 tests
+- **Verification:** Table with status/name/trigger/tokens/cost/latency, filtering, WebSocket updates
+
+### EX4-D.3: Observatory Stats Dashboard
+- **Status:** ✅ Complete
+- **Files created:** `client/src/components/Observatory/StatsPanel.tsx`
+- **Tests:** `client/tests/components/Observatory/StatsPanel.test.tsx` — 5 tests
+- **Verification:** 6 stat-cards with formatted tokens, cost, latency, model/kind breakdowns
+
+### EX4-E.1: Trace Detail Layout
+- **Status:** ✅ Complete
+- **Files created:** `client/src/components/Observatory/TraceDetailView.tsx`
+- **Tests:** `client/tests/components/Observatory/TraceDetailView.test.tsx` — 8 tests
+- **Verification:** Two-panel resizable layout (tree 60% + detail 40%), header + footer
+
+### EX4-E.2: Trace Tree Component
+- **Status:** ✅ Complete
+- **Files created:** `client/src/components/Observatory/TraceTree.tsx`
+- **Tests:** `client/tests/components/Observatory/TraceTree.test.tsx` — 7 tests
+- **Verification:** Recursive tree, color-coded SpanKind icons, expand/collapse, connector lines
+
+### EX4-E.3: Timeline Bars
+- **Status:** ✅ Complete
+- **Files created:** `client/src/components/Observatory/TimelineBar.tsx`
+- **Tests:** `client/tests/components/Observatory/TimelineBar.test.tsx` — 7 tests
+- **Verification:** Horizontal bars relative to trace total, color-coded by kind, min-width
+
+### EX4-E.4: Span Detail Panel
+- **Status:** ✅ Complete
+- **Files created:** `client/src/components/Observatory/SpanDetailPanel.tsx`
+- **Tests:** `client/tests/components/Observatory/SpanDetailPanel.test.tsx` — 8 tests
+- **Verification:** Per-kind detail views, input/output/attributes tabs, error display
+
+### EX4-E.5: Live Trace Updates
+- **Status:** ✅ Complete
+- **Files created:** `client/src/hooks/useObservatorySocket.ts`
+- **Tests:** `client/tests/hooks/useObservatorySocket.test.ts` — 10 tests
+- **Verification:** WebSocket hook with auto-reconnect, exponential backoff capped at 30s
+
+---
+
 ## How to Use This File
 
 ### After completing a task:

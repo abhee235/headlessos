@@ -1,18 +1,25 @@
-// EX1.8: DynamicUIGenerator Service — generates DynamicView JSON from command output
-// @see docs/phases/phase-ex1.md
+// EX1.8 + EX3-A.1: DynamicUIGenerator Service — generates DynamicView JSON from command output
+// Two-pass pipeline: classify (fast model) -> generate (structured-output model)
+// @see docs/phases/phase-ex1.md, docs/phases/phase-ex3.md
 
-import type { DynamicView } from 'headlessos-shared/schemas/dynamic-view';
-import { DynamicViewSchema } from 'headlessos-shared/schemas/dynamic-view';
+import type { DynamicView, DesignClassification } from 'headlessos-shared/schemas/dynamic-view';
+import { DynamicViewSchema, DesignClassificationSchema } from 'headlessos-shared/schemas/dynamic-view';
 import type { LLMProvider, ParseResult } from '../llm/provider.js';
 import type { LLMUsageTracker } from '../llm/usage-tracker.js';
 import type { OutputCache } from '../cache/output-cache.js';
 import type { DynamicUIDiskCache } from '../cache/dynamic-ui-cache.js';
 import { TemplateRegistry } from './template-registry.js';
 import { ALL_TEMPLATES } from './templates/index.js';
+import { DesignClassifier } from './design-classifier.js';
+import { getLayoutPattern, getPatternRulesText, generateDesignSystemRules } from './layout-patterns.js';
 import stripAnsi from 'strip-ansi';
 import { createHash } from 'node:crypto';
+import { withTrace, withSpan, setSpanAttributes } from '../observatory/context.js';
 
 // ── System Prompt ──────────────────────────────────────────────────
+
+// EX3-B.1: Design rules are generated from the layout-patterns registry.
+const DESIGN_SYSTEM_RULES = generateDesignSystemRules();
 
 export const DYNAMIC_UI_SYSTEM_PROMPT = `You are a UI generator for HeadlessOS. Given terminal command output, generate a DynamicView JSON schema that best visualizes the data.
 
@@ -24,17 +31,41 @@ export const DYNAMIC_UI_SYSTEM_PROMPT = `You are a UI generator for HeadlessOS. 
 - **progress-bar**: Utilization percentages (disk, memory, CPU). variant: default/success/warning/destructive
 - **code-block**: Raw config/code output
 - **log-viewer**: Log lines with timestamps and levels
-- **chart**: Numeric series (bar/line/area/pie/donut)
+- **chart**: Numeric series (bar/line/area/pie/donut) — USE SPARINGLY, only when stat-card/progress-bar are insufficient
 - **alert**: Warnings, errors, important status messages
 - **card-list**: Items as horizontal cards with icon, title, badge (with dot), and detail rows — ideal for network interfaces, services, etc.
 - **form**: Editable configuration. Use when writeBack is needed.
 - **tree**: Hierarchical recursive data (file trees, dependency trees)
+- **gauge**: Percentage value as semicircle dial — ONLY when classifier approves (1-3 key percentages)
+- **sparkline-stat**: Stat-card with inline micro chart trend — for time-series summary
 
-## Layout Rules
-- Prefer **stack** for most views, **grid** for stat-card/metric collections
-- Use **tabs** for multi-section data within a section (e.g., Ports + Connections + Interfaces). Tabs support icon (Lucide name) and count (number badge).
-- Layouts are **nestable**: tabs inside a section, grids inside a stack, etc.
-- Note: There is NO sidebar layout — the sidebar is rendered by the window chrome from top-level sidebarItems.
+${DESIGN_SYSTEM_RULES}
+
+## Widget Selection Matrix
+DATA TYPE -> WIDGET:
+- Single number with label -> stat-card
+- Percentage (1-3 values, severity matters) -> progress-bar (or gauge if classifier approves)
+- Name:value pairs (< 10) -> key-value (grid-3 layout)
+- Name:value pairs (10+) -> table (2-column)
+- List of items with attributes -> table (with filters if >10 rows)
+- Items with icon+status+actions -> card-list
+- Status flags (on/off, enabled) -> badge-grid
+- Raw config/script/log content -> code-block
+- Hierarchical data -> tree
+- Warning/error to highlight -> alert (above relevant content)
+- Time-series trend (5+ points) -> sparkline-stat (if 1 metric) or chart line/area (RARE)
+- Category comparison (3-7 items) -> chart bar (RARE, only if classifier approves)
+
+## Anti-Patterns (NEVER DO)
+- Stack stat-cards vertically (use grid with autoFit:true)
+- Put multiple tables in one tab
+- Add chart when stat-card + progress-bar suffices
+- Create empty tabs for "future use"
+- Use code-block for tabular data (use table)
+- Put summary stats inside tabs (they go at root)
+- Create more than 2 levels of nesting
+- Use gauge for non-percentage data
+- Use chart/gauge without classifier approval (useVisualization:true)
 
 ## Badge Variants
 success = running/active/ok/up, destructive = error/failed/down/critical, warning = degraded/pending/slow, secondary = inactive/disabled/unknown, outline = neutral
@@ -70,6 +101,8 @@ export interface GenerateResult {
   source: 'cache' | 'llm';
   /** Template used as hint, if any */
   templateId?: string;
+  /** EX3-A.1: Design classification from Pass 1 */
+  classification?: DesignClassification;
   /** LLM stats (only when source === 'llm') */
   llmStats?: {
     model: string;
@@ -90,12 +123,14 @@ export type DynamicUIMessage =
 export class DynamicUIGenerator {
   private registry: TemplateRegistry;
   private llmProvider: LLMProvider | null;
+  private classifier: DesignClassifier | null;
   private usageTracker: LLMUsageTracker | null;
   private outputCache: OutputCache | null;
   private diskCache: DynamicUIDiskCache | null;
 
   constructor(opts?: {
     llmProvider?: LLMProvider;
+    classifierProvider?: LLMProvider;
     usageTracker?: LLMUsageTracker;
     outputCache?: OutputCache;
     diskCache?: DynamicUIDiskCache;
@@ -106,6 +141,15 @@ export class DynamicUIGenerator {
     this.usageTracker = opts?.usageTracker ?? null;
     this.outputCache = opts?.outputCache ?? null;
     this.diskCache = opts?.diskCache ?? null;
+
+    // EX3-A.1: Create classifier using fast/cheap model if available
+    const classifierLLM = opts?.classifierProvider ?? opts?.llmProvider ?? null;
+    this.classifier = classifierLLM
+      ? new DesignClassifier({
+          llmProvider: classifierLLM,
+          usageTracker: opts?.usageTracker,
+        })
+      : null;
   }
 
   /** Get the template registry (for external search/listing). */
@@ -121,8 +165,22 @@ export class DynamicUIGenerator {
    * 4. Call LLM with template hint → validate → cache → return
    */
   async generate(input: GenerateInput): Promise<GenerateResult> {
+    return withTrace(`DynamicUI: ${input.tool || input.command}`, {
+      trigger: 'dynamic-ui',
+      serverId: input.serverId,
+      kind: 'CHAIN',
+    }, () => this.generateCore(input));
+  }
+
+  /**
+   * Core generation logic extracted for Observatory tracing (EX4-B.3).
+   */
+  private async generateCore(input: GenerateInput): Promise<GenerateResult> {
     const { tool, command, rawOutput, serverId, bypassCache } = input;
     const cacheCommand = `dynamic-ui:${command}`;
+
+    // Record the generation request as input on the root span
+    setSpanAttributes({ input: { tool, command, serverId } });
 
     // 1. Check memory cache (unless bypassed, e.g. "Regenerate" button)
     if (!bypassCache && this.outputCache) {
@@ -169,19 +227,49 @@ export class DynamicUIGenerator {
     // 4. Clean output
     const cleanOutput = stripAnsi(rawOutput);
 
-    // 5. Build prompt with template hint
-    const userPrompt = this.buildUserPrompt(tool, command, cleanOutput, bestMatch?.template.schema);
+    // 5. EX3-A.1: Run two-pass classification (if classifier available)
+    // Wrapped in Observatory CHAIN span (EX4-B.3)
+    let classification: DesignClassification | null = null;
+    if (this.classifier) {
+      try {
+        const raw = await withSpan('DesignClassifier.classify', 'CHAIN', async () => {
+          return this.classifier!.classify({
+            tool,
+            command,
+            cleanOutput: cleanOutput.slice(0, 2000),
+          });
+        }, { input: { tool, command } });
+        // Validate the classification result has expected shape
+        const parsed = DesignClassificationSchema.safeParse(raw);
+        classification = parsed.success ? parsed.data : null;
+      } catch {
+        // Classification failure is non-fatal — generator works without it
+        classification = null;
+      }
+    }
 
-    // 6. Call LLM
+    // 6. Build prompt with template hint + classification constraints
+    const userPrompt = this.buildUserPrompt(tool, command, cleanOutput, bestMatch?.template.schema, classification);
+
+    // 6. Call LLM — wrapped in Observatory LLM span (EX4-B.3)
     const startTime = Date.now();
     let result: ParseResult<DynamicView>;
     try {
-      result = await this.llmProvider.parseText<DynamicView>({
-        rawOutput: cleanOutput,
-        command,
-        schema: DynamicViewSchema,
-        systemPrompt: DYNAMIC_UI_SYSTEM_PROMPT,
-        userPrompt,
+      result = await withSpan('LLMGenerate', 'LLM', async () => {
+        const llmResult = await this.llmProvider!.parseText<DynamicView>({
+          rawOutput: cleanOutput,
+          command,
+          schema: DynamicViewSchema,
+          systemPrompt: DYNAMIC_UI_SYSTEM_PROMPT,
+          userPrompt,
+        });
+        setSpanAttributes({
+          model: llmResult.model,
+          tokenUsage: { inputTokens: llmResult.tokensUsed.input, outputTokens: llmResult.tokensUsed.output, totalTokens: llmResult.tokensUsed.input + llmResult.tokensUsed.output },
+          input: { tool, command },
+          output: llmResult.data,
+        });
+        return llmResult;
       });
     } catch (err) {
       // If LLM fails but we have a template, fall back to it
@@ -226,6 +314,7 @@ export class DynamicUIGenerator {
       view: result.data,
       source: 'llm',
       templateId: bestMatch?.template.id,
+      classification: classification ?? undefined,
       llmStats: {
         model: result.model,
         inputTokens: result.tokensUsed.input,
@@ -246,6 +335,7 @@ export class DynamicUIGenerator {
     command: string,
     cleanOutput: string,
     templateHint?: DynamicView,
+    classification?: DesignClassification | null,
   ): string {
     let prompt = `Generate a DynamicView JSON for the following terminal output.
 
@@ -257,6 +347,27 @@ Terminal output:
 ${cleanOutput.slice(0, 8000)}
 \`\`\`
 `;
+
+    // EX3-A.1: Inject classification constraints (from Pass 1)
+    if (classification) {
+      const patternRules = getPatternRulesText(classification.layoutPattern);
+      prompt += `
+## Design Classification (from classifier — FOLLOW these constraints)
+Content type: ${classification.contentType}
+Layout pattern: ${classification.layoutPattern}
+Expected widgets: ${classification.expectedWidgets.join(', ')}
+Section count: ${classification.sectionCount}
+Use visualization: ${classification.useVisualization}${classification.visualizationReason ? ` (${classification.visualizationReason})` : ''}
+Design notes: ${classification.designNotes}
+
+## Layout Pattern Rules
+${patternRules}
+
+IMPORTANT: Follow the layout pattern rules above. Use the expected widgets listed.
+${!classification.useVisualization ? 'Do NOT include any chart or gauge widgets.' : ''}
+Use grid layout with autoFit:true for stat-card collections.
+`;
+    }
 
     if (templateHint) {
       prompt += `

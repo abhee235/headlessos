@@ -8,6 +8,7 @@
 import { z } from 'zod';
 import type { ModelRouter } from '../llm/model-router.js';
 import type { TemplateRegistry } from '../dynamic-ui/template-registry.js';
+import { withSpan } from '../observatory/context.js';
 
 // ── Schemas ──
 
@@ -157,23 +158,25 @@ export class Planner {
    * step-by-step tool execution plans.
    */
   async plan(userRequest: string, serverContext?: string): Promise<PlannerHints> {
-    // Build the prompt with template context
-    const templateContext = this.buildTemplateContext();
-    const systemPrompt = this.buildSystemPrompt(templateContext);
-    const userPrompt = this.buildUserPrompt(userRequest, serverContext);
+    return withSpan('Planner.plan', 'CHAIN', async () => {
+      // Build the prompt with template context
+      const templateContext = this.buildTemplateContext();
+      const systemPrompt = this.buildSystemPrompt(templateContext);
+      const userPrompt = this.buildUserPrompt(userRequest, serverContext);
 
-    // Call reasoning model
-    const result = await this.modelRouter.reason<PlannerHints>({
-      rawOutput: userPrompt,
-      command: 'planner',
-      schema: PlannerHintsSchema,
-      systemPrompt,
-    });
+      // Call reasoning model
+      const result = await this.modelRouter.reason<PlannerHints>({
+        rawOutput: userPrompt,
+        command: 'planner',
+        schema: PlannerHintsSchema,
+        systemPrompt,
+      });
 
-    // Post-process: validate and enrich hints
-    const hints = this.enrichHints(result.data, userRequest);
+      // Post-process: validate and enrich hints
+      const hints = this.enrichHints(result.data, userRequest);
 
-    return hints;
+      return hints;
+    }, { input: userRequest });
   }
 
   // ── Internal ──

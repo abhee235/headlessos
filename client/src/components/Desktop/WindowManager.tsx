@@ -19,6 +19,7 @@ const FleetDashboardView = lazy(() => import('../Fleet/FleetDashboardView').then
 const AgentView = lazy(() => import('../Agent/AgentView').then(m => ({ default: m.AgentView })));
 const DynamicUITabView = lazy(() => import('../DynamicUI/DynamicUITabView').then(m => ({ default: m.DynamicUITabView })));
 const UIAgentView = lazy(() => import('../Agent/UIAgentView').then(m => ({ default: m.UIAgentView })));
+const ObservatoryView = lazy(() => import('../Observatory/ObservatoryView').then(m => ({ default: m.ObservatoryView })));
 
 function LazyFallback() {
   return (
@@ -103,6 +104,12 @@ function WindowContent({ appId, serverId, windowId }: { appId: string; serverId:
       return (
         <div className="h-full overflow-hidden">
           <UIAgentView serverId={serverId} />
+        </div>
+      );
+    case 'observatory':
+      return (
+        <div className="h-full overflow-hidden">
+          <ObservatoryView />
         </div>
       );
     default:

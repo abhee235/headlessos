@@ -8,6 +8,7 @@ export const configFileTemplate: UITemplate = {
   name: 'Config File Viewer',
   description: 'Configuration file contents with key-value summary',
   tags: ['config', 'configuration', 'settings', 'nginx', 'apache', 'sshd'],
+  layoutPattern: 'config-viewer',
   matchPatterns: [
     'cat\\s+/etc/',
     'cat\\s+.*\\.conf$',

@@ -8,6 +8,7 @@ export const logViewerTemplate: UITemplate = {
   name: 'Log Viewer',
   description: 'Structured log file output with level filtering',
   tags: ['logs', 'monitoring', 'debugging', 'syslog', 'journalctl'],
+  layoutPattern: 'log-viewer',
   matchPatterns: [
     'journalctl',
     'tail\\s+(-f|-n)\\s+.*log',
@@ -27,13 +28,14 @@ export const logViewerTemplate: UITemplate = {
       gap: 'md',
       children: [
         {
-          type: 'badge-grid',
-          title: 'Log Summary',
-          badges: [
-            { label: 'Total Lines', value: '1,247', variant: 'default' },
-            { label: 'Errors', value: '3', variant: 'destructive' },
-            { label: 'Warnings', value: '12', variant: 'warning' },
-            { label: 'Info', value: '1,232', variant: 'default' },
+          layout: 'grid',
+          autoFit: true,
+          minChildWidth: 200,
+          children: [
+            { type: 'stat-card', title: 'Total Lines', value: '1,247', icon: 'FileText' },
+            { type: 'stat-card', title: 'Errors', value: '3', icon: 'AlertCircle', trend: 'up' },
+            { type: 'stat-card', title: 'Warnings', value: '12', icon: 'AlertTriangle' },
+            { type: 'stat-card', title: 'Info', value: '1,232' },
           ],
         },
         {

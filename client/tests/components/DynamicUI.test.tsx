@@ -39,6 +39,11 @@ vi.mock('recharts', () => {
     XAxis: () => React.createElement('div', { 'data-testid': 'x-axis' }),
     YAxis: () => React.createElement('div', { 'data-testid': 'y-axis' }),
     CartesianGrid: () => React.createElement('div', { 'data-testid': 'cartesian-grid' }),
+    ReferenceLine: ({ y, label }: { y?: number; label?: { value?: string } | string }) =>
+      React.createElement('div', {
+        'data-testid': `reference-line-${y}`,
+        'data-label': typeof label === 'object' ? label?.value : label,
+      }),
     Tooltip: () => null,
     Legend: () => null,
   };
@@ -47,7 +52,7 @@ vi.mock('recharts', () => {
 // ── Widget Registry ─────────────────────────────────────
 
 describe('Widget Registry', () => {
-  it('has all 11 widget types registered (7 base + 3 extended + 1 form)', () => {
+  it('has all 14 widget types registered', () => {
     const types = getRegisteredTypes();
     // Base widgets (EX1.2)
     expect(types).toContain('table');
@@ -65,7 +70,11 @@ describe('Widget Registry', () => {
     expect(types).toContain('form');
     // Card-list widget (EX3-P.6)
     expect(types).toContain('card-list');
-    expect(types.length).toBe(12);
+    // Gauge widget (EX3-A.4)
+    expect(types).toContain('gauge');
+    // Sparkline stat card widget (EX3-A.5)
+    expect(types).toContain('sparkline-stat');
+    expect(types.length).toBe(14);
   });
 });
 
@@ -860,6 +869,109 @@ describe('ChartWidget', () => {
     render(<DynamicViewRenderer view={view} />);
     expect(screen.getByText('Memory Split')).toBeInTheDocument();
     expect(screen.getByTestId('mock-pie-chart')).toBeInTheDocument();
+  });
+
+  // ── EX3-A.6: Enhanced Chart Options ───────────────────
+
+  it('renders stacked bar chart', () => {
+    const view: DynamicView = {
+      title: 'Stacked Test',
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
+          layout: 'stack',
+          gap: 'md',
+          children: [{
+            type: 'chart',
+            title: 'Stacked Bars',
+            chartType: 'bar',
+            data: [{ month: 'Jan', a: 10, b: 20 }],
+            xKey: 'month',
+            yKeys: [{ key: 'a' }, { key: 'b' }],
+            stacked: true,
+          }],
+        },
+      },
+    };
+    render(<DynamicViewRenderer view={view} />);
+    expect(screen.getByText('Stacked Bars')).toBeInTheDocument();
+    expect(screen.getByTestId('mock-bar-chart')).toBeInTheDocument();
+    expect(screen.getByTestId('bar-a')).toBeInTheDocument();
+    expect(screen.getByTestId('bar-b')).toBeInTheDocument();
+  });
+
+  it('renders threshold reference lines', () => {
+    const view: DynamicView = {
+      title: 'Threshold Test',
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
+          layout: 'stack',
+          gap: 'md',
+          children: [{
+            type: 'chart',
+            title: 'With Thresholds',
+            chartType: 'line',
+            data: [{ t: 0, v: 50 }],
+            xKey: 't',
+            yKeys: [{ key: 'v' }],
+            thresholds: [
+              { value: 80, color: 'red', label: 'Warning' },
+              { value: 95 },
+            ],
+          }],
+        },
+      },
+    };
+    render(<DynamicViewRenderer view={view} />);
+    expect(screen.getByTestId('reference-line-80')).toBeInTheDocument();
+    expect(screen.getByTestId('reference-line-95')).toBeInTheDocument();
+  });
+
+  it('hides grid when showGrid=false', () => {
+    const view: DynamicView = {
+      title: 'No Grid',
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
+          layout: 'stack',
+          gap: 'md',
+          children: [{
+            type: 'chart',
+            title: 'No Grid Chart',
+            chartType: 'bar',
+            data: [{ x: 'a', y: 1 }],
+            xKey: 'x',
+            yKeys: [{ key: 'y' }],
+            showGrid: false,
+          }],
+        },
+      },
+    };
+    render(<DynamicViewRenderer view={view} />);
+    expect(screen.queryByTestId('cartesian-grid')).not.toBeInTheDocument();
+  });
+
+  it('shows grid by default for bar chart', () => {
+    const view: DynamicView = {
+      title: 'Default Grid',
+      sidebarItems: [{ id: 'main', label: 'Main' }],
+      sections: {
+        main: {
+          layout: 'stack',
+          gap: 'md',
+          children: [{
+            type: 'chart',
+            chartType: 'bar',
+            data: [{ x: 'a', y: 1 }],
+            xKey: 'x',
+            yKeys: [{ key: 'y' }],
+          }],
+        },
+      },
+    };
+    render(<DynamicViewRenderer view={view} />);
+    expect(screen.getByTestId('cartesian-grid')).toBeInTheDocument();
   });
 });
 

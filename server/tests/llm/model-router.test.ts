@@ -110,12 +110,12 @@ describe('ModelConfig', () => {
       expect(DEFAULT_MODEL_CONFIG.structuredOutput.model).toBe('gpt-4.1');
     });
 
-    it('fast uses gpt-4o-mini by default', () => {
-      expect(DEFAULT_MODEL_CONFIG.fast.model).toBe('gpt-4o-mini');
+    it('fast uses gpt-4.1-mini by default', () => {
+      expect(DEFAULT_MODEL_CONFIG.fast.model).toBe('gpt-4.1-mini');
     });
 
-    it('weak uses gpt-4o-mini by default', () => {
-      expect(DEFAULT_MODEL_CONFIG.weak.model).toBe('gpt-4o-mini');
+    it('weak uses gpt-4.1-nano by default', () => {
+      expect(DEFAULT_MODEL_CONFIG.weak.model).toBe('gpt-4.1-nano');
     });
 
     it('all roles use openai provider', () => {
@@ -142,8 +142,8 @@ describe('ModelConfig', () => {
       const config = loadModelConfig();
       expect(config.reasoning.model).toBe('gpt-5.4');
       expect(config.structuredOutput.model).toBe('gpt-4.1');
-      expect(config.fast.model).toBe('gpt-4o-mini');
-      expect(config.weak.model).toBe('gpt-4o-mini');
+      expect(config.fast.model).toBe('gpt-4.1-mini');
+      expect(config.weak.model).toBe('gpt-4.1-nano');
     });
 
     it('overrides reasoning model from env', () => {

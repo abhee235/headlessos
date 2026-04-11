@@ -15,6 +15,7 @@ import { checkGuardrails } from './guardrails.js';
 import { ToolRepetitionDetector } from './safety/tool-repetition-detector.js';
 import type { PlannerHints } from './planner.js';
 import type { ChatMessage } from '../llm/provider.js';
+import { withSpan, withSpanGen, setSpanAttributes } from '../observatory/context.js';
 
 // ── Agent Event Types ──
 
@@ -93,6 +94,19 @@ export class ReactiveExecutor {
   // ── Internal Loop ──
 
   private async *executeInternal(
+    hints: PlannerHints,
+    context: ToolContext,
+    reflectionIssues?: ReflectionIssue[],
+  ): AsyncGenerator<AgentEvent> {
+    yield* withSpanGen<AgentEvent>(
+      'ReactiveExecutor.execute',
+      'CHAIN',
+      () => this.executeLoop(hints, context, reflectionIssues),
+      { input: hints.intent },
+    );
+  }
+
+  private async *executeLoop(
     hints: PlannerHints,
     context: ToolContext,
     reflectionIssues?: ReflectionIssue[],
@@ -195,10 +209,12 @@ export class ReactiveExecutor {
             continue;
           }
 
-          // Execute tool
+          // Execute tool — wrapped in Observatory TOOL span (EX4-B.2)
           const startTime = Date.now();
           try {
-            const result = await tool.execute(toolArgs, context);
+            const result = await withSpan(`tool:${toolName}`, 'TOOL', async () => {
+              return tool.execute(toolArgs, context);
+            }, { input: toolArgs });
             const latencyMs = Date.now() - startTime;
 
             messages.push({

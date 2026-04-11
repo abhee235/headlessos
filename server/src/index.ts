@@ -39,6 +39,9 @@ import { InvestigationAgent } from './agent/investigation-agent.js';
 import { DynamicUIGenerator } from './dynamic-ui/generator.js';
 import { DynamicUIDiskCache } from './cache/dynamic-ui-cache.js';
 import { ModelRouter } from './llm/model-router.js';
+import { observatoryRoutes } from './routes/observatory.js';
+import { TraceStore } from './observatory/trace-store.js';
+import { initObservatory } from './observatory/context.js';
 
 const PORT = Number(process.env.PORT) || 3001;
 
@@ -52,6 +55,8 @@ async function main(): Promise<void> {
   const orchestrator = new CommandOrchestrator('orchestrator');
   const outputCache = new OutputCache();
   const usageTracker = new LLMUsageTracker();
+  const traceStore = new TraceStore();
+  initObservatory(traceStore);
   const investigationAgent = new InvestigationAgent(connectionManager, null);
   const diskCache = new DynamicUIDiskCache();
   await diskCache.init();
@@ -214,6 +219,7 @@ async function main(): Promise<void> {
   await app.register(fleetRoutes, { orchestrator, connectionManager, configStore });
   await app.register(agentRoutes, { connectionManager, agent: investigationAgent });
   await app.register(dynamicUIRoutes, { connectionManager, generator: dynamicUIGenerator, diskCache });
+  await app.register(observatoryRoutes, { traceStore });
 
   // UI Agent WebSocket (requires LLM)
   if (modelRouter) {
@@ -239,6 +245,7 @@ async function main(): Promise<void> {
     console.log('\n🛑 Shutting down...');
     await app.close();
     outputCache.destroy();
+    traceStore.clear();
     await container.shutdown();
     process.exit(0);
   };

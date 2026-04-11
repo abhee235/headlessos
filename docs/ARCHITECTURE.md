@@ -983,6 +983,67 @@ openTab: (app) => {
 
 ---
 
+### Pattern 6: LLM Observatory — Trace & Span Hierarchy (adopt in Phase EX4)
+
+Embedded tracing system that captures every LLM call in a hierarchical trace tree, inspired by Arize Phoenix.
+
+**Architecture:**
+```
+                    ┌───────────────── Observatory ─────────────────┐
+                    │                                               │
+                    │  ┌────────────┐   ┌────────────────────────┐ │
+                    │  │ TraceStore │   │ AsyncLocalStorage      │ │
+                    │  │ (in-memory │   │ Context Propagation    │ │
+                    │  │  ring buf) │   │                        │ │
+                    │  └─────┬──────┘   │ withTrace(name, fn)    │ │
+                    │        │          │ withSpan(name, kind,fn)│ │
+                    │        │          └───────────┬────────────┘ │
+                    │        │                      │              │
+                    │  ┌─────▼──────────────────────▼────────────┐ │
+                    │  │         Instrumentation Points           │ │
+                    │  │                                          │ │
+                    │  │  ModelRouter.reason()  → LLM span       │ │
+                    │  │  ModelRouter.chat()    → LLM span       │ │
+                    │  │  UIAgent.run()         → AGENT trace    │ │
+                    │  │  Executor.execute()    → CHAIN span     │ │
+                    │  │  Planner.plan()        → CHAIN span     │ │
+                    │  │  Tool executions       → TOOL span      │ │
+                    │  │  DynamicUIGenerator    → CHAIN trace    │ │
+                    │  └──────────────────────────────────────────┘ │
+                    │        │                                      │
+                    │  ┌─────▼──────────┐  ┌─────────────────────┐ │
+                    │  │ REST API       │  │ WebSocket           │ │
+                    │  │ /api/observatory│  │ /ws/observatory     │ │
+                    │  │ traces, spans  │  │ live span events    │ │
+                    │  └────────────────┘  └─────────────────────┘ │
+                    └───────────────────────────────────────────────┘
+```
+
+**Trace hierarchy example (UIAgent session):**
+```
+Trace: "UIAgent: docker overview"  (4.2s, $0.05, 12 spans)
+  └─ AGENT: UIAgent.run
+       ├─ CHAIN: Planner.plan
+       │    └─ LLM: ModelRouter.reason (o4-mini, 1.2s, 1240→380 tokens)
+       ├─ CHAIN: ReactiveExecutor.execute
+       │    ├─ LLM: ModelRouter.chat (gpt-4.1, 1.8s, 2100→850 tokens)
+       │    ├─ TOOL: exec_command(docker ps) (0.3s)
+       │    ├─ LLM: ModelRouter.chat (gpt-4.1, 1.5s, 3200→1200 tokens)
+       │    └─ TOOL: generate_schema (0.1s)
+       └─ CHAIN: PostReflector.reflect
+            └─ LLM: ModelRouter.fast (gpt-4.1-mini, 0.8s, 800→200 tokens)
+```
+
+**Key patterns:**
+- **Ring buffer:** 200-trace max. FIFO eviction. Map-based storage, O(1) read/write.
+- **Cumulative rollup:** When a span ends, walk parent chain to root updating `cumulative.tokenUsage` and `cumulative.costUsd`. Phoenix pattern — compute at write time.
+- **Lazy serialization:** Span `input`/`output` stored as JS references. Serialized to JSON only when detail API is called.
+- **4 SpanKinds:** LLM (individual call), AGENT (root session), CHAIN (pipeline phase), TOOL (tool execution)
+
+See [ADR-018](DECISIONS.md) and [phase-ex4.md](phases/phase-ex4.md).
+
+---
+
 ## Technology Constraints
 
 | Constraint | Reason |

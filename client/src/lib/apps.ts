@@ -105,6 +105,14 @@ export const APPS: AppDefinition[] = [
     requiredTools: [],
     singleInstance: false,
   },
+  {
+    id: 'observatory',
+    name: 'LLM Observatory',
+    icon: 'Telescope',
+    description: 'Trace viewer for LLM calls, agent runs, and dynamic UI generation',
+    requiredTools: [],
+    singleInstance: true,
+  },
 ];
 
 export function getAppById(id: string): AppDefinition | undefined {

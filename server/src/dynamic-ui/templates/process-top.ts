@@ -8,6 +8,7 @@ export const processTopTemplate: UITemplate = {
   name: 'Top Processes',
   description: 'Top processes by CPU and memory utilization',
   tags: ['processes', 'top', 'htop', 'monitoring', 'performance'],
+  layoutPattern: 'single-table',
   matchPatterns: [
     '^top\\b',
     '^htop$',
@@ -26,31 +27,16 @@ export const processTopTemplate: UITemplate = {
       gap: 'md',
       children: [
         {
-          type: 'badge-grid',
-          title: 'System Load',
-          badges: [
-            { label: 'Load 1m', value: '2.45', variant: 'warning' },
-            { label: 'Load 5m', value: '1.82', variant: 'default' },
-            { label: 'Load 15m', value: '1.34', variant: 'success' },
-            { label: 'Total Procs', value: '247', variant: 'secondary' },
-            { label: 'Running', value: '3', variant: 'success' },
-            { label: 'Sleeping', value: '244', variant: 'default' },
+          layout: 'grid',
+          autoFit: true,
+          minChildWidth: 180,
+          children: [
+            { type: 'stat-card', title: 'Load 1m', value: '2.45', icon: 'Activity', trend: 'up' },
+            { type: 'stat-card', title: 'Load 5m', value: '1.82' },
+            { type: 'stat-card', title: 'Load 15m', value: '1.34', trend: 'down' },
+            { type: 'stat-card', title: 'Total Procs', value: '247' },
+            { type: 'stat-card', title: 'Running', value: '3', trend: 'neutral' },
           ],
-        },
-        {
-          type: 'chart',
-          title: 'CPU by Process',
-          chartType: 'bar',
-          height: 250,
-          data: [
-            { process: 'postgres', cpu: 18.5 },
-            { process: 'node', cpu: 12.3 },
-            { process: 'nginx', cpu: 5.7 },
-            { process: 'python3', cpu: 4.2 },
-            { process: 'redis', cpu: 1.8 },
-          ],
-          xKey: 'process',
-          yKeys: [{ key: 'cpu', label: 'CPU %' }],
         },
         {
           type: 'table',
@@ -77,6 +63,7 @@ export const processTopTemplate: UITemplate = {
             { pid: 7890, user: 'root', cpu: 4.2, mem: 3.1, vsz: '256 MB', rss: '80 MB', state: 'R', command: 'python3 /opt/monitor/agent.py' },
             { pid: 2345, user: 'redis', cpu: 1.8, mem: 1.5, vsz: '64 MB', rss: '28 MB', state: 'S', command: 'redis-server *:6379' },
           ],
+          filters: { search: true },
           footer: 'Showing top 5 of 247 processes',
         },
       ],

@@ -8,6 +8,7 @@ export const serviceStatusTemplate: UITemplate = {
   name: 'Service Status',
   description: 'Systemd service details and recent logs',
   tags: ['services', 'systemd', 'systemctl', 'daemon'],
+  layoutPattern: 'status-overview',
   matchPatterns: [
     '^systemctl\\s+status',
     '^systemctl\\s+list-units',

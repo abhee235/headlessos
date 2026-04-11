@@ -14,6 +14,8 @@ import { TreeWidget } from './widgets/TreeWidget';
 import { LogViewerWidget } from './widgets/LogViewerWidget';
 import { FormWidget } from './widgets/FormWidget';
 import { CardListWidget } from './widgets/CardListWidget';
+import { GaugeWidget } from './widgets/GaugeWidget';
+import { SparklineStatWidget } from './widgets/SparklineStatWidget';
 
 // Register base widget types (EX1.2)
 registerWidget('table', TableWidget);
@@ -34,3 +36,9 @@ registerWidget('form', FormWidget);
 
 // Card-list widget (EX3-P.6)
 registerWidget('card-list', CardListWidget);
+
+// Gauge widget (EX3-A.4)
+registerWidget('gauge', GaugeWidget);
+
+// Sparkline stat card widget (EX3-A.5)
+registerWidget('sparkline-stat', SparklineStatWidget);

@@ -655,6 +655,132 @@ We need a **UI Generation Agent** — a robust, multi-model agent specialized in
 
 ---
 
+## ADR-017: Two-Pass Design Classifier & Smart Layout Engine
+
+**Status:** Accepted
+**Date:** 2026-04-12
+
+**Context:**
+The Dynamic UI Engine (EX1) and UI Agent (EX2) generate views from terminal output, but layouts default to vertical stacking — stat-cards stacked instead of gridded, multiple related tables stacked instead of tabbed, no visual hierarchy. The LLM makes layout decisions in the same pass as data extraction, leading to poor design choices. The system is a server management tool, not a visualization/charting platform, but charts were being overused.
+
+**Options Considered:**
+1. **Single-pass with better prompts** — Add more layout rules to the existing system prompt and hope the LLM follows them
+2. **Two-pass design classifier** — A fast, cheap classifier determines content type and layout pattern before the main generator runs, constraining its output
+3. **Template-only approach** — Remove LLM layout decisions entirely, use strict template matching based on command/tool name
+
+**Decision:** Option 2 — Two-pass design classifier with layout pattern library
+
+**Rationale:**
+- Single-pass prompts are unreliable — the LLM's layout choices are inconsistent and degrade with complex output
+- Template-only is too rigid — novel commands or atypical output produce poor results
+- Two-pass combines the best of both: fast classification (< 500ms, cheap model) constrains the generator to follow proven layout patterns while retaining LLM flexibility for data extraction and widget population
+- The classifier also gates chart/gauge usage via `useVisualization` flag, enforcing "widgets first, charts second" philosophy
+
+**Key Design Decisions:**
+- **10 content types** (metrics-overview, data-table, multi-dataset, config-review, status-board, log-analysis, tree-hierarchy, audit-report, comparison, detail-view)
+- **10 layout patterns** (dashboard-metrics, single-table, tabbed-detail, config-viewer, status-overview, log-viewer, tree-explorer, audit-report, comparison-grid, detail-overview)
+- **Responsive auto-fit grid** via CSS `repeat(auto-fit, minmax(Xpx, 1fr))` — stat-cards reflow automatically
+- **Charts/gauges gated** — only used when classifier sets `useVisualization: true` with justification
+- **Progressive assembly** — skeleton first, widgets stream in via `layout_update` events
+
+**Consequences:**
+- (+) Consistent, professional layouts across all content types
+- (+) Fast first visual (< 1.5s skeleton) via early classification
+- (+) Chart/gauge usage properly constrained — not overused
+- (+) Layout patterns are reusable and testable independently of LLM
+- (+) FakeLLM generator enables template QA without LLM costs
+- (-) Two LLM calls per generation (classifier + generator) — mitigated by cheap classifier model
+- (-) 10 patterns may not cover every edge case — need escape hatch for novel layouts
+- (-) Pattern library requires maintenance as new widget types are added
+
+**Reference:** See [phases/phase-ex3.md](phases/phase-ex3.md) for the full implementation spec.
+
+---
+
+## ADR-018: Embedded LLM Observatory — In-Process Trace & Span Debugger
+
+**Status:** Accepted
+**Date:** 2026-04-13
+
+**Context:**
+HeadlessOS makes extensive LLM calls — the UI Agent pipeline alone makes 5-20+ calls per session (plan → reactive executor → reflect), the DynamicUIGenerator makes 2 per view (classify + generate), and the InvestigationAgent makes 3-15 per investigation. Debugging these pipelines is currently impossible: the only observability is `GET /api/stats/llm` which returns flat aggregates (total tokens, cost, calls-by-model). There is no way to see:
+
+- What the planner's prompt looked like and what it returned
+- Which tools the executor called and in what order
+- Why the reflector requested a re-execution
+- Token/cost breakdown per-phase (plan vs execute vs reflect)
+- What went wrong when an agent session produces a bad UI
+
+Python has [Arize Phoenix](https://github.com/Arize-AI/phoenix) — a self-hosted LLM observability tool with trace trees, span details, and token tracking. **Nothing equivalent exists in the JavaScript/Node.js ecosystem.** All JS options (Langfuse, Helicone, OpenLLMetry, Braintrust, Lunary) require external cloud services or heavy infrastructure (PostgreSQL + ClickHouse for self-hosted Langfuse).
+
+Since HeadlessOS is a localhost app with no external dependencies, we need an embedded solution.
+
+**Options Considered:**
+
+1. **Integrate Langfuse self-hosted** — Requires PostgreSQL + ClickHouse. Massive infrastructure for a localhost app.
+2. **Use OpenTelemetry + Jaeger** — OTLP export to Jaeger. Requires running Jaeger as a separate service. Generic tracing, not LLM-aware.
+3. **Build custom, Phoenix-inspired, in-process Observatory** — In-memory TraceStore with ring buffer, AsyncLocalStorage context propagation, REST + WebSocket API, custom React UI.
+4. **Just improve the existing stats endpoint** — Add per-model and per-command breakdowns to `GET /api/stats/llm`. No hierarchy, no content, no tree.
+
+**Decision:** Option 3 — Custom embedded LLM Observatory, inspired by Phoenix's architecture.
+
+**Rationale:**
+- Option 1 rejected: Unacceptable infrastructure requirements for a localhost app. PostgreSQL + ClickHouse just for trace storage.
+- Option 2 rejected: OTLP/Jaeger is designed for distributed systems, not in-process LLM debugging. Generic spans lack LLM-specific abstractions (model, role, tokens, cost, prompt/response).
+- Option 3 chosen: Lightweight, zero-dependency, in-memory. Uses patterns proven by Phoenix (trace→span tree, cumulative token rollup, lazy content serialization) but implemented as a simple Map-based store with AsyncLocalStorage context.
+- Option 4 rejected: Flat stats can't answer "why did the agent produce a bad UI?" — need per-call content and hierarchy.
+
+### Key Design Decisions
+
+**1. In-Memory Ring Buffer (Not Database)**
+- 200-trace ring buffer — oldest evicted when full
+- All storage is `Map<string, Trace/Span>` — O(1) read/write
+- No persistence across server restarts (traces are debugging data, not business data)
+- Memory bounded: ~10-20MB for 200 traces (controlled by lazy serialization)
+
+**2. AsyncLocalStorage for Context Propagation**
+- Node.js native `AsyncLocalStorage` carries `{ traceId, spanId }` through async call stacks
+- `withTrace()` / `withSpan()` wrappers automatically link parent↔child spans
+- Near-zero overhead (~0.01ms, used by Next.js/Fastify for request context)
+- No manual parent tracking needed in instrumented code
+
+**3. Cumulative Token Rollup at Write Time (Phoenix Pattern)**
+- When a span ends, walk up the parent chain to root, updating `cumulative.tokenUsage` and `cumulative.costUsd` at each ancestor
+- This means trace-level totals are always up-to-date without querying all descendant spans
+- Computed at write time (endSpan), not read time (API request) — keeps API responses fast
+
+**4. REST + WebSocket (Not GraphQL)**
+- Phoenix uses Strawberry GraphQL + Relay — overkill for embedded use
+- Simple REST endpoints for list/detail/stats + WebSocket for live updates
+- Matches HeadlessOS's existing API pattern (Fastify REST + WS)
+
+**5. Lazy Content Serialization**
+- Span `input`/`output` stored as JavaScript object references (not JSON strings)
+- Serialized to JSON only when the detail API endpoint is called
+- List and tree endpoints return spans without content (set to `null`)
+- Prevents serialization of large prompts on every API call
+
+**6. Four Span Kinds (Simplified from Phoenix)**
+- Phoenix has 9+ span kinds (LLM, CHAIN, TOOL, AGENT, RETRIEVER, EMBEDDING, EVALUATOR, GUARDRAIL, RERANKER)
+- HeadlessOS needs only 4: **LLM** (individual call), **AGENT** (root session), **CHAIN** (pipeline phase), **TOOL** (tool execution)
+- Fewer kinds = simpler UI, less code, still covers all use cases
+
+**Consequences:**
+- (+) Debug any LLM pipeline by clicking through the trace tree
+- (+) Zero external dependencies — nothing to install, configure, or maintain
+- (+) Near-zero performance overhead (< 1ms per span, ~0.01ms typical)
+- (+) Bounded memory (ring buffer evicts old traces)
+- (+) Live debugging — watch agent spans appear in real-time via WebSocket
+- (+) Reuses existing infrastructure (Fastify REST/WS, shadcn/ui, Zustand, recharts)
+- (-) No persistence — traces are lost on server restart (acceptable for debugging tool)
+- (-) 200-trace limit may miss historical data (can increase if memory allows)
+- (-) Custom UI effort — no existing JS trace viewer to reuse
+- (-) Ring buffer eviction is FIFO, not LRU (could evict actively-referenced traces if 200+ traces generated without clearing)
+
+**Reference:** See [phases/phase-ex4.md](phases/phase-ex4.md) for the full implementation spec.
+
+---
+
 ## Template for New ADRs
 
 ```markdown

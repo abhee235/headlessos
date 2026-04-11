@@ -38,6 +38,29 @@ Command Palette / Agent / Terminal → DynamicUIGenerator (streaming LLM)
 
 Key: The LLM generates JSON **incrementally** — widgets appear one-by-one as the stream arrives, creating a "magical" progressive-build effect. See [ADR-015](DECISIONS.md) and [phase-ex1.md](phases/phase-ex1.md).
 
+### Smart Layout Engine (EX3 — In Progress)
+
+**This is NOT a visualization tool.** Charts are supporting elements only. The focus is widget selection, smart placement, responsive layouts, and content classification.
+
+- **Two-pass design classifier** (ADR-017): fast classifier determines content type + layout pattern before the main generator runs
+- **10 layout patterns** (dashboard-metrics, tabbed-detail, single-table, config-viewer, etc.) constrain the generator to make good design decisions
+- **Responsive auto-fit grid**: CSS `repeat(auto-fit, minmax(Xpx, 1fr))` for stat-cards and summary widgets
+- **Progressive assembly**: skeleton first, widgets stream in one-by-one via `layout_update` events
+
+See [phase-ex3.md](phases/phase-ex3.md) for the full spec.
+
+### LLM Observatory (EX4 — Planned)
+
+Embedded, Phoenix-inspired **trace & span debugger** for all LLM calls. Zero external dependencies — everything is in-process, in-memory.
+
+- **Hierarchical tracing**: Every agent session creates a trace → spans → child spans tree (session → plan/execute/reflect → individual LLM calls → tool executions)
+- **Content-rich spans**: Each span stores its input (prompt/messages) and output (response/schema), not just tokens and timing
+- **In-memory ring buffer**: 200-trace cap with FIFO eviction, AsyncLocalStorage for automatic parent-child linking
+- **Live debugging**: WebSocket events stream span start/end in real-time — watch the agent's LLM calls happen live
+- **Interactive tree UI**: Phoenix-style trace tree with color-coded span kinds, timeline bars, and resizable detail panel
+
+See [ADR-018](DECISIONS.md) and [phase-ex4.md](phases/phase-ex4.md) for the full spec.
+
 ## Tech Stack
 
 - **Backend:** Node.js + Fastify + TypeScript
@@ -226,6 +249,8 @@ export function SomeView() {
 | Task → file → commit audit trail | [TRACEABILITY.md](TRACEABILITY.md) |
 | How apps work, app schema | [APP_REGISTRY.md](APP_REGISTRY.md) |
 | Dynamic UI Engine spec | [phases/phase-ex1.md](phases/phase-ex1.md) |
+| Smart Layout Engine spec | [phases/phase-ex3.md](phases/phase-ex3.md) |
+| LLM Observatory spec | [phases/phase-ex4.md](phases/phase-ex4.md) |
 | API endpoints (REST + WebSocket) | [API_SPEC.md](API_SPEC.md) |
 | LLM integration, parsing strategy | [LLM_STRATEGY.md](LLM_STRATEGY.md) |
 | Security rules, validation | [SECURITY.md](SECURITY.md) |
