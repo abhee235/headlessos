@@ -196,7 +196,16 @@ export const AlertWidgetSchema = z.object({
   dataSource: DataSourceSchema.nullable().optional(),
 });
 
-// ── Extended widget types (EX1.5) ──────────────────────
+// ── Extended widget types (EX1.5 + EX3-A.6) ───────────
+
+/** Chart threshold line (EX3-A.6) — renders as a dashed ReferenceLine */
+export const ChartThresholdSchema = z.object({
+  value: z.number(),
+  color: z.string().nullable().optional().describe('CSS color for the line'),
+  label: z.string().nullable().optional(),
+});
+
+export type ChartThreshold = z.infer<typeof ChartThresholdSchema>;
 
 export const ChartWidgetSchema = z.object({
   type: z.literal('chart'),
@@ -210,6 +219,18 @@ export const ChartWidgetSchema = z.object({
     color: z.string().nullable().optional().describe('CSS color or chart palette key'),
   })),
   height: z.number().default(300),
+  /** EX3-A.6: Stack bar/area series on top of each other */
+  stacked: z.boolean().nullable().optional().default(false),
+  /** EX3-A.6: Horizontal threshold reference lines */
+  thresholds: z.array(ChartThresholdSchema).nullable().optional(),
+  /** EX3-A.6: Value unit for axis/tooltip formatting */
+  unit: z.enum(['bytes', 'percent', 'duration', 'count', 'custom']).nullable().optional(),
+  /** EX3-A.6: Custom unit suffix when unit='custom' */
+  unitCustom: z.string().nullable().optional(),
+  /** EX3-A.6: Show CartesianGrid (default true) */
+  showGrid: z.boolean().nullable().optional().default(true),
+  /** EX3-A.6: Show chart legend (default true) */
+  showLegend: z.boolean().nullable().optional().default(true),
   dataSource: DataSourceSchema.nullable().optional(),
 });
 
@@ -327,6 +348,58 @@ export const CardListWidgetSchema = z.object({
   dataSource: DataSourceSchema.nullable().optional(),
 }).describe('Card list widget — renders items as horizontal card rows');
 
+// ── Gauge widget (EX3-A.4) ─────────────────────────────
+
+export const GaugeThresholdSchema = z.object({
+  value: z.number().describe('Upper bound for this threshold range'),
+  color: z.enum(['success', 'warning', 'destructive', 'primary', 'secondary']).default('primary'),
+  label: z.string().nullable().optional().describe('Tooltip label for this range'),
+});
+
+export type GaugeThreshold = z.infer<typeof GaugeThresholdSchema>;
+
+export const GaugeWidgetSchema = z.object({
+  type: z.literal('gauge'),
+  title: z.string().nullable().optional(),
+  /** Current value to display */
+  value: z.number(),
+  /** Minimum scale value (default 0) */
+  min: z.number().default(0),
+  /** Maximum scale value (default 100) */
+  max: z.number().default(100),
+  /** Unit label shown after value (e.g. '%', 'ms', 'MB') */
+  unit: z.string().nullable().optional(),
+  /** Label text below the gauge value */
+  label: z.string().nullable().optional(),
+  /** Color thresholds — sorted by value. Default: green@70, yellow@90, red@100 */
+  thresholds: z.array(GaugeThresholdSchema).nullable().optional(),
+  /** Widget size: sm=120px, md=180px, lg=240px */
+  size: z.enum(['sm', 'md', 'lg']).default('md'),
+  dataSource: DataSourceSchema.nullable().optional(),
+}).describe('Semicircular gauge widget for percentage/metric values');
+
+export type GaugeWidget = z.infer<typeof GaugeWidgetSchema>;
+
+// ── Sparkline stat card widget (EX3-A.5) ────────────────
+
+export const SparklineStatWidgetSchema = z.object({
+  type: z.literal('sparkline-stat'),
+  title: z.string().nullable().optional(),
+  /** Displayed value (string for flexibility: '45%', '1.2 GiB', etc.) */
+  value: z.string(),
+  unit: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  trend: z.enum(['up', 'down', 'neutral']).nullable().optional(),
+  icon: z.string().nullable().optional().describe('Lucide icon name'),
+  /** Array of numeric data points for the sparkline (min 2 for a visible line) */
+  sparklineData: z.array(z.number()),
+  /** CSS color for sparkline stroke/fill — defaults to theme primary */
+  sparklineColor: z.string().nullable().optional(),
+  dataSource: DataSourceSchema.nullable().optional(),
+}).describe('Stat card with a tiny sparkline area chart behind the value');
+
+export type SparklineStatWidget = z.infer<typeof SparklineStatWidgetSchema>;
+
 // ── Union of all widgets ────────────────────────────────
 
 export const WidgetSchema = z.discriminatedUnion('type', [
@@ -342,6 +415,8 @@ export const WidgetSchema = z.discriminatedUnion('type', [
   LogViewerWidgetSchema,
   FormWidgetSchema,
   CardListWidgetSchema,
+  GaugeWidgetSchema,
+  SparklineStatWidgetSchema,
 ]);
 
 export type Widget = z.infer<typeof WidgetSchema>;
@@ -350,6 +425,7 @@ export type Widget = z.infer<typeof WidgetSchema>;
 export const WIDGET_TYPES = [
   'table', 'key-value', 'badge-grid', 'stat-card', 'progress-bar',
   'code-block', 'alert', 'chart', 'tree', 'log-viewer', 'form', 'card-list',
+  'gauge', 'sparkline-stat',
 ] as const;
 
 export type WidgetType = (typeof WIDGET_TYPES)[number];
@@ -373,8 +449,12 @@ export const StackLayoutSchema = z.object({
 
 export const GridLayoutSchema = z.object({
   layout: z.literal('grid'),
-  columns: z.number().min(1).max(4).default(2),
+  columns: z.number().min(1).max(6).default(2),
   children: z.array(LayoutOrWidgetSchema),
+  /** EX3-A.3: Responsive auto-fit mode — ignores columns, uses CSS repeat(auto-fit, minmax(Xpx, 1fr)) */
+  autoFit: z.boolean().nullable().optional().default(false),
+  /** Minimum child width in px when autoFit is true (100-600, default 250) */
+  minChildWidth: z.number().min(100).max(600).nullable().optional().default(250),
 });
 
 export const TabsLayoutSchema = z.object({
@@ -437,6 +517,48 @@ export const DynamicViewSchema = z.object({
 
 export type DynamicView = z.infer<typeof DynamicViewSchema>;
 export type DynamicViewMeta = z.infer<typeof DynamicViewMetaSchema>;
+
+// ── EX3-A.1: Design Classification Schema ──────────────
+// Used by the two-pass classifier: Pass 1 classifies content type + layout pattern,
+// Pass 2 generates the actual view constrained by the classification.
+
+export const ContentTypeEnum = z.enum([
+  'metrics-overview',    // CPU/memory/disk stats -> grid of stat-cards + summary
+  'data-table',          // List of items -> single table with filters
+  'multi-dataset',       // Multiple related datasets -> tabbed tables
+  'config-review',       // Configuration file -> key-value + code block
+  'status-board',        // Service/container statuses -> badge grid + details
+  'log-analysis',        // Log output -> log viewer + summary stats
+  'tree-hierarchy',      // Directory tree / process tree -> tree widget
+  'audit-report',        // Security/compliance findings -> alert + categorized tables
+  'comparison',          // Compare multiple items -> side-by-side or tabbed
+  'detail-view',         // Single item deep dive -> key-value + related data
+]);
+
+export type ContentType = z.infer<typeof ContentTypeEnum>;
+
+export const DesignClassificationSchema = z.object({
+  /** What kind of content is this? */
+  contentType: ContentTypeEnum,
+  /** Which layout pattern to use (from pattern library) */
+  layoutPattern: z.string().describe('e.g. dashboard-metrics, tabbed-detail, single-table'),
+  /** What widget types are expected (guides the generator) */
+  expectedWidgets: z.array(z.enum([
+    'stat-card', 'table', 'key-value', 'badge-grid', 'progress-bar',
+    'code-block', 'alert', 'card-list', 'log-viewer', 'tree', 'form',
+    'chart', 'gauge', 'sparkline-stat',
+  ])),
+  /** How many top-level sections/tabs */
+  sectionCount: z.number().int().min(1).max(8),
+  /** Brief design rationale (helps debug + logged for improvement) */
+  designNotes: z.string(),
+  /** Should chart/gauge be used? Only when data has percentages/trends/composition */
+  useVisualization: z.boolean(),
+  /** If useVisualization is true, why? */
+  visualizationReason: z.string().nullable().optional(),
+});
+
+export type DesignClassification = z.infer<typeof DesignClassificationSchema>;
 
 // ── DeepPartial type for streaming/progressive rendering ─
 

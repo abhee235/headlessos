@@ -27,6 +27,7 @@ import {
   ServerAdminIcon,
   FleetIcon,
   AgentIcon,
+  ObservatoryIcon,
 } from '@/components/ui/FileIcon';
 
 // ─── Greeting ────────────────────────────────────────────────────────────────
@@ -64,6 +65,7 @@ const ALL_APPS: AppEntry[] = [
   { id: 'docker', label: 'Docker', IconComponent: DockerIcon },
   { id: 'files', label: 'File Explorer', IconComponent: FileExplorerIcon },
   { id: 'fleet', label: 'Fleet Overview', IconComponent: FleetIcon },
+  { id: 'observatory', label: 'LLM Observatory', IconComponent: ObservatoryIcon },
   { id: 'serveradmin', label: 'Server Admin', IconComponent: ServerAdminIcon },
   { id: 'services', label: 'Services', IconComponent: ServicesIcon },
   { id: 'settings', label: 'Settings', IconComponent: SettingsIcon },
@@ -84,6 +86,7 @@ const APP_ICON_MAP: Record<string, React.ComponentType<{ size?: number }>> = {
   taskmanager: TaskManagerIcon,
   settings: SettingsIcon,
   serveradmin: ServerAdminIcon,
+  observatory: ObservatoryIcon,
 };
 
 const APP_LABEL_MAP: Record<string, string> = {
@@ -97,6 +100,7 @@ const APP_LABEL_MAP: Record<string, string> = {
   taskmanager: 'Task Manager',
   settings: 'Settings',
   serveradmin: 'Server Admin',
+  observatory: 'LLM Observatory',
 };
 
 function formatTimeAgo(timestamp: number): string {

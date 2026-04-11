@@ -168,8 +168,8 @@ export function SplitPaneExplorer({ serverId, initialPath }: SplitPaneExplorerPr
   }, [loadLeft, loadRight, initialPath]);
 
   return (
-    <ResizablePanelGroup direction="horizontal" className="h-full">
-      <ResizablePanel defaultSize={50} minSize={25}>
+    <ResizablePanelGroup orientation="horizontal" className="h-full">
+      <ResizablePanel defaultSize="50%" minSize="25%">
         <div className="flex flex-col h-full">
           {/* Left path bar */}
           <div className="flex items-center px-3 py-1.5 border-b border-border/30 bg-muted/30">
@@ -194,10 +194,9 @@ export function SplitPaneExplorer({ serverId, initialPath }: SplitPaneExplorerPr
 
       <ResizableHandle withHandle />
 
-      <ResizablePanel defaultSize={50} minSize={25}>
+      <ResizablePanel defaultSize="50%" minSize="25%">
         <div className="flex flex-col h-full">
-          {/* Right path bar */}
-          <div className="flex items-center px-3 py-1.5 border-b border-border/30 bg-muted/30">
+          {/* Right path bar */}          <div className="flex items-center px-3 py-1.5 border-b border-border/30 bg-muted/30">
             <span className="text-[11px] text-muted-foreground truncate font-mono">
               {rightPath}
             </span>

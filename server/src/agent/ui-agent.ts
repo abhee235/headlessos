@@ -14,6 +14,7 @@ import { ReactiveExecutor, type AgentEvent } from './executor.js';
 import { PostGenerationReflector, type ReflectionIssue } from './reflector.js';
 import { ToolRegistry } from './tools/tool-registry.js';
 import type { ToolContext } from './tools/types.js';
+import { withTraceGen, setSpanAttributes } from '../observatory/context.js';
 
 // ── Agent Meta ──
 
@@ -94,8 +95,26 @@ export class UIAgent {
    * prevent stack overflow on long sessions with many reflection retries.
    *
    * Pipeline: Plan → Execute → optional Reflect → optional Re-execute → complete
+   *
+   * The entire session is wrapped in an Observatory trace (EX4-B.2).
    */
   async *generate(
+    serverId: string,
+    request: string,
+    options: UIAgentOptions = {},
+  ): AsyncGenerator<UIAgentEvent> {
+    yield* withTraceGen<UIAgentEvent>(
+      `UIAgent: ${request.slice(0, 50)}`,
+      { trigger: 'ui-agent', serverId },
+      () => this.generateCore(serverId, request, options),
+    );
+  }
+
+  /**
+   * Core generation logic extracted for Observatory tracing.
+   * Runs inside a withTraceGen context so all child calls inherit the trace.
+   */
+  private async *generateCore(
     serverId: string,
     request: string,
     options: UIAgentOptions = {},
@@ -105,6 +124,9 @@ export class UIAgent {
     const signal = options.signal;
     const startTime = Date.now();
     let totalSteps = 0;
+
+    // Record the user's request as input on the root AGENT span
+    setSpanAttributes({ input: request });
 
     const context: ToolContext = {
       serverId,
@@ -319,6 +341,13 @@ export class UIAgent {
     if (warning) {
       meta.warning = warning;
     }
+
+    // EX4-B.2: Record agent session metadata on the trace root span
+    setSpanAttributes({
+      output: { stepsCompleted, reflectionLoops, warning },
+      attributes: { sessionId, models: meta.models },
+    });
+
     return meta;
   }
 }

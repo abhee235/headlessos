@@ -15,11 +15,14 @@ import {
   CodeBlockWidgetSchema,
   AlertWidgetSchema,
   ChartWidgetSchema,
+  ChartThresholdSchema,
   TreeWidgetSchema,
   LogViewerWidgetSchema,
   FormWidgetSchema,
   FormFieldSchema,
   FormFieldGroupSchema,
+  GaugeWidgetSchema,
+  SparklineStatWidgetSchema,
   StackLayoutSchema,
   GridLayoutSchema,
   TabsLayoutSchema,
@@ -358,6 +361,117 @@ describe('Widget Schemas', () => {
         data: [], xKey: 'x', yKeys: [{ key: 'y' }],
       })).toThrow(ZodError);
     });
+
+    // EX3-A.6: Enhanced chart options
+    const baseChart = {
+      type: 'chart', chartType: 'bar' as const,
+      data: [{ x: 'a', y: 1 }], xKey: 'x', yKeys: [{ key: 'y' }],
+    };
+
+    it('defaults stacked to false', () => {
+      const result = ChartWidgetSchema.parse(baseChart);
+      expect(result.stacked).toBe(false);
+    });
+
+    it('accepts stacked=true', () => {
+      const result = ChartWidgetSchema.parse({ ...baseChart, stacked: true });
+      expect(result.stacked).toBe(true);
+    });
+
+    it('defaults showGrid to true', () => {
+      const result = ChartWidgetSchema.parse(baseChart);
+      expect(result.showGrid).toBe(true);
+    });
+
+    it('accepts showGrid=false', () => {
+      const result = ChartWidgetSchema.parse({ ...baseChart, showGrid: false });
+      expect(result.showGrid).toBe(false);
+    });
+
+    it('defaults showLegend to true', () => {
+      const result = ChartWidgetSchema.parse(baseChart);
+      expect(result.showLegend).toBe(true);
+    });
+
+    it('accepts showLegend=false', () => {
+      const result = ChartWidgetSchema.parse({ ...baseChart, showLegend: false });
+      expect(result.showLegend).toBe(false);
+    });
+
+    it('accepts unit enum values', () => {
+      for (const u of ['bytes', 'percent', 'duration', 'count', 'custom']) {
+        const result = ChartWidgetSchema.parse({ ...baseChart, unit: u });
+        expect(result.unit).toBe(u);
+      }
+    });
+
+    it('rejects invalid unit', () => {
+      expect(() => ChartWidgetSchema.parse({ ...baseChart, unit: 'invalid' })).toThrow(ZodError);
+    });
+
+    it('accepts unitCustom string', () => {
+      const result = ChartWidgetSchema.parse({ ...baseChart, unit: 'custom', unitCustom: ' req/s' });
+      expect(result.unitCustom).toBe(' req/s');
+    });
+
+    it('accepts thresholds array', () => {
+      const result = ChartWidgetSchema.parse({
+        ...baseChart,
+        thresholds: [
+          { value: 80, color: 'red', label: 'Warning' },
+          { value: 95, label: 'Critical' },
+          { value: 50 },
+        ],
+      });
+      expect(result.thresholds).toHaveLength(3);
+      expect(result.thresholds![0].value).toBe(80);
+      expect(result.thresholds![0].color).toBe('red');
+      expect(result.thresholds![1].color).toBeUndefined();
+      expect(result.thresholds![2].label).toBeUndefined();
+    });
+
+    it('thresholds is optional and nullable', () => {
+      const r1 = ChartWidgetSchema.parse(baseChart);
+      expect(r1.thresholds).toBeUndefined();
+      const r2 = ChartWidgetSchema.parse({ ...baseChart, thresholds: null });
+      expect(r2.thresholds).toBeNull();
+    });
+
+    it('new fields are backward-compatible (all optional)', () => {
+      // Old-style chart without any new fields still parses fine
+      const result = ChartWidgetSchema.parse({
+        type: 'chart', chartType: 'line',
+        data: [{ t: 0, v: 1 }], xKey: 't',
+        yKeys: [{ key: 'v', label: 'Val' }],
+        height: 200,
+      });
+      expect(result.stacked).toBe(false);
+      expect(result.showGrid).toBe(true);
+      expect(result.showLegend).toBe(true);
+      expect(result.thresholds).toBeUndefined();
+      expect(result.unit).toBeUndefined();
+      expect(result.unitCustom).toBeUndefined();
+    });
+  });
+
+  describe('ChartThresholdSchema', () => {
+    it('requires value', () => {
+      expect(() => ChartThresholdSchema.parse({})).toThrow(ZodError);
+    });
+
+    it('parses minimal threshold (value only)', () => {
+      const result = ChartThresholdSchema.parse({ value: 80 });
+      expect(result.value).toBe(80);
+      expect(result.color).toBeUndefined();
+      expect(result.label).toBeUndefined();
+    });
+
+    it('parses full threshold', () => {
+      const result = ChartThresholdSchema.parse({ value: 90, color: '#ff0000', label: 'Danger' });
+      expect(result.value).toBe(90);
+      expect(result.color).toBe('#ff0000');
+      expect(result.label).toBe('Danger');
+    });
   });
 
   describe('TreeWidget', () => {
@@ -419,6 +533,172 @@ describe('Widget Schemas', () => {
       expect(result.maxHeight).toBe('400px');
     });
   });
+
+  // ── Gauge Widget (EX3-A.4) ──────────────────────────────
+
+  describe('GaugeWidget', () => {
+    it('parses valid gauge with all fields', () => {
+      const result = GaugeWidgetSchema.parse({
+        type: 'gauge',
+        title: 'CPU Usage',
+        value: 73,
+        min: 0,
+        max: 100,
+        unit: '%',
+        label: 'Current Load',
+        size: 'lg',
+        thresholds: [
+          { value: 70, color: 'success', label: 'Normal' },
+          { value: 90, color: 'warning', label: 'Warning' },
+          { value: 100, color: 'destructive', label: 'Critical' },
+        ],
+      });
+      expect(result.type).toBe('gauge');
+      expect(result.value).toBe(73);
+      expect(result.min).toBe(0);
+      expect(result.max).toBe(100);
+      expect(result.unit).toBe('%');
+      expect(result.size).toBe('lg');
+      expect(result.thresholds).toHaveLength(3);
+    });
+
+    it('applies defaults for min, max, and size', () => {
+      const result = GaugeWidgetSchema.parse({ type: 'gauge', value: 42 });
+      expect(result.min).toBe(0);
+      expect(result.max).toBe(100);
+      expect(result.size).toBe('md');
+    });
+
+    it('accepts all valid sizes', () => {
+      for (const size of ['sm', 'md', 'lg'] as const) {
+        const result = GaugeWidgetSchema.parse({ type: 'gauge', value: 50, size });
+        expect(result.size).toBe(size);
+      }
+    });
+
+    it('rejects invalid size', () => {
+      expect(() => GaugeWidgetSchema.parse({
+        type: 'gauge', value: 50, size: 'xl',
+      })).toThrow(ZodError);
+    });
+
+    it('accepts null/optional thresholds', () => {
+      const result = GaugeWidgetSchema.parse({ type: 'gauge', value: 50, thresholds: null });
+      expect(result.thresholds).toBeNull();
+    });
+
+    it('validates threshold color enum', () => {
+      expect(() => GaugeWidgetSchema.parse({
+        type: 'gauge',
+        value: 50,
+        thresholds: [{ value: 100, color: 'invalid-color' }],
+      })).toThrow(ZodError);
+    });
+
+    it('accepts all valid threshold colors', () => {
+      for (const color of ['success', 'warning', 'destructive', 'primary', 'secondary'] as const) {
+        const result = GaugeWidgetSchema.parse({
+          type: 'gauge',
+          value: 50,
+          thresholds: [{ value: 100, color }],
+        });
+        expect(result.thresholds![0].color).toBe(color);
+      }
+    });
+
+    it('supports dataSource field', () => {
+      const result = GaugeWidgetSchema.parse({
+        type: 'gauge',
+        value: 75,
+        dataSource: { command: 'free -m', refreshInterval: 5000, parseMode: 'text' },
+      });
+      expect(result.dataSource?.command).toBe('free -m');
+    });
+
+    it('is accepted by WidgetSchema union', () => {
+      expect(() => WidgetSchema.parse({ type: 'gauge', value: 42 })).not.toThrow();
+    });
+  });
+
+  // ── Sparkline Stat Widget (EX3-A.5) ─────────────────────
+
+  describe('SparklineStatWidget', () => {
+    it('parses valid sparkline stat with all fields', () => {
+      const result = SparklineStatWidgetSchema.parse({
+        type: 'sparkline-stat',
+        title: 'CPU Usage',
+        value: '73%',
+        unit: '%',
+        description: '5 min avg',
+        trend: 'up',
+        icon: 'cpu',
+        sparklineData: [20, 30, 45, 60, 73],
+        sparklineColor: '#22c55e',
+      });
+      expect(result.type).toBe('sparkline-stat');
+      expect(result.value).toBe('73%');
+      expect(result.sparklineData).toHaveLength(5);
+      expect(result.sparklineColor).toBe('#22c55e');
+    });
+
+    it('requires value and sparklineData', () => {
+      expect(() => SparklineStatWidgetSchema.parse({
+        type: 'sparkline-stat',
+      })).toThrow(ZodError);
+    });
+
+    it('accepts empty sparklineData array', () => {
+      const result = SparklineStatWidgetSchema.parse({
+        type: 'sparkline-stat',
+        value: '42',
+        sparklineData: [],
+      });
+      expect(result.sparklineData).toHaveLength(0);
+    });
+
+    it('accepts optional fields as null', () => {
+      const result = SparklineStatWidgetSchema.parse({
+        type: 'sparkline-stat',
+        value: '10',
+        sparklineData: [1, 2, 3],
+        title: null,
+        unit: null,
+        description: null,
+        trend: null,
+        icon: null,
+        sparklineColor: null,
+      });
+      expect(result.title).toBeNull();
+      expect(result.sparklineColor).toBeNull();
+    });
+
+    it('validates trend enum', () => {
+      expect(() => SparklineStatWidgetSchema.parse({
+        type: 'sparkline-stat',
+        value: '5',
+        sparklineData: [1, 2],
+        trend: 'sideways',
+      })).toThrow(ZodError);
+    });
+
+    it('supports dataSource field', () => {
+      const result = SparklineStatWidgetSchema.parse({
+        type: 'sparkline-stat',
+        value: '85%',
+        sparklineData: [70, 75, 80, 85],
+        dataSource: { command: 'top -bn1', refreshInterval: 10000, parseMode: 'text' },
+      });
+      expect(result.dataSource?.command).toBe('top -bn1');
+    });
+
+    it('is accepted by WidgetSchema union', () => {
+      expect(() => WidgetSchema.parse({
+        type: 'sparkline-stat',
+        value: '42',
+        sparklineData: [10, 20, 30],
+      })).not.toThrow();
+    });
+  });
 });
 
 // ── Widget Discriminated Union Tests ────────────────────
@@ -447,8 +727,9 @@ describe('WidgetSchema (discriminated union)', () => {
     expect(WIDGET_TYPES).toEqual([
       'table', 'key-value', 'badge-grid', 'stat-card', 'progress-bar',
       'code-block', 'alert', 'chart', 'tree', 'log-viewer', 'form', 'card-list',
+      'gauge', 'sparkline-stat',
     ]);
-    expect(WIDGET_TYPES).toHaveLength(12);
+    expect(WIDGET_TYPES).toHaveLength(14);
   });
 });
 
@@ -488,9 +769,9 @@ describe('Layout Schemas', () => {
       })).toThrow(ZodError);
     });
 
-    it('rejects columns > 4', () => {
+    it('rejects columns > 6', () => {
       expect(() => GridLayoutSchema.parse({
-        layout: 'grid', columns: 5, children: [],
+        layout: 'grid', columns: 7, children: [],
       })).toThrow(ZodError);
     });
   });
@@ -908,6 +1189,8 @@ describe('Widgets with dataSource', () => {
       { schema: TreeWidgetSchema, base: { type: 'tree', nodes: [{ label: 'root', children: [] }] } },
       { schema: LogViewerWidgetSchema, base: { type: 'log-viewer', lines: [{ message: 'ok' }] } },
       { schema: FormWidgetSchema, base: { type: 'form', fields: [{ key: 'name', label: 'Name' }] } },
+      { schema: GaugeWidgetSchema, base: { type: 'gauge', value: 75 } },
+      { schema: SparklineStatWidgetSchema, base: { type: 'sparkline-stat', value: '45%', sparklineData: [10, 20, 30] } },
     ];
 
     for (const { schema, base } of widgetSchemas) {

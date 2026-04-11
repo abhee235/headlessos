@@ -23,6 +23,7 @@ import {
   loadModelConfig,
   roleToConfigKey,
 } from '../config/models.js';
+import { withSpan, setSpanAttributes } from '../observatory/context.js';
 
 export interface ModelRouterOptions {
   apiKey: string;
@@ -36,8 +37,8 @@ export interface ModelRouterOptions {
  * Roles:
  * - reasoning:         Planning, reflection (o3, o4-mini)
  * - structured-output: Schema generation with tools (gpt-4.1, gpt-4o)
- * - fast:              Quick tasks, error analysis (gpt-4o-mini)
- * - weak:              Cheapest — summaries, classification (gpt-4o-mini)
+ * - fast:              Quick tasks, error analysis (gpt-4.1-mini)
+ * - weak:              Cheapest — summaries, classification (gpt-4.1-nano)
  */
 export class ModelRouter extends BaseService {
   private providers = new Map<ModelRole, LLMProvider>();
@@ -90,10 +91,20 @@ export class ModelRouter extends BaseService {
    * Parse with reasoning model (for planning, reflection).
    */
   async reason<T>(input: ParseTextInput<T>): Promise<ParseResult<T>> {
-    const provider = this.getModel('reasoning');
-    const result = await provider.parseText(input);
-    this.trackUsage('reasoning', input.command, result);
-    return result;
+    return withSpan('ModelRouter.reason', 'LLM', async () => {
+      const provider = this.getModel('reasoning');
+      const result = await provider.parseText(input);
+      this.trackUsage('reasoning', input.command, result);
+      setSpanAttributes({
+        model: result.model,
+        modelRole: 'reasoning',
+        tokenUsage: { inputTokens: result.tokensUsed.input, outputTokens: result.tokensUsed.output, totalTokens: result.tokensUsed.input + result.tokensUsed.output },
+        costUsd: this.computeSpanCost(result.model, result.tokensUsed),
+        input: input.userPrompt ?? input.systemPrompt ?? input.command,
+        output: result.data,
+      });
+      return result;
+    }, { input: input.command });
   }
 
   /**
@@ -101,41 +112,71 @@ export class ModelRouter extends BaseService {
    * Used by the Reactive Executor for tool-calling loops.
    */
   async chat(input: ChatWithToolsInput): Promise<ChatWithToolsResult> {
-    const provider = this.getModel('structured-output');
-    if (!provider.chatWithTools) {
-      throw new Error(`Provider '${provider.name}' (model: ${provider.model}) does not support chatWithTools`);
-    }
-    const result = await provider.chatWithTools(input);
-    this.trackChatUsage('structured-output', 'chat-with-tools', result);
-    return result;
+    return withSpan('ModelRouter.chat', 'LLM', async () => {
+      const provider = this.getModel('structured-output');
+      if (!provider.chatWithTools) {
+        throw new Error(`Provider '${provider.name}' (model: ${provider.model}) does not support chatWithTools`);
+      }
+      const result = await provider.chatWithTools(input);
+      this.trackChatUsage('structured-output', 'chat-with-tools', result);
+      setSpanAttributes({
+        model: result.model,
+        modelRole: 'structured-output',
+        tokenUsage: { inputTokens: result.tokensUsed.input, outputTokens: result.tokensUsed.output, totalTokens: result.tokensUsed.input + result.tokensUsed.output },
+        costUsd: this.computeSpanCost(result.model, result.tokensUsed),
+        input: input.messages?.slice(-2).map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content.slice(0, 200) : '[complex]' })),
+        output: result.message.tool_calls ?? result.message.content,
+      });
+      return result;
+    }, { input: input.messages?.length ? `${input.messages.length} messages` : 'chat' });
   }
 
   /**
    * Fast operation — error analysis, simple parsing.
    */
   async fast<T>(input: ParseTextInput<T>): Promise<ParseResult<T>> {
-    const provider = this.getModel('fast');
-    const result = await provider.parseText(input);
-    this.trackUsage('fast', input.command, result);
-    return result;
+    return withSpan('ModelRouter.fast', 'LLM', async () => {
+      const provider = this.getModel('fast');
+      const result = await provider.parseText(input);
+      this.trackUsage('fast', input.command, result);
+      setSpanAttributes({
+        model: result.model,
+        modelRole: 'fast',
+        tokenUsage: { inputTokens: result.tokensUsed.input, outputTokens: result.tokensUsed.output, totalTokens: result.tokensUsed.input + result.tokensUsed.output },
+        costUsd: this.computeSpanCost(result.model, result.tokensUsed),
+        input: input.userPrompt ?? input.systemPrompt ?? input.command,
+        output: result.data,
+      });
+      return result;
+    }, { input: input.command });
   }
 
   /**
    * Weak/cheap operation — context summarization, classification.
    */
   async summarize(text: string, systemPrompt?: string): Promise<ParseResult<string>> {
-    const provider = this.getModel('weak');
-    // For summarization, we use a simple string schema
-    const { z } = await import('zod');
-    const StringSchema = z.string();
-    const result = await provider.parseText({
-      rawOutput: text,
-      command: 'summarize',
-      schema: StringSchema,
-      systemPrompt: systemPrompt ?? 'Summarize the following concisely, preserving key facts and decisions. Return just the summary text.',
-    });
-    this.trackUsage('weak', 'summarize', result);
-    return result;
+    return withSpan('ModelRouter.summarize', 'LLM', async () => {
+      const provider = this.getModel('weak');
+      // For summarization, we use a simple string schema
+      const { z } = await import('zod');
+      const StringSchema = z.string();
+      const result = await provider.parseText({
+        rawOutput: text,
+        command: 'summarize',
+        schema: StringSchema,
+        systemPrompt: systemPrompt ?? 'Summarize the following concisely, preserving key facts and decisions. Return just the summary text.',
+      });
+      this.trackUsage('weak', 'summarize', result);
+      setSpanAttributes({
+        model: result.model,
+        modelRole: 'weak',
+        tokenUsage: { inputTokens: result.tokensUsed.input, outputTokens: result.tokensUsed.output, totalTokens: result.tokensUsed.input + result.tokensUsed.output },
+        costUsd: this.computeSpanCost(result.model, result.tokensUsed),
+        input: text.slice(0, 500), // Truncate for storage
+        output: result.data,
+      });
+      return result;
+    }, { input: 'summarize' });
   }
 
   /**
@@ -236,5 +277,20 @@ export class ModelRouter extends BaseService {
       latencyMs: result.latencyMs,
       timestamp: new Date().toISOString(),
     });
+  }
+
+  private computeSpanCost(model: string, tokensUsed: { input: number; output: number }): number {
+    // Reuse MODEL_PRICING from usage-tracker module pattern
+    const SPAN_PRICING: Record<string, { input: number; output: number }> = {
+      'gpt-4.1': { input: 0.002, output: 0.008 },
+      'gpt-4.1-mini': { input: 0.0004, output: 0.0016 },
+      'gpt-4.1-nano': { input: 0.0001, output: 0.0004 },
+      'gpt-4o': { input: 0.0025, output: 0.01 },
+      'gpt-4o-mini': { input: 0.00015, output: 0.0006 },
+      'gpt-5.4': { input: 0.01, output: 0.04 },
+      'o4-mini': { input: 0.0011, output: 0.0044 },
+    };
+    const pricing = SPAN_PRICING[model] ?? { input: 0.005, output: 0.015 };
+    return (tokensUsed.input / 1000) * pricing.input + (tokensUsed.output / 1000) * pricing.output;
   }
 }

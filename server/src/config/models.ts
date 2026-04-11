@@ -7,8 +7,8 @@
  * Each role maps to a specific use case:
  * - reasoning: Planning, reflection (gpt-5.4, o4-mini)
  * - structured-output: Schema generation with tools (gpt-4.1, gpt-4o)
- * - fast: Quick tasks, error analysis (gpt-4o-mini)
- * - weak: Cheapest — summaries, classification (gpt-4o-mini)
+ * - fast: Quick tasks, error analysis (gpt-4.1-mini)
+ * - weak: Cheapest — summaries, classification (gpt-4.1-nano)
  */
 export type ModelRole = 'reasoning' | 'structured-output' | 'fast' | 'weak';
 
@@ -34,7 +34,7 @@ export interface ModelConfig {
 
 /**
  * Default model configuration.
- * Uses gpt-4o-mini for all roles as a safe, cheap default.
+ * Uses gpt-4.1-mini / gpt-4.1-nano for fast/weak roles.
  * Override via environment variables for production use.
  */
 export const DEFAULT_MODEL_CONFIG: ModelConfig = {
@@ -50,13 +50,13 @@ export const DEFAULT_MODEL_CONFIG: ModelConfig = {
   },
   fast: {
     provider: 'openai',
-    model: 'gpt-4o-mini',
-    maxTokens: 4096,
+    model: 'gpt-4.1-mini',
+    maxTokens: 8096,
   },
   weak: {
     provider: 'openai',
-    model: 'gpt-4o-mini',
-    maxTokens: 2048,
+    model: 'gpt-4.1-nano',
+    maxTokens: 8048,
   },
 };
 
@@ -67,8 +67,8 @@ export const DEFAULT_MODEL_CONFIG: ModelConfig = {
  * Environment variables:
  *   MODEL_REASONING        — reasoning model name (default: gpt-5.4)
  *   MODEL_STRUCTURED       — structured output model (default: gpt-4.1)
- *   MODEL_FAST             — fast model (default: gpt-4o-mini)
- *   MODEL_WEAK             — weak/cheap model (default: gpt-4o-mini)
+ *   MODEL_FAST             — fast model (default: gpt-4.1-mini)
+ *   MODEL_WEAK             — weak/cheap model (default: gpt-4.1-nano)
  *   MODEL_MAX_TOKENS       — global max tokens override (optional)
  */
 export function loadModelConfig(): ModelConfig {

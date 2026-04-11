@@ -11,6 +11,7 @@ import {
   Globe,
   Bot,
   Wand2,
+  Telescope,
 } from 'lucide-react';
 
 interface FileIconProps {
@@ -260,6 +261,15 @@ export function UIAgentIcon({ size = 48 }: { size?: number }) {
   return (
     <AppIconBase size={size} fromColor="#34D399" toColor="#059669">
       <Wand2 size={Math.round(size * 0.52)} color="white" strokeWidth={sw} />
+    </AppIconBase>
+  );
+}
+
+export function ObservatoryIcon({ size = 48 }: { size?: number }) {
+  const sw = size <= 24 ? 2.25 : 1.75;
+  return (
+    <AppIconBase size={size} fromColor="#F472B6" toColor="#BE185D">
+      <Telescope size={Math.round(size * 0.52)} color="white" strokeWidth={sw} />
     </AppIconBase>
   );
 }

@@ -17,6 +17,8 @@
 | Phase 7 | System settings + Server Admin | Week 8 | In progress | [phase-7.md](phases/phase-7.md) |
 | **Phase EX1** | **Dynamic UI Engine (Experimental)** | **TBD** | **Not started** | [phase-ex1.md](phases/phase-ex1.md) |
 | **Phase EX2** | **UI Generation Agent (Experimental)** | **TBD** | **Not started** | [phase-ex2.md](phases/phase-ex2.md) |
+| **Phase EX3** | **Smart Layout Engine (Experimental)** | **TBD** | **In progress** | [phase-ex3.md](phases/phase-ex3.md) |
+| **Phase EX4** | **LLM Observatory (Experimental)** | **TBD** | **Not started** | [phase-ex4.md](phases/phase-ex4.md) |
 
 ## Task ID System
 
@@ -45,9 +47,22 @@ Phase 0 (Foundation)
               ├── EX1 P2: LLM→JSON Generation (templates + streaming generator + command palette)
               └── EX1 P3: Full Integration (terminal capture + live refresh + desktop tabs + actions)
                     └── Phase EX2 (UI Generation Agent) ← depends on EX1.1 + EX1.2 + EX1.7
-                          ├── EX2 P1: Agent Core (model router + tools + guardrails + context + reactive loop)
-                          ├── EX2 P2: Interactive UIs (FormWidget + write-back + error recovery)
-                          └── EX2 P3: Frontend Integration (agent panel + WebSocket + hooks)
+                    │     ├── EX2 P1: Agent Core (model router + tools + guardrails + context + reactive loop)
+                    │     ├── EX2 P2: Interactive UIs (FormWidget + write-back + error recovery)
+                    │     └── EX2 P3: Frontend Integration (agent panel + WebSocket + hooks)
+                    │
+                    └── Phase EX3 (Smart Layout Engine) ← depends on EX1 + EX2
+                    │     ├── EX3-A: Content Classification & Layout Patterns
+                    │     ├── EX3-B: Design System Prompt & Templates
+                    │     ├── EX3-C: Progressive Multi-Step Generation
+                    │     └── EX3-D: Unified Window & Visual Polish
+                    │
+                    └── Phase EX4 (LLM Observatory) ← depends on EX2 (Agent) + M4.8 (LLM Stats)
+                          ├── EX4-A: Data Models & TraceStore (schemas + ring buffer + AsyncLocalStorage)
+                          ├── EX4-B: Instrumentation (ModelRouter + Agent + DynamicUIGenerator)
+                          ├── EX4-C: Backend API (REST + WebSocket live events)
+                          ├── EX4-D: Frontend — Trace List & Stats (observatory app + list + charts)
+                          └── EX4-E: Frontend — Trace Tree & Detail (tree + timeline + span detail)
 ```
 
 ## Quick Links

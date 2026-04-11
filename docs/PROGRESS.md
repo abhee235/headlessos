@@ -33,7 +33,8 @@
 | M11: Fleet, Agent & Platform | Week 15-16 | ✅ | 7/7 tasks | — |
 | **EX1: Dynamic UI Engine** | **Experimental** | **✅** | **15/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
 | **EX2: UI Generation Agent** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
-| **EX3: Advanced UI Rendering & Generation** | **Experimental** | **🔄** | **0/19 tasks** | [phase-ex3](phases/phase-ex3.md) |
+| **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **🔄** | **16/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
+| **EX4: LLM Observatory** | **Experimental** | **✅** | **16/16 tasks** | [phase-ex4](phases/phase-ex4.md) |
 
 ---
 
@@ -294,11 +295,11 @@ Example:
 
 ---
 
-## EX3: Advanced UI Rendering & Generation (Experimental)
+## EX3: Smart Layout Engine & Progressive UI Generation (Experimental)
 
-> See [phase-ex3.md](phases/phase-ex3.md) for full spec. Sub-phases: Widget Primitives, Schema & Prompts, Multi-Step Generation, Unified Window.
+> See [phase-ex3.md](phases/phase-ex3.md) for full spec. Focus: widget selection, smart placement, responsive layouts, content classification, design-system compliance. NOT a visualization tool.
 
-### Sub-Phase EX3-P: Widget Primitives (Replicate NetworkSection)
+### Sub-Phase EX3-P: Widget Primitives (Complete)
 
 | Task ID | Task | Status | Verification |
 |---------|------|--------|--------------|
@@ -309,33 +310,93 @@ Example:
 | EX3-P.5 | Dropdown Action Menu | ✅ | `actionStyle: 'dropdown'` renders ⋯ menu |
 | EX3-P.6 | Card List Widget | ✅ | New `card-list` widget with icon/title/badge/details/actions |
 | EX3-P.7 | NetworkSection Playground Example | ✅ | Full 5-tab replication in playground JSON |
+| EX3-P.8 | Nestable Layouts | ✅ | `LayoutOrWidgetSchema` — layouts contain widgets OR nested layouts |
 
-### Sub-Phase EX3-A: Schema, Prompts & Templates
-
-| Task ID | Task | Status | Verification |
-|---------|------|--------|--------------|
-| EX3-A.1 | Nestable Layouts | ⬜ | LayoutOrWidget union, recursive rendering, depth limit 3 |
-| EX3-A.2 | Layout Template Patterns (Grafana-style) | ⬜ | 10 named patterns with variables, skeletons, population rules |
-| EX3-A.3 | Design System Rules in Prompt | ⬜ | Typography, color semantics, layout rules, threshold conventions |
-| EX3-A.4 | FakeLLM Generator | ⬜ | Fixture replay, recorder, comparator, 5+ fixture files |
-
-### Sub-Phase EX3-B: Multi-Step Progressive Generation
+### Sub-Phase EX3-A: Content Classification & Layout Patterns (Complete)
 
 | Task ID | Task | Status | Verification |
 |---------|------|--------|--------------|
-| EX3-B.1 | Working View & Layout Mutation Tools | ⬜ | set_layout, add_section, add_widgets, update_widget, remove tools |
-| EX3-B.2 | `layout_update` Event Pipeline | ⬜ | Event flows executor → agent → route → hook → store |
-| EX3-B.3 | Early Window Opening & Streaming Bridge | ⬜ | Window opens on first layout_update, streaming-view-store |
-| EX3-B.4 | Updated Executor Prompt (Multi-Step) | ⬜ | Step-by-step workflow, gather→render→gather→render pattern |
+| EX3-A.1 | Two-Pass Design Classifier | ✅ | DesignClassificationSchema, fast classifier, safeParse validation, 23 tests |
+| EX3-A.2 | Layout Pattern Library | ✅ | 10 named patterns with skeletons, population rules, widget constraints, 61 tests |
+| EX3-A.3 | Responsive Auto-Fit Grid | ✅ | `autoFit` + `minChildWidth` on GridLayout, CSS auto-fit rendering, 10 tests |
+| EX3-A.4 | Gauge Widget (Supporting) | ✅ | Semicircle gauge via recharts PieChart, threshold coloring, 3 sizes, 9 tests |
+| EX3-A.5 | Sparkline Stat Card | ✅ | Stat-card with optional AreaChart sparkline behind value, 7 tests |
+| EX3-A.6 | Enhanced Chart Options | ✅ | Stacking, thresholds, unit formatting, grid/legend toggles, 53 tests |
 
-### Sub-Phase EX3-C: Unified Window & Visual Polish
+### Sub-Phase EX3-B: Design System Prompt & Templates
 
 | Task ID | Task | Status | Verification |
 |---------|------|--------|--------------|
-| EX3-C.1 | DynamicUIWindow Component | ⬜ | Sidebar + header + toolbar + body + footer, replaces DynamicAppWindow |
-| EX3-C.2 | DynamicUIToolbar | ⬜ | Contextual controls per widget type, ServerAdmin tab styling |
-| EX3-C.3 | Widget Entrance Animations | ⬜ | 75ms stagger, skeleton states for all 11 widget types |
-| EX3-C.4 | Template Library Expansion | ⬜ | 25+ templates using nested layouts and 10 patterns |
+| EX3-B.1 | Design System Rules in Prompt | ✅ | Auto-generated from layout pattern registry, injected into system prompt, 10 tests |
+| EX3-B.2 | Improve Existing 15 Templates | ✅ | All 15 templates use layoutPattern, autoFit grids, stat-cards, tabs, search filters |
+| EX3-B.3 | Expand to 25+ Templates | ⬜ | 10+ new templates: docker-images, memory, SSL certs, git repos, etc. |
+| EX3-B.4 | FakeLLM Generator | ⬜ | Deterministic view generation from template + fixture data, no LLM |
+
+### Sub-Phase EX3-C: Progressive Multi-Step Generation
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| EX3-C.1 | WorkingView & Mutation Tools | ⬜ | addWidget, replaceWidget, addTab, getSnapshot, getDiff |
+| EX3-C.2 | `layout_update` Event Pipeline | ⬜ | skeleton → widget → complete events via WebSocket |
+| EX3-C.3 | Early Window Opening | ⬜ | Window opens immediately, skeleton in < 500ms, progressive fill |
+| EX3-C.4 | Multi-Step Executor Prompt | ⬜ | Agent builds view incrementally via mutation tools |
+
+### Sub-Phase EX3-D: Unified Window & Visual Polish
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| EX3-D.1 | DynamicUIWindow Component | ⬜ | Purpose-built window with loading → skeleton → complete states |
+| EX3-D.2 | View Toolbar | ⬜ | Refresh, Copy JSON, Fullscreen, Pin actions |
+| EX3-D.3 | Entrance Animations | ⬜ | Fade+scale widget entrance, tab slide-in, respects reduced-motion |
+| EX3-D.4 | Template QA & Visual Regression | ⬜ | All 25+ templates pass visual QA in playground |
+
+---
+
+## EX4: LLM Observatory — Embedded Trace & Span Debugger (Experimental)
+
+> Phoenix-inspired embedded LLM tracing system. Zero external dependencies, in-process ring buffer, AsyncLocalStorage context.
+> See [ADR-018](DECISIONS.md) and [phase-ex4.md](phases/phase-ex4.md) for full spec.
+
+### Sub-Phase EX4-A: Data Models & TraceStore
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| EX4-A.1 | Trace & Span Zod Schemas | ✅ | 42 schema tests passing |
+| EX4-A.2 | TraceStore (In-Memory Ring Buffer) | ✅ | 35 trace-store tests passing |
+| EX4-A.3 | Instrumentation Context (AsyncLocalStorage) | ✅ | 14 context tests passing |
+
+### Sub-Phase EX4-B: Instrumentation
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| EX4-B.1 | Instrument ModelRouter | ✅ | 7 model-router-spans tests passing |
+| EX4-B.2 | Instrument Agent Pipeline | ✅ | 11 agent-spans tests passing |
+| EX4-B.3 | Instrument DynamicUIGenerator | ✅ | 5 generator-spans tests passing |
+
+### Sub-Phase EX4-C: Backend API
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| EX4-C.1 | Observatory REST Routes | ✅ | 19 route tests passing (REST + WS combined) |
+| EX4-C.2 | WebSocket Live Trace Events | ✅ | Included in C.1 route tests |
+
+### Sub-Phase EX4-D: Frontend — Trace List & Stats
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| EX4-D.1 | Observatory App Registration | ✅ | 3 registration tests passing |
+| EX4-D.2 | Trace List View | ✅ | 10 TraceListView tests passing |
+| EX4-D.3 | Observatory Stats Dashboard | ✅ | 5 StatsPanel tests passing |
+
+### Sub-Phase EX4-E: Frontend — Trace Tree & Span Detail
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| EX4-E.1 | Trace Detail Layout | ✅ | 8 TraceDetailView tests passing |
+| EX4-E.2 | Trace Tree Component | ✅ | 7 TraceTree tests passing |
+| EX4-E.3 | Timeline Bars | ✅ | 7 TimelineBar tests passing |
+| EX4-E.4 | Span Detail Panel | ✅ | 8 SpanDetailPanel tests passing |
+| EX4-E.5 | Live Trace Updates | ✅ | 10 useObservatorySocket tests + 17 observatory-store tests passing |
 
 ---
 
@@ -367,6 +428,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-04-13 | **EX4 ⬜** LLM Observatory planned (16 tasks, 5 sub-phases). ADR-018 created. Phase spec: phase-ex4.md. Embedded Phoenix-inspired trace & span debugger — in-memory ring buffer, AsyncLocalStorage context, hierarchical trace tree, timeline bars, span detail with input/output content. Zero external dependencies. ~128 estimated tests. |
 | 2026-04-11 | **EX1 ⬜** Dynamic UI Engine planned (14 tasks, 3 phases). ADR-015 created. Phase spec: phase-ex1.md. Core feature: LLM generates JSON schemas from terminal output → generic renderer builds live UI with streaming/incremental rendering. |
 | 2026-04-06 | **M7.3 ⏭️** LLM / AI Configuration moved to backlog (B.15) — core functionality already covered by M10.7. M7 now fully complete (6/6). All 11 milestones (M0–M11) complete. |
 | 2026-04-06 | **M11 ✅** Fleet, Agent & Platform complete (7/7 tasks): M11.1 Fleet Dashboard (fleet route + aggregate stats + server cards UI), M11.2 Electron Wrapper (main.js + preload.js + package.json + macOS menu), M11.3 Plugin Manager UI (Settings page: install from URL, activate/deactivate/remove, permission reference), M11.4 Server Tags (tags field in ServerConfig, fleet route tag support), M11.5 ReAct Agent (InvestigationAgent class with 50+ allowlist patterns, 15 blocked patterns, ReAct loop, AgentView frontend), M11.6 Agent Streaming (WebSocket endpoint + real-time step UI). Also fixed: pinnedAppIds type error, fleet.ts mountPoint/getServers, SettingsView LLM config type. 535 tests (406 server + 129 client) all passing. |

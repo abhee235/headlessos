@@ -8,6 +8,7 @@ export const packageListTemplate: UITemplate = {
   name: 'Package List',
   description: 'Installed packages listing from apt, rpm, pip, or npm',
   tags: ['packages', 'software', 'apt', 'rpm', 'pip', 'npm'],
+  layoutPattern: 'single-table',
   matchPatterns: [
     'dpkg\\s+(-l|--list)',
     'apt\\s+list\\s+--installed',
@@ -58,6 +59,7 @@ export const packageListTemplate: UITemplate = {
             { name: 'curl', version: '7.81.0-1', status: 'installed', size: '420 KB' },
             { name: 'git', version: '2.34.1', status: 'upgradable', size: '28 MB' },
           ],
+          filters: { search: true },
           footer: 'Showing 5 of 342 packages',
         },
       ],

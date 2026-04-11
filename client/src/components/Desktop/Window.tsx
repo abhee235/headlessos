@@ -19,6 +19,7 @@ import {
   Minimize2,
   RotateCcw,
   Move,
+  Telescope,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -38,6 +39,7 @@ const APP_ICONS: Record<string, LucideIcon> = {
   taskmanager: Activity,
   docker: Box,
   services: Server,
+  observatory: Telescope,
 };
 
 const APP_ACCENT: Record<string, string> = {
@@ -48,6 +50,7 @@ const APP_ACCENT: Record<string, string> = {
   taskmanager: 'bg-primary/80',
   docker: 'bg-primary/80',
   services: 'bg-warning/80',
+  observatory: 'bg-pink-500',
 };
 
 interface WindowFrameProps {

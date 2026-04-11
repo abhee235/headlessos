@@ -114,9 +114,9 @@ export function DynamicUIPlayground({ open, onOpenChange }: DynamicUIPlaygroundP
       </AppWindow.Toolbar>
 
       <AppWindow.Body noPadding noScroll>
-        <ResizablePanelGroup direction="horizontal" className="h-full">
+        <ResizablePanelGroup orientation="horizontal" className="h-full">
           {/* Left pane: JSON editor */}
-          <ResizablePanel defaultSize={45} minSize={25}>
+          <ResizablePanel defaultSize="45%" minSize="25%">
             <div className="h-full flex flex-col">
               <div className="px-3 py-1.5 text-[11px] font-medium text-muted-foreground border-b border-border/40 bg-muted/30">
                 JSON Schema
@@ -134,7 +134,7 @@ export function DynamicUIPlayground({ open, onOpenChange }: DynamicUIPlaygroundP
           <ResizableHandle withHandle />
 
           {/* Right pane: Live preview */}
-          <ResizablePanel defaultSize={55} minSize={25}>
+          <ResizablePanel defaultSize="55%" minSize="25%">
             <div className="h-full flex flex-col">
               <div className="px-3 py-1.5 text-[11px] font-medium text-muted-foreground border-b border-border/40 bg-muted/30">
                 Live Preview

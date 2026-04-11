@@ -8,6 +8,7 @@ export const gitStatusTemplate: UITemplate = {
   name: 'Git Repository',
   description: 'Git repo status, branch info, and recent commits',
   tags: ['git', 'vcs', 'repository', 'development'],
+  layoutPattern: 'detail-overview',
   matchPatterns: [
     '^git\\s+status',
     '^git\\s+log',
@@ -38,46 +39,69 @@ export const gitStatusTemplate: UITemplate = {
           layout: 'grid-2',
         },
         {
-          type: 'table',
-          title: 'Changed Files',
-          columns: [
+          layout: 'tabs',
+          tabs: [
             {
-              key: 'status',
-              label: 'Status',
-              type: 'badge',
-              badgeVariant: {
-                modified: 'warning',
-                added: 'success',
-                deleted: 'destructive',
-                untracked: 'secondary',
-                renamed: 'default',
-              },
+              id: 'changes',
+              label: 'Changed Files',
+              icon: 'FileEdit',
+              count: 4,
+              children: [
+                {
+                  type: 'table',
+                  title: 'Changed Files',
+                  columns: [
+                    {
+                      key: 'status',
+                      label: 'Status',
+                      type: 'badge',
+                      badgeVariant: {
+                        modified: 'warning',
+                        added: 'success',
+                        deleted: 'destructive',
+                        untracked: 'secondary',
+                        renamed: 'default',
+                      },
+                    },
+                    { key: 'file', label: 'File', type: 'code' },
+                    { key: 'changes', label: 'Changes', type: 'text' },
+                  ],
+                  rows: [
+                    { status: 'modified', file: 'src/components/Dashboard.tsx', changes: '+45 / -12' },
+                    { status: 'modified', file: 'src/lib/api.ts', changes: '+8 / -3' },
+                    { status: 'added', file: 'src/components/UserCard.tsx', changes: '+120 / -0' },
+                    { status: 'untracked', file: 'TODO.md', changes: 'new file' },
+                  ],
+                  filters: { search: true },
+                },
+              ],
             },
-            { key: 'file', label: 'File', type: 'code' },
-            { key: 'changes', label: 'Changes', type: 'text' },
-          ],
-          rows: [
-            { status: 'modified', file: 'src/components/Dashboard.tsx', changes: '+45 / -12' },
-            { status: 'modified', file: 'src/lib/api.ts', changes: '+8 / -3' },
-            { status: 'added', file: 'src/components/UserCard.tsx', changes: '+120 / -0' },
-            { status: 'untracked', file: 'TODO.md', changes: 'new file' },
-          ],
-        },
-        {
-          type: 'table',
-          title: 'Recent Commits',
-          columns: [
-            { key: 'hash', label: 'Hash', type: 'code', width: '80px' },
-            { key: 'message', label: 'Message', type: 'text' },
-            { key: 'author', label: 'Author', type: 'text' },
-            { key: 'date', label: 'Date', type: 'text' },
-          ],
-          rows: [
-            { hash: 'a1b2c3d', message: 'feat: add user dashboard', author: 'dev', date: '2 hours ago' },
-            { hash: 'e4f5g6h', message: 'fix: resolve auth redirect loop', author: 'dev', date: '5 hours ago' },
-            { hash: 'i7j8k9l', message: 'refactor: extract API client', author: 'dev', date: '1 day ago' },
-            { hash: 'm0n1o2p', message: 'docs: update README', author: 'dev', date: '2 days ago' },
-            { hash: 'q3r4s5t', message: 'chore: upgrade dependencies', author: 'ops', date: '3 days ago' },
+            {
+              id: 'commits',
+              label: 'Recent Commits',
+              icon: 'GitCommit',
+              count: 5,
+              children: [
+                {
+                  type: 'table',
+                  title: 'Recent Commits',
+                  columns: [
+                    { key: 'hash', label: 'Hash', type: 'code', width: '80px' },
+                    { key: 'message', label: 'Message', type: 'text' },
+                    { key: 'author', label: 'Author', type: 'text' },
+                    { key: 'date', label: 'Date', type: 'text' },
+                  ],
+                  rows: [
+                    { hash: 'a1b2c3d', message: 'feat: add user dashboard', author: 'dev', date: '2 hours ago' },
+                    { hash: 'e4f5g6h', message: 'fix: resolve auth redirect loop', author: 'dev', date: '5 hours ago' },
+                    { hash: 'i7j8k9l', message: 'refactor: extract API client', author: 'dev', date: '1 day ago' },
+                    { hash: 'm0n1o2p', message: 'docs: update README', author: 'dev', date: '2 days ago' },
+                    { hash: 'q3r4s5t', message: 'chore: upgrade dependencies', author: 'ops', date: '3 days ago' },
+                  ],
+                  filters: { search: true },
+                },
+              ],
+            },
           ],
         },
       ],

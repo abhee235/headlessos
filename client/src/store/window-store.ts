@@ -64,6 +64,7 @@ const APP_DEFAULTS: Record<string, { width: number; height: number }> = {
   services: { width: 900, height: 600 },
   serveradmin: { width: 1000, height: 650 },
   'dynamic-ui': { width: 900, height: 650 },
+  observatory: { width: 1100, height: 700 },
 };
 
 export const useDesktopStore = create<DesktopState>((set, get) => ({
@@ -76,7 +77,7 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
     const state = get();
 
     // Single-instance apps: focus existing window
-    const singleInstance = ['dashboard', 'files', 'terminal', 'settings', 'taskmanager', 'docker', 'services', 'serveradmin'];
+    const singleInstance = ['dashboard', 'files', 'terminal', 'settings', 'taskmanager', 'docker', 'services', 'serveradmin', 'observatory'];
     if (singleInstance.includes(appId)) {
       const existing = state.windows.find(
         w => w.appId === appId && w.serverId === serverId,

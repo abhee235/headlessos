@@ -8,6 +8,7 @@ export const portTableTemplate: UITemplate = {
   name: 'Listening Ports',
   description: 'Network ports and active connections overview',
   tags: ['network', 'ports', 'connections', 'security'],
+  layoutPattern: 'single-table',
   matchPatterns: [
     'ss\\s+(-tulnp|--listening)',
     'netstat\\s+(-tulnp|--listening)',
@@ -67,6 +68,7 @@ export const portTableTemplate: UITemplate = {
             { protocol: 'tcp', port: 5432, address: '127.0.0.1', process: 'postgres', pid: 3456, state: 'LISTEN' },
             { protocol: 'udp', port: 53, address: '0.0.0.0', process: 'systemd-resolve', pid: 789, state: 'LISTEN' },
           ],
+          filters: { search: true },
           footer: '6 listening ports',
         },
       ],

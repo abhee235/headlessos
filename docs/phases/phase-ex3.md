@@ -1,1621 +1,1066 @@
-# Phase EX3: Advanced UI Rendering & Generation
+# Phase EX3: Smart Layout Engine & Progressive UI Generation
 
-> **Milestone:** EX3 | **Est. Effort:** Large (3 sub-phases) | **Depends on:** EX1 (Dynamic UI Engine), EX2 (UI Agent)
+> **Milestone:** EX3 | **Est. Effort:** Large (4 sub-phases) | **Depends on:** EX1 (Dynamic UI Engine), EX2 (UI Agent)
 >
-> Transform the Dynamic UI from a single-shot "generate and display" system into a **progressive, multi-step, Grafana-quality rendering engine** where the LLM builds UI step-by-step, the user watches it assemble in real-time, and the output is indistinguishable from hand-crafted components.
+> Transform the Dynamic UI from a single-shot "generate and display" system into a **smart, design-aware, progressive rendering engine** that makes intelligent layout decisions, places widgets optimally, and assembles UI step-by-step in real-time.
+>
+> **This is NOT a visualization/charting tool.** Charts, gauges, and sparklines exist only as supporting elements when data genuinely warrants them (e.g., disk usage percentage). The core focus is: **widget selection, smart placement, responsive layouts, content classification, and design-system compliance.**
 
 ---
 
-## Appendix A: Grafana Scenes Architecture Research
+## Guiding Principles
 
-> Deep analysis of `@grafana/scenes` (codebase in `temp/grafana-scenes/`). This informs our schema, layout, variable, and rendering design decisions.
+1. **Widgets first, charts second.** Tables, stat-cards, key-value pairs, badge-grids, code-blocks, alerts, card-lists, and forms are the primary building blocks. Charts/gauges are used sparingly — only when a percentage, trend, or comparison genuinely benefits from visual representation.
 
-### A.1 Core Object Model — SceneObject
+2. **Smart placement over stacking.** The LLM must never blindly stack widgets vertically. It must classify content and apply the right layout pattern: grids for metrics, tabs for multiple data categories, responsive auto-fit for varying screen sizes.
 
-Every Grafana UI element is a **SceneObject** — an immutable-state, ref-counted, tree-structured model object with a React component.
+3. **Design-system native.** Every generated view must look indistinguishable from hand-crafted ServerAdmin/Dashboard components — same typography, colors, spacing, badge semantics, and interaction patterns.
 
-**`SceneObjectState`** — base state interface (5 fields):
+4. **Progressive assembly.** The user sees the UI build itself: layout skeleton first, then widgets stream in one-by-one. Perceived latency drops from 5-15s to <1.5s for first visual.
 
-| Field | Type | Purpose |
-|-------|------|---------|
-| `key` | `string?` | Unique ID (auto UUID if omitted) |
-| `$timeRange` | `SceneTimeRangeLike?` | Local time range override |
-| `$data` | `SceneDataProvider?` | Data source / query provider |
-| `$variables` | `SceneVariables?` | Variable set scoped to this node |
-| `$behaviors` | `Array<SceneObject \| SceneStatelessBehavior>?` | Extra behaviors activated with parent |
+5. **Two-pass classification.** A fast classifier determines content type and layout pattern before the main generator runs. This constrains the generator to make good design decisions instead of defaulting to vertical stacks.
 
-The `$`-prefixed properties are **composable service slots** — the framework auto-activates/deactivates them with the parent. This is the core composition mechanism: any node in the tree can override its parent's time range, data source, or variables.
+---
 
-**`SceneObject` interface** — 21 members total:
-- State: `state` (frozen/immutable), `setState()` (creates new frozen object), `useState()` (React hook)
-- Lifecycle: `activate()` (ref-counted), `addActivationHandler()`, `isActive`
-- Tree: `parent?`, `getRoot()`, `forEachChild()`, `clearParent()`
-- Events: `subscribeToState()`, `publishEvent(event, bubble?)` — events bubble UP the parent chain
-- Rendering: `Component` (React component), `clone()`, `getRef()`
+## What Was Built (EX3-P — Complete)
 
-**Key insight — parent/child is automatic:** Any SceneObjectBase instance found in a state property is automatically set as a child (`child._parent = this`). Children are discovered by `forEachChild()` which scans 1 level deep in state values + arrays.
+Sub-phase EX3-P added the widget primitives needed to replicate complex hand-crafted views:
 
-**State management:** State is `Object.freeze()`-ed. `setState()` creates a new frozen merged object and publishes a `SceneObjectStateChangedEvent` that **bubbles up** the parent chain.
+| Task | What It Added |
+|------|--------------|
+| EX3-P.1 | Tab count badges (`count` field on tabs) |
+| EX3-P.2 | Monospace column type (`mono` — plain monospace, no background) |
+| EX3-P.3 | Rich compound table cells (`rich` column type with text/badge/icon/dot segments) |
+| EX3-P.4 | Table filters & search (`filters` with dropdowns + search bar) |
+| EX3-P.5 | Dropdown action menu (`actionStyle: 'dropdown'` -> `...` menu) |
+| EX3-P.6 | Card-list widget (icon + title + badge with dot + detail rows + actions) |
+| EX3-P.7 | NetworkSection playground replication (full 5-tab example) |
+| EX3-P.8 | Nestable layouts (`LayoutOrWidgetSchema` — layouts contain widgets OR nested layouts) |
 
-### A.2 Layout System — 5 Layout Types
+---
 
-#### SceneFlexLayout (Flexbox)
-- `display: flex` with configurable `flexDirection`, `gap: 8px`, `flexWrap`
-- Items sized via `flexGrow` (fill) or `alignSelf: flex-start` (content)
-- **12 placement properties**: direction, wrap, width, height, minWidth, minHeight, maxWidth, maxHeight, xSizing, ySizing, isHidden, md (responsive override)
-- Responsive via `md` property + `theme.breakpoints.down('md')` media query
-- **Infinitely nestable** — no depth enforcement. Common: column → row → panel (3 levels)
-- No drag/drop
+## What Needs To Be Built (4 Sub-Phases)
 
-#### SceneGridLayout (Dashboard Grid — react-grid-layout)
-- **24-column grid**, 30px row height, 8px margins
-- Items positioned with `{ x, y, w, h }` (integer grid units)
-- Uses `react-grid-layout` with **CSS transforms** (not CSS Grid)
-- **Full drag/drop + resize** with custom handles
-- `SceneGridRow` — collapsible row grouping (title, chevron, panel count when collapsed)
-- Mobile: all items become full-width (24 cols) on < 768px
-- **2-level nesting max**: Layout → Row → Item (grid items can contain any SceneObject body)
-- `UNSAFE_fitPanels` — experimental feature to scale panels to viewport height
+### Sub-Phase Overview
 
-#### SceneCSSGridLayout (CSS Grid)
-- Native `display: grid` with configurable templates
-- Default: `repeat(auto-fit, minmax(400px, 1fr))` — auto-responsive columns
-- Configures: `gridTemplateColumns`, `gridTemplateRows`, `gridAutoRows`, `rowGap`, `columnGap`, `justifyItems`, `alignItems`, `justifyContent`
-- Items: `gridColumn` and `gridRow` for span control (e.g., `span 2`)
-- Responsive via `md` property override
-- Lazy loading via `IntersectionObserver`
-- No drag/drop
+| Sub-Phase | Focus | Key Outcome |
+|-----------|-------|-------------|
+| **EX3-A** | **Content Classification & Layout Patterns** | Two-pass LLM design classifier, 10 named layout patterns, responsive auto-fit grid |
+| **EX3-B** | **Design System Prompt & Templates** | Comprehensive design rules in LLM prompt, improved+expanded templates (25+), FakeLLM for testing |
+| **EX3-C** | **Progressive Multi-Step Generation** | WorkingView + mutation tools, `layout_update` event pipeline, early window opening |
+| **EX3-D** | **Unified Window & Visual Polish** | DynamicUIWindow component, toolbar, entrance animations, skeleton states |
 
-#### SplitLayout (Two-Pane Splitter)
-- Two panes with draggable splitter handle
-- `direction: 'row' | 'column'` (horizontal or vertical)
-- `initialSize: 0-1` ratio
-- Keyboard accessible (Arrow keys, Enter to collapse/restore, Home/End)
-- 32px default handle, pointer-based drag with pointer capture
-- Each pane can contain any layout (nestable)
-
-#### LazyLoader
-- Shared `IntersectionObserver` singleton
-- Wraps children, renders only when scrolled into view
-- Used by both SceneGridLayout and SceneCSSGridLayout (`isLazy`)
-
-**Layout comparison:**
-
-| Feature | FlexLayout | GridLayout | CSSGridLayout | SplitLayout |
-|---------|-----------|-----------|--------------|-------------|
-| CSS mechanism | Flexbox | react-grid-layout (absolute pos) | CSS Grid | Flexbox |
-| Column model | None | **24 columns**, 30px rows | Template-based | 2 panes |
-| Drag/drop | No | **Yes** | No | Splitter only |
-| Resize | No | **Yes** | No | Splitter only |
-| Lazy load | No | Yes | Yes | No |
-| Nestable | **Infinite** | 2 levels | **Infinite** (via body) | 2 panes, each nestable |
-| Max observed depth | **3** (column → row → panel) | 2 (layout → row → item) | Via body property | — |
-
-### A.3 VizPanel — The Widget Model (30 Properties)
-
-`VizPanel` is Grafana's core visualization component. **VizPanelState has 25 own properties + 5 inherited = ~30 total.**
-
-**User-facing properties (17):**
-
-| # | Property | Type | Purpose |
-|---|----------|------|---------|
-| 1 | `pluginId` | `string` | Panel type: `'timeseries'`, `'stat'`, `'table'`, `'gauge'`, etc. |
-| 2 | `title` | `string` | Panel title (supports variable interpolation `$var`) |
-| 3 | `description` | `string?` | Markdown + variable interpolation |
-| 4 | `options` | `DeepPartial<TOptions>` | Plugin-specific options (legend, tooltip, etc.) |
-| 5 | `fieldConfig` | `FieldConfigSource` | Field config defaults + per-field overrides |
-| 6 | `displayMode` | `'default' \| 'transparent'` | Panel chrome appearance |
-| 7 | `hoverHeader` | `boolean?` | Only show header on hover |
-| 8 | `subHeader` | `ReactNode \| SceneObject[]?` | Subheader content area |
-| 9 | `showMenuAlways` | `boolean?` | Always show kebab menu |
-| 10 | `menu` | `VizPanelMenu?` | Dropdown menu (lazy-activated) |
-| 11 | `titleItems` | `ReactNode \| SceneObject[]?` | Items next to title |
-| 12 | `seriesLimit` | `number?` | Max series to render |
-| 13 | `headerActions` | `ReactNode \| SceneObject[]?` | Top-right header action buttons |
-| 14 | `extendPanelContext` | `fn?` | Custom PanelContext modification |
-| 15 | `collapsible` | `boolean?` | Enable collapse |
-| 16 | `collapsed` | `boolean?` | Current collapsed state |
-| 17 | `pluginVersion` | `string?` | For migration tracking |
-
-**Panel rendering chrome (from VizPanelRenderer, 451 lines):**
-Every panel is wrapped in `<PanelChrome>` providing: title bar, description, loading indicator, error/status message, drag handle, dropdown menu, header actions, title items, subheader, collapsible controls, hover header mode, cancel query button, display mode, padding.
-
-**Rendering pipeline:**
-1. Measure container → `useMeasure()` for width/height
-2. Get data → subscribe to `sceneGraph.getData(model)`
-3. Apply series limit → `useDataWithSeriesLimit()`
-4. Apply field config → `model.applyFieldConfig()` with caching
-5. Get time range + timezone from scene graph
-6. Lazy loading check → `useLazyLoaderIsInView()`
-7. Interpolate title with variables
-8. Render `<PanelChrome>` → `<ErrorBoundaryAlert>` → `<PluginContextProvider>` → `<PanelContextProvider>` → `<PanelComponent>`
-
-### A.4 PanelBuilder — Fluent API (30 Chainable Methods)
-
-`VizPanelBuilder` provides a fluent builder pattern. **30 chainable methods + `build()`:**
-
-| Category | Methods | Count |
-|----------|---------|-------|
-| Display | setTitle, setDescription, setDisplayMode, setHoverHeader, setCollapsible, setCollapsed | 6 |
-| Chrome/UI | setShowMenuAlways, setMenu, setHeaderActions, setDisplayName | 4 |
-| Standard Field Config | setColor, setDecimals, setDisplayName, setFilterable, setLinks, setMappings, setMax, setMin, setNoValue, setThresholds, setUnit | **11** |
-| Plugin Config | setCustomFieldConfig, setOverrides | 2 |
-| Panel Options | setOption | 1 |
-| Data & Behavior | setData, setTimeRange, setVariables, setBehaviors | 4 |
-| Limits | setSeriesLimit | 1 |
-| Composition | applyMixin | 1 |
-| **Total** | | **30** |
-
-**11 Standard Field Config Properties:**
-
-| Config | Type | Purpose |
-|--------|------|---------|
-| `color` | `FieldColor` | Color mode: fixed, palette, continuous gradient, thresholds-based |
-| `decimals` | `number` | Decimal places for values |
-| `displayName` | `string` | Override field name in visualizations |
-| `filterable` | `boolean` | Support ad-hoc filtering |
-| `links` | `DataLink[]` | Clickable data links with variable interpolation |
-| `mappings` | `ValueMapping[]` | Value-to-display mappings (e.g., 0→"Off", 1→"On") |
-| `max` | `number` | Maximum scale value |
-| `min` | `number` | Minimum scale value |
-| `noValue` | `string` | Text for null/missing values |
-| `thresholds` | `ThresholdsConfig` | Threshold steps with colors (absolute or percentage mode) |
-| `unit` | `string` | Unit system: 'bytes', 'percent', 'celsius', 'short', etc. |
-
-**Field Config Overrides — 2-layer system:**
-1. **Match** (7 methods): by field name, regex, type, query refId, value, comparison query
-2. **Override** (12 methods): all 11 standard configs + custom plugin config
-
-**21 Panel Type Factories:** barchart, bargauge, flamegraph, gauge, geomap, heatmap, histogram, logs, news, nodegraph, piechart, stat, statetimeline, statushistory, table, text, timeseries, trend, traces, xychart
-
-### A.5 Variable System — 12 Variable Types, 19 Formats
-
-**12 concrete variable implementations:**
-
-| # | Type | Multi-value | Resolution | Key Properties |
-|---|------|------------|------------|----------------|
-| 1 | `ConstantVariable` | No | Static value (supports interpolation) | `value` |
-| 2 | `CustomVariable` | Yes | CSV or JSON string → options | `query`, `valuesFormat` |
-| 3 | `DataSourceVariable` | Yes | Lists data sources by plugin type | `pluginId`, `regex` |
-| 4 | `IntervalVariable` | No | Time interval selection (auto-calc) | `intervals[]`, `autoEnabled`, `autoStepCount` |
-| 5 | `LocalValueVariable` | No | Scoped override for repeaters | `value`, `text`, `properties` |
-| 6 | `MultiValueVariable` | Yes (base) | Abstract — subclassed | `options[]`, `isMulti`, `includeAll`, `allValue`, `maxVisibleValues` |
-| 7 | `ObjectVariable` | No | Typed object with field paths | `value: T extends object` |
-| 8 | `SwitchVariable` | No | Boolean toggle | `enabledValue`, `disabledValue` |
-| 9 | `TextBoxVariable` | No | User-entered text | `value` |
-| 10 | `QueryVariable` | Yes | Data source query → options | `datasource`, `query`, `regex`, `refresh`, `sort`, `staticOptions` |
-| 11 | `ScopesVariable` | No | From React ScopesContext | `scopes[]` |
-| 12 | `AdHocFiltersVariable` | No (filter array) | Dynamic key-value filters | `filters[]`, `baseFilters[]`, ` datasource`, `applyMode`, operators: `=`,`!=`,`=\|`,`!=\|`,`=~`,`!~`,`<`,`>`,etc. |
-| 13 | `GroupByVariable` | Yes (forced) | Dimension keys from data source | `defaultOptions`, `datasource`, `applyMode` |
-
-**3 Interpolation Syntaxes:**
-- `$varName` — simple dollar-sign
-- `[[varName]]` or `[[varName:format]]` — double-bracket
-- `${varName}`, `${varName:format}`, `${varName.fieldPath}`, `${varName.fieldPath:format}` — curly-brace (most powerful)
-
-**19 Format Functions:**
-
-| Format | Output Example | Purpose |
-|--------|---------------|---------|
-| `glob` (DEFAULT) | `{a,b,c}` | Glob expansion |
-| `lucene` | `("a" OR "b")` | Lucene queries |
-| `raw` | `a` | No transformation |
-| `regex` | `(a\|b)` | Regex alternation |
-| `pipe` | `a\|b` | Pipe-separated |
-| `distributed` | `var=a,var=b` | Distributed copies |
-| `csv` | `a,b,c` | Comma-separated |
-| `html` | `&lt;tag&gt;` | HTML entity escaping |
-| `json` | `"value"` | JSON-encoded |
-| `percentencode` | `a%20b` | URL component encoding |
-| `singlequote` | `'a','b'` | SQL-style single quotes |
-| `doublequote` | `"a","b"` | Double-quoted |
-| `sqlstring` | `'it''s'` | SQL-safe escaping |
-| `join` | custom separator | Join with `:` arg |
-| `date` | `2024-01-01` | Timestamp formatting |
-| `text` | display labels | Uses `getValueText()` |
-| `queryparam` | `var-foo=A&var-foo=B` | URL query params |
-| `customqueryparam` | `p-foo=x-A` | Custom-prefixed params |
-| `uriencode` | encoded URI | Full URI encoding |
-
-**Variable chaining:** Variables reference each other via interpolation (`$server` in `query: 'cpu.$server.*'`). `SceneVariableSet` processes variables in dependency order — a variable won't update until its dependencies finish. The entire scene graph is notified recursively when variables change.
-
-**7 Built-in System Macros:** `__from`, `__to`, `__timezone`, `__timeFilter`, `__interval`, `__interval_ms`, `__rate_interval`, `__org`, `__user`, `__dashboard`, `__data`, `__series`, `__field`, `__value`, `__url`, `__all_variables`
-
-### A.6 Repeaters — Dynamic Panel Multiplication
-
-**SceneByVariableRepeater:** Takes a `variableName` + `getLayoutChild(option)` factory. When the variable changes, it calls the factory for each value and **replaces all children** of its body layout. This is how Grafana creates one panel per host/service/region.
-
-**SceneByFrameRepeater:** Same concept but driven by data frames instead of variables. Creates one panel per data series.
-
-Both are layout-transparent — they wrap any layout type (FlexLayout, CSSGridLayout, etc.) and populate its children.
-
-### A.7 Behaviors — Pluggable Capabilities
-
-Behaviors are SceneObjects or functions stored in `$behaviors`. They activate/deactivate with their parent.
-
-| Behavior | Purpose |
-|----------|---------|
-| **CursorSync** | Cross-panel cursor synchronization (shared EventBus, Crosshair or Tooltip mode) |
-| **SceneQueryController** | Tracks running queries, exposes `isRunning`, supports `cancelAll()` |
-| **ActWhenVariableChanged** | Runs callback when a specific variable changes |
-| **LiveNowTimer** | Forces all VizPanels to re-render at 100ms intervals (live/streaming) |
-| **SceneInteractionTracker** | Click-to-render timing for performance monitoring |
-
-### A.8 Rendering Pipeline — SceneObject → React DOM
+### Execution Order
 
 ```
-1. CONSTRUCTION: SceneObjectBase constructor → freeze state → generate UUID → set parent refs
-
-2. REACT MOUNT (top-down):
-   <sceneObject.Component model={obj}>
-     → SceneComponentWrapper:
-          a) useEffect → obj.activate()  [ref-counted]
-               └─ Activates $timeRange, $variables, $data, $behaviors
-          b) Gate: if !active && !renderBeforeActivation → null
-          c) Reads static Component from class
-          d) <Component model={obj}> — calls model.useState() for reactive state
-               └─ Child objects: <child.Component model={child}> (recursive)
-
-3. STATE FLOW (bottom-up re-renders):
-   model.setState(update) → freeze → publish SceneObjectStateChangedEvent
-     → useSceneObjectState subscription → React setState → re-render
-     → Event bubbles up parent chain (UrlSync, UndoManager)
-
-4. GRAPH QUERIES (any direction):
-   getData(obj) → walks UP to nearest $data
-   getVariables(obj) → walks UP to nearest $variables
-   interpolate(obj, "${var}") → resolves via ancestor variable lookup
-   findObject(root, predicate) → searches DOWN then UP
-
-5. DEACTIVATION (bottom-up on unmount):
-   useEffect cleanup → activate()'s returned cancel fn
-     → refCount-- → if 0: deactivate all $-prefixed children + behaviors
+EX3-A (classification + patterns + responsive grid) -----+
+EX3-B (design prompt + templates + FakeLLM)              -+ parallel
+                                                           v
+EX3-C (progressive generation pipeline)  -----------------+
+                                                           v
+EX3-D (unified window + toolbar + animations)  -----------+
 ```
 
-**scenes-react package:** An alternative React-first API. Instead of building a SceneObject tree imperatively, you use `<SceneContextProvider>` + hooks (`useQueryRunner`, `useVariableValue`, `useTimeRange`) and declarative JSX components (`<VizPanel>`, `<VizGridLayout>`). Objects are cached via LRU (max 500, 5min TTL).
-
-### A.9 Key Numbers Summary
-
-| Metric | Grafana Scenes Value |
-|--------|---------------------|
-| Layout types | **5** (Flex, Grid24, CSSGrid, Split, LazyLoader) |
-| VizPanel state properties | **30** (~17 user-facing) |
-| PanelBuilder methods | **30** chainable + `build()` |
-| Panel type factories | **21** |
-| Standard field configs | **11** (color, decimals, unit, thresholds, mappings, etc.) |
-| Variable types | **12** concrete implementations |
-| Format functions | **19** |
-| Interpolation syntaxes | **3** (`$var`, `[[var]]`, `${var}`) |
-| System macros | **16+** |
-| Override match methods | **7** |
-| Override apply methods | **12** |
-| Max observed nesting depth | **3** (no enforced limit) |
-| Grid columns (dashboard) | **24** |
-| Grid row height | 30px + 8px margin |
-| Behaviors | **5** named patterns |
-
-### A.10 Lessons for HeadlessOS
-
-**What to adopt:**
-
-1. **Nestable layouts with no hard limit** — Grafana enforces nothing. Their 3-level practical depth matches our recommendation. FlexLayout-in-FlexLayout is the most common pattern (column → row → panel).
-
-2. **Rich panel properties** — A single Grafana panel has ~30 configurable properties. Our current 11 widget types with ~5-8 properties each are much simpler. We should expand per-widget configuration (especially for tables: column types, formatters, thresholds, color modes).
-
-3. **11 Standard Field Configs** — color, decimals, unit, thresholds, mappings, min/max, noValue, links, filterable, displayName. Our widgets should adopt at minimum: **unit**, **thresholds**, **color mode**, **value mappings**, **decimal precision**.
-
-4. **Variable system concepts** — template variables with interpolation, variable chaining, scoped variable sets. Our LayoutPattern variables (EX3-A.2) should support basic interpolation (`$title`, `$metric_count`) resolved at generation time.
-
-5. **Repeater pattern** — creating panels dynamically from variable values or data frames. Useful for "one panel per container" or "one row per service" patterns.
-
-6. **Panel chrome** — every panel gets consistent chrome: title bar, description, menu, actions, collapsible, loading state. Our widgets should get similar wrapper chrome from the renderer (not from the LLM's schema).
-
-7. **Layout-specific sizing** — FlexLayout items have 12 sizing properties. CSSGrid items have span control. Grid items have x/y/w/h. Each layout type should have its own item placement config.
-
-8. **Lazy loading** — IntersectionObserver-based lazy rendering for large dashboards. Important for generated views with many widgets.
-
-**What NOT to adopt:**
-
-1. **SceneObject model layer** — Grafana's imperative SceneObject graph adds complexity we don't need. Our JSON schema → React renderer approach is simpler and sufficient.
-
-2. **24-column dashboard grid** — Overkill for generated UIs. Our grid-2, grid-3, grid-4, grid-6 system is more LLM-friendly. The LLM shouldn't think in x/y/w/h coordinates.
-
-3. **Plugin system** — Grafana supports 21+ panel types via plugins with custom options per type. Our fixed 11 widget types are enough; the LLM can compose them flexibly.
-
-4. **Data source abstraction** — Grafana decouples queries from visualization via DataSourceVariable and SceneQueryRunner. We get data via SSH commands — no need for a provider abstraction.
-
-5. **Full variable resolution at render time** — Grafana resolves variables when panels render (runtime). Our variables should resolve at generation time (LLM fills them).
-
-6. **Event bubbling / sceneGraph utilities** — Our flat JSON → React rendering doesn't need parent-chain walking or event propagation.
+> **Gate:** EX3-A and EX3-B must be complete before EX3-C. The design classifier and templates must produce well-laid-out views in single-shot mode before adding progressive generation.
 
 ---
 
-## Vision
+## Sub-Phase EX3-A: Content Classification & Layout Patterns
 
-**Current state:** The UI Agent generates a complete JSON schema in one shot, validates it, then opens a bare window with the rendered result. It works, but feels mechanical — the user waits, then sees everything at once.
-
-**Target state:** Generation feels like watching an expert designer work in real-time:
-1. Window opens immediately with a layout skeleton
-2. Sections/tabs appear as the LLM decides the structure
-3. Widgets fade in one-by-one as data is gathered
-4. The result matches our design system exactly — same fonts, colors, spacing, badges as ServerAdmin/Dashboard
-5. A FakeLLM generator produces deterministic outputs for testing, comparison, and demos
-
-### Sub-Phases
-
-| Sub-Phase | Focus | Summary |
-|-----------|-------|---------|
-| **EX3-P** | **Widget Primitives** | **Tab count badges, mono/rich columns, table filters, dropdown actions, card-list widget — enough to replicate NetworkSection** |
-| **EX3-A** | Schema & Prompt | Nestable layouts, layout templates (Grafana-style variables), design system rules in prompt, FakeLLM generator |
-| **EX3-B** | Multi-Step Generation | New executor tools (`set_layout`, `add_widgets`, etc.), `layout_update` events, progressive streaming pipeline |
-| **EX3-C** | Unified Window & Polish | Design-system-native window (sidebar + tabs + toolbar), widget entrance animations, skeleton states, contextual controls |
-
-> **Gate:** EX3-P must be complete before EX3-A. The NetworkSection must be 100% replicable in the Playground using only DynamicView JSON before advancing.
+> The core problem: when the LLM generates a dynamic view, it defaults to stacking everything vertically. This sub-phase adds intelligence — a fast classifier determines the content type, selects a layout pattern, and constrains the generator to make good design decisions.
 
 ---
 
-## Sub-Phase EX3-P: Widget Primitives & Replication Test
+### EX3-A.1: Two-Pass Design Classifier
 
-> Build the missing widget primitives needed to fully replicate the hand-crafted ServerAdmin NetworkSection as a DynamicView JSON in the Playground. Nothing is hardcoded — every element comes from the schema.
+**Problem:** The current generator makes layout decisions and widget selection in a single LLM call. This leads to poor choices — stat-cards stacked vertically instead of in a grid, multiple related tables stacked instead of tabbed, no visual hierarchy.
 
-### Validation Target
+**Solution:** Split generation into two passes:
 
-The ServerAdmin `NetworkSection.tsx` (658 lines) renders:
-- **Header**: icon + title + hostname badge + edit button + refresh
-- **5 tabs** with count badges: Listening Ports (3), Connections (1), Interfaces (2), Routes, DNS
-- **Ports tab**: filter bar (4 dropdowns + search) → rich table (Proto badge, Address mono, Port bold+dot, Process compound cell with lock icon + badge + tag + PUBLIC indicator) → dropdown action menu on hover
-- **Connections tab**: table (Proto badge, Local/Remote mono, State badge, Process text)
-- **Interfaces tab**: card list (icon + name mono + UP/DOWN badge with dot + MAC/MTU details + Enable/Disable action)
-- **Routes tab**: table (Destination/Gateway mono, Interface badge, Metric number)
-- **DNS tab**: badge grids (nameservers, search domains) + edit form
+**Pass 1 — Classify (fast, cheap model: gpt-4.1-mini or gpt-4.1-nano)**
+- Input: tool name, command, first 2K chars of terminal output, user prompt
+- Output: `DesignClassification` — what kind of content this is and how to lay it out
+- Latency target: < 500ms
+- Cost: minimal (classification prompt ~200 tokens input, ~50 tokens output)
 
-### What Works Today (no changes needed)
+**Pass 2 — Generate (structured-output model: gpt-4.1)**
+- Input: classification result + full terminal output + matched template + layout pattern skeleton
+- The classification constrains the generator — it doesn't choose layout from scratch
 
-- Tab layout with 5 tabs ✅
-- Badge columns in tables (Proto, State, Interface) ✅
-- Code columns for monospace with background ✅
-- Badge-grid for DNS nameservers ✅
-- Form widget for DNS editing ✅
-- Table row actions (buttons) ✅
+#### DesignClassification Schema
 
-### What Must Be Added (7 gaps → 6 tasks)
-
----
-
-### EX3-P.1: Tab Count Badges
-
-**Gap:** Tabs show "Listening Ports **3**" with an inline count badge. Schema has no `count` field.
-
-**Schema change** (`shared/schemas/dynamic-view.ts`):
 ```typescript
-// TabsLayoutSchema.tabs[] — add count field
-{
-  id: z.string(),
-  label: z.string(),
-  icon: z.string().nullable().optional(),
-  count: z.number().nullable().optional(),  // ← NEW: count badge next to label
-  widgets: z.array(WidgetSchema),
-}
-```
+const DesignClassificationSchema = z.object({
+  // What kind of content is this?
+  contentType: z.enum([
+    'metrics-overview',    // CPU/memory/disk stats -> grid of stat-cards + summary
+    'data-table',          // List of items -> single table with filters
+    'multi-dataset',       // Multiple related datasets -> tabbed tables
+    'config-review',       // Configuration file -> key-value + code block
+    'status-board',        // Service/container statuses -> badge grid + details
+    'log-analysis',        // Log output -> log viewer + summary stats
+    'tree-hierarchy',      // Directory tree / process tree -> tree widget
+    'audit-report',        // Security/compliance findings -> alert + categorized tables
+    'comparison',          // Compare multiple items -> side-by-side or tabbed
+    'detail-view',         // Single item deep dive -> key-value + related data
+  ]),
 
-**Renderer change** (`TabsLayout.tsx`):
-```tsx
-<TabsTrigger ...>
-  {tab.label}
-  {tab.count != null && (
-    <Badge variant="secondary" className="ml-1.5 px-1.5 text-muted-foreground">
-      {tab.count}
-    </Badge>
-  )}
-</TabsTrigger>
-```
+  // Which layout pattern to use (from pattern library)
+  layoutPattern: z.string(),  // e.g., 'dashboard-metrics', 'tabbed-detail'
 
-**Acceptance:**
-- [ ] `count` field in `TabsLayoutSchema` tabs array items
-- [ ] TabsLayout renders count badge when present
-- [ ] Existing tabs without count render unchanged
-- [ ] Playground example shows tab counts
+  // What widget types are expected (guides the generator)
+  expectedWidgets: z.array(z.enum([
+    'stat-card', 'table', 'key-value', 'badge-grid', 'progress-bar',
+    'code-block', 'alert', 'card-list', 'log-viewer', 'tree', 'form',
+    'chart', 'gauge',  // only when data genuinely warrants visualization
+  ])),
 
----
+  // How many top-level sections/tabs
+  sectionCount: z.number().int().min(1).max(8),
 
-### EX3-P.2: Monospace Column Type
+  // Brief design rationale (helps debug + logged for improvement)
+  designNotes: z.string(),
 
-**Gap:** Address, port, IP columns need plain monospace text (no background). `code` type adds `<code>` with gray background. `text` is plain sans-serif.
-
-**Schema change**: Add `'mono'` to table column type enum:
-```typescript
-type: z.enum(['text', 'number', 'badge', 'date', 'bytes', 'percent', 'code', 'mono'])
-```
-
-**Renderer change** (`TableWidget.tsx` → `renderCellValue`):
-```typescript
-case 'mono':
-  return <span className="font-mono text-sm">{str}</span>;
-```
-
-**Acceptance:**
-- [ ] `mono` column type in schema enum
-- [ ] Renders as monospace text without background
-- [ ] Playground example uses mono for addresses/ports
-
----
-
-### EX3-P.3: Rich Compound Table Cells
-
-**Gap:** The Process column renders multiple inline elements: lock icon → process badge → "Running"/"DNS" tag → "PUBLIC" shield indicator. Current schema: one value per cell.
-
-**Schema change**: Add `'rich'` column type with per-cell segment definitions as a table-level config:
-```typescript
-// New: RichCellSegment schema
-const RichCellSegmentSchema = z.discriminatedUnion('segment', [
-  z.object({
-    segment: z.literal('text'),
-    key: z.string(),              // row field key
-    className: z.string().nullable().optional(),
-  }),
-  z.object({
-    segment: z.literal('badge'),
-    key: z.string(),
-    variant: BadgeVariantEnum.default('default'),
-    badgeVariant: z.record(z.string(), BadgeVariantEnum).nullable().optional(),
-  }),
-  z.object({
-    segment: z.literal('icon'),
-    icon: z.string(),             // Lucide icon name
-    key: z.string().nullable().optional(),  // row field key — show icon when truthy
-    className: z.string().nullable().optional(),
-  }),
-  z.object({
-    segment: z.literal('dot'),
-    key: z.string(),              // row field key — show dot when truthy
-    color: z.string().default('amber'), // tailwind color name
-  }),
-]);
-
-// Table column schema: add 'rich' type + segments
-{
-  key: z.string(),
-  label: z.string(),
-  type: z.enum([..., 'rich']),
-  segments: z.array(RichCellSegmentSchema).nullable().optional(),
-}
-```
-
-**Renderer change**: New `RichCell` component in `TableWidget.tsx`:
-```tsx
-function RichCell({ segments, row }: { segments: RichCellSegment[]; row: Record<string, unknown> }) {
-  return (
-    <div className="flex items-center gap-2">
-      {segments.map((seg, i) => {
-        switch (seg.segment) {
-          case 'text': return <span key={i} className={seg.className ?? ''}>{row[seg.key] ?? ''}</span>;
-          case 'badge': {
-            const val = String(row[seg.key] ?? '');
-            const variant = seg.badgeVariant?.[val] ?? seg.variant;
-            return val ? <Badge key={i} variant={variant}>{val}</Badge> : null;
-          }
-          case 'icon': {
-            if (seg.key && !row[seg.key]) return null;
-            const Icon = getLucideIcon(seg.icon);
-            return Icon ? <Icon key={i} size={12} className={seg.className ?? 'text-foreground/30'} /> : null;
-          }
-          case 'dot': {
-            if (!row[seg.key]) return null;
-            return <span key={i} className={`inline-block w-2 h-2 rounded-full bg-${seg.color}-400`} />;
-          }
-        }
-      })}
-    </div>
-  );
-}
-```
-
-**Acceptance:**
-- [ ] `RichCellSegmentSchema` with 4 segment types (text, badge, icon, dot)
-- [ ] `rich` column type in enum + `segments` field on column
-- [ ] RichCell renders multiple inline elements from row data
-- [ ] Playground example reproduces the Process column from NetworkSection
-
----
-
-### EX3-P.4: Table Filters & Search
-
-**Gap:** Ports tab has a filter bar with 4 dropdown menus + search input above the table.
-
-**Schema change**: Add `filters` to `TableWidgetSchema`:
-```typescript
-TableWidgetSchema = z.object({
-  ...existing,
-  filters: z.object({
-    search: z.boolean().default(false),
-    searchPlaceholder: z.string().nullable().optional(),
-    dropdowns: z.array(z.object({
-      key: z.string(),            // column key to filter on
-      label: z.string(),          // display label (e.g. "All Protocols")
-      options: z.array(z.object({
-        label: z.string(),
-        value: z.string(),
-      })),
-      icon: z.string().nullable().optional(),
-    })).default([]),
-  }).nullable().optional(),
+  // Should chart/gauge be used? Only true when data has percentages,
+  // time-series, or composition that benefits from visual representation
+  useVisualization: z.boolean(),
+  visualizationReason: z.string().nullable().optional(),
 });
 ```
 
-**Renderer change** (`TableWidget.tsx`): Render filter bar above the table when `filters` is present. Apply client-side filtering to rows.
+#### Classifier System Prompt
 
-**Acceptance:**
-- [ ] `filters` field in `TableWidgetSchema`
-- [ ] Search input filters rows across all columns
-- [ ] Dropdown filters narrow rows by specific column value
-- [ ] Filter bar matches NetworkSection styling (outline buttons, search with icon)
-- [ ] Playground example shows ports tab with working filters
+```
+You are a UI layout classifier. Given terminal command output, determine the best
+layout structure. You are NOT generating the UI — just classifying what kind of
+content this is and how it should be arranged.
 
----
+Classification Rules:
 
-### EX3-P.5: Dropdown Action Menu
+Content Type Detection:
+- Multiple numeric stats (CPU, memory, disk, uptime) -> 'metrics-overview'
+- A list/table of items (packages, ports, users, containers) -> 'data-table'
+- Multiple related lists (e.g., mounts + partitions, listening + established) -> 'multi-dataset'
+- Configuration file content -> 'config-review'
+- Service/daemon status checks -> 'status-board'
+- Log file output -> 'log-analysis'
+- Hierarchical data (directory listing, process tree) -> 'tree-hierarchy'
+- Security scan results, compliance checks -> 'audit-report'
+- Comparing 2+ similar items -> 'comparison'
+- Deep info about one item (container inspect, package info) -> 'detail-view'
 
-**Gap:** Ports table has a `⋯` menu that shows on hover, opening a dropdown with Inspect/Kill/Block/View Logs. Current actions render as always-visible buttons.
+Widget Selection Rules:
+- Prefer stat-card for single numeric values (CPU: 45%, Memory: 2.1GB)
+- Prefer table for lists of items with multiple attributes
+- Prefer key-value for metadata (name: value pairs, < 10 items)
+- Prefer badge-grid for status overviews (service states, boolean flags)
+- Prefer card-list for items with icon + title + status + details
+- Prefer code-block for raw config/script content
+- Prefer alert for warnings, errors, or critical findings
+- Prefer progress-bar for percentage values (disk usage, memory usage)
 
-**Schema change**: Add `actionStyle` and `icon` to table:
-```typescript
-TableWidgetSchema = z.object({
-  ...existing,
-  actionStyle: z.enum(['buttons', 'dropdown']).default('buttons'),
-  // WidgetActionSchema already has `icon` field ✅
-});
+When to Use chart/gauge (SPARINGLY):
+- gauge: ONLY for 1-3 percentage values where visual arc adds clarity (e.g., disk 87% full)
+- chart (pie/donut): ONLY for composition data with 3-7 slices (e.g., disk usage by mount)
+- chart (bar): ONLY when comparing counts across categories (e.g., packages by status)
+- chart (line/area): ONLY for time-series data with 5+ data points
+- NEVER use chart/gauge just because numbers exist — stat-card + progress-bar handle most cases
+
+Layout Pattern Selection:
+- metrics-overview -> 'dashboard-metrics' (grid of stat-cards, optional detail below)
+- data-table -> 'single-table' (summary + table with filters)
+- multi-dataset -> 'tabbed-detail' (summary stats, one tab per dataset)
+- config-review -> 'config-viewer' (metadata + code block)
+- status-board -> 'status-overview' (badge grid + detail table)
+- log-analysis -> 'log-viewer' (summary + log viewer)
+- tree-hierarchy -> 'tree-explorer' (metadata + tree)
+- audit-report -> 'audit-report' (alert summary + categorized tables in tabs)
+- comparison -> 'comparison-grid' (side-by-side or tabbed)
+- detail-view -> 'detail-overview' (key-value + related tables)
 ```
 
-**Renderer change** (`TableWidget.tsx`): When `actionStyle='dropdown'`, render a `⋯` button that opens a `DropdownMenu` with the actions as menu items (with icons).
+#### File Location
 
-**Acceptance:**
-- [ ] `actionStyle` field in `TableWidgetSchema`
-- [ ] `'dropdown'` style renders `⋯` button on hover → DropdownMenu
-- [ ] Icons appear in dropdown menu items
-- [ ] `'buttons'` (default) behavior unchanged
+`server/src/dynamic-ui/design-classifier.ts`
 
----
+#### Integration
 
-### EX3-P.6: Card List Widget
-
-**Gap:** Interfaces tab renders cards (icon + name + state badge + details + action), not a table.
-
-**Schema change**: New widget type `card-list`:
-```typescript
-export const CardListWidgetSchema = z.object({
-  type: z.literal('card-list'),
-  title: z.string().nullable().optional(),
-  items: z.array(z.object({
-    icon: z.string().nullable().optional(),         // Lucide icon name
-    title: z.string(),                               // Primary label (mono bold)
-    subtitle: z.string().nullable().optional(),       // Secondary text
-    badge: z.object({
-      label: z.string(),
-      variant: BadgeVariantEnum.default('default'),
-      dot: z.boolean().default(false),               // colored dot before label
-    }).nullable().optional(),
-    details: z.array(z.object({
-      label: z.string(),
-      value: z.string(),
-    })).nullable().optional(),
-  })),
-  actions: z.array(WidgetActionSchema).nullable().optional(),
-  dataSource: DataSourceSchema.nullable().optional(),
-});
-```
-
-**Renderer**: New `CardListWidget.tsx` — renders each item as a horizontal card row matching the Interfaces tab design.
-
-**Acceptance:**
-- [ ] `CardListWidgetSchema` added to schema + WidgetSchema union
-- [ ] `card-list` type in WIDGET_TYPES const
-- [ ] `CardListWidget` renderer registered
-- [ ] Each card: icon + mono bold title + badge (with optional dot) + detail pairs + action buttons
-- [ ] Playground example replicates the Interfaces tab
-
----
-
-### EX3-P.7: NetworkSection Playground Example
-
-**Gate task.** Create a complete playground example that replicates the full NetworkSection using only DynamicView JSON. All 5 tabs must render with visual parity to the hand-crafted component.
-
-**Acceptance:**
-- [ ] New playground example "Network Section" in `playground-examples.ts`
-- [ ] Listening Ports tab: filter bar + table with Proto badge, Address mono, Port mono+dot, Process rich cell, dropdown actions
-- [ ] Connections tab: table with Badge/mono/badge/text columns
-- [ ] Interfaces tab: card-list with icon, name, state badge+dot, MAC/MTU details
-- [ ] Routes tab: table with mono/mono/badge/number columns
-- [ ] DNS tab: badge-grid + badge-grid + form
-- [ ] Visual comparison with real NetworkSection — close enough that the pattern is unmistakable
-
----
-
-## Sub-Phase EX3-A: Schema, Prompts & Templates
-
-> Nestable layouts, Grafana-inspired template variables, comprehensive design rules in the LLM prompt, FakeLLM test generator.
-
----
-
-### EX3-A.1: Nestable Layouts
-
-**Problem:** Layouts can only contain widgets — no layout-in-layout. This prevents the ServerAdmin pattern (tabs → stack of widgets per tab, with stat-cards outside tabs).
-
-**Solution:** Create a `LayoutOrWidget` discriminated union that layouts accept as children.
-
-#### Schema Changes (`shared/schemas/dynamic-view.ts`)
-
-```typescript
-// Before: widgets only
-StackLayoutSchema = z.object({
-  layout: z.literal('stack'),
-  gap: z.enum(['sm', 'md', 'lg']),
-  widgets: z.array(WidgetSchema),
-});
-
-// After: widgets OR nested layouts
-const LayoutOrWidgetSchema = z.lazy(() =>
-  z.discriminatedUnion('_kind', [
-    WidgetSchema.extend({ _kind: z.literal('widget').default('widget') }),
-    LayoutSchema.extend({ _kind: z.literal('layout').default('layout') }),
-  ])
-);
-
-StackLayoutSchema = z.object({
-  layout: z.literal('stack'),
-  gap: z.enum(['sm', 'md', 'lg']),
-  children: z.array(LayoutOrWidgetSchema),  // replaces `widgets`
-});
-```
-
-> **Decision needed:** Using `_kind` discriminator vs inferring from presence of `layout` vs `type` field. The `_kind` approach is explicit but adds a field. Alternative: detect by checking if object has `layout` (→ nested layout) or `type` (→ widget). This avoids the extra field and is more natural for LLM generation. **Recommend:** Infer from `layout` vs `type` presence — no `_kind` needed.
-
-#### Renderer Changes
-
-- `LayoutRenderer` — when a child has `layout` property, recurse into `LayoutRenderer`. When it has `type`, render via `WidgetRenderer`.
-- Max nesting depth: 3 levels (root → nested → nested). Deeper nesting shows an error alert.
-- Backward compatibility: keep `widgets` field as an alias that auto-wraps each widget item. Migration path: `widgets` → deprecated, `children` → canonical.
+The classifier is injected into both generation paths:
+- **Simple path** (`DynamicUIGenerator`): classify -> select template -> generate with pattern constraint
+- **Agent path** (`UIAgent`): classifier output replaces the planner's layout decision — planner focuses on intent/security, classifier handles design
 
 #### Acceptance Criteria
 
-- [ ] `LayoutOrWidgetSchema` supports both widgets and nested layouts
-- [ ] `StackLayout`, `GridLayout`, `TabsLayout`, `SidebarLayout` all accept nested layouts
-- [ ] `LayoutRenderer` recursively renders nested layouts up to depth 3
-- [ ] Backward compat: existing `widgets` field still works (auto-wrapped)
-- [ ] Tests: nested tabs-in-stack, grid-in-tabs, stack-in-sidebar
-- [ ] All existing 1,459+ tests pass (no regressions)
+- [ ] `DesignClassificationSchema` defined in `shared/schemas/dynamic-view.ts`
+- [ ] `DesignClassifier` class in `server/src/dynamic-ui/design-classifier.ts`
+- [ ] Classifier uses fast/cheap model (configurable, default gpt-4.1-nano)
+- [ ] < 500ms latency for classification
+- [ ] Classifier output includes `contentType`, `layoutPattern`, `expectedWidgets`
+- [ ] `useVisualization` is false for most content types — charts only when justified
+- [ ] Integrated into `DynamicUIGenerator` (simple path)
+- [ ] Integrated into `UIAgent` planner phase
+- [ ] Tests: 10+ classification scenarios covering all content types
+- [ ] Tests: verify chart/gauge is NOT recommended for plain table/list data
 
 ---
 
-### EX3-A.2: Layout Template Patterns (Grafana-Inspired)
+### EX3-A.2: Layout Pattern Library
 
-**Inspiration:** Grafana's `dashboard.json` doesn't just store final visualization — it stores **template variables** (`$host`, `$interval`, `$datasource`), **panel positioning** (`gridPos: {x, y, w, h}`), **data source references**, and **threshold rules**. Each panel declares what data it needs, how to query it, and how to render.
+**Problem:** Even with classification, the generator needs structural guidance on how to arrange widgets. Currently it invents layout from scratch every time — inconsistent results.
 
-We adapt this into **Layout Patterns** — named, reusable structural blueprints that the LLM selects and populates.
+**Solution:** A library of 10 named layout patterns — structural blueprints the generator fills with real widgets and data. Each pattern defines the layout skeleton, which widget types go where, and population rules.
 
 #### Pattern Structure
 
 ```typescript
 interface LayoutPattern {
-  id: string;                          // e.g. 'overview-dashboard'
-  name: string;                        // Human-readable name
-  description: string;                 // When to use this pattern
-  
-  // Grafana-inspired: template variables the LLM must fill
-  variables: LayoutVariable[];
-  
-  // The skeleton structure (with variable placeholders)
-  skeleton: DeepPartial<DynamicView>;
-  
-  // Rules for the LLM on how to populate
+  id: string;                          // e.g., 'dashboard-metrics'
+  name: string;                        // Human-readable
+  description: string;                 // When to use
+  contentTypes: string[];              // Which contentType classifications map here
+
+  // The structural skeleton (layout hierarchy, no data)
+  skeleton: {
+    layout: string;                    // root layout type
+    sections?: { id: string; label: string; icon?: string }[];
+    widgetSlots: WidgetSlot[];         // where widgets go
+  };
+
+  // Rules the LLM must follow when populating this pattern
   populationRules: string[];
-  
-  // Which widget types work well with this pattern
+
+  // Widget types that work well in this pattern
   recommendedWidgets: string[];
-  
-  // Example: a fully populated instance
-  example: DynamicView;
+
+  // Widget types that should NOT be used in this pattern
+  discouragedWidgets: string[];
 }
 
-interface LayoutVariable {
-  name: string;                        // e.g. '$title', '$tab_count'
-  type: 'string' | 'number' | 'enum' | 'widget[]' | 'data[]';
-  description: string;                 // What this variable represents
+interface WidgetSlot {
+  id: string;                          // e.g., 'summary-stats', 'main-table'
+  location: string;                    // 'root' or section ID
+  widgetTypes: string[];               // allowed widget types for this slot
+  layout?: string;                     // 'grid-auto-fit', 'grid-2', 'grid-3', 'stack'
   required: boolean;
-  default?: unknown;
-  
-  // Grafana-style: how to derive the value
-  source?: 'user_prompt' | 'server_context' | 'command_output' | 'llm_decision';
-  
-  // Enum constraints
-  options?: string[];
+  maxCount?: number;                   // max widgets in this slot
 }
 ```
 
-#### 10 Built-In Layout Patterns
+#### 10 Built-In Patterns
 
-| # | Pattern ID | Structure | When to Use | Variables |
-|---|-----------|-----------|-------------|-----------|
-| 1 | `overview-dashboard` | stat-cards (grid-4) → tabs (one data type per tab, each tab = stack of chart + table) | General "show me everything about X" | `$title`, `$metric_count: 3-6`, `$tab_definitions: [{label, dataCommand, widgetType}]` |
-| 2 | `single-table` | key-value summary → optional alert → full table with row actions | "List all X", "Show X table" | `$title`, `$summary_pairs`, `$columns`, `$dataCommand`, `$actions[]` |
-| 3 | `multi-table` | stat-cards row → tabs (one table per tab) | "Show X and Y and Z" (multiple data sets) | `$title`, `$tables: [{label, columns, dataCommand}]`, `$summary_stats[]` |
-| 4 | `config-viewer` | key-value metadata → code-block (config content) → optional alert (issues) | "Show nginx config", "Show X configuration" | `$title`, `$metadata_pairs`, `$filePath`, `$language`, `$validation_command?` |
-| 5 | `service-status` | badge-grid (service states) → table (details) → log-viewer (recent logs) | "Show status of X service" | `$title`, `$services[]`, `$logCommand`, `$logLines: 50` |
-| 6 | `monitoring` | stat-cards (grid-3) → charts (grid-2, time series) → table (event/process list) | "Monitor X", "Show performance" | `$title`, `$metrics[]`, `$chartDataCommands[]`, `$refreshInterval: 30000` |
-| 7 | `security-audit` | alert (critical summary) → stat-cards (metrics) → tabs (findings by category) | "Security scan", "Audit X" | `$title`, `$severity_summary`, `$categories: [{label, findings}]` |
-| 8 | `comparison` | tabs (one per item) → within each tab: key-value + progress bars | "Compare X vs Y", "Show all X instances" | `$title`, `$items: [{label, properties}]` |
-| 9 | `log-analysis` | stat-cards (summary stats) → log-viewer (main log) → chart (frequency) | "Show logs for X", "Analyze X log" | `$title`, `$logPath`, `$timeRange`, `$filterPatterns[]` |
-| 10 | `tree-explorer` | key-value (metadata) → tree (hierarchy) → code-block (detail of selected) | "Show directory tree", "Show X hierarchy" | `$title`, `$rootPath`, `$maxDepth: 3` |
+| # | Pattern ID | Structure | Recommended Widgets | NOT Recommended |
+|---|-----------|-----------|---------------------|-----------------|
+| 1 | `dashboard-metrics` | Grid(auto-fit) stat-cards, optional detail section below | stat-card, progress-bar, key-value | chart (unless % data), code-block |
+| 2 | `single-table` | Key-value summary (grid-3), table with filters + actions | key-value, table, alert | chart, tree |
+| 3 | `tabbed-detail` | Stat-card row (grid-auto-fit), tabs (one data view per tab) | stat-card, table, card-list, badge-grid | code-block at root |
+| 4 | `config-viewer` | Key-value metadata (grid-3), code-block, optional alert | key-value, code-block, alert | chart, table (unless related items) |
+| 5 | `status-overview` | Badge-grid (statuses), table (details), optional alert | badge-grid, table, alert, card-list | chart, code-block |
+| 6 | `log-viewer` | Stat-cards (summary: lines, errors, warnings), log-viewer | stat-card, log-viewer, alert | chart, tree, form |
+| 7 | `tree-explorer` | Key-value (metadata), tree widget | key-value, tree, code-block | chart, badge-grid |
+| 8 | `audit-report` | Alert (critical summary), stat-cards (counts), tabs (findings by category) | alert, stat-card, table, badge-grid | chart, code-block |
+| 9 | `comparison-grid` | Tabs (one per item), within each: key-value + progress-bars | key-value, progress-bar, stat-card, table | tree, log-viewer |
+| 10 | `detail-overview` | Key-value (primary info, grid-3), tabs (related data tables) | key-value, table, badge-grid, card-list | chart (unless stats data) |
 
-#### Population Rules (Grafana-Inspired)
+#### Population Rules (per pattern)
 
-Like Grafana's threshold rules and value mappings, each pattern includes rules:
+Each pattern includes rules that constrain the generator:
 
-```
-overview-dashboard rules:
-- Stat cards: exactly $metric_count cards in a grid-{$metric_count} (max 4 per row)
-- Each stat card: value from command output, trend based on threshold
-- Tabs: one per data category, label includes count badge
-- Within each tab: chart (if time-series data) above table (always)
-- Tables: max 8 columns, most important columns first
-- Color thresholds: success < 70%, warning 70-90%, destructive > 90%
+**dashboard-metrics:**
+- Stat-cards in grid-auto-fit (minChildWidth: 200), max 6 cards
+- Stats always at root level, NEVER inside tabs
+- If there's detail data: add it below stats as a table or key-value, NOT in tabs
+- gauge widget ONLY if there are 1-3 percentage values where the arc adds clarity (e.g., disk 87% full — a gauge makes the severity more visible than a stat-card)
+- NEVER create chart for data that's already shown in stat-cards
 
-single-table rules:
-- Summary: 3-6 key-value pairs, grid-3 layout
-- Table: sortable columns, font-mono for IDs/paths/IPs
-- Row actions: only if interactivityLevel !== 'display-only'
-- If > 100 rows: add footer with total count
+**tabbed-detail:**
+- Summary stat-card row at root (grid-auto-fit), max 4 cards
+- One tab per data category — NEVER stack multiple tables in one tab
+- Each tab contains a single primary widget (table, card-list, or badge-grid)
+- Tab labels include count badges when data has countable items
+- If only 2 datasets: consider side-by-side grid-2 instead of tabs
 
-config-viewer rules:
-- Metadata: file path, last modified, size, permissions
-- Code block: full config content, correct language detection
-- Alert variant: destructive if validation fails, success if passes, omit if no validation
-```
+**single-table:**
+- Summary key-value above table (grid-3 layout, 3-6 pairs max)
+- Table is the primary widget — sorted by most useful column
+- Add filters if > 10 rows expected
+- Add row actions only if the data supports meaningful operations
+- Alert above summary only if there are warnings/errors to highlight
+
+**config-viewer:**
+- Metadata key-value at top (file path, size, permissions, last modified)
+- Code block with correct language detection (nginx, yaml, json, ini, etc.)
+- Alert below ONLY if there are config issues (syntax errors, security warnings)
+- NEVER add chart or table to a config view
+
+#### File Location
+
+`server/src/dynamic-ui/layout-patterns.ts`
 
 #### Acceptance Criteria
 
 - [ ] `LayoutPattern` type defined in `server/src/dynamic-ui/types.ts`
-- [ ] 10 layout patterns implemented in `server/src/dynamic-ui/patterns/`
-- [ ] Each pattern has: variables, skeleton, population rules, example
-- [ ] Planner suggests `layoutPattern` in hints (new field)
-- [ ] Executor prompt references the selected layout pattern
-- [ ] Tests: pattern selection for various prompts
-- [ ] `search_templates` tool also searches patterns
+- [ ] 10 patterns implemented in `server/src/dynamic-ui/layout-patterns.ts`
+- [ ] Each pattern has: skeleton, populationRules, recommendedWidgets, discouragedWidgets
+- [ ] Classifier's `layoutPattern` output maps to a pattern ID
+- [ ] Generator receives the selected pattern and follows its rules
+- [ ] `search_templates` agent tool also searches patterns
+- [ ] Tests: pattern selection for various content types
+- [ ] Tests: generator output follows pattern rules (no discouraged widgets)
 
 ---
 
-### EX3-A.3: Design System Rules in Executor Prompt
+### EX3-A.3: Responsive Auto-Fit Grid Layout
 
-**Problem:** The LLM generates UI that "works" but doesn't match our design system. It uses default colors, inconsistent spacing, and doesn't follow the patterns in ServerAdmin/Dashboard.
+**Problem:** Grid layout has fixed columns (1-4). Stat-cards and other summary widgets don't reflow based on available space. On a wide screen, 3 stat-cards look sparse; on a narrow window, they overflow.
 
-**Solution:** Inject comprehensive design system rules directly into the executor prompt so every generated view looks native.
+**Solution:** Add `autoFit` mode to grid layout, using CSS `repeat(auto-fit, minmax(Xpx, 1fr))`.
 
-#### Design System Prompt Section
+#### Schema Change
 
-Added to `buildExecutorSystemPrompt()`:
+Add to `GridLayoutSchema` in `shared/schemas/dynamic-view.ts`:
 
-```markdown
-## Design System (MANDATORY — your output must match these exactly)
+```typescript
+GridLayoutSchema = z.object({
+  layout: z.literal('grid'),
+  columns: z.number().int().min(1).max(6).default(2),  // fixed column mode
+  gap: z.enum(['sm', 'md', 'lg']).default('md'),
+  children: z.array(LayoutOrWidgetSchema),
 
-### Typography
-- Section titles: text-xl font-bold text-foreground
-- Card titles: text-sm font-medium text-card-foreground  
-- Table headers: text-xs font-medium text-foreground/40
-- Table data (primary): font-medium
-- Table data (secondary): text-xs text-foreground/50
-- Table data (monospace — IPs, paths, hashes, ports): font-mono text-xs text-foreground/70
-- Stat card values: text-2xl font-bold
-- Stat card labels: text-xs text-foreground/40
-- Badge text: text-[11px] font-semibold
+  // NEW: responsive auto-fit mode
+  autoFit: z.boolean().optional().default(false),
+  minChildWidth: z.number().int().min(100).max(600).optional().default(250),
+});
+```
 
-### Color Semantics (NEVER use raw colors)
-- Running / Active / Up / Enabled / Pass: variant="success" (emerald)
-- Stopped / Down / Disabled / Fail: variant="destructive" (red)  
-- Warning / Degraded / Expiring: variant="warning" (amber)
-- Unknown / Neutral / N/A: variant="secondary" (gray)
-- Info / Default: variant="default" (blue)
+When `autoFit: true`:
+- Ignore `columns` — use CSS `grid-template-columns: repeat(auto-fit, minmax({minChildWidth}px, 1fr))`
+- Widgets reflow automatically based on container width
+- stat-cards, gauges, and summary widgets use this by default
 
-### Status Badges
-- Service status: badge-grid with semantic variants
-- Boolean states: use success/destructive ("Yes"→success, "No"→destructive)
-- Counts: always include in tab labels and section headers
+#### Renderer Change
 
-### Value Formatting
-- Bytes: human-readable (KB, MB, GB) — use column type="bytes"
-- Percentages: progress-bar for visual, number for inline — use column type="percent"
-- Dates: relative ("2 hours ago") in tables, full in tooltips — use column type="date"
-- IPs/ports/paths: always font-mono (already handled by column type="code")
+In `GridLayout.tsx`:
 
-### Layout Rules
-- Stats/summary: ALWAYS at the top, NEVER inside tabs
-- Multiple data tables: one per tab, NEVER stacked
-- Related chart + table: same tab (chart above, table below)
-- Config/code: code-block with key-value metadata above
-- Alerts/warnings: above main content, not inside tabs
-- Max 3 widgets stacked without grouping into tabs
-- Tables: max 8 columns (most important first), always sortable
-- Grid columns: stat-cards use grid matching count (3 stats → grid-3, 4 → grid-4)
-
-### Threshold Conventions
-- Disk/memory/CPU usage: success < 70%, warning 70-90%, destructive ≥ 90%
-- Service uptime: success ≥ 99.9%, warning ≥ 99%, destructive < 99%
-- Count-based: contextual (0 errors → success, >0 → destructive)
-
-### Common Patterns (copy these exactly)
-- Key-value metadata section: key-value widget, layout="grid-3"
-- Status overview: badge-grid with one badge per item
-- Data table with actions: table with row actions, confirm=true for destructive
-- Progress tracking: progress-bar with label "X / Y (Z%)"
+```typescript
+const gridStyle = layout.autoFit
+  ? { gridTemplateColumns: `repeat(auto-fit, minmax(${layout.minChildWidth ?? 250}px, 1fr))` }
+  : { gridTemplateColumns: `repeat(${layout.columns ?? 2}, 1fr)` };
 ```
 
 #### Acceptance Criteria
 
-- [ ] Design system rules section added to `buildExecutorSystemPrompt()`
-- [ ] Rules reference exact CSS class patterns from ServerAdmin/Dashboard
-- [ ] Layout pattern rules integrated (selected pattern's `populationRules` included)
-- [ ] Tests: prompt contains design system section
-- [ ] Before/after comparison: same prompt produces more native-looking output
+- [ ] `autoFit` and `minChildWidth` fields in `GridLayoutSchema`
+- [ ] `GridLayout.tsx` renders CSS auto-fit when `autoFit: true`
+- [ ] Widgets reflow on resize (no overflow, no excessive whitespace)
+- [ ] All layout patterns that use stat-cards specify `autoFit: true`
+- [ ] Backward compatible: existing `columns`-based grids unchanged
+- [ ] Tests: grid renders correctly in both fixed and auto-fit modes
 
 ---
 
-### EX3-A.4: FakeLLM Generator
+### EX3-A.4: Gauge Widget (Supporting Role Only)
 
-**Problem:** Testing the full generation pipeline requires real LLM calls (slow, expensive, non-deterministic). We need a deterministic alternative for:
-1. Unit/integration tests
-2. Comparing FakeLLM output vs real LLM output
-3. Demos and development without API keys
-4. Regression testing — if a schema change breaks rendering, FakeLLM catches it
+**Problem:** Some percentage data (disk 87% full, CPU 92%) benefits from a visual arc that conveys severity better than a number alone. Currently the only option is progress-bar (flat) or stat-card (plain number).
 
-**Solution:** A `FakeLLMGenerator` that produces the same tool-calling sequence as the real executor, but deterministically from fixtures.
+**Solution:** A gauge widget — a semicircular arc with threshold-based coloring and a center value. Used SPARINGLY — only when the classifier determines `useVisualization: true` and the data has 1-3 percentage values.
 
-#### Architecture
-
-```
-FakeLLMGenerator
-├── fixtures/                           # Deterministic response sequences
-│   ├── network-ports.fixture.json      # Step-by-step tool calls + responses
-│   ├── system-overview.fixture.json
-│   ├── docker-status.fixture.json
-│   └── ...
-├── fake-llm-provider.ts                # Implements LLMProvider interface
-├── fake-executor.ts                    # Replays fixture sequences
-├── fixture-recorder.ts                 # Records real LLM sessions into fixtures
-└── comparator.ts                       # Compares fake vs real output
-```
-
-#### Fixture Format
-
-Each fixture is a recorded session — the sequence of tool calls and responses:
+#### Schema
 
 ```typescript
-interface LLMFixture {
-  id: string;                           // e.g. 'network-ports'
-  prompt: string;                       // The user's original prompt
-  plannerHints: PlannerHints;           // What the planner produced
-  
-  // Multi-step: each step is one executor iteration
-  steps: FixtureStep[];
-  
-  // Final validated output
-  finalSchema: DynamicView;
-  
-  // Metadata for comparison
-  meta: {
-    recordedAt: string;
-    model: string;
-    totalTokens: number;
-    latencyMs: number;
-  };
-}
+const GaugeWidgetSchema = z.object({
+  type: z.literal('gauge'),
+  title: z.string().nullable().optional(),
+  value: z.number(),
+  min: z.number().default(0),
+  max: z.number().default(100),
+  unit: z.string().nullable().optional(),         // '%', 'GB', etc.
+  label: z.string().nullable().optional(),         // e.g., 'Root Filesystem'
+  thresholds: z.array(z.object({
+    value: z.number(),                             // threshold boundary
+    color: z.string(),                             // CSS color or semantic name
+    label: z.string().nullable().optional(),
+  })).optional().default([
+    { value: 70, color: 'success' },
+    { value: 90, color: 'warning' },
+    { value: 100, color: 'destructive' },
+  ]),
+  size: z.enum(['sm', 'md', 'lg']).default('md'),  // sm=120px, md=180px, lg=240px
+  dataSource: DataSourceSchema.nullable().optional(),
+});
+```
 
-interface FixtureStep {
-  stepNumber: number;
-  
-  // What the LLM decided to do
-  toolCalls: {
-    tool: string;                       // e.g. 'exec_command', 'set_layout'
-    args: Record<string, unknown>;
-  }[];
-  
-  // What the tool returned
-  toolResults: {
-    tool: string;
-    success: boolean;
-    output: string;
-  }[];
-  
-  // The partial view state after this step (for progressive rendering)
-  partialView?: DeepPartial<DynamicView>;
-  
-  // Event that would be emitted
-  event?: UIAgentEvent;
+#### Renderer
+
+`GaugeWidget.tsx` — uses recharts `PieChart` as a semicircle:
+- Semicircle arc (startAngle=180, endAngle=0) with `innerRadius="60%"`, `outerRadius="80%"`
+- Filled portion colored by threshold (green < 70%, amber < 90%, red >= 90%)
+- Empty portion transparent
+- Center: big number (`text-2xl font-bold`) + unit
+- Below: label (`text-xs text-muted-foreground`)
+
+#### When to Use (classifier rules)
+
+The classifier recommends gauge ONLY when:
+1. Data has 1-3 percentage values (disk/CPU/memory usage)
+2. The severity of the value matters (87% disk = concerning, 4% disk = fine)
+3. A stat-card + progress-bar combination would be less clear
+
+The classifier does NOT recommend gauge for:
+- Lists of items
+- Non-percentage data
+- More than 3 metrics (use stat-cards instead)
+- Data where the exact number matters more than the visual level
+
+#### Acceptance Criteria
+
+- [ ] `GaugeWidgetSchema` added to `shared/schemas/dynamic-view.ts`
+- [ ] `GaugeWidget.tsx` renderer using recharts `PieChart` semicircle
+- [ ] Threshold-based coloring (success/warning/destructive)
+- [ ] Three sizes (sm/md/lg)
+- [ ] Registered in widget registry
+- [ ] Classifier recommends gauge ONLY for 1-3 percentage values with severity
+- [ ] Tests: renders correctly, theme-aware colors, handles min/max/thresholds
+
+---
+
+### EX3-A.5: Sparkline Stat Card Widget
+
+**Problem:** Stat-cards show a single number but no trend. When historical data exists (e.g., CPU usage over time), a tiny inline chart behind the number adds context without adding complexity.
+
+**Solution:** An enhanced stat-card with an optional sparkline — a tiny area chart behind the value. Used only when the classifier detects trend data.
+
+#### Schema
+
+```typescript
+const SparklineStatWidgetSchema = z.object({
+  type: z.literal('sparkline-stat'),
+  title: z.string().nullable().optional(),
+  value: z.string(),
+  unit: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  trend: z.enum(['up', 'down', 'neutral']).nullable().optional(),
+  icon: z.string().nullable().optional(),
+  sparklineData: z.array(z.number()),              // array of values for the sparkline
+  sparklineColor: z.string().nullable().optional(), // CSS color, defaults to --chart-1
+  dataSource: DataSourceSchema.nullable().optional(),
+});
+```
+
+#### Renderer
+
+`SparklineStatWidget.tsx` — stat-card layout with a 40px-tall `AreaChart` behind the value:
+- Card container matching stat-card dimensions
+- Value + unit on top, description below
+- Behind the text: a minimal recharts `AreaChart` (no axes, no grid, no dots, fill opacity 0.08)
+- Trend arrow (same as stat-card)
+
+#### When to Use
+
+Only when historical/trend data is available. Most dynamic views won't have this — the classifier marks it only for monitoring/time-series scenarios.
+
+#### Acceptance Criteria
+
+- [ ] `SparklineStatWidgetSchema` added to schema
+- [ ] `SparklineStatWidget.tsx` renderer with minimal AreaChart
+- [ ] Sparkline is purely decorative — no interactivity, no tooltip
+- [ ] Falls back to regular stat-card appearance when sparklineData is empty
+- [ ] Registered in widget registry
+- [ ] Tests: renders with and without sparkline data
+
+---
+
+### EX3-A.6: Enhanced Chart Options (Supporting)
+
+**Problem:** The existing chart widget lacks options for stacking, thresholds, and unit formatting. When charts ARE appropriate (rarely), they should be well-formatted.
+
+**Solution:** Add supporting options to `ChartWidgetSchema` — not to encourage more chart usage, but to make the rare charts look good.
+
+#### Schema Additions
+
+```typescript
+// Added to ChartWidgetSchema:
+stacked: z.boolean().optional().default(false),
+thresholds: z.array(z.object({
+  value: z.number(),
+  color: z.string(),
+  label: z.string().nullable().optional(),
+})).optional(),
+unit: z.enum(['bytes', 'percent', 'duration', 'count', 'custom']).optional(),
+unitCustom: z.string().nullable().optional(),
+showGrid: z.boolean().optional().default(true),
+showLegend: z.boolean().optional().default(true),
+```
+
+#### Renderer Additions
+
+- **Stacking**: when `stacked: true`, add `stackId="stack"` to `Bar`/`Area` children
+- **Thresholds**: render `ReferenceLine` for each threshold (dashed line with label)
+- **Unit formatting**: `formatUnit(value, unit)` utility — bytes to KB/MB/GB, percent to %, duration to s/m/h, count to K/M
+- **Grid/legend toggles**: honor `showGrid` and `showLegend` flags
+
+#### Acceptance Criteria
+
+- [ ] New fields in `ChartWidgetSchema`
+- [ ] Stacked bar/area charts work
+- [ ] Threshold reference lines render correctly
+- [ ] `formatUnit()` utility created in `client/src/lib/format-utils.ts`
+- [ ] Backward compatible — existing charts unchanged
+- [ ] Tests: stacking, thresholds, unit formatting
+
+---
+
+## Sub-Phase EX3-B: Design System Prompt & Templates
+
+> The LLM needs explicit design rules and high-quality examples to produce good layouts. This sub-phase rewrites the system prompt with design-system rules, improves all 15 existing templates, and expands the library to 25+.
+
+---
+
+### EX3-B.1: Design System Rules in LLM Prompt
+
+**Problem:** The current system prompt tells the LLM what Zod schema to use but doesn't explain design rules — when to use grids vs tabs, how to arrange stat-cards, what makes a good layout. The LLM defaults to vertical stacks because nothing tells it otherwise.
+
+**Solution:** Inject comprehensive design rules into the system prompt. These rules are generated from the layout patterns (A.2) and design principles, ensuring the LLM follows the same patterns a human designer would.
+
+#### Prompt Sections to Add
+
+**Section: Layout Decision Rules**
+```
+LAYOUT RULES (MUST follow):
+
+1. STAT-CARDS: Always in grid layout with autoFit:true, minChildWidth:200.
+   Never stack stat-cards vertically. Max 6 stat-cards per grid.
+
+2. TABS: Use when there are 3+ related data categories.
+   Each tab = one primary widget (table, card-list, or badge-grid).
+   Never put multiple tables in one tab. Include count badges.
+
+3. GRID vs STACK: Use grid for metrics/summary (stat-cards, progress-bars).
+   Use stack for sequential content (alert + table, key-value + code-block).
+
+4. HIERARCHY: Summary/overview at top, detail below.
+   Alert -> stat-cards -> primary content -> secondary content.
+
+5. CHART/GAUGE: Only when classifier says useVisualization:true.
+   Never add chart just because numbers exist. Progress-bar handles most %.
+```
+
+**Section: Widget Selection Matrix**
+```
+DATA TYPE -> WIDGET:
+- Single number with label       -> stat-card
+- Percentage (1-3 values, severity) -> gauge (only if classifier approves) or progress-bar
+- Name:value pairs (< 10)        -> key-value (grid-3 layout)
+- Name:value pairs (10+)         -> table (2-column)
+- List of items with attributes  -> table (with filters if >10 rows)
+- Items with icon+status+actions -> card-list
+- Status flags (on/off, enabled) -> badge-grid
+- Raw config/script/log content  -> code-block
+- Hierarchical data              -> tree
+- Warning/error to highlight     -> alert (above relevant content)
+- Time-series trend (5+ points)  -> chart (area) - RARE
+- Category comparison (3-7 cats) -> chart (bar) - RARE
+```
+
+**Section: Anti-Patterns**
+```
+NEVER DO:
+- Stack stat-cards vertically (use grid-auto-fit)
+- Put multiple tables in one tab
+- Add chart when stat-card + progress-bar suffices
+- Create empty tabs for "future use"
+- Use code-block for tabular data (use table)
+- Put summary stats inside tabs (they go at root)
+- Create more than 2 levels of nesting
+- Use gauge for non-percentage data
+```
+
+#### Integration
+
+- Rules injected into `DYNAMIC_UI_SYSTEM_PROMPT` in `server/src/dynamic-ui/generator.ts`
+- Classification result is also injected: "Classifier determined: contentType=X, layoutPattern=Y, expectedWidgets=[...]"
+- Pattern skeleton is injected as structural guidance
+
+#### Acceptance Criteria
+
+- [ ] System prompt includes layout rules, widget selection matrix, anti-patterns
+- [ ] Rules are generated from layout patterns (not duplicated manually)
+- [ ] Classification result injected into generation prompt
+- [ ] Pattern skeleton injected as structural guidance
+- [ ] Prompt size stays reasonable (< 2000 tokens for rules section)
+- [ ] Tests: compare generation quality with/without design rules (manual verification)
+
+---
+
+### EX3-B.2: Improve Existing 15 Templates
+
+**Problem:** The 15 existing templates in `server/src/dynamic-ui/templates/` were created before layout patterns existed. They use basic stacking, don't leverage tabs effectively, and don't follow the design system rules.
+
+**Solution:** Rewrite all 15 templates to use the layout patterns from A.2. Every template should be a gold-standard example of its pattern type.
+
+#### Template Improvement Checklist
+
+For each template:
+1. Assign a `layoutPattern` from the 10 built-in patterns
+2. Use `autoFit` grid for stat-card sections
+3. Use tabs when there are 3+ data categories (with count badges)
+4. Remove unnecessary charts — replace with stat-card + progress-bar where appropriate
+5. Add `.filters` to tables with > 10 expected rows
+6. Use `rich` column type for status columns (dot + badge)
+7. Ensure every template has a summary section at root (stat-cards or key-value)
+8. Verify widget types match the pattern's `recommendedWidgets`
+9. Remove widgets types listed in the pattern's `discouragedWidgets`
+
+#### Current Templates to Improve
+
+| # | Template | Layout Pattern | Key Changes Needed |
+|---|---------|----------------|-------------------|
+| 1 | system-overview | dashboard-metrics | Use autoFit grid for stats, remove chart if just showing numbers |
+| 2 | disk-usage | dashboard-metrics | Gauge for 1-3 critical disks, progress-bar for rest, table for details |
+| 3 | docker-containers | tabbed-detail | Tabs per status (running/stopped/all), card-list for containers |
+| 4 | network-connections | tabbed-detail | Already good (EX3-P.7), verify compliance with pattern |
+| 5 | installed-packages | single-table | Summary key-value, table with filters and search |
+| 6 | user-accounts | single-table | Summary stats, table with privileged/regular filters |
+| 7 | process-list | single-table | Top processes table with sort + resource filters |
+| 8 | security-audit | audit-report | Alert for critical findings, tabs by category |
+| 9 | service-status | status-overview | Badge-grid for service states, detail table |
+| 10 | crontab | single-table | Job summary stats, job table with schedule formatting |
+| 11 | nginx-config | config-viewer | Metadata key-value, config code-block, health alerts |
+| 12 | ssh-config | config-viewer | Auth methods as badge-grid, config code-block |
+| 13 | firewall-rules | tabbed-detail | Stats, tabs for INPUT/OUTPUT/FORWARD chains |
+| 14 | dns-config | config-viewer | Resolver info key-value, config code-block |
+| 15 | log-analysis | log-viewer | Summary stats, log-viewer with filtering |
+
+#### Acceptance Criteria
+
+- [ ] All 15 templates rewritten to use layout patterns
+- [ ] Every template has a `layoutPattern` field matching one of the 10 patterns
+- [ ] All stat-card sections use `autoFit` grid
+- [ ] Tables have filters where appropriate
+- [ ] Charts removed where stat-card + progress-bar suffice
+- [ ] Each template is a valid, parseable DynamicViewSchema
+- [ ] Tests: validate all 15 templates parse correctly with updated schemas
+
+---
+
+### EX3-B.3: Expand Template Library to 25+
+
+**Problem:** 15 templates cover common scenarios but miss many use cases. The LLM falls back to generic generation for Docker images, specific app configs, memory analysis, etc.
+
+**Solution:** Add 10+ new templates to reach 25+ total coverage.
+
+#### New Templates to Add
+
+| # | Template | Layout Pattern | Description |
+|---|---------|----------------|-------------|
+| 16 | docker-images | single-table | Image inventory with size, tag, and layer count |
+| 17 | docker-compose | tabbed-detail | Service tabs with status, ports, volumes per service |
+| 18 | memory-analysis | dashboard-metrics | Memory breakdown stat-cards, swap usage, top consumers table |
+| 19 | network-interfaces | tabbed-detail | Interface stat-cards, tabs per interface (config, stats, routes) |
+| 20 | system-logs-journal | log-viewer | Journalctl output with priority filtering, error summary |
+| 21 | ssl-certificates | single-table | Certificate inventory with expiry status badges |
+| 22 | environment-variables | single-table | Env var table with search, categorized by type |
+| 23 | git-repositories | card-list | Repo card-list with branch, last commit, status |
+| 24 | database-status | tabbed-detail | Connection stats, slow queries, table sizes per DB |
+| 25 | backup-status | status-overview | Backup job badges, history table, storage progress-bars |
+| 26 | kernel-modules | single-table | Module table with loaded/available filter |
+| 27 | port-scan | single-table | Port inventory with service identification, risk badges |
+
+#### Acceptance Criteria
+
+- [ ] 10+ new templates added (total >= 25)
+- [ ] Each new template follows its assigned layout pattern
+- [ ] All use autoFit grid for stat sections
+- [ ] All validate against DynamicViewSchema
+- [ ] Tests: all new templates parse correctly
+- [ ] Template index updated with metadata
+
+---
+
+### EX3-B.4: FakeLLM Generator for Testing
+
+**Problem:** Testing template quality requires actual LLM calls (slow, expensive) or manual inspection. No way to quickly verify that templates produce valid, well-structured views.
+
+**Solution:** A `FakeLLMGenerator` that deterministically generates views using templates + sample data, without calling any LLM. Used for testing and playground iteration.
+
+#### How It Works
+
+```typescript
+class FakeLLMGenerator {
+  // Given a template name + mock terminal output, fill in the template
+  // with parsed data to produce a complete DynamicViewSchema
+  generate(templateName: string, mockOutput: string): DynamicViewSchema {
+    const template = this.templates.get(templateName);
+    const parsed = this.deterministicParse(mockOutput);
+    return this.populateTemplate(template, parsed);
+  }
 }
 ```
 
-#### Fixture Recorder
+- Select template by name or auto-match by content pattern
+- Fill template widgets with mock data from fixture files
+- Validate output against DynamicViewSchema
+- Useful for: unit tests, playground, visual regression testing
 
-Records real LLM sessions into fixture files for replay:
+#### Acceptance Criteria
+
+- [ ] `FakeLLMGenerator` class in `server/src/dynamic-ui/fake-generator.ts`
+- [ ] Generates views from template + fixture data (no LLM calls)
+- [ ] Output validates against DynamicViewSchema
+- [ ] Can auto-select template based on mock output patterns
+- [ ] Used in tests for template quality validation
+- [ ] Available in playground for visual testing
+
+---
+
+## Sub-Phase EX3-C: Progressive Multi-Step Generation
+
+> Instead of waiting 5-15s for a complete UI, the user sees the layout build itself in real-time. Layout skeleton appears in <1.5s, then widgets stream in one-by-one.
+
+---
+
+### EX3-C.1: WorkingView & Mutation Tools
+
+**Problem:** The current generation pipeline produces a complete view in one shot. To show progressive updates, we need a mutable view structure that can be built incrementally.
+
+**Solution:** A `WorkingView` class that starts with a layout skeleton and supports typed mutations.
+
+#### WorkingView API
 
 ```typescript
-class FixtureRecorder {
-  // Wrap a real executor, intercept all tool calls/results
-  wrapExecutor(executor: ReactiveExecutor): ReactiveExecutor;
-  
-  // Save the recorded session
-  saveFixture(id: string, path: string): void;
-  
-  // Load and replay
-  static loadFixture(path: string): LLMFixture;
+class WorkingView {
+  private view: DynamicViewSchema;
+
+  constructor(skeleton: DynamicViewSchema) {
+    // Initialize with layout structure, empty widget slots
+    this.view = skeleton;
+  }
+
+  // Add a widget to a specific location
+  addWidget(sectionId: string, widget: WidgetSchema): void;
+
+  // Replace a placeholder widget with a real one
+  replaceWidget(widgetId: string, widget: WidgetSchema): void;
+
+  // Update view metadata (title, icon)
+  updateMetadata(meta: Partial<ViewMetadata>): void;
+
+  // Add a tab to an existing tab layout
+  addTab(tabsId: string, tab: TabSchema): void;
+
+  // Get current snapshot for rendering
+  getSnapshot(): DynamicViewSchema;
+
+  // Get diff since last snapshot (for efficient updates)
+  getDiff(): ViewDiff;
 }
 ```
 
-#### FakeLLM Provider
+#### Mutation Tool Definitions (for Agent)
 
-Implements the `LLMProvider` interface so it slots into the existing pipeline:
+When using the UI Agent path, the agent has tools to mutate the working view:
 
 ```typescript
-class FakeLLMProvider implements LLMProvider {
-  constructor(fixture: LLMFixture);
-  
-  // Returns the next tool call from the fixture sequence
-  async chat(messages): Promise<LLMResponse>;
-  
-  // Returns the corresponding tool result
-  async structured(messages, schema): Promise<StructuredResponse>;
-}
+const mutationTools = [
+  {
+    name: 'add_widget',
+    description: 'Add a widget to the current view at a specific location',
+    parameters: {
+      sectionId: z.string(),
+      widget: WidgetSchema,
+    },
+  },
+  {
+    name: 'replace_widget',
+    description: 'Replace a placeholder widget with a populated one',
+    parameters: {
+      widgetId: z.string(),
+      widget: WidgetSchema,
+    },
+  },
+  {
+    name: 'add_tab',
+    description: 'Add a new tab with content to an existing tab layout',
+    parameters: {
+      tabsId: z.string(),
+      label: z.string(),
+      count: z.number().optional(),
+      icon: z.string().optional(),
+      widget: WidgetSchema,
+    },
+  },
+];
 ```
 
-#### Comparator
+#### Acceptance Criteria
 
-Compares FakeLLM deterministic output vs real LLM output:
+- [ ] `WorkingView` class in `server/src/dynamic-ui/working-view.ts`
+- [ ] Supports: addWidget, replaceWidget, updateMetadata, addTab
+- [ ] `getSnapshot()` always returns valid DynamicViewSchema
+- [ ] `getDiff()` returns efficient diff for targeted updates
+- [ ] Mutation tools registered in agent tool registry
+- [ ] Tests: sequential mutations produce correct view
 
-```typescript
-class SchemaComparator {
-  // Deep comparison with semantic understanding
-  compare(expected: DynamicView, actual: DynamicView): ComparisonResult;
-  
-  // Structural comparison (layout shape, widget count, types)
-  compareStructure(a: DynamicView, b: DynamicView): StructureDiff;
-  
-  // Data comparison (values, row counts, formatting)
-  compareData(a: DynamicView, b: DynamicView): DataDiff;
-}
+---
 
-interface ComparisonResult {
-  structureMatch: boolean;              // Same layout type, widget count
-  dataMatch: boolean;                   // Same values
-  styleMatch: boolean;                  // Same variants, formatting
-  diffs: Diff[];                        // List of differences
-  score: number;                        // 0-100 similarity
-}
+### EX3-C.2: layout_update Event Pipeline
+
+**Problem:** The current pipeline sends a single `dynamic_view_complete` event with the full view. To show progressive assembly, we need incremental update events.
+
+**Solution:** A new WebSocket event `layout_update` that sends view snapshots as widgets are added.
+
+#### Event Flow
+
+```
+1. User asks "show me disk usage"
+2. Backend: classify (Pass 1) -> select pattern + template
+3. Backend: create skeleton from pattern
+4. WebSocket: emit 'layout_update' { phase: 'skeleton', view: skeletonView }
+5. Frontend: render skeleton with placeholder widgets (Skeleton components)
+6. Backend: start generating widgets (Pass 2)
+7. For each widget generated:
+   a. WorkingView.addWidget(...)
+   b. WebSocket: emit 'layout_update' { phase: 'widget', view: snapshot, widgetId: id }
+   c. Frontend: replace skeleton placeholder with real widget (with animation)
+8. WebSocket: emit 'layout_update' { phase: 'complete', view: finalView }
 ```
 
-#### Usage in Tests
+#### Event Schema
 
 ```typescript
-describe('UI generation', () => {
-  it('network-ports matches fixture', async () => {
-    const fixture = FakeLLMGenerator.loadFixture('network-ports');
-    const fakeProvider = new FakeLLMProvider(fixture);
-    
-    const agent = new UIAgent({ llmProvider: fakeProvider, ... });
-    const events = [];
-    for await (const event of agent.generate('Show network ports', serverId)) {
-      events.push(event);
-    }
-    
-    const result = events.find(e => e.type === 'complete');
-    const comparison = new SchemaComparator().compare(fixture.finalSchema, result.view);
-    expect(comparison.structureMatch).toBe(true);
-    expect(comparison.score).toBeGreaterThan(90);
-  });
+const LayoutUpdateSchema = z.object({
+  phase: z.enum(['skeleton', 'widget', 'complete', 'error']),
+  view: DynamicViewSchema,
+  widgetId: z.string().nullable().optional(),    // which widget was just added/updated
+  progress: z.number().min(0).max(1).optional(), // 0.0 to 1.0 completion
+  error: z.string().nullable().optional(),
 });
 ```
 
 #### Acceptance Criteria
 
-- [ ] `FakeLLMProvider` implements `LLMProvider` interface
-- [ ] `FakeLLMGenerator` replays fixture step sequences
-- [ ] `FixtureRecorder` records real LLM sessions into fixtures
-- [ ] `SchemaComparator` compares structure + data + style
-- [ ] At least 5 fixture files covering different layout patterns
-- [ ] Tests use FakeLLM for deterministic generation testing
-- [ ] `npm run record-fixture -- --prompt "Show network ports"` CLI to record new fixtures
-- [ ] Comparison report: `npm run compare-fixtures` shows fake vs real diff
+- [ ] `layout_update` WebSocket event defined and emitted
+- [ ] Skeleton phase renders in < 1.5s
+- [ ] Widget updates trigger incremental re-renders (not full re-render)
+- [ ] Progress indicator shows completion percentage
+- [ ] Error phase handles generation failures gracefully
+- [ ] Frontend `useDynamicView` hook handles progressive updates
+- [ ] Tests: event pipeline emits correct sequence
 
 ---
 
-## Sub-Phase EX3-B: Multi-Step Progressive Generation
+### EX3-C.3: Early Window Opening
 
-> New executor tools for step-by-step UI construction, `layout_update` events, progressive streaming from backend to frontend.
+**Problem:** Currently the dynamic UI window opens only after the complete view is generated (5-15s wait). The user has no feedback during generation.
 
----
+**Solution:** Open the DynamicUIWindow immediately when generation starts, showing a skeleton layout that fills in progressively.
 
-### EX3-B.1: Working View & Layout Mutation Tools
+#### Flow
 
-**Problem:** Currently the executor generates the entire schema in one `generate_schema()` call. The user sees nothing until it's done.
-
-**Solution:** The executor maintains a `WorkingView` (mutable in-memory view) and exposes tools that mutate it step-by-step. Each mutation emits a `layout_update` event → the frontend renders it immediately.
-
-#### New Executor Tools
-
-| Tool | Args | Effect | Event Emitted |
-|------|------|--------|---------------|
-| `set_layout` | `{ layout, title, description, icon }` | Sets root layout type + top-level structure (e.g., tabs with labels) | `layout_update` with skeleton |
-| `add_section` | `{ sectionId, label, icon? }` | Adds a tab/sidebar-section to the root layout | `layout_update` with new section |
-| `add_widgets` | `{ sectionId?, widgets[] }` | Adds widgets to a section (or root if no sections) | `layout_update` with new widgets |
-| `update_widget` | `{ widgetId, patch }` | Patches a widget's data (e.g., fills table rows after fetching) | `layout_update` with updated widget |
-| `remove_widget` | `{ widgetId }` | Removes a widget the LLM decided isn't needed | `layout_update` with removal |
-| `remove_section` | `{ sectionId }` | Removes an entire section | `layout_update` with removal |
-| `generate_schema` | (unchanged) | Submits final schema for Zod validation — terminal tool | `generation_complete` |
-
-#### Working View
-
-```typescript
-class WorkingView {
-  private view: DeepPartial<DynamicView>;
-  private widgetCounter: number = 0;
-  
-  setLayout(layout: string, title: string, description?: string, icon?: string): void;
-  addSection(sectionId: string, label: string, icon?: string): void;
-  addWidgets(sectionId: string | null, widgets: Widget[]): string[];  // returns widget IDs
-  updateWidget(widgetId: string, patch: Partial<Widget>): void;
-  removeWidget(widgetId: string): void;
-  removeSection(sectionId: string): void;
-  
-  getSnapshot(): DeepPartial<DynamicView>;    // current state for rendering
-  toFinalSchema(): string;                     // JSON string for generate_schema
-}
+```
+1. User requests dynamic view (via agent or sidebar action)
+2. Immediately: open DynamicUIWindow with loading state
+3. After classifier (< 500ms): show skeleton layout with placeholders
+4. As widgets generate: replace placeholders with real widgets
+5. On complete: final polish (remove loading indicators)
 ```
 
-#### Executor Changes
+#### Implementation
 
-The executor loop now:
-1. Calls `get_server_context()` → understands the server
-2. Calls `set_layout()` → user sees the skeleton window
-3. Loops: `exec_command()` → `add_widgets()` → user sees widgets appear
-4. Optionally: `update_widget()` / `remove_widget()` to adjust
-5. Calls `generate_schema()` → final Zod validation
-
-Each layout mutation tool returns success + yields a `layout_update` event.
+- Frontend: `DynamicUIWindow` opens immediately in `loading` state
+- Backend: classifier result triggers `skeleton` event (< 500ms)
+- Frontend: skeleton replaces loading state with placeholder widgets
+- Backend: generator emits `widget` events as each widget completes
+- Frontend: each widget fades in, replacing its placeholder
 
 #### Acceptance Criteria
 
-- [ ] `WorkingView` class with all mutation methods
-- [ ] 6 new tools registered in tool registry
-- [ ] Executor maintains WorkingView, emits `layout_update` after each mutation
-- [ ] `generate_schema` can optionally use `workingView.toFinalSchema()` as starting point
-- [ ] Tools validate inputs (e.g., `sectionId` must exist)
-- [ ] Tests: build a view step-by-step through tool calls
-- [ ] FakeLLM fixtures updated with multi-step tool sequences
+- [ ] Window opens within 100ms of user request
+- [ ] Skeleton appears within 500ms (after classification)
+- [ ] Widgets stream in one-by-one with smooth transitions
+- [ ] Error state shown if generation fails at any point
+- [ ] User can close window during generation (cancels backend work)
+- [ ] Tests: timing assertions for window open and skeleton display
 
 ---
 
-### EX3-B.2: `layout_update` Event Pipeline
+### EX3-C.4: Multi-Step Executor Prompt
 
-**Problem:** The event pipeline only supports events AFTER generation completes. No incremental rendering events exist.
+**Problem:** The current generator produces the entire view in one LLM call. For progressive generation, the agent needs to generate widgets step-by-step using mutation tools.
 
-**Solution:** Add `layout_update` as a new event type flowing through the entire pipeline.
+**Solution:** A specialized system prompt for the multi-step executor that guides the agent to build views incrementally.
 
-#### Backend Changes
+#### Prompt Structure
 
-```typescript
-// New event type
-type UIAgentEvent = 
-  | ... existing events ...
-  | { type: 'layout_update'; view: DeepPartial<DynamicView>; step: number }
-
-// In executor.ts — after each layout tool call:
-yield { type: 'layout_update', view: workingView.getSnapshot(), step: stepCount };
-
-// In ui-agent.ts — forward from executor:
-case 'layout_update':
-  yield event;  // pass through to WebSocket
-
-// In agent-ui.ts (WebSocket route) — forward to client:
-case 'layout_update':
-  socket.send(JSON.stringify({ type: 'layout_update', requestId, ...event }));
 ```
+You are a UI builder. You have a layout skeleton with empty widget slots.
+Your job is to fill each slot with a real widget using the mutation tools.
 
-#### Frontend Changes
+Current skeleton: {skeleton JSON}
+Classification: {classification result}
+Terminal output: {raw output}
 
-```typescript
-// In useUIAgent.ts — handle new event:
-case 'layout_update':
-  storeRef.current.updatePartialView(requestId, msg.view, msg.step);
-  storeRef.current.addEvent(requestId, {
-    type: 'layout_update',
-    message: `Layout updated (step ${msg.step})`,
-    ...
-  });
-  break;
+Available tools: add_widget, replace_widget, add_tab
 
-// In agent-store.ts — new fields on AgentSession:
-interface AgentSession {
-  ...existing fields...
-  partialView: DeepPartial<DynamicView> | null;   // current progressive state
-  layoutStep: number;                               // how many layout updates received
-}
+Instructions:
+1. Start with the summary section — fill stat-cards/key-value first
+2. Then fill the primary content (main table, card-list, etc.)
+3. Then fill secondary content (tabs, additional tables)
+4. Follow the population rules for pattern: {pattern name}
+5. Use the widget types from expectedWidgets: {list}
+6. Do NOT add chart/gauge unless useVisualization is true
+
+Call one tool at a time. Each tool call will update the view shown to the user.
 ```
 
 #### Acceptance Criteria
 
-- [ ] `layout_update` event type defined in UIAgentEvent union
-- [ ] Executor yields `layout_update` after each layout tool call
-- [ ] UIAgent forwards `layout_update` to WebSocket
-- [ ] WebSocket route sends `layout_update` to client
-- [ ] `useUIAgent` hook handles `layout_update`, updates `partialView`
-- [ ] `agent-store` has `partialView` and `layoutStep` fields
-- [ ] Tests: event pipeline integration (executor → agent → route → hook → store)
+- [ ] Multi-step executor prompt in `server/src/dynamic-ui/prompts/multi-step.ts`
+- [ ] Agent uses mutation tools to build view incrementally
+- [ ] Each tool call triggers a `layout_update` event
+- [ ] Generation follows pattern population rules
+- [ ] Total generation time < 15s for complex views (< 8s typical)
+- [ ] Tests: agent generates correct widget sequence for known inputs
 
 ---
 
-### EX3-B.3: Early Window Opening & Streaming Bridge
+## Sub-Phase EX3-D: Unified Window & Visual Polish
 
-**Problem:** The dynamic UI window opens only on `complete`. With progressive generation, it should open on the first `layout_update`.
+> The final polish phase — a unified window component, toolbar for view actions, entrance animations, and visual refinement.
 
-**Solution:** Open the window early and keep it subscribed to the streaming session.
+---
 
-#### Streaming View Store
+### EX3-D.1: DynamicUIWindow Component
 
-```typescript
-// New: streaming-view-store.ts
-interface StreamingViewState {
-  // Active streams: requestId → current partial view
-  streams: Map<string, {
-    serverId: string;
-    partialView: DeepPartial<DynamicView>;
-    step: number;
-    status: 'streaming' | 'complete' | 'error';
-    windowId: string | null;            // linked desktop window
-  }>;
-  
-  startStream(requestId: string, serverId: string): void;
-  updateStream(requestId: string, view: DeepPartial<DynamicView>, step: number): void;
-  completeStream(requestId: string, finalView: DynamicView): void;
-  linkWindow(requestId: string, windowId: string): void;
-  getStreamForWindow(windowId: string): StreamingView | null;
-}
-```
+**Problem:** Dynamic views currently render inside a generic AppWindow. They need a purpose-built window with proper title, icon, sizing, and integration with the progressive pipeline.
 
-#### UIAgentView Changes
+**Solution:** A `DynamicUIWindow` component that extends AppWindow with dynamic-view-specific features.
 
-```typescript
-// Open window on first layout_update (not on complete)
-useEffect(() => {
-  if (activeSession?.partialView && activeRequestId && !openedRef.current.has(activeRequestId)) {
-    openedRef.current.add(activeRequestId);
-    // Open window with streaming reference
-    streamingViewStore.startStream(activeRequestId, serverId);
-    const windowId = openDynamicUIStreamWindow(serverId, activeRequestId, activeSession.partialView);
-    streamingViewStore.linkWindow(activeRequestId, windowId);
-  }
-}, [activeSession?.partialView]);
+#### Features
 
-// On complete: finalize stream → pin as normal view
-useEffect(() => {
-  if (activeSession?.status === 'complete' && activeSession.view && activeRequestId) {
-    streamingViewStore.completeStream(activeRequestId, activeSession.view as DynamicView);
-  }
-}, [activeSession?.status]);
-```
-
-#### DynamicUIWindow Streaming Mode
-
-The window component checks both stores:
-1. `streamingViewStore.getStreamForWindow(windowId)` — if streaming, render `partialView` with skeleton placeholders
-2. `useDynamicUIStore.getViewForWindow(windowId)` — if complete, render final `DynamicView`
-
-During streaming: shows a subtle progress indicator (pulsing dot or thin progress bar at top), skeleton placeholders for unfilled areas.
+- Title from view metadata (`view.title`) or auto-generated from tool name
+- Icon from view metadata or tool icon
+- Proper sizing: starts at 800x600, resizable, remembers last size
+- Sidebar for multi-section views (sections listed as navigation)
+- Footer with generation metadata: model used, latency, token count
+- Loading states: empty -> skeleton -> progressive fill -> complete
 
 #### Acceptance Criteria
 
-- [ ] `streaming-view-store.ts` created with stream lifecycle management
-- [ ] Window opens on first `layout_update` event
-- [ ] Window subscribes to streaming view and re-renders on each update
-- [ ] On `complete`, stream transitions to pinned view seamlessly
-- [ ] Skeleton placeholders show for unfilled layout areas
-- [ ] Progress indicator visible during streaming
-- [ ] Tests: window opens early, updates progressively, finalizes correctly
+- [ ] `DynamicUIWindow` component in `client/src/components/DynamicUI/DynamicUIWindow.tsx`
+- [ ] Uses AppWindow as base with dynamic-view extensions
+- [ ] Proper title/icon from view metadata
+- [ ] Loading -> skeleton -> progressive -> complete states
+- [ ] Footer with generation stats
+- [ ] Resizable with size memory
+- [ ] Tests: renders in all states
 
 ---
 
-### EX3-B.4: Updated Executor Prompt (Multi-Step Workflow)
+### EX3-D.2: View Toolbar
 
-**Problem:** The current prompt tells the executor to gather all data then generate_schema in one shot. Need to guide it through progressive generation.
+**Problem:** Once a view is generated, the user can't do anything with it — no refresh, no copy, no export, no fullscreen.
 
-**Solution:** Rewrite the workflow section of the executor prompt.
+**Solution:** A toolbar in the DynamicUIWindow header with common actions.
 
-#### New Workflow Prompt Section
+#### Actions
 
-```markdown
-## Workflow (IMPORTANT — follow this step-by-step order)
-
-### Step 1: Understand
-Call get_server_context() to understand what's on the server.
-
-### Step 2: Plan Layout  
-Based on the user's request and the layout pattern hint from the planner,
-call set_layout() to establish the root structure. Choose the layout type:
-- "tabs" — for multiple data categories (most common)
-- "stack" — for a single focused view
-- "grid" — for a dashboard of equal-weight items
-- "sidebar" — for navigation-heavy views
-
-Example: set_layout({ layout: "tabs", title: "Network Overview", icon: "Network" })
-The user will see the window open with the layout skeleton.
-
-### Step 3: Add Sections (if tabs/sidebar)
-Call add_section() for each tab or sidebar section you plan to create.
-Example: add_section({ sectionId: "ports", label: "Listening Ports", icon: "Radio" })
-The user will see tab headers appear.
-
-### Step 4: Gather Data & Add Widgets (repeat per section)
-For each section:
-a. exec_command() to gather the relevant data
-b. add_widgets() to render the parsed data into the section
-c. The user sees widgets appear in that section
-
-Do NOT gather all data first. Gather → render → gather → render.
-This creates the progressive build effect.
-
-### Step 5: Refine (optional)
-- update_widget() to adjust data after additional commands
-- remove_widget() / remove_section() if something isn't useful
-- The user sees adjustments happen in real-time
-
-### Step 6: Finalize
-Call generate_schema() with the complete schema (you can use the working 
-view's accumulated state). This validates everything with Zod.
-
-### Key Rules
-- Call set_layout() FIRST before any add_widgets()
-- One section's data at a time — gather then render, not all-at-once
-- Summary stats go at root level (no sectionId), not inside tabs
-- Each tool call is visible to the user — make each step meaningful
-```
+| Action | Icon | Description |
+|--------|------|-------------|
+| Refresh | RefreshCw | Re-run the command and regenerate the view |
+| Copy JSON | ClipboardCopy | Copy the view schema as JSON |
+| Fullscreen | Maximize2 | Toggle fullscreen mode |
+| Pin | Pin | Keep this view open (don't close on new views) |
 
 #### Acceptance Criteria
 
-- [ ] Executor prompt updated with multi-step workflow
-- [ ] Prompt includes examples for each new tool
-- [ ] Prompt references the selected layout pattern
-- [ ] Tests: prompt builder produces correct multi-step instructions
-- [ ] FakeLLM fixtures demonstrate the expected step sequence
+- [ ] Toolbar component with 4 actions
+- [ ] Refresh re-runs generation pipeline
+- [ ] Copy JSON copies DynamicViewSchema to clipboard
+- [ ] Fullscreen toggles window size
+- [ ] Pin prevents auto-close behavior
+- [ ] Tests: toolbar actions work correctly
 
 ---
 
-## Sub-Phase EX3-C: Unified Window & Visual Polish
+### EX3-D.3: Entrance Animations
 
-> Replace both DynamicAppWindow and DynamicUITabView with a single design-system-native window component. Add widget animations, skeleton states, and contextual toolbar.
+**Problem:** When widgets appear during progressive generation, they pop in abruptly. Smooth animations would make the progressive assembly feel polished.
 
----
+**Solution:** CSS/Framer Motion animations for widget entrance during progressive generation.
 
-### EX3-C.1: DynamicUIWindow Component
+#### Animation Types
 
-**Problem:** `DynamicAppWindow` (overlay dialog with toolbar) and `DynamicUITabView` (bare desktop window) are separate components with inconsistent UX. Neither looks like a real HeadlessOS app.
+- **Skeleton -> Widget**: fade + scale-up (opacity 0->1, scale 0.95->1, 200ms)
+- **Tab added**: slide-in from right (translateX 20px->0, 150ms)
+- **View complete**: subtle pulse on completion indicator
 
-**Solution:** A unified `DynamicUIWindow` component that matches ServerAdmin/FileExplorer exactly.
+#### Implementation
 
-#### Component Structure
-
-```
-DynamicUIWindow
-├── DynamicUISidebar          (left, 200px — FileExplorer NavigationPane style)
-│   ├── Quick Access          (section: Overview, JSON View, Export)
-│   └── Content               (section: auto-populated from view layout)
-├── Main Area                 (flex column)
-│   ├── Header                (icon + title + refresh — ServerAdmin pattern)
-│   ├── DynamicUIToolbar      (tabs + contextual controls)
-│   ├── Content Body          (DynamicViewRenderer — @container p-6 space-y-4)
-│   └── Footer                (generation meta — model, latency, steps)
-└── StreamingOverlay          (progress indicator during generation)
-```
-
-#### Sidebar Sections
-
-**Quick Access** (always present):
-```
-📊 Overview         — scrolls to top / shows all content
-{ } JSON View       — toggles JSON display (like DynamicAppWindow's current toggle)
-↻  Regenerate       — triggers re-generation
-📥 Export            — exports view as JSON file
-⭐ Pin               — pins to favorites
-```
-
-**Content** (auto-populated by walking the view's layout tree):
-- If root is `tabs` → each tab becomes a sidebar item (clicking activates that tab)
-- If root is `sidebar` → uses its `sidebarItems` directly
-- If root is `stack`/`grid` → groups widgets by type:
-  - Tables section (if any table widgets)
-  - Charts section (if any chart widgets)
-  - Metrics section (if any stat-card widgets)
-  - Each item: click scrolls to that widget
-
-**Styling** (exact match to ServerAdmin/FileExplorer):
-```
-Section header:  text-[11px] font-semibold text-foreground/50 tracking-wide
-Item button:     px-2.5 py-2 text-[13px] rounded-md
-Item active:     bg-primary/15 text-primary font-medium
-Item inactive:   text-foreground hover:bg-accent/50
-Item icon:       size={20} strokeWidth={1.6}
-Sidebar bg:      bg-sidebar, w-[200px], border-r border-border/40
-```
-
-#### Header
-
-Exact ServerAdmin section header pattern:
-```
-Left:   Icon (size={22} text-primary) + Title (text-xl font-bold text-foreground)
-Right:  Refresh button (ghost h-8 w-8 text-foreground/30 hover:text-foreground)
-```
-
-#### Footer
-
-```
-Left:   "Generated in {latency}s · {steps} steps · {reflections} reflections"
-Right:  Model name badge (text-[10px] font-mono text-foreground/30)
-Styling: border-t border-border/40 px-4 py-2 text-xs text-foreground/40
-```
+- Use TailwindCSS `animate-*` classes where possible
+- Minimal Framer Motion for complex transitions (only if already in bundle)
+- Animations disabled when `prefers-reduced-motion` is set
+- No animation for initial full render (only during progressive updates)
 
 #### Acceptance Criteria
 
-- [ ] `DynamicUIWindow.tsx` created with sidebar + header + body + footer
-- [ ] Sidebar auto-populates from view layout structure
-- [ ] Quick Access section with Overview/JSON/Regenerate/Export/Pin
-- [ ] Header matches ServerAdmin pattern exactly
-- [ ] Footer shows generation metadata
-- [ ] Supports both streaming mode (partialView) and complete mode (DynamicView)
-- [ ] `DynamicAppWindow.tsx` deleted (replaced)
-- [ ] `DynamicUITabView.tsx` rewritten as thin wrapper
-- [ ] All existing tests updated/migrated
-- [ ] Visual comparison: screenshot matches ServerAdmin layout quality
+- [ ] Fade-in animation for widget placement
+- [ ] Tab slide-in animation
+- [ ] Respects `prefers-reduced-motion`
+- [ ] No animation jank or layout shift
+- [ ] Tests: animations trigger correctly during progressive render
 
 ---
 
-### EX3-C.2: DynamicUIToolbar
+### EX3-D.4: Template QA & Visual Regression
 
-**Problem:** No contextual toolbar — no search, no filters, no view controls.
+**Problem:** With 25+ templates and new widget types, visual quality needs systematic verification. No automated way to check that templates produce good-looking views.
 
-**Solution:** A toolbar that adapts to the content type of the active tab/section.
+**Solution:** A playground-based QA workflow + visual regression snapshots.
 
-#### Contextual Controls
+#### QA Workflow
 
-The toolbar scans the widgets in the active section and shows relevant controls:
-
-| Content Type | Controls Shown |
-|-------------|---------------|
-| Table widget(s) present | Search input (`Input h-8 text-xs shadow-none` with Search icon) + column filter dropdown |
-| Chart widget(s) present | Chart type toggle (bar/line/area — ToggleGroup) |
-| Live data widgets | Pause/Resume all toggle + refresh interval selector |
-| Any content | View mode: Default / Compact (ToggleGroup) |
-
-#### Tab Bar
-
-When the view has multiple sections (tabs layout), the toolbar includes the ServerAdmin-style tab bar:
-
-```
-TabsList:     h-auto p-1 bg-muted rounded-lg gap-1 w-auto inline-flex
-TabsTrigger:  rounded-md px-3 py-1.5 text-[13px] font-medium text-foreground/50
-              data-[state=active]:bg-background data-[state=active]:text-foreground
-              data-[state=active]:shadow-sm transition-all hover:text-foreground/70
-Count badge:  ml-1.5 text-[11px] tabular-nums opacity-50
-```
-
-#### Table Search & Filter
-
-When a table widget is in the active section:
-- **Search**: filters ALL table rows client-side (substring match across all visible columns)
-- **Column filter**: dropdown with checkboxes to show/hide columns
-- Both use ServerAdmin compact input styling: `h-8 text-xs shadow-none`
-
-#### Layout
-
-```
-┌─────────────────────────────────────────────────────┐
-│ [Tab1] [Tab2] [Tab3]          [🔍 Search] [≡ View] │
-└─────────────────────────────────────────────────────┘
-Styling: flex items-center justify-between px-4 py-2 border-b border-border/40
-```
+1. FakeLLM generates views for all 25+ templates with mock data
+2. Playground renders each view side-by-side
+3. Manual QA checklist per template:
+   - [ ] Stats in grid (not stacked)
+   - [ ] Tables have filters (if > 10 rows)
+   - [ ] Tabs have count badges
+   - [ ] No unnecessary charts
+   - [ ] Proper spacing and alignment
+   - [ ] Theme-aware colors (dark mode correct)
 
 #### Acceptance Criteria
 
-- [ ] `DynamicUIToolbar.tsx` created with contextual control logic
-- [ ] Tab bar with exact ServerAdmin TabsList/TabsTrigger styling
-- [ ] Table search: client-side filtering across all columns
-- [ ] Column filter dropdown (show/hide columns)
-- [ ] View mode toggle: Default / Compact
-- [ ] Integrates with `DynamicUIWindow` via props/context
-- [ ] Tests: toolbar renders correct controls based on widget types
-
----
-
-### EX3-C.3: Widget Entrance Animations
-
-**Problem:** Widgets currently have a basic `animate-in` class but no staggering and no special progressive build effect.
-
-**Solution:** Staggered entrance animations that create the "watching it build" feeling.
-
-#### Animation System
-
-```typescript
-// In WidgetRenderer.tsx
-interface WidgetRendererProps {
-  widget: Widget;
-  index: number;           // position in parent layout
-  isStreaming: boolean;     // are we in progressive build mode?
-}
-
-// Stagger delay: each widget animates 75ms after the previous
-const staggerDelay = isStreaming ? index * 75 : 0;
-
-// CSS classes
-const animationClasses = cn(
-  'animate-in fade-in slide-in-from-bottom-2 duration-300',
-  'fill-mode-backwards',                         // stays invisible until delay kicks in
-);
-
-// Style
-const animationStyle = {
-  animationDelay: `${staggerDelay}ms`,
-};
-```
-
-#### Skeleton States (During Streaming)
-
-When a widget exists in the partial schema but has incomplete data:
-
-| Widget Type | Skeleton |
-|-------------|----------|
-| `table` (no rows) | Header row + 3 `<Skeleton className="h-4 w-full" />` rows |
-| `stat-card` (no value) | `<Skeleton className="h-8 w-20" />` value + `<Skeleton className="h-3 w-32" />` label |
-| `chart` (no data) | `<Skeleton className="h-[200px] w-full rounded-lg" />` |
-| `code-block` (no code) | 5 `<Skeleton className="h-3 w-{random}" />` lines |
-| `key-value` (no pairs) | 3 `<Skeleton className="h-4 w-full" />` rows in grid |
-| `progress-bar` (no value) | `<Skeleton className="h-1.5 w-full rounded-full" />` |
-| `log-viewer` (no lines) | 8 `<Skeleton className="h-3 w-{random}" />` lines |
-
-Layout skeletons (section exists but no widgets yet):
-- Tab content area: `<Skeleton className="h-32 w-full rounded-lg" />`
-- Stack section: 3 `<Skeleton className="h-20 w-full rounded-lg" />` blocks
-
-#### Layout Transition
-
-When a section is removed or widgets change:
-- Removed widgets: `animate-out fade-out slide-out-to-bottom-1 duration-200`
-- Layout reflow: `transition-all duration-300` on container
-
-#### Acceptance Criteria
-
-- [ ] Staggered entrance animation (75ms delay per widget index)
-- [ ] `isStreaming` prop controls whether stagger is active
-- [ ] Skeleton states for all 11 widget types
-- [ ] Layout-level skeleton for empty sections
-- [ ] Removal animation for deleted widgets/sections
-- [ ] Animations use existing design system timing (duration-200, duration-300)
-- [ ] No animation dependency added (uses Tailwind animate classes only)
-- [ ] Tests: skeleton renders for incomplete widgets, animation classes applied
-
----
-
-### EX3-C.4: Template Library Expansion
-
-**Problem:** 15 templates exist but they're flat single-layout structures. Need richer templates that demonstrate nested layouts and multi-section patterns.
-
-**Solution:** Expand to 25+ templates with nested layouts, matching the 10 layout patterns from EX3-A.2.
-
-#### New Templates (10 additional)
-
-| # | Template ID | Pattern Used | Layout Structure |
-|---|-----------|-------------|-----------------|
-| 16 | `nginx-config` | config-viewer | stack → key-value metadata + code-block + alert |
-| 17 | `docker-compose` | config-viewer | stack → key-value + code-block (compose.yml) + table (services) |
-| 18 | `system-monitoring` | monitoring | stack → grid (stat-cards) + grid (2 charts) + table (processes) |
-| 19 | `firewall-rules` | multi-table | stack → stat-cards + tabs (INPUT/OUTPUT/FORWARD tables) |
-| 20 | `ssl-certificates` | single-table | stack → alert (expiry) + key-value + table (certs) |
-| 21 | `user-audit` | security-audit | stack → alert + stat-cards + tabs (users/groups/sudoers) |
-| 22 | `disk-analysis` | overview-dashboard | stack → stat-cards + tabs (mounts table / usage chart / inodes) |
-| 23 | `service-comparison` | comparison | tabs → each service as tab → key-value + progress-bars |
-| 24 | `apache-log-analysis` | log-analysis | stack → stat-cards + log-viewer + chart (requests/hour) |
-| 25 | `directory-tree` | tree-explorer | stack → key-value + tree (files) + code-block (selected) |
-
-Each template:
-- Uses nested layouts where the pattern requires it
-- Follows all design system rules from EX3-A.3
-- Serves as an example the LLM can reference
-- Has proper `matchPatterns` for template auto-matching
-
-#### Acceptance Criteria
-
-- [ ] 10 new templates created in `server/src/dynamic-ui/templates/`
-- [ ] Templates use nested layouts (tabs containing stacks, etc.)
-- [ ] Templates follow all design system rules
-- [ ] Each template tagged with its layout pattern ID
-- [ ] Template registry updated with new templates
-- [ ] Tests: all templates validate against updated schema
-
----
-
-## Testing Strategy
-
-### FakeLLM Integration Tests
-
-```
-server/tests/agent/fake-llm/
-├── fake-llm-provider.test.ts       # FakeLLM replays fixture correctly
-├── fixture-recorder.test.ts        # Recording produces valid fixtures
-├── comparator.test.ts              # Comparison detects structural diffs
-└── fixtures/                       # 5+ fixture files
-    ├── network-ports.fixture.json
-    ├── system-overview.fixture.json
-    ├── docker-status.fixture.json
-    ├── nginx-config.fixture.json
-    └── disk-analysis.fixture.json
-```
-
-### Progressive Generation Tests
-
-```
-server/tests/agent/progressive/
-├── working-view.test.ts            # WorkingView mutation methods
-├── layout-tools.test.ts            # set_layout, add_widgets, etc.
-├── event-pipeline.test.ts          # layout_update flows through pipeline
-└── multi-step-executor.test.ts     # Full step sequence with FakeLLM
-```
-
-### Frontend Tests
-
-```
-client/tests/components/
-├── DynamicUIWindow.test.tsx        # Sidebar + toolbar + body rendering
-├── DynamicUISidebar.test.tsx       # Auto-population from view structure
-├── DynamicUIToolbar.test.tsx       # Contextual controls per widget type
-├── streaming-view.test.tsx         # Progressive rendering + skeleton states
-└── widget-animations.test.tsx      # Entrance stagger + removal animation
-```
-
-### Visual Regression
-
-- Screenshot comparison: generated UI vs ServerAdmin → same visual density
-- FakeLLM output rendered → screenshot → compared to reference screenshots
-- Design token audit: no hardcoded colors in generated output
+- [ ] Playground renders all 25+ templates
+- [ ] FakeLLM generates views for each template
+- [ ] QA checklist applied to each template
+- [ ] All templates pass visual QA
+- [ ] Screenshots captured for reference (optional)
 
 ---
 
 ## Task Summary
 
-| Task | Title | Sub-Phase | Depends On |
-|------|-------|-----------|-----------|
-| EX3-A.1 | Nestable Layouts | A | — |
-| EX3-A.2 | Layout Template Patterns | A | — |
-| EX3-A.3 | Design System Rules in Prompt | A | — |
-| EX3-A.4 | FakeLLM Generator | A | — |
-| EX3-B.1 | Working View & Layout Mutation Tools | B | EX3-A.1 |
-| EX3-B.2 | `layout_update` Event Pipeline | B | EX3-B.1 |
-| EX3-B.3 | Early Window Opening & Streaming Bridge | B | EX3-B.2 |
-| EX3-B.4 | Updated Executor Prompt (Multi-Step) | B | EX3-B.1, EX3-A.2, EX3-A.3 |
-| EX3-C.1 | DynamicUIWindow Component | C | EX3-B.3 |
-| EX3-C.2 | DynamicUIToolbar | C | EX3-C.1 |
-| EX3-C.3 | Widget Entrance Animations | C | EX3-C.1, EX3-B.3 |
-| EX3-C.4 | Template Library Expansion | C | EX3-A.1, EX3-A.2 |
-
-### Execution Order (recommended)
-
-```
-EX3-A.1 (nestable layouts) ─────────────────┐
-EX3-A.2 (layout patterns)  ─────────────────┤
-EX3-A.3 (design system prompt) ─────────────┤
-EX3-A.4 (FakeLLM) ──────────────────────────┤
-                                             ▼
-EX3-B.1 (working view + tools) ─────────────┐
-EX3-B.4 (multi-step prompt) ─────────────────┤
-EX3-B.2 (layout_update pipeline) ────────────┤
-EX3-B.3 (early window + streaming) ──────────┤
-                                             ▼
-EX3-C.1 (DynamicUIWindow) ──────────────────┐
-EX3-C.2 (toolbar) ──────────────────────────┤
-EX3-C.3 (animations + skeletons) ────────────┤
-EX3-C.4 (template expansion) ────────────────┘
-```
+| Task | Title | Sub-Phase | Depends On | Priority |
+|------|-------|-----------|------------|----------|
+| EX3-A.1 | Two-Pass Design Classifier | A | - | P0 (critical) |
+| EX3-A.2 | Layout Pattern Library | A | - | P0 (critical) |
+| EX3-A.3 | Responsive Auto-Fit Grid | A | - | P0 (critical) |
+| EX3-A.4 | Gauge Widget | A | A.3 | P1 |
+| EX3-A.5 | Sparkline Stat Card | A | A.3 | P1 |
+| EX3-A.6 | Enhanced Chart Options | A | - | P2 |
+| EX3-B.1 | Design System Rules in Prompt | B | A.1, A.2 | P0 (critical) |
+| EX3-B.2 | Improve 15 Templates | B | A.2, B.1 | P0 (critical) |
+| EX3-B.3 | Expand to 25+ Templates | B | B.2 | P1 |
+| EX3-B.4 | FakeLLM Generator | B | B.2 | P1 |
+| EX3-C.1 | WorkingView & Mutation Tools | C | A.2 | P1 |
+| EX3-C.2 | layout_update Event Pipeline | C | C.1 | P1 |
+| EX3-C.3 | Early Window Opening | C | C.2 | P1 |
+| EX3-C.4 | Multi-Step Executor Prompt | C | C.1, B.1 | P1 |
+| EX3-D.1 | DynamicUIWindow Component | D | C.3 | P1 |
+| EX3-D.2 | View Toolbar | D | D.1 | P2 |
+| EX3-D.3 | Entrance Animations | D | C.2, D.1 | P2 |
+| EX3-D.4 | Template QA & Visual Regression | D | B.3, B.4 | P2 |
 
 ---
 
@@ -1623,24 +1068,38 @@ EX3-C.4 (template expansion) ────────────────┘
 
 | Metric | Target |
 |--------|--------|
-| First visual (layout skeleton) | < 1.5s from prompt submission |
-| First widget visible | < 3s from prompt submission |
-| Full view complete | < 15s (acceptable for experimental feature) |
-| Design system compliance | Generated UI passes visual diff vs ServerAdmin |
-| FakeLLM fixture match | > 90% structural similarity score |
-| Test coverage | All new code has tests |
-| Template coverage | 25+ templates across 10 layout patterns |
+| First visual (skeleton) | < 1.5s |
+| Full view generation | < 15s worst case, < 8s typical |
+| Stat-cards in grid (not stacked) | 100% of views with metrics |
+| Multi-dataset views using tabs | 100% |
+| Views with unnecessary charts | < 20% include any chart/gauge |
+| Template coverage | 25+ templates |
+| Layout patterns used | 10 patterns covering all content types |
+| Classification accuracy | > 90% correct contentType assignment |
+| Auto-fit grids responsive | Works from 400px to 2000px width |
+| All templates pass QA | 100% |
 
 ---
 
-## Open Questions (for review)
+## Anti-Patterns (What This Phase is NOT)
 
-1. **Nestable layout depth limit** — 3 levels recommended. Grafana has no enforced limit but 3 is the practical max observed. More?
-2. **`_kind` discriminator vs inference** — should nested layouts use an explicit `_kind: 'layout'` field, or infer from `layout` vs `type` keys? (Recommend: inference — Grafana uses `forEachChild` runtime check, not a discriminator)
-3. **Widget IDs** — should the LLM assign IDs, or should the WorkingView auto-generate them? (Recommend: auto-generate with `widget-{counter}`)
-4. **FakeLLM in CI** — should FakeLLM tests run in CI as a quality gate? (Recommend: yes)
-5. **Template variables** — should variables be resolved at generation time (LLM fills them) or at render time (frontend resolves)? Grafana resolves at render time, but our use case is simpler. (Recommend: generation time — LLM fills variables into the skeleton)
-6. **Backward compatibility** — existing `widgets` field in layouts → keep as alias for `children`? (Recommend: yes, deprecation warning in Zod transform)
-7. **Widget property richness** — Grafana panels have ~30 configurable properties, our widgets have ~5-8. Should EX3 expand widget config? Key candidates from Grafana: `unit`, `thresholds`, `color` mode, `valueMappings`, `decimals`, `noValue`. (Recommend: add at minimum `unit` + `thresholds` + `valueMappings` to stat-card, progress-bar, and table columns)
-8. **Panel chrome from renderer vs schema** — Grafana wraps every panel in `PanelChrome` at render-time (title bar, menu, actions, collapse). Should our `WidgetRenderer` add consistent chrome, or should the LLM specify it per-widget? (Recommend: renderer adds chrome — consistent look, less LLM burden)
-9. **Lazy loading** — Grafana uses IntersectionObserver for lazy panel rendering. Should generated views with 10+ widgets use lazy loading? (Recommend: yes for EX3-C, especially during streaming mode)
+1. **NOT a Grafana clone.** We don't need 24-column grids, drag-and-drop editors, or panel plugins. We adopt smart CSS grid patterns and layout classification — nothing more.
+
+2. **NOT a visualization platform.** Charts are supporting elements only. If a stat-card + progress-bar conveys the information, don't add a chart. The classifier's `useVisualization` flag gates chart/gauge usage.
+
+3. **NOT chart-first design.** Every view starts with widgets (tables, stat-cards, key-value, badge-grids). Charts are added last, only if the classifier justifies them.
+
+4. **NOT a 24-column grid editor.** Users don't drag widgets to positions. The LLM decides layout based on classification + patterns. The grid is responsive auto-fit, not manual placement.
+
+5. **NOT a variable/dashboard system.** No template variables, no dashboard templating, no drill-down links between panels. Each view is self-contained.
+
+---
+
+## Open Questions
+
+1. **Classifier model choice**: gpt-4.1-nano vs gpt-4.1-mini for classification? Need to benchmark accuracy vs latency.
+2. **Pattern extensibility**: Should users be able to add custom layout patterns, or are the 10 built-in patterns sufficient?
+3. **Progressive generation granularity**: One widget per update, or batch related widgets (e.g., all stat-cards at once)?
+4. **Template sharing**: Should templates be exportable/importable between HeadlessOS instances?
+5. **Skeleton accuracy**: How detailed should the skeleton be? Full layout with placeholders, or just a rough shape?
+6. **Cache interaction**: How does the output cache (M4.7) interact with progressive generation? Cache the final view, or individual widget outputs?

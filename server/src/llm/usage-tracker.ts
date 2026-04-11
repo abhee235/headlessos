@@ -26,10 +26,15 @@ export interface UsageSummary {
   cache?: CacheStats;
 }
 
-// Per-model pricing (USD per 1K tokens) — approximate as of 2025
+// Per-model pricing (USD per 1K tokens) — approximate as of 2025-2026
 const MODEL_PRICING: Record<string, { input: number; output: number }> = {
+  'gpt-4.1': { input: 0.002, output: 0.008 },
+  'gpt-4.1-mini': { input: 0.0004, output: 0.0016 },
+  'gpt-4.1-nano': { input: 0.0001, output: 0.0004 },
   'gpt-4o': { input: 0.0025, output: 0.01 },
   'gpt-4o-mini': { input: 0.00015, output: 0.0006 },
+  'gpt-5.4': { input: 0.01, output: 0.04 },
+  'o4-mini': { input: 0.0011, output: 0.0044 },
   'gpt-4-turbo': { input: 0.01, output: 0.03 },
   'gpt-4': { input: 0.03, output: 0.06 },
   'gpt-3.5-turbo': { input: 0.0005, output: 0.0015 },
@@ -37,6 +42,7 @@ const MODEL_PRICING: Record<string, { input: number; output: number }> = {
   'claude-3-sonnet': { input: 0.003, output: 0.015 },
   'claude-3-haiku': { input: 0.00025, output: 0.00125 },
   'claude-3.5-sonnet': { input: 0.003, output: 0.015 },
+  'claude-4-sonnet': { input: 0.003, output: 0.015 },
 };
 
 // Default pricing for unknown models

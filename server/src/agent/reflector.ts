@@ -9,6 +9,7 @@ import { z } from 'zod';
 import type { DynamicView } from 'headlessos-shared/schemas/dynamic-view';
 import type { ModelRouter } from '../llm/model-router.js';
 import type { PlannerHints } from './planner.js';
+import { withSpan } from '../observatory/context.js';
 
 // ── Reflection Schema ──
 
@@ -102,28 +103,30 @@ export class PostGenerationReflector {
     collectedData: Map<string, string>,
     generatedSchema: DynamicView,
   ): Promise<Reflection> {
-    const inputPayload = JSON.stringify({
-      request: originalRequest,
-      hints: {
-        intent: hints.intent,
-        interactivityLevel: hints.interactivityLevel,
-        expectedWidgets: hints.expectedWidgets,
-        securityRequirements: hints.securityRequirements,
-        suggestedLayout: hints.suggestedLayout,
-        suggestedSections: hints.suggestedSections,
-      },
-      dataCollected: this.summarizeCollectedData(collectedData),
-      generatedSchema,
-    });
+    return withSpan('PostReflector.reflect', 'CHAIN', async () => {
+      const inputPayload = JSON.stringify({
+        request: originalRequest,
+        hints: {
+          intent: hints.intent,
+          interactivityLevel: hints.interactivityLevel,
+          expectedWidgets: hints.expectedWidgets,
+          securityRequirements: hints.securityRequirements,
+          suggestedLayout: hints.suggestedLayout,
+          suggestedSections: hints.suggestedSections,
+        },
+        dataCollected: this.summarizeCollectedData(collectedData),
+        generatedSchema,
+      });
 
-    const result = await this.modelRouter.reason<Reflection>({
-      rawOutput: inputPayload,
-      command: 'agent-reflect',
-      schema: ReflectionSchema,
-      systemPrompt: this.systemPrompt,
-    });
+      const result = await this.modelRouter.reason<Reflection>({
+        rawOutput: inputPayload,
+        command: 'agent-reflect',
+        schema: ReflectionSchema,
+        systemPrompt: this.systemPrompt,
+      });
 
-    return this.normalizeReflection(result.data);
+      return this.normalizeReflection(result.data);
+    }, { input: originalRequest });
   }
 
   /**

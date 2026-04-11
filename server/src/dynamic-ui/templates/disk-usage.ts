@@ -8,6 +8,7 @@ export const diskUsageTemplate: UITemplate = {
   name: 'Disk Usage',
   description: 'Filesystem and directory size analysis',
   tags: ['disk', 'storage', 'filesystem', 'space', 'df', 'du'],
+  layoutPattern: 'dashboard-metrics',
   matchPatterns: [
     '^df\\s+(-h|--human)',
     '^df$',
@@ -25,13 +26,42 @@ export const diskUsageTemplate: UITemplate = {
       gap: 'md',
       children: [
         {
-          type: 'badge-grid',
-          title: 'Storage Summary',
-          badges: [
-            { label: 'Total', value: '500 GB', variant: 'default' },
-            { label: 'Used', value: '312 GB', variant: 'warning' },
-            { label: 'Available', value: '188 GB', variant: 'success' },
-            { label: 'Filesystems', value: '4', variant: 'secondary' },
+          layout: 'grid',
+          autoFit: true,
+          minChildWidth: 200,
+          children: [
+            { type: 'stat-card', title: 'Total', value: '500 GB', icon: 'HardDrive' },
+            { type: 'stat-card', title: 'Used', value: '312 GB', trend: 'up' },
+            { type: 'stat-card', title: 'Available', value: '188 GB', trend: 'neutral' },
+            { type: 'stat-card', title: 'Filesystems', value: '4' },
+          ],
+        },
+        {
+          layout: 'grid',
+          autoFit: true,
+          minChildWidth: 200,
+          children: [
+            {
+              type: 'progress-bar',
+              title: 'Root (/)',
+              value: 62,
+              label: '31 GB / 50 GB',
+              variant: 'default',
+            },
+            {
+              type: 'progress-bar',
+              title: 'Home (/home)',
+              value: 45,
+              label: '90 GB / 200 GB',
+              variant: 'default',
+            },
+            {
+              type: 'progress-bar',
+              title: 'Data (/data)',
+              value: 76,
+              label: '191 GB / 250 GB',
+              variant: 'warning',
+            },
           ],
         },
         {
@@ -52,27 +82,6 @@ export const diskUsageTemplate: UITemplate = {
             { filesystem: '/dev/sdb1', mountpoint: '/data', type: 'xfs', size: '250 GB', used: '191 GB', available: '59 GB', usePercent: 76 },
             { filesystem: 'tmpfs', mountpoint: '/tmp', type: 'tmpfs', size: '8 GB', used: '245 MB', available: '7.8 GB', usePercent: 3 },
           ],
-        },
-        {
-          type: 'progress-bar',
-          title: 'Root (/)',
-          value: 62,
-          label: '31 GB / 50 GB',
-          variant: 'default',
-        },
-        {
-          type: 'progress-bar',
-          title: 'Home (/home)',
-          value: 45,
-          label: '90 GB / 200 GB',
-          variant: 'default',
-        },
-        {
-          type: 'progress-bar',
-          title: 'Data (/data)',
-          value: 76,
-          label: '191 GB / 250 GB',
-          variant: 'warning',
         },
       ],
       },

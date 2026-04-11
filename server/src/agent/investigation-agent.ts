@@ -12,6 +12,7 @@ import type { ConnectionManager, ExecResult } from '../ssh/connection-manager.js
 import type { LLMProvider } from '../llm/provider.js';
 import { EventEmitter } from 'events';
 import { isReadCommandAllowed } from './command-allowlist.js';
+import { withTrace, withSpan, setSpanAttributes } from '../observatory/context.js';
 
 // Re-export for backwards compatibility
 export const isCommandAllowed = isReadCommandAllowed;
@@ -113,6 +114,17 @@ export class InvestigationAgent {
       };
     }
 
+    return withTrace(`Investigation: ${question.slice(0, 50)}`, {
+      trigger: 'investigation-agent',
+      serverId,
+    }, () => this.investigateCore(serverId, question, options));
+  }
+
+  private async investigateCore(
+    serverId: string,
+    question: string,
+    options: AgentOptions = {},
+  ): Promise<AgentResult> {
     const sessionId = crypto.randomUUID();
     const maxSteps = options.maxSteps ?? DEFAULT_MAX_STEPS;
     const cmdTimeout = options.commandTimeout ?? DEFAULT_CMD_TIMEOUT;
@@ -121,6 +133,9 @@ export class InvestigationAgent {
     const startTime = Date.now();
     let finalAnswer = '';
     let status: AgentResult['status'] = 'completed';
+
+    // Record the user's question as input on the root AGENT span
+    setSpanAttributes({ input: question });
 
     // Build conversation history for the LLM
     const conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [
@@ -138,19 +153,28 @@ export class InvestigationAgent {
         break;
       }
 
-      // Ask LLM for next action
+      // Ask LLM for next action — wrapped in Observatory LLM span (EX4-B.2)
       let thought: AgentThought;
       try {
         const userPrompt = conversationHistory
           .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
           .join('\n\n') + `\n\nStep ${step}/${maxSteps}. Respond with your next thought, command to run, or final answer.`;
 
-        const parseResult = await this.llmProvider.parseText({
-          rawOutput: '',
-          command: 'agent-investigate',
-          schema: AgentThoughtSchema,
-          systemPrompt: AGENT_SYSTEM_PROMPT,
-          userPrompt,
+        const parseResult = await withSpan(`InvestigationAgent.think[${step}]`, 'LLM', async () => {
+          const result = await this.llmProvider!.parseText({
+            rawOutput: '',
+            command: 'agent-investigate',
+            schema: AgentThoughtSchema,
+            systemPrompt: AGENT_SYSTEM_PROMPT,
+            userPrompt,
+          });
+          setSpanAttributes({
+            model: result.model,
+            tokenUsage: { inputTokens: result.tokensUsed.input, outputTokens: result.tokensUsed.output, totalTokens: result.tokensUsed.input + result.tokensUsed.output },
+            input: userPrompt.slice(0, 500),
+            output: { decision: result.data.decision, thought: result.data.thought.slice(0, 200) },
+          });
+          return result;
         });
 
         thought = parseResult.data;
@@ -202,10 +226,12 @@ export class InvestigationAgent {
           continue;
         }
 
-        // Execute command
+        // Execute command — wrapped in TOOL span (EX4-B.2)
         let execResult: ExecResult;
         try {
-          execResult = await this.ssh.exec(serverId, cmd, cmdTimeout);
+          execResult = await withSpan(`cmd:${cmd.split(' ')[0]}`, 'TOOL', async () => {
+            return this.ssh.exec(serverId, cmd, cmdTimeout);
+          }, { input: cmd });
         } catch (err) {
           const errMsg = err instanceof Error ? err.message : 'Command execution failed';
           steps.push({
@@ -277,12 +303,21 @@ export class InvestigationAgent {
           .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
           .join('\n\n') + '\n\nYou have reached the maximum number of steps. Provide your best diagnosis now based on what you have gathered.';
 
-        const finalResult = await this.llmProvider!.parseText({
-          rawOutput: '',
-          command: 'agent-final-answer',
-          schema: AgentThoughtSchema,
-          systemPrompt: AGENT_SYSTEM_PROMPT,
-          userPrompt: finalPrompt,
+        const finalResult = await withSpan('InvestigationAgent.finalAnswer', 'LLM', async () => {
+          const result = await this.llmProvider!.parseText({
+            rawOutput: '',
+            command: 'agent-final-answer',
+            schema: AgentThoughtSchema,
+            systemPrompt: AGENT_SYSTEM_PROMPT,
+            userPrompt: finalPrompt,
+          });
+          setSpanAttributes({
+            model: result.model,
+            tokenUsage: { inputTokens: result.tokensUsed.input, outputTokens: result.tokensUsed.output, totalTokens: result.tokensUsed.input + result.tokensUsed.output },
+            input: finalPrompt.slice(0, 500),
+            output: result.data.answer ?? result.data.thought,
+          });
+          return result;
         });
         finalAnswer = finalResult.data.answer ?? finalResult.data.thought;
         totalTokens += finalResult.tokensUsed.input + finalResult.tokensUsed.output;
@@ -292,6 +327,12 @@ export class InvestigationAgent {
     }
 
     this.abortedSessions.delete(sessionId);
+
+    // EX4-B.2: Record investigation result on the trace root span
+    setSpanAttributes({
+      output: { answer: finalAnswer.slice(0, 500), totalSteps: steps.length, status },
+      attributes: { sessionId, totalTokens },
+    });
 
     return {
       sessionId,

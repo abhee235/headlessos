@@ -8,6 +8,7 @@ export const dockerOverviewTemplate: UITemplate = {
   name: 'Docker Overview',
   description: 'Docker container status summary and resource usage',
   tags: ['docker', 'containers', 'devops', 'orchestration'],
+  layoutPattern: 'status-overview',
   matchPatterns: [
     '^docker\\s+ps',
     '^docker\\s+container\\s+ls',
@@ -25,13 +26,14 @@ export const dockerOverviewTemplate: UITemplate = {
       gap: 'md',
       children: [
         {
-          type: 'badge-grid',
-          title: 'Container Summary',
-          badges: [
-            { label: 'Running', value: '5', variant: 'success' },
-            { label: 'Stopped', value: '2', variant: 'destructive' },
-            { label: 'Paused', value: '0', variant: 'warning' },
-            { label: 'Images', value: '12', variant: 'secondary' },
+          layout: 'grid',
+          autoFit: true,
+          minChildWidth: 180,
+          children: [
+            { type: 'stat-card', title: 'Running', value: '5', icon: 'Play', trend: 'neutral' },
+            { type: 'stat-card', title: 'Stopped', value: '2', icon: 'Square', trend: 'neutral' },
+            { type: 'stat-card', title: 'Paused', value: '0', icon: 'Pause', trend: 'neutral' },
+            { type: 'stat-card', title: 'Images', value: '12', icon: 'Layers', trend: 'neutral' },
           ],
         },
         {
@@ -66,6 +68,7 @@ export const dockerOverviewTemplate: UITemplate = {
             { name: 'old-api', image: 'node:18', status: 'exited', ports: '', cpu: 0, memory: '0 B', uptime: 'Exited 5 days ago' },
             { name: 'test-db', image: 'postgres:15', status: 'exited', ports: '', cpu: 0, memory: '0 B', uptime: 'Exited 10 days ago' },
           ],
+          filters: { search: true },
           footer: '5 running, 2 stopped',
         },
       ],
