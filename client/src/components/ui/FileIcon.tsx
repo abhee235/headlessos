@@ -3,16 +3,17 @@
 
 import type { FileEntryData } from '../../lib/api';
 import {
-  Gauge,
-  Activity,
-  Server,
-  Palette,
-  Shield,
-  Globe,
-  Bot,
-  Wand2,
-  Telescope,
-} from 'lucide-react';
+  TopSpeedFilled,
+  PulseFilled,
+  ServerFilled,
+  SettingsFilled,
+  ShieldFilled,
+  GlobeFilled,
+  BotFilled,
+  WandFilled,
+  EyeFilled,
+  DeleteFilled,
+} from '@fluentui/react-icons';
 
 interface FileIconProps {
   entry?: FileEntryData;
@@ -48,40 +49,118 @@ export function FileIcon({ entry, type, name, size = 'md', className = '', style
   return <FileSVG size={s.icon} category={category} ext={ext} className={className} style={style} />;
 }
 
-// ── Desktop App Icons (Apple HIG-inspired) ───────────────
-// Design: "Embrace simplicity… express it with a minimal number of shapes.
-// Prefer a simple background, such as a solid color or gradient, that puts
-// emphasis on your primary design." — Apple Human Interface Guidelines
+// ── Desktop App Icons (Apple HIG-inspired, 6-layer) ───────────────
+// Design principles from Apple Human Interface Guidelines:
+// 1. "Subtle top-to-bottom, light-to-dark gradients respond well to system lighting"
+// 2. "Consider basing your icon design around filled, overlapping shapes"
+// 3. "Layered icons produce a sense of depth and vitality"
+// 4. "Prefer clearly defined edges in foreground layers"
+// 5. Corner ratio: 229/1024 ≈ 22.37% (Apple's exact squircle proportion)
 //
-// Pattern: Gradient rounded-square background + centered Lucide glyph.
-// Colors: Apple system color palette (400→600 Tailwind, sober tones).
+// Pattern: 6-layer gradient rounded-square + centered Fluent UI Filled glyph.
+// Glyphs: @fluentui/react-icons (Microsoft, MIT license)
 
-/** Shared rounded-square base — subtle top-to-bottom gradient per Apple HIG */
+/** Apple HIG-inspired 6-layer icon base — supports light & dark themes */
 function AppIconBase({ size, fromColor, toColor, children }: {
   size: number; fromColor: string; toColor: string; children: React.ReactNode;
 }) {
+  const br = size * 0.2237; // Apple's corner ratio
+  const s = (v: number) => Math.max(0.5, size * v); // scale helper
+
   return (
     <div style={{
+      position: 'relative',
       width: size,
       height: size,
-      borderRadius: size * 0.22,
-      background: `linear-gradient(180deg, ${fromColor} 0%, ${toColor} 100%)`,
-      display: 'inline-flex',
-      alignItems: 'center',
-      justifyContent: 'center',
       flexShrink: 0,
-      boxShadow: `0 ${Math.max(1, size * 0.04)}px ${Math.max(2, size * 0.08)}px rgba(0,0,0,0.15), inset 0 ${Math.max(1, size * 0.02)}px 0 rgba(255,255,255,0.15)`,
+      // Multi-layer shadow on outer wrapper (not clipped by overflow:hidden)
+      filter: [
+        `drop-shadow(0 ${s(0.01)}px ${s(0.02)}px rgba(0,0,0,0.10))`,
+        `drop-shadow(0 ${s(0.03)}px ${s(0.06)}px rgba(0,0,0,0.16))`,
+        `drop-shadow(0 ${s(0.05)}px ${s(0.12)}px rgba(0,0,0,0.12))`,
+      ].join(' '),
     }}>
-      {children}
+      {/* Inner clipped container */}
+      <div style={{
+        position: 'relative',
+        width: size,
+        height: size,
+        borderRadius: br,
+        overflow: 'hidden', // Clip glyph at rounded corners
+      }}>
+        {/* Layer 1: Main gradient background */}
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          borderRadius: br,
+          background: `linear-gradient(180deg, ${fromColor} 0%, ${toColor} 100%)`,
+        }} />
+
+        {/* Layer 2: Specular highlight — simulates light from above */}
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          borderRadius: br,
+          background: 'linear-gradient(180deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.06) 20%, transparent 45%)',
+        }} />
+
+        {/* Layer 3: Radial light (upper-left light source highlight) */}
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          borderRadius: br,
+          background: 'radial-gradient(ellipse 60% 50% at 30% 12%, rgba(255,255,255,0.10) 0%, transparent 65%)',
+        }} />
+
+        {/* Layer 4: Inner shadows — top highlight edge + bottom depth shadow */}
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          borderRadius: br,
+          boxShadow: [
+            `inset 0 ${s(0.015)}px 0 rgba(255,255,255,0.15)`,
+            `inset 0 -${s(0.015)}px ${s(0.03)}px rgba(0,0,0,0.18)`,
+          ].join(', '),
+        }} />
+
+        {/* Layer 5: Dark containment border — crisp on both light & dark bg */}
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          borderRadius: br,
+          boxShadow: [
+            `inset 0 0 0 ${Math.max(0.5, size * 0.008)}px rgba(0,0,0,0.12)`,
+            `inset 0 ${Math.max(0.5, size * 0.01)}px 0 rgba(255,255,255,0.12)`,
+          ].join(', '),
+        }} />
+
+        {/* Layer 6: Centered glyph with subtle drop-shadow for depth */}
+        <div style={{
+          position: 'relative',
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1,
+          filter: size >= 32
+            ? `drop-shadow(0 ${s(0.012)}px ${s(0.02)}px rgba(0,0,0,0.25))`
+            : undefined,
+        }}>
+          {children}
+        </div>
+      </div>
     </div>
   );
 }
 
+/** Glyph size: ~79% of box (Apple-like fill ratio) */
+const glyphSize = (size: number) => Math.round(size * 0.79);
+
 export function DashboardIcon({ size = 48 }: { size?: number }) {
-  const sw = size <= 24 ? 2.25 : 1.75;
   return (
     <AppIconBase size={size} fromColor="#60A5FA" toColor="#2563EB">
-      <Gauge size={Math.round(size * 0.52)} color="white" strokeWidth={sw} />
+      <TopSpeedFilled style={{ color: 'white', fontSize: glyphSize(size) }} />
     </AppIconBase>
   );
 }
@@ -203,73 +282,73 @@ export function DockerIcon({ size = 48 }: { size?: number }) {
 }
 
 export function TaskManagerIcon({ size = 48 }: { size?: number }) {
-  const sw = size <= 24 ? 2.25 : 1.75;
   return (
     <AppIconBase size={size} fromColor="#4ADE80" toColor="#16A34A">
-      <Activity size={Math.round(size * 0.52)} color="white" strokeWidth={sw} />
+      <PulseFilled style={{ color: 'white', fontSize: glyphSize(size) }} />
     </AppIconBase>
   );
 }
 
 export function ServicesIcon({ size = 48 }: { size?: number }) {
-  const sw = size <= 24 ? 2.25 : 1.75;
   return (
     <AppIconBase size={size} fromColor="#818CF8" toColor="#4F46E5">
-      <Server size={Math.round(size * 0.52)} color="white" strokeWidth={sw} />
+      <ServerFilled style={{ color: 'white', fontSize: glyphSize(size) }} />
     </AppIconBase>
   );
 }
 
 export function SettingsIcon({ size = 48 }: { size?: number }) {
-  const sw = size <= 24 ? 2.25 : 1.75;
   return (
     <AppIconBase size={size} fromColor="#F0ABFC" toColor="#C026D3">
-      <Palette size={Math.round(size * 0.52)} color="white" strokeWidth={sw} />
+      <SettingsFilled style={{ color: 'white', fontSize: glyphSize(size) }} />
     </AppIconBase>
   );
 }
 
 export function ServerAdminIcon({ size = 48 }: { size?: number }) {
-  const sw = size <= 24 ? 2.25 : 1.75;
   return (
     <AppIconBase size={size} fromColor="#34D399" toColor="#059669">
-      <Shield size={Math.round(size * 0.52)} color="white" strokeWidth={sw} />
+      <ShieldFilled style={{ color: 'white', fontSize: glyphSize(size) }} />
     </AppIconBase>
   );
 }
 
 export function FleetIcon({ size = 48 }: { size?: number }) {
-  const sw = size <= 24 ? 2.25 : 1.75;
   return (
     <AppIconBase size={size} fromColor="#38BDF8" toColor="#0369A1">
-      <Globe size={Math.round(size * 0.52)} color="white" strokeWidth={sw} />
+      <GlobeFilled style={{ color: 'white', fontSize: glyphSize(size) }} />
     </AppIconBase>
   );
 }
 
 export function AgentIcon({ size = 48 }: { size?: number }) {
-  const sw = size <= 24 ? 2.25 : 1.75;
   return (
     <AppIconBase size={size} fromColor="#A78BFA" toColor="#7C3AED">
-      <Bot size={Math.round(size * 0.52)} color="white" strokeWidth={sw} />
+      <BotFilled style={{ color: 'white', fontSize: glyphSize(size) }} />
     </AppIconBase>
   );
 }
 
 export function UIAgentIcon({ size = 48 }: { size?: number }) {
-  const sw = size <= 24 ? 2.25 : 1.75;
   return (
     <AppIconBase size={size} fromColor="#34D399" toColor="#059669">
-      <Wand2 size={Math.round(size * 0.52)} color="white" strokeWidth={sw} />
+      <WandFilled style={{ color: 'white', fontSize: glyphSize(size) }} />
     </AppIconBase>
   );
 }
 
 export function ObservatoryIcon({ size = 48 }: { size?: number }) {
-  const sw = size <= 24 ? 2.25 : 1.75;
   return (
     <AppIconBase size={size} fromColor="#F472B6" toColor="#BE185D">
-      <Telescope size={Math.round(size * 0.52)} color="white" strokeWidth={sw} />
+      <EyeFilled style={{ color: 'white', fontSize: glyphSize(size) }} />
+    </AppIconBase>
+  );
+}
+
+export function RecycleBinIcon({ size = 48 }: { size?: number }) {
+  return (
+    <AppIconBase size={size} fromColor="#94A3B8" toColor="#475569">
+      <DeleteFilled style={{ color: 'white', fontSize: glyphSize(size) }} />
     </AppIconBase>
   );
 }

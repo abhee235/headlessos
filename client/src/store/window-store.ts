@@ -27,6 +27,9 @@ export interface WindowState {
   maximized: boolean;
   focused: boolean;
   zIndex: number;
+
+  // Optional metadata for the app (e.g. initialPath for file explorer)
+  meta?: Record<string, string>;
 }
 
 interface DesktopState {
@@ -36,7 +39,7 @@ interface DesktopState {
   snapPreview: SnapZone;
 
   // Actions
-  openWindow: (appId: string, serverId: string, title: string, icon: string) => void;
+  openWindow: (appId: string, serverId: string, title: string, icon: string, meta?: Record<string, string>) => void;
   closeWindow: (id: string) => void;
   focusWindow: (id: string) => void;
   minimizeWindow: (id: string) => void;
@@ -73,7 +76,7 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
   startMenuOpen: false,
   snapPreview: null,
 
-  openWindow: (appId, serverId, title, icon) => {
+  openWindow: (appId, serverId, title, icon, meta) => {
     const state = get();
 
     // Single-instance apps: focus existing window
@@ -118,6 +121,7 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
       maximized: false,
       focused: true,
       zIndex: newZ,
+      ...(meta ? { meta } : {}),
     };
 
     set({

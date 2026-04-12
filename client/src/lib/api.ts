@@ -256,6 +256,76 @@ export async function moveFile(serverId: string, sourcePath: string, destPath: s
   });
 }
 
+// ── File Search ────────────────────────────────────────
+
+export interface FileSearchResult {
+  name: string;
+  path: string;
+  type: 'file' | 'directory' | 'other';
+}
+
+export interface FileSearchResponse {
+  results: FileSearchResult[];
+  basePath: string;
+  query: string;
+  truncated: boolean;
+}
+
+export async function searchFiles(
+  serverId: string,
+  basePath: string,
+  query: string,
+  maxDepth = 5,
+): Promise<FileSearchResponse> {
+  const params = new URLSearchParams({
+    path: basePath,
+    query,
+    maxDepth: String(maxDepth),
+  });
+  return request<FileSearchResponse>(`/servers/${serverId}/files/search?${params}`);
+}
+
+// ── Trash / Recycle Bin ────────────────────────────────
+
+export interface TrashItem {
+  name: string;
+  originalName: string;
+  trashedAt: string;
+  path: string;
+  size?: number;
+  isDirectory?: boolean;
+}
+
+export async function trashFile(serverId: string, path: string): Promise<{ success: boolean; trashPath: string; originalPath: string }> {
+  return request<{ success: boolean; trashPath: string; originalPath: string }>(`/servers/${serverId}/files/trash`, {
+    method: 'POST',
+    body: JSON.stringify({ path }),
+  });
+}
+
+export async function listTrash(serverId: string): Promise<TrashItem[]> {
+  return request<TrashItem[]>(`/servers/${serverId}/files/trash`);
+}
+
+export async function restoreFromTrash(serverId: string, trashName: string, restorePath: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/servers/${serverId}/files/trash/restore`, {
+    method: 'POST',
+    body: JSON.stringify({ trashName, restorePath }),
+  });
+}
+
+export async function deleteFromTrash(serverId: string, name: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/servers/${serverId}/files/trash?name=${encodeURIComponent(name)}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function emptyTrash(serverId: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/servers/${serverId}/files/trash`, {
+    method: 'DELETE',
+  });
+}
+
 // ── File Upload (M10.3) ────────────────────────────────
 
 export interface UploadResult {
