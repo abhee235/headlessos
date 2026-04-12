@@ -1,0 +1,1398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HeadlessOS — App Icon Pack Comparison</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      padding: 32px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #60a5fa, #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #94a3b8;
+      margin-bottom: 40px;
+      font-size: 15px;
+    }
+
+    .pack-section {
+      margin-bottom: 48px;
+      background: #1a1d2e;
+      border-radius: 16px;
+      padding: 32px;
+      border: 1px solid #2a2d3e;
+    }
+
+    .pack-header {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      margin-bottom: 8px;
+    }
+
+    .pack-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #f1f5f9;
+    }
+
+    .pack-badge {
+      font-size: 12px;
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-weight: 600;
+    }
+
+    .badge-stars { background: #fbbf24; color: #1a1d2e; }
+    .badge-license { background: #334155; color: #94a3b8; }
+
+    .pack-desc {
+      color: #94a3b8;
+      font-size: 14px;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    .pack-desc a { color: #60a5fa; text-decoration: none; }
+    .pack-desc a:hover { text-decoration: underline; }
+
+    .icons-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+      gap: 20px;
+    }
+
+    .icon-cell {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 16px 8px;
+      border-radius: 12px;
+      transition: background 0.15s;
+    }
+
+    .icon-cell:hover {
+      background: rgba(255,255,255,0.04);
+    }
+
+    .icon-cell svg {
+      width: 56px;
+      height: 56px;
+      flex-shrink: 0;
+    }
+
+    .icon-label {
+      font-size: 11px;
+      color: #94a3b8;
+      text-align: center;
+      line-height: 1.3;
+      font-weight: 500;
+    }
+
+    /* Size comparison row */
+    .size-row {
+      display: flex;
+      align-items: end;
+      gap: 24px;
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid #2a2d3e;
+    }
+
+    .size-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .size-label {
+      font-size: 10px;
+      color: #64748b;
+      font-weight: 600;
+    }
+
+    /* Current icons section */
+    .current-label {
+      font-size: 11px;
+      color: #f97316;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+
+    /* Comparison table at the bottom */
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 40px;
+      background: #1a1d2e;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid #2a2d3e;
+    }
+
+    .comparison-table th,
+    .comparison-table td {
+      padding: 14px 20px;
+      text-align: left;
+      border-bottom: 1px solid #2a2d3e;
+      font-size: 14px;
+    }
+
+    .comparison-table th {
+      background: #242738;
+      color: #94a3b8;
+      font-weight: 700;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .comparison-table td { color: #e2e8f0; }
+
+    .pro { color: #4ade80; }
+    .con { color: #f87171; }
+
+    .winner {
+      background: rgba(74, 222, 128, 0.08);
+    }
+
+    .vote-section {
+      text-align: center;
+      margin-top: 48px;
+      padding: 32px;
+      background: #1a1d2e;
+      border-radius: 16px;
+      border: 1px solid #2a2d3e;
+    }
+
+    .vote-section h2 {
+      font-size: 20px;
+      margin-bottom: 16px;
+    }
+
+    .vote-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .vote-btn {
+      padding: 12px 28px;
+      border-radius: 10px;
+      border: 2px solid #334155;
+      background: transparent;
+      color: #e2e8f0;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .vote-btn:hover {
+      border-color: #60a5fa;
+      background: rgba(96, 165, 250, 0.1);
+    }
+
+    .vote-btn.selected {
+      border-color: #60a5fa;
+      background: #2563eb;
+      color: white;
+    }
+
+    .desktop-mock {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 24px;
+      padding: 32px;
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border-radius: 12px;
+      margin-top: 24px;
+      border: 1px solid #334155;
+    }
+
+    .desktop-icon {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 12px;
+      border-radius: 8px;
+      cursor: default;
+      transition: background 0.15s;
+    }
+
+    .desktop-icon:hover {
+      background: rgba(255,255,255,0.06);
+    }
+
+    .desktop-icon-label {
+      font-size: 12px;
+      color: #e2e8f0;
+      text-align: center;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+      font-weight: 500;
+    }
+
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin: 48px 0 16px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>HeadlessOS — App Icon Pack Comparison</h1>
+<p class="subtitle">Compare 3 open-source icon styles for your OS desktop apps. Pick the one that feels best.</p>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- PACK 0: CURRENT (baseline) -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="pack-section" style="border-color: #f97316; border-width: 2px;">
+  <p class="current-label">Current Icons (Baseline)</p>
+  <div class="pack-header">
+    <span class="pack-title">AppIconBase + Lucide Glyphs</span>
+    <span class="pack-badge badge-license">In-house</span>
+  </div>
+  <p class="pack-desc">
+    Gradient rounded-square background with white Lucide line icons. Simple, but looks generic — 
+    every icon is "colored square + line glyph", lacking the richness of a real OS icon set.
+  </p>
+  <div class="icons-grid">
+    <!-- Dashboard: blue gradient + gauge -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 56 56">
+        <defs><linearGradient id="c-dash" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#60A5FA"/><stop offset="1" stop-color="#2563EB"/></linearGradient></defs>
+        <rect width="56" height="56" rx="12.3" fill="url(#c-dash)"/>
+        <circle cx="28" cy="30" r="12" stroke="white" stroke-width="2" fill="none"/>
+        <line x1="28" y1="30" x2="35" y2="22" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+      <span class="icon-label">Dashboard</span>
+    </div>
+    <!-- File Explorer: amber folder -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 48 48" fill="none">
+        <path d="M4 14C4 11.79 5.79 10 8 10H17.17C18.23 10 19.24 10.42 20 11.17L22.83 14H40C42.21 14 44 15.79 44 18V38C44 40.21 42.21 42 40 42H8C5.79 42 4 40.21 4 38V14Z" fill="#d97706"/>
+        <path d="M3 21C3 19.34 4.34 18 6 18H42C43.66 18 45 19.34 45 21V38C45 40.76 42.76 43 40 43H8C5.24 43 3 40.76 3 38V21Z" fill="#f59e0b"/>
+        <path d="M3 21C3 19.34 4.34 18 6 18H42C43.66 18 45 19.34 45 21V24H3V21Z" fill="white" fill-opacity="0.22"/>
+      </svg>
+      <span class="icon-label">File Explorer</span>
+    </div>
+    <!-- Terminal -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 48 48" fill="none">
+        <rect x="2" y="4" width="44" height="40" rx="8" fill="#1a1f3a"/>
+        <circle cx="11" cy="12" r="2.5" fill="#ff5f57"/><circle cx="18" cy="12" r="2.5" fill="#febc2e"/><circle cx="25" cy="12" r="2.5" fill="#28c840"/>
+        <path d="M10 22L17 27.5L10 33" stroke="#4ade80" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="21" y="30" width="14" height="3" rx="1.5" fill="#4ade80" fill-opacity="0.6"/>
+      </svg>
+      <span class="icon-label">Terminal</span>
+    </div>
+    <!-- Docker -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 56 56">
+        <defs><linearGradient id="c-dock" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#38BDF8"/><stop offset="1" stop-color="#0284C7"/></linearGradient></defs>
+        <rect width="56" height="56" rx="12.3" fill="url(#c-dock)"/>
+        <g transform="translate(10,14) scale(0.07)" fill="white"><path d="M349.9 236.3c-5.4-3.8-36.8-5.2-56.5-1.6-1.7-13.1-8.7-24.5-21-34.7l-7.1-4.7-4.7 7.1c-9.8 14.3-13.3 37.7-2.3 53.4-5.1 2.6-14.8 6.3-27.9 6.1H2.2c-4.1 20.6-.6 47 12.4 65.6 13.1 18.7 33.1 28.2 59.8 28.2 56.8 0 98.8-26.2 118.5-73.8 7.7.2 24.4.1 33-16.2.2-.4 5-9.8 6-12.7zm-216.6-22.2h36.3v36.3h-36.3zm46 0h36.3v36.3h-36.3zm0-45.6h36.3V205h-36.3zm46 45.6H262v36.3h-36.3zm0-45.6H262V205h-36.3zm46 45.6h36.3v36.3h-36.3zm0-45.6h36.3V205h-36.3zm46 45.6h36.3v36.3h-36.3z"/></g>
+      </svg>
+      <span class="icon-label">Docker</span>
+    </div>
+    <!-- Task Manager -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 56 56">
+        <defs><linearGradient id="c-tm" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4ADE80"/><stop offset="1" stop-color="#16A34A"/></linearGradient></defs>
+        <rect width="56" height="56" rx="12.3" fill="url(#c-tm)"/>
+        <polyline points="14,40 22,28 30,34 42,16" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="icon-label">Task Manager</span>
+    </div>
+    <!-- Services -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 56 56">
+        <defs><linearGradient id="c-svc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#818CF8"/><stop offset="1" stop-color="#4F46E5"/></linearGradient></defs>
+        <rect width="56" height="56" rx="12.3" fill="url(#c-svc)"/>
+        <rect x="16" y="14" width="24" height="8" rx="2" stroke="white" stroke-width="2" fill="none"/>
+        <rect x="16" y="24" width="24" height="8" rx="2" stroke="white" stroke-width="2" fill="none"/>
+        <rect x="16" y="34" width="24" height="8" rx="2" stroke="white" stroke-width="2" fill="none"/>
+        <circle cx="20" cy="18" r="1.5" fill="#4ade80"/><circle cx="20" cy="28" r="1.5" fill="#fbbf24"/><circle cx="20" cy="38" r="1.5" fill="#4ade80"/>
+      </svg>
+      <span class="icon-label">Services</span>
+    </div>
+    <!-- Settings -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 56 56">
+        <defs><linearGradient id="c-set" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F0ABFC"/><stop offset="1" stop-color="#C026D3"/></linearGradient></defs>
+        <rect width="56" height="56" rx="12.3" fill="url(#c-set)"/>
+        <circle cx="28" cy="28" r="8" stroke="white" stroke-width="2" fill="none"/>
+        <circle cx="28" cy="28" r="3" fill="white"/>
+      </svg>
+      <span class="icon-label">Settings</span>
+    </div>
+    <!-- Server Admin -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 56 56">
+        <defs><linearGradient id="c-sa" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#34D399"/><stop offset="1" stop-color="#059669"/></linearGradient></defs>
+        <rect width="56" height="56" rx="12.3" fill="url(#c-sa)"/>
+        <path d="M28 14L40 20V30C40 36 35 41 28 44C21 41 16 36 16 30V20L28 14Z" stroke="white" stroke-width="2" fill="none"/>
+      </svg>
+      <span class="icon-label">Server Admin</span>
+    </div>
+    <!-- Fleet -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 56 56">
+        <defs><linearGradient id="c-fl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#38BDF8"/><stop offset="1" stop-color="#0369A1"/></linearGradient></defs>
+        <rect width="56" height="56" rx="12.3" fill="url(#c-fl)"/>
+        <circle cx="28" cy="28" r="12" stroke="white" stroke-width="2" fill="none"/>
+        <line x1="28" y1="14" x2="28" y2="42" stroke="white" stroke-width="1.5"/>
+        <line x1="14" y1="28" x2="42" y2="28" stroke="white" stroke-width="1.5"/>
+        <ellipse cx="28" cy="28" rx="6" ry="12" stroke="white" stroke-width="1.5" fill="none"/>
+      </svg>
+      <span class="icon-label">Fleet</span>
+    </div>
+    <!-- AI Agent -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 56 56">
+        <defs><linearGradient id="c-ai" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A78BFA"/><stop offset="1" stop-color="#7C3AED"/></linearGradient></defs>
+        <rect width="56" height="56" rx="12.3" fill="url(#c-ai)"/>
+        <rect x="18" y="18" width="20" height="16" rx="4" stroke="white" stroke-width="2" fill="none"/>
+        <circle cx="24" cy="26" r="2" fill="white"/><circle cx="32" cy="26" r="2" fill="white"/>
+        <line x1="22" y1="34" x2="22" y2="40" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        <line x1="34" y1="34" x2="34" y2="40" stroke="white" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <span class="icon-label">AI Agent</span>
+    </div>
+    <!-- Observatory -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 56 56">
+        <defs><linearGradient id="c-obs" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F472B6"/><stop offset="1" stop-color="#BE185D"/></linearGradient></defs>
+        <rect width="56" height="56" rx="12.3" fill="url(#c-obs)"/>
+        <circle cx="28" cy="22" r="6" stroke="white" stroke-width="2" fill="none"/>
+        <line x1="32" y1="27" x2="40" y2="42" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        <line x1="24" y1="27" x2="16" y2="42" stroke="white" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <span class="icon-label">Observatory</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- PACK 1: Papirus Style (Flat Material with detail) -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="pack-section">
+  <div class="pack-header">
+    <span class="pack-title">Option A: Papirus Style</span>
+    <span class="pack-badge badge-stars">⭐ 14k+ Stars</span>
+    <span class="pack-badge badge-license">GPL-3.0</span>
+  </div>
+  <p class="pack-desc">
+    <a href="https://github.com/PapirusDevelopmentTeam/papirus-icon-theme">Papirus</a> — 
+    The most popular Linux icon theme. Flat material design with carefully crafted details, 
+    subtle gradients and long shadows. Perfect "desktop OS" aesthetic. Each icon is unique 
+    and recognizable at small sizes. <strong>Style: Flat Material with subtle depth.</strong>
+  </p>
+  <div class="icons-grid">
+    <!-- Dashboard — Papirus style: flat circle chart with inner elements -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <linearGradient id="p-dash-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#42A5F5"/><stop offset="1" stop-color="#1E88E5"/></linearGradient>
+        </defs>
+        <rect x="4" y="4" width="56" height="56" rx="6" fill="url(#p-dash-bg)"/>
+        <!-- Long shadow -->
+        <path d="M60 10L60 60H10L60 10Z" fill="black" fill-opacity="0.08"/>
+        <!-- Gauge face -->
+        <circle cx="32" cy="34" r="18" fill="white" fill-opacity="0.95"/>
+        <circle cx="32" cy="34" r="15" fill="#E3F2FD"/>
+        <!-- Gauge arc -->
+        <path d="M20 42 A15 15 0 0 1 44 42" stroke="#1E88E5" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M20 42 A15 15 0 0 1 32 19" stroke="#F44336" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <!-- Needle -->
+        <line x1="32" y1="34" x2="38" y2="22" stroke="#37474F" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="32" cy="34" r="3" fill="#37474F"/>
+        <!-- Title bar decoration -->
+        <rect x="10" y="8" width="26" height="3" rx="1.5" fill="white" fill-opacity="0.3"/>
+      </svg>
+      <span class="icon-label">Dashboard</span>
+    </div>
+    <!-- File Explorer — Papirus folder -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <linearGradient id="p-fold-back" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFB300"/><stop offset="1" stop-color="#FF8F00"/></linearGradient>
+          <linearGradient id="p-fold-front" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD54F"/><stop offset="1" stop-color="#FFC107"/></linearGradient>
+        </defs>
+        <path d="M6 18C6 15.24 8.24 13 11 13H22L28 18H53C55.76 18 58 20.24 58 23V51C58 53.76 55.76 56 53 56H11C8.24 56 6 53.76 6 51V18Z" fill="url(#p-fold-back)"/>
+        <path d="M4 24C4 22 6 20 8 20H56C58 20 60 22 60 24V52C60 54.76 57.76 57 55 57H9C6.24 57 4 54.76 4 52V24Z" fill="url(#p-fold-front)"/>
+        <path d="M4 24C4 22 6 20 8 20H56C58 20 60 22 60 24V28H4V24Z" fill="white" fill-opacity="0.2"/>
+        <!-- Shadow -->
+        <path d="M60 24L60 57H9L60 24Z" fill="black" fill-opacity="0.06"/>
+      </svg>
+      <span class="icon-label">File Explorer</span>
+    </div>
+    <!-- Terminal — Papirus style dark window -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <linearGradient id="p-term" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#37474F"/><stop offset="1" stop-color="#263238"/></linearGradient>
+        </defs>
+        <rect x="4" y="8" width="56" height="48" rx="6" fill="url(#p-term)"/>
+        <!-- Title bar -->
+        <rect x="4" y="8" width="56" height="12" rx="6" fill="#455A64"/>
+        <rect x="4" y="14" width="56" height="6" fill="#455A64"/>
+        <circle cx="14" cy="14" r="3" fill="#EF5350"/><circle cx="23" cy="14" r="3" fill="#FFC107"/><circle cx="32" cy="14" r="3" fill="#66BB6A"/>
+        <!-- Prompt lines -->
+        <text x="10" y="33" fill="#66BB6A" font-family="monospace" font-size="9" font-weight="bold">$</text>
+        <rect x="18" y="28" width="28" height="3" rx="1.5" fill="#66BB6A" fill-opacity="0.7"/>
+        <text x="10" y="44" fill="#66BB6A" font-family="monospace" font-size="9" font-weight="bold">$</text>
+        <rect x="18" y="39" width="18" height="3" rx="1.5" fill="#90A4AE"/>
+        <rect x="38" y="39" width="2" height="5" rx="1" fill="#66BB6A"/>
+      </svg>
+      <span class="icon-label">Terminal</span>
+    </div>
+    <!-- Docker — Papirus whale -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <rect x="4" y="4" width="56" height="56" rx="6" fill="#0288D1"/>
+        <path d="M60 10L60 60H10L60 10Z" fill="black" fill-opacity="0.06"/>
+        <!-- Simplified whale -->
+        <g transform="translate(8,16)">
+          <!-- Container boxes -->
+          <rect x="9" y="14" width="8" height="7" rx="1" fill="white" fill-opacity="0.9"/>
+          <rect x="19" y="14" width="8" height="7" rx="1" fill="white" fill-opacity="0.9"/>
+          <rect x="29" y="14" width="8" height="7" rx="1" fill="white" fill-opacity="0.9"/>
+          <rect x="19" y="5" width="8" height="7" rx="1" fill="white" fill-opacity="0.9"/>
+          <rect x="29" y="5" width="8" height="7" rx="1" fill="white" fill-opacity="0.9"/>
+          <!-- Whale body -->
+          <path d="M4 22C4 22 6 30 20 32C34 34 44 30 46 26C48 22 44 20 40 22" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <!-- Eye -->
+          <circle cx="42" cy="22" r="1.5" fill="white"/>
+        </g>
+      </svg>
+      <span class="icon-label">Docker</span>
+    </div>
+    <!-- Task Manager — Papirus: chart monitor -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <linearGradient id="p-tm-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#43A047"/><stop offset="1" stop-color="#2E7D32"/></linearGradient>
+        </defs>
+        <rect x="4" y="4" width="56" height="56" rx="6" fill="url(#p-tm-bg)"/>
+        <path d="M60 10L60 60H10L60 10Z" fill="black" fill-opacity="0.08"/>
+        <!-- Monitor frame -->
+        <rect x="10" y="10" width="44" height="34" rx="3" fill="white" fill-opacity="0.95"/>
+        <rect x="13" y="13" width="38" height="28" rx="2" fill="#E8F5E9"/>
+        <!-- Chart line -->
+        <polyline points="15,36 22,30 28,34 35,20 42,26 49,16" stroke="#2E7D32" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- Area fill -->
+        <path d="M15,36 L22,30 L28,34 L35,20 L42,26 L49,16 L49,39 L15,39 Z" fill="#66BB6A" fill-opacity="0.25"/>
+        <!-- Grid lines -->
+        <line x1="13" y1="25" x2="51" y2="25" stroke="#C8E6C9" stroke-width="0.5"/>
+        <line x1="13" y1="33" x2="51" y2="33" stroke="#C8E6C9" stroke-width="0.5"/>
+        <!-- Stand -->
+        <rect x="26" y="44" width="12" height="4" rx="1" fill="white" fill-opacity="0.7"/>
+        <rect x="22" y="48" width="20" height="3" rx="1.5" fill="white" fill-opacity="0.5"/>
+      </svg>
+      <span class="icon-label">Task Manager</span>
+    </div>
+    <!-- Services — Papirus: server stack -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <linearGradient id="p-svc-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7E57C2"/><stop offset="1" stop-color="#512DA8"/></linearGradient>
+        </defs>
+        <rect x="4" y="4" width="56" height="56" rx="6" fill="url(#p-svc-bg)"/>
+        <path d="M60 10L60 60H10L60 10Z" fill="black" fill-opacity="0.08"/>
+        <!-- Server boxes -->
+        <rect x="12" y="10" width="40" height="12" rx="3" fill="white" fill-opacity="0.93"/>
+        <circle cx="18" cy="16" r="2.5" fill="#66BB6A"/>
+        <rect x="24" y="14" width="14" height="2" rx="1" fill="#B39DDB"/>
+        <rect x="24" y="18" width="8" height="1" rx="0.5" fill="#D1C4E9"/>
+        
+        <rect x="12" y="26" width="40" height="12" rx="3" fill="white" fill-opacity="0.93"/>
+        <circle cx="18" cy="32" r="2.5" fill="#FFC107"/>
+        <rect x="24" y="30" width="14" height="2" rx="1" fill="#B39DDB"/>
+        <rect x="24" y="34" width="10" height="1" rx="0.5" fill="#D1C4E9"/>
+        
+        <rect x="12" y="42" width="40" height="12" rx="3" fill="white" fill-opacity="0.93"/>
+        <circle cx="18" cy="48" r="2.5" fill="#66BB6A"/>
+        <rect x="24" y="46" width="14" height="2" rx="1" fill="#B39DDB"/>
+        <rect x="24" y="50" width="12" height="1" rx="0.5" fill="#D1C4E9"/>
+      </svg>
+      <span class="icon-label">Services</span>
+    </div>
+    <!-- Settings — Papirus: gear -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <linearGradient id="p-set-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#78909C"/><stop offset="1" stop-color="#546E7A"/></linearGradient>
+        </defs>
+        <rect x="4" y="4" width="56" height="56" rx="6" fill="url(#p-set-bg)"/>
+        <path d="M60 10L60 60H10L60 10Z" fill="black" fill-opacity="0.06"/>
+        <!-- Gear SVG -->
+        <g transform="translate(32,32)">
+          <path d="M0,-20L4,-18L5,-14L10,-12L14,-15L18,-12L16,-7L18,-3L22,0L22,4L18,5L16,9L18,14L14,17L10,14L5,16L4,20L0,22L-4,20L-5,16L-10,14L-14,17L-18,14L-16,9L-18,5L-22,4L-22,0L-18,-3L-16,-7L-18,-12L-14,-15L-10,-12L-5,-14L-4,-18Z" fill="white" fill-opacity="0.9" transform="scale(0.85)"/>
+          <circle cx="0" cy="0" r="7" fill="#546E7A"/>
+          <circle cx="0" cy="0" r="4" fill="white" fill-opacity="0.5"/>
+        </g>
+      </svg>
+      <span class="icon-label">Settings</span>
+    </div>
+    <!-- Server Admin — Papirus: shield + server -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <linearGradient id="p-sa-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#26A69A"/><stop offset="1" stop-color="#00897B"/></linearGradient>
+        </defs>
+        <rect x="4" y="4" width="56" height="56" rx="6" fill="url(#p-sa-bg)"/>
+        <path d="M60 10L60 60H10L60 10Z" fill="black" fill-opacity="0.06"/>
+        <!-- Shield -->
+        <path d="M32 10L48 18V32C48 42 41 50 32 54C23 50 16 42 16 32V18L32 10Z" fill="white" fill-opacity="0.93"/>
+        <path d="M32 14L44 20V32C44 40 38 46 32 50C26 46 20 40 20 32V20L32 14Z" fill="#00897B" fill-opacity="0.15"/>
+        <!-- Checkmark -->
+        <polyline points="24,32 30,38 40,26" stroke="#00897B" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="icon-label">Server Admin</span>
+    </div>
+    <!-- Fleet — Papirus: globe -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <linearGradient id="p-fl-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#29B6F6"/><stop offset="1" stop-color="#0288D1"/></linearGradient>
+        </defs>
+        <rect x="4" y="4" width="56" height="56" rx="6" fill="url(#p-fl-bg)"/>
+        <path d="M60 10L60 60H10L60 10Z" fill="black" fill-opacity="0.06"/>
+        <!-- Globe -->
+        <circle cx="32" cy="32" r="18" fill="white" fill-opacity="0.93"/>
+        <circle cx="32" cy="32" r="18" stroke="#0288D1" stroke-width="1.5" fill="none"/>
+        <ellipse cx="32" cy="32" rx="8" ry="18" stroke="#0288D1" stroke-width="1.2" fill="none"/>
+        <line x1="14" y1="26" x2="50" y2="26" stroke="#0288D1" stroke-width="1"/>
+        <line x1="14" y1="38" x2="50" y2="38" stroke="#0288D1" stroke-width="1"/>
+        <line x1="32" y1="14" x2="32" y2="50" stroke="#0288D1" stroke-width="1"/>
+        <!-- Nodes -->
+        <circle cx="22" cy="26" r="3" fill="#0288D1"/><circle cx="42" cy="38" r="3" fill="#0288D1"/><circle cx="32" cy="20" r="3" fill="#0288D1"/>
+        <line x1="22" y1="26" x2="32" y2="20" stroke="#0288D1" stroke-width="1.5"/>
+        <line x1="32" y1="20" x2="42" y2="38" stroke="#0288D1" stroke-width="1.5"/>
+      </svg>
+      <span class="icon-label">Fleet</span>
+    </div>
+    <!-- AI Agent — Papirus: robot head -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <linearGradient id="p-ai-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#AB47BC"/><stop offset="1" stop-color="#7B1FA2"/></linearGradient>
+        </defs>
+        <rect x="4" y="4" width="56" height="56" rx="6" fill="url(#p-ai-bg)"/>
+        <path d="M60 10L60 60H10L60 10Z" fill="black" fill-opacity="0.06"/>
+        <!-- Robot head -->
+        <rect x="16" y="18" width="32" height="24" rx="5" fill="white" fill-opacity="0.93"/>
+        <!-- Eyes -->
+        <circle cx="25" cy="28" r="4" fill="#7B1FA2"/><circle cx="39" cy="28" r="4" fill="#7B1FA2"/>
+        <circle cx="26" cy="27" r="1.5" fill="white"/><circle cx="40" cy="27" r="1.5" fill="white"/>
+        <!-- Mouth -->
+        <rect x="24" y="36" width="16" height="3" rx="1.5" fill="#CE93D8"/>
+        <!-- Antenna -->
+        <line x1="32" y1="18" x2="32" y2="10" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="32" cy="9" r="3" fill="#E1BEE7"/>
+        <!-- Ears -->
+        <rect x="10" y="24" width="6" height="10" rx="3" fill="white" fill-opacity="0.7"/>
+        <rect x="48" y="24" width="6" height="10" rx="3" fill="white" fill-opacity="0.7"/>
+        <!-- Legs hint -->
+        <rect x="22" y="42" width="4" height="8" rx="2" fill="white" fill-opacity="0.5"/>
+        <rect x="38" y="42" width="4" height="8" rx="2" fill="white" fill-opacity="0.5"/>
+      </svg>
+      <span class="icon-label">AI Agent</span>
+    </div>
+    <!-- Observatory — Papirus: telescope -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <linearGradient id="p-obs-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#EC407A"/><stop offset="1" stop-color="#C2185B"/></linearGradient>
+        </defs>
+        <rect x="4" y="4" width="56" height="56" rx="6" fill="url(#p-obs-bg)"/>
+        <path d="M60 10L60 60H10L60 10Z" fill="black" fill-opacity="0.06"/>
+        <!-- Telescope body -->
+        <rect x="14" y="20" width="36" height="10" rx="5" fill="white" fill-opacity="0.93" transform="rotate(-25, 32, 25)"/>
+        <!-- Lens -->
+        <circle cx="16" cy="28" r="6" fill="white" fill-opacity="0.93" stroke="#C2185B" stroke-width="2"/>
+        <circle cx="16" cy="28" r="3" fill="#F8BBD0"/>
+        <!-- Eyepiece -->
+        <rect x="44" y="16" width="8" height="6" rx="2" fill="white" fill-opacity="0.8" transform="rotate(-25, 48, 19)"/>
+        <!-- Tripod -->
+        <line x1="32" y1="34" x2="22" y2="54" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="32" y1="34" x2="42" y2="54" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="32" y1="34" x2="32" y2="54" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <!-- Stars -->
+        <circle cx="50" cy="10" r="1.5" fill="white" fill-opacity="0.8"/>
+        <circle cx="44" cy="48" r="1" fill="white" fill-opacity="0.5"/>
+        <circle cx="10" cy="12" r="1" fill="white" fill-opacity="0.6"/>
+      </svg>
+      <span class="icon-label">Observatory</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- PACK 2: Fluent Design Style (Windows 11 / Microsoft) -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="pack-section">
+  <div class="pack-header">
+    <span class="pack-title">Option B: Fluent Design Style</span>
+    <span class="pack-badge badge-stars">⭐ 5k+ Stars</span>
+    <span class="pack-badge badge-license">MIT</span>
+  </div>
+  <p class="pack-desc">
+    <a href="https://github.com/nicedoc/fluent-svgs">Microsoft Fluent UI</a> / 
+    <a href="https://github.com/nicedoc/fluent-svgs">Fluent Emoji</a> inspired — 
+    Modern 3D-ish flat design with vibrant gradients, soft shadows, and depth effects. 
+    The Windows 11 aesthetic. Clean, professional, and instantly recognizable.
+    <strong>Style: Modern 3D-flat with vivid gradients.</strong>
+  </p>
+  <div class="icons-grid">
+    <!-- Dashboard — Fluent: speedometer 3D -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <radialGradient id="f-dash-bg" cx="0.3" cy="0.2" r="0.8">
+            <stop offset="0" stop-color="#64B5F6"/>
+            <stop offset="1" stop-color="#1565C0"/>
+          </radialGradient>
+        </defs>
+        <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#f-dash-bg)"/>
+        <!-- Depth shadow -->
+        <rect x="2" y="4" width="60" height="60" rx="14" fill="black" fill-opacity="0.08"/>
+        <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#f-dash-bg)"/>
+        <!-- Gauge background -->
+        <circle cx="32" cy="34" r="19" fill="white" fill-opacity="0.2"/>
+        <circle cx="32" cy="34" r="16" fill="white" fill-opacity="0.15"/>
+        <!-- Gauge arc segments -->
+        <path d="M17 42 A18 18 0 0 1 25 19" stroke="#4FC3F7" stroke-width="4" fill="none" stroke-linecap="round"/>
+        <path d="M25 19 A18 18 0 0 1 39 19" stroke="#FFB74D" stroke-width="4" fill="none" stroke-linecap="round"/>
+        <path d="M39 19 A18 18 0 0 1 47 42" stroke="#EF5350" stroke-width="4" fill="none" stroke-linecap="round"/>
+        <!-- Needle -->
+        <line x1="32" y1="34" x2="40" y2="20" stroke="white" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="32" cy="34" r="4" fill="white"/>
+        <circle cx="32" cy="34" r="2" fill="#1565C0"/>
+        <!-- Small dots -->
+        <circle cx="16" cy="44" r="1.5" fill="white" fill-opacity="0.4"/>
+        <circle cx="48" cy="44" r="1.5" fill="white" fill-opacity="0.4"/>
+      </svg>
+      <span class="icon-label">Dashboard</span>
+    </div>
+    <!-- File Explorer — Fluent: 3D folder -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <linearGradient id="f-fold-back" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFB74D"/><stop offset="1" stop-color="#F57C00"/></linearGradient>
+          <linearGradient id="f-fold-front" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFD54F"/><stop offset="0.5" stop-color="#FFB300"/><stop offset="1" stop-color="#FF8F00"/></linearGradient>
+        </defs>
+        <!-- Shadow -->
+        <ellipse cx="32" cy="56" rx="24" ry="4" fill="black" fill-opacity="0.12"/>
+        <!-- Back folder -->
+        <path d="M6 20C6 17 8 15 11 15H22L27 19H53C56 19 58 21 58 24V49C58 52 56 54 53 54H11C8 54 6 52 6 49V20Z" fill="url(#f-fold-back)"/>
+        <!-- Front folder -->
+        <path d="M4 26C4 23.5 6 22 8 22H56C58 22 60 23.5 60 26V50C60 53 58 55 55 55H9C6 55 4 53 4 50V26Z" fill="url(#f-fold-front)"/>
+        <!-- Gloss -->
+        <path d="M4 26C4 23.5 6 22 8 22H56C58 22 60 23.5 60 26V32H4V26Z" fill="white" fill-opacity="0.25"/>
+        <!-- Light rim -->
+        <path d="M4 26C4 23.5 6 22 8 22H56C58 22 60 23.5 60 26" stroke="white" stroke-width="0.5" fill="none" stroke-opacity="0.4"/>
+      </svg>
+      <span class="icon-label">File Explorer</span>
+    </div>
+    <!-- Terminal — Fluent: Windows Terminal 3D -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <linearGradient id="f-term" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#37474F"/><stop offset="1" stop-color="#1a1a2e"/></linearGradient>
+        </defs>
+        <ellipse cx="32" cy="58" rx="24" ry="3" fill="black" fill-opacity="0.12"/>
+        <rect x="4" y="6" width="56" height="48" rx="8" fill="url(#f-term)"/>
+        <!-- Tab bar -->
+        <rect x="4" y="6" width="56" height="14" rx="8" fill="#455A64"/>
+        <rect x="4" y="14" width="56" height="6" fill="#455A64"/>
+        <!-- Tabs -->
+        <rect x="10" y="9" width="18" height="8" rx="4" fill="#37474F"/>
+        <rect x="30" y="9" width="14" height="8" rx="4" fill="rgba(255,255,255,0.08)"/>
+        <!-- Prompt -->
+        <path d="M12 28L20 34L12 40" stroke="#4FC3F7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="24" y="32" width="20" height="3" rx="1.5" fill="white" fill-opacity="0.5"/>
+        <rect x="24" y="42" width="14" height="3" rx="1.5" fill="white" fill-opacity="0.25"/>
+        <!-- Cursor -->
+        <rect x="40" y="41" width="2.5" height="5" rx="1" fill="#4FC3F7"/>
+        <!-- Colored tab accent -->
+        <rect x="10" y="17" width="18" height="2" fill="#4FC3F7"/>
+      </svg>
+      <span class="icon-label">Terminal</span>
+    </div>
+    <!-- Docker — Fluent: 3D container -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <radialGradient id="f-dock-bg" cx="0.3" cy="0.2" r="0.8">
+            <stop offset="0" stop-color="#4FC3F7"/>
+            <stop offset="1" stop-color="#0277BD"/>
+          </radialGradient>
+        </defs>
+        <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#f-dock-bg)"/>
+        <!-- Containers (3D look) -->
+        <g transform="translate(8,12)">
+          <rect x="8" y="16" width="12" height="10" rx="2" fill="white" fill-opacity="0.9"/>
+          <rect x="22" y="16" width="12" height="10" rx="2" fill="white" fill-opacity="0.85"/>
+          <rect x="36" y="16" width="8" height="10" rx="2" fill="white" fill-opacity="0.7"/>
+          <rect x="22" y="4" width="12" height="10" rx="2" fill="white" fill-opacity="0.8"/>
+          <rect x="8" y="4" width="12" height="10" rx="2" fill="white" fill-opacity="0.7"/>
+        </g>
+        <!-- Whale -->
+        <path d="M12 48C12 48 16 54 32 54C48 54 52 48 52 44" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <!-- Water ripple -->
+        <path d="M8 50C12 48 16 52 20 50C24 48 28 52 32 50C36 48 40 52 44 50C48 48 52 52 56 50" stroke="white" stroke-width="1.5" fill="none" stroke-opacity="0.4"/>
+      </svg>
+      <span class="icon-label">Docker</span>
+    </div>
+    <!-- Task Manager — Fluent: chart with 3D elevation -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <radialGradient id="f-tm-bg" cx="0.3" cy="0.2" r="0.8">
+            <stop offset="0" stop-color="#81C784"/>
+            <stop offset="1" stop-color="#2E7D32"/>
+          </radialGradient>
+        </defs>
+        <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#f-tm-bg)"/>
+        <!-- Card backdrop -->
+        <rect x="8" y="8" width="48" height="36" rx="6" fill="white" fill-opacity="0.18"/>
+        <!-- Chart area -->
+        <path d="M14,38 L22,28 L30,32 L38,18 L46,24 L52,14" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M14,38 L22,28 L30,32 L38,18 L46,24 L52,14 L52,38 L14,38Z" fill="white" fill-opacity="0.12"/>
+        <!-- Bar chart -->
+        <rect x="12" y="48" width="8" height="8" rx="2" fill="white" fill-opacity="0.7"/>
+        <rect x="22" y="44" width="8" height="12" rx="2" fill="white" fill-opacity="0.8"/>
+        <rect x="32" y="46" width="8" height="10" rx="2" fill="white" fill-opacity="0.7"/>
+        <rect x="42" y="42" width="8" height="14" rx="2" fill="white" fill-opacity="0.9"/>
+      </svg>
+      <span class="icon-label">Task Manager</span>
+    </div>
+    <!-- Services — Fluent: stacked panels -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <radialGradient id="f-svc-bg" cx="0.3" cy="0.2" r="0.8">
+            <stop offset="0" stop-color="#B39DDB"/>
+            <stop offset="1" stop-color="#4527A0"/>
+          </radialGradient>
+        </defs>
+        <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#f-svc-bg)"/>
+        <!-- 3D Server boxes -->
+        <rect x="10" y="8" width="44" height="13" rx="4" fill="white" fill-opacity="0.92"/>
+        <rect x="10" y="8" width="44" height="4" rx="4" fill="white"/>
+        <rect x="10" y="12" width="44" height="1" fill="rgba(0,0,0,0.04)"/>
+        <circle cx="17" cy="14.5" r="2.5" fill="#66BB6A"/>
+        <rect x="23" y="12.5" width="16" height="2.5" rx="1.25" fill="#B39DDB"/>
+        <circle cx="48" cy="14.5" r="1.5" fill="#BDBDBD"/>
+        
+        <rect x="10" y="25" width="44" height="13" rx="4" fill="white" fill-opacity="0.92"/>
+        <circle cx="17" cy="31.5" r="2.5" fill="#42A5F5"/>
+        <rect x="23" y="29.5" width="12" height="2.5" rx="1.25" fill="#B39DDB"/>
+        <circle cx="48" cy="31.5" r="1.5" fill="#BDBDBD"/>
+        
+        <rect x="10" y="42" width="44" height="13" rx="4" fill="white" fill-opacity="0.92"/>
+        <circle cx="17" cy="48.5" r="2.5" fill="#FFC107"/>
+        <rect x="23" y="46.5" width="20" height="2.5" rx="1.25" fill="#B39DDB"/>
+        <circle cx="48" cy="48.5" r="1.5" fill="#BDBDBD"/>
+      </svg>
+      <span class="icon-label">Services</span>
+    </div>
+    <!-- Settings — Fluent: modern gear -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <radialGradient id="f-set-bg" cx="0.3" cy="0.2" r="0.8">
+            <stop offset="0" stop-color="#90A4AE"/>
+            <stop offset="1" stop-color="#37474F"/>
+          </radialGradient>
+        </defs>
+        <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#f-set-bg)"/>
+        <g transform="translate(32,32)">
+          <!-- Outer gear -->
+          <path d="M-3,-22L3,-22L4,-17L9,-15L13,-19L18,-15L15,-10L17,-5L22,-3L22,3L17,4L15,9L18,14L13,18L9,14L4,16L3,22L-3,22L-4,16L-9,14L-13,18L-18,14L-15,9L-17,4L-22,3L-22,-3L-17,-5L-15,-10L-18,-15L-13,-19L-9,-15L-4,-17Z" fill="white" fill-opacity="0.9"/>
+          <!-- Inner ring -->
+          <circle cx="0" cy="0" r="9" fill="#546E7A"/>
+          <circle cx="0" cy="0" r="6" fill="white" fill-opacity="0.3"/>
+          <!-- Center dot -->
+          <circle cx="0" cy="0" r="2.5" fill="white" fill-opacity="0.7"/>
+        </g>
+      </svg>
+      <span class="icon-label">Settings</span>
+    </div>   
+    <!-- Server Admin — Fluent: shield with keys -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <radialGradient id="f-sa-bg" cx="0.3" cy="0.2" r="0.8">
+            <stop offset="0" stop-color="#4DB6AC"/>
+            <stop offset="1" stop-color="#00695C"/>
+          </radialGradient>
+        </defs>
+        <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#f-sa-bg)"/>
+        <!-- Shield 3D -->
+        <path d="M32 8L52 18V34C52 45 43 53 32 58C21 53 12 45 12 34V18L32 8Z" fill="white" fill-opacity="0.15"/>
+        <path d="M32 10L50 19V33C50 43 42 51 32 56C22 51 14 43 14 33V19L32 10Z" fill="white" fill-opacity="0.93"/>
+        <!-- Lock icon -->
+        <rect x="26" y="30" width="12" height="12" rx="2" fill="#00695C"/>
+        <path d="M28 30V26C28 22.68 30.68 20 32 20C33.32 20 36 22.68 36 26V30" stroke="#00695C" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <circle cx="32" cy="36" r="2" fill="white"/>
+        <line x1="32" y1="37" x2="32" y2="40" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <span class="icon-label">Server Admin</span>
+    </div>
+    <!-- Fleet — Fluent: connected globe -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <radialGradient id="f-fl-bg" cx="0.3" cy="0.2" r="0.8">
+            <stop offset="0" stop-color="#4FC3F7"/>
+            <stop offset="1" stop-color="#01579B"/>
+          </radialGradient>
+        </defs>
+        <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#f-fl-bg)"/>
+        <!-- Globe wireframe -->
+        <circle cx="32" cy="32" r="18" fill="white" fill-opacity="0.15"/>
+        <circle cx="32" cy="32" r="18" stroke="white" stroke-width="1.5" fill="none" stroke-opacity="0.6"/>
+        <ellipse cx="32" cy="32" rx="8" ry="18" stroke="white" stroke-width="1" fill="none" stroke-opacity="0.5"/>
+        <ellipse cx="32" cy="32" rx="14" ry="18" stroke="white" stroke-width="0.8" fill="none" stroke-opacity="0.3"/>
+        <line x1="14" y1="26" x2="50" y2="26" stroke="white" stroke-width="0.8" stroke-opacity="0.4"/>
+        <line x1="14" y1="38" x2="50" y2="38" stroke="white" stroke-width="0.8" stroke-opacity="0.4"/>
+        <!-- Connected nodes -->
+        <circle cx="20" cy="22" r="4" fill="white"/><circle cx="44" cy="38" r="4" fill="white"/><circle cx="32" cy="14" r="3.5" fill="white"/><circle cx="28" cy="44" r="3" fill="white" fill-opacity="0.7"/>
+        <line x1="20" y1="22" x2="32" y2="14" stroke="white" stroke-width="2" stroke-opacity="0.8"/>
+        <line x1="20" y1="22" x2="44" y2="38" stroke="white" stroke-width="1.5" stroke-opacity="0.5"/>
+        <line x1="44" y1="38" x2="28" y2="44" stroke="white" stroke-width="1.5" stroke-opacity="0.5"/>
+      </svg>
+      <span class="icon-label">Fleet</span>
+    </div>
+    <!-- AI Agent — Fluent: sparkle bot -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <radialGradient id="f-ai-bg" cx="0.3" cy="0.2" r="0.8">
+            <stop offset="0" stop-color="#CE93D8"/>
+            <stop offset="1" stop-color="#6A1B9A"/>
+          </radialGradient>
+        </defs>
+        <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#f-ai-bg)"/>
+        <!-- Bot head -->
+        <rect x="14" y="16" width="36" height="28" rx="8" fill="white" fill-opacity="0.93"/>
+        <!-- Eyes: glowing -->
+        <circle cx="24" cy="28" r="5" fill="#7B1FA2" fill-opacity="0.15"/>
+        <circle cx="24" cy="28" r="3" fill="#9C27B0"/>
+        <circle cx="25" cy="27" r="1" fill="white"/>
+        <circle cx="40" cy="28" r="5" fill="#7B1FA2" fill-opacity="0.15"/>
+        <circle cx="40" cy="28" r="3" fill="#9C27B0"/>
+        <circle cx="41" cy="27" r="1" fill="white"/>
+        <!-- Smile -->
+        <path d="M26 36C26 36 28 40 32 40C36 40 38 36 38 36" stroke="#9C27B0" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <!-- Antenna -->
+        <line x1="32" y1="16" x2="32" y2="8" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="32" cy="7" r="3.5" fill="#CE93D8"/>
+        <!-- Sparkles -->
+        <path d="M52 10L54 14L52 18L50 14Z" fill="white" fill-opacity="0.8"/>
+        <path d="M10 46L12 49L10 52L8 49Z" fill="white" fill-opacity="0.6"/>
+        <circle cx="54" cy="44" r="1.5" fill="white" fill-opacity="0.5"/>
+        <!-- Ears -->
+        <rect x="8" y="24" width="6" height="8" rx="3" fill="white" fill-opacity="0.6"/>
+        <rect x="50" y="24" width="6" height="8" rx="3" fill="white" fill-opacity="0.6"/>
+      </svg>
+      <span class="icon-label">AI Agent</span>
+    </div>
+    <!-- Observatory — Fluent: telescope 3D -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <radialGradient id="f-obs-bg" cx="0.3" cy="0.2" r="0.8">
+            <stop offset="0" stop-color="#F48FB1"/>
+            <stop offset="1" stop-color="#AD1457"/>
+          </radialGradient>
+        </defs>
+        <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#f-obs-bg)"/>
+        <!-- Telescope tube -->
+        <rect x="12" y="16" width="34" height="12" rx="6" fill="white" fill-opacity="0.93" transform="rotate(-20, 29, 22)"/>
+        <!-- Lens ring -->
+        <circle cx="14" cy="26" r="7" fill="white" fill-opacity="0.9"/>
+        <circle cx="14" cy="26" r="5" fill="#F8BBD0"/>
+        <circle cx="14" cy="26" r="2.5" fill="#F48FB1"/>
+        <!-- Eyepiece -->
+        <rect x="44" y="12" width="10" height="8" rx="3" fill="white" fill-opacity="0.7" transform="rotate(-20, 49, 16)"/>
+        <!-- Tripod -->
+        <line x1="30" y1="32" x2="18" y2="56" stroke="white" stroke-width="3" stroke-linecap="round"/>
+        <line x1="30" y1="32" x2="42" y2="56" stroke="white" stroke-width="3" stroke-linecap="round"/>
+        <line x1="30" y1="32" x2="30" y2="56" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <!-- Stars -->
+        <path d="M52 8L53.5 11L52 14L50.5 11Z" fill="white" fill-opacity="0.9"/>
+        <circle cx="8" cy="10" r="1.5" fill="white" fill-opacity="0.7"/>
+        <circle cx="56" cy="36" r="1" fill="white" fill-opacity="0.5"/>
+      </svg>
+      <span class="icon-label">Observatory</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- PACK 3: Phosphor Duotone + Filled (Clean geometric) -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="pack-section">
+  <div class="pack-header">
+    <span class="pack-title">Option C: Phosphor Bold + Custom Fill</span>
+    <span class="pack-badge badge-stars">⭐ 9k+ Stars</span>
+    <span class="pack-badge badge-license">MIT</span>
+  </div>
+  <p class="pack-desc">
+    <a href="https://github.com/phosphor-icons/core">Phosphor Icons</a> — 
+    Clean, geometric icon family with 6 weights. Here shown in a "duotone fill" style 
+    with the gradient rounded-square base. Retains the simple "app icon + glyph" approach 
+    but with more distinctive, characterful glyphs than Lucide. 
+    <strong>Style: Clean geometric with dual-tone fills.</strong>
+  </p>
+  <div class="icons-grid">
+    <!-- Dashboard — Phosphor: speedometer -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <linearGradient id="ph-dash" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#60A5FA"/><stop offset="1" stop-color="#1E40AF"/></linearGradient>
+        </defs>
+        <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#ph-dash)"/>
+        <!-- Speedometer - Phosphor bold style -->
+        <circle cx="32" cy="34" r="18" fill="white" fill-opacity="0.15"/>
+        <path d="M16 40 A18 18 0 1 1 48 40" stroke="white" stroke-width="4" fill="none" stroke-linecap="round"/>
+        <!-- Ticks -->
+        <line x1="18" y1="22" x2="21" y2="25" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        <line x1="32" y1="16" x2="32" y2="20" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        <line x1="46" y1="22" x2="43" y2="25" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        <!-- Needle (pointing upper right — "high performance") -->
+        <line x1="32" y1="34" x2="42" y2="22" stroke="white" stroke-width="3.5" stroke-linecap="round"/>
+        <circle cx="32" cy="34" r="4" fill="white"/>
+      </svg>
+      <span class="icon-label">Dashboard</span>
+    </div>
+    <!-- File Explorer — Phosphor: folder open -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <linearGradient id="ph-fold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FBBF24"/><stop offset="1" stop-color="#D97706"/></linearGradient>
+        </defs>
+        <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#ph-fold)"/>
+        <!-- Folder - phosphor bold open folder -->
+        <path d="M12 22V18C12 16 14 14 16 14H25L30 18H48C50 18 52 20 52 22V24" stroke="white" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M10 28L14 46C14.5 48 16 49 18 49H46C48 49 49.5 48 50 46L54 28C54.5 26 53 24 51 24H13C11 24 9.5 26 10 28Z" fill="white" fill-opacity="0.9"/>
+        <!-- Inner fold line -->
+        <path d="M14 30H50" stroke="#D97706" stroke-width="1.5" stroke-opacity="0.3"/>
+        <!-- Duotone fill -->
+        <path d="M10 28L14 46C14.5 48 16 49 18 49H46C48 49 49.5 48 50 46L54 28C54.5 26 53 24 51 24H13C11 24 9.5 26 10 28Z" fill="white" fill-opacity="0.2"/>
+      </svg>
+      <span class="icon-label">File Explorer</span>
+    </div>
+    <!-- Terminal — Phosphor: terminal window -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <linearGradient id="ph-term" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#334155"/><stop offset="1" stop-color="#0f172a"/></linearGradient>
+        </defs>
+        <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#ph-term)"/>
+        <!-- Window -->
+        <rect x="8" y="10" width="48" height="44" rx="6" fill="white" fill-opacity="0.12"/>
+        <!-- Title bar dots -->
+        <rect x="8" y="10" width="48" height="12" rx="6" fill="white" fill-opacity="0.08"/>
+        <circle cx="16" cy="16" r="2.5" fill="#EF5350" fill-opacity="0.9"/>
+        <circle cx="24" cy="16" r="2.5" fill="#FFC107" fill-opacity="0.9"/>
+        <circle cx="32" cy="16" r="2.5" fill="#66BB6A" fill-opacity="0.9"/>
+        <!-- Prompt chevrons — phosphor bold -->
+        <path d="M14 30L24 37L14 44" stroke="white" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- Cursor line -->
+        <rect x="30" y="40" width="20" height="4" rx="2" fill="white" fill-opacity="0.5"/>
+      </svg>
+      <span class="icon-label">Terminal</span>
+    </div>
+    <!-- Docker — Phosphor: package/container -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <linearGradient id="ph-dock" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#38BDF8"/><stop offset="1" stop-color="#0369A1"/></linearGradient>
+        </defs>
+        <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#ph-dock)"/>
+        <!-- Stacked containers — Phosphor package fill style -->
+        <rect x="10" y="32" width="20" height="16" rx="3" fill="white" fill-opacity="0.9"/>
+        <rect x="34" y="32" width="20" height="16" rx="3" fill="white" fill-opacity="0.75"/>
+        <rect x="10" y="14" width="20" height="16" rx="3" fill="white" fill-opacity="0.8"/>
+        <rect x="34" y="14" width="20" height="16" rx="3" fill="white" fill-opacity="0.65"/>
+        <!-- Box details -->
+        <line x1="20" y1="32" x2="20" y2="48" stroke="#0369A1" stroke-width="1.5" stroke-opacity="0.2"/>
+        <line x1="44" y1="14" x2="44" y2="30" stroke="#0369A1" stroke-width="1.5" stroke-opacity="0.2"/>
+        <line x1="20" y1="14" x2="20" y2="30" stroke="#0369A1" stroke-width="1.5" stroke-opacity="0.2"/>
+        <!-- Whale hint with wave -->
+        <path d="M8 54C12 52 16 55 20 53C24 51 28 55 32 53C36 51 40 55 44 53C48 51 52 55 56 53" stroke="white" stroke-width="2" fill="none" stroke-opacity="0.3" stroke-linecap="round"/>
+      </svg>
+      <span class="icon-label">Docker</span>
+    </div>
+    <!-- Task Manager — Phosphor: chart line up -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <linearGradient id="ph-tm" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4ADE80"/><stop offset="1" stop-color="#15803D"/></linearGradient>
+        </defs>
+        <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#ph-tm)"/>
+        <!-- Grid -->
+        <line x1="12" y1="14" x2="12" y2="50" stroke="white" stroke-width="3" stroke-linecap="round"/>
+        <line x1="12" y1="50" x2="52" y2="50" stroke="white" stroke-width="3" stroke-linecap="round"/>
+        <!-- Chart line - bold phosphor -->
+        <polyline points="16,42 24,34 32,38 40,22 48,16" stroke="white" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- Area fill -->
+        <path d="M16,42 L24,34 L32,38 L40,22 L48,16 L48,50 L16,50 Z" fill="white" fill-opacity="0.15"/>
+        <!-- Dots at data points -->
+        <circle cx="16" cy="42" r="3" fill="white"/><circle cx="24" cy="34" r="3" fill="white"/><circle cx="32" cy="38" r="3" fill="white"/><circle cx="40" cy="22" r="3" fill="white"/><circle cx="48" cy="16" r="3" fill="white"/>
+      </svg>
+      <span class="icon-label">Task Manager</span>
+    </div>
+    <!-- Services — Phosphor: hard drives -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <linearGradient id="ph-svc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#818CF8"/><stop offset="1" stop-color="#3730A3"/></linearGradient>
+        </defs>
+        <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#ph-svc)"/>
+        <!-- Hard drives — phosphor bold -->
+        <rect x="10" y="8" width="44" height="14" rx="4" fill="white" fill-opacity="0.9"/>
+        <circle cx="46" cy="15" r="3" fill="#818CF8"/>
+        <rect x="14" y="13" width="18" height="3" rx="1.5" fill="#C7D2FE"/>
+        
+        <rect x="10" y="25" width="44" height="14" rx="4" fill="white" fill-opacity="0.85"/>
+        <circle cx="46" cy="32" r="3" fill="#4ADE80"/>
+        <rect x="14" y="30" width="14" height="3" rx="1.5" fill="#C7D2FE"/>
+
+        <rect x="10" y="42" width="44" height="14" rx="4" fill="white" fill-opacity="0.8"/>
+        <circle cx="46" cy="49" r="3" fill="#FCD34D"/>
+        <rect x="14" y="47" width="22" height="3" rx="1.5" fill="#C7D2FE"/>
+      </svg>
+      <span class="icon-label">Services</span>
+    </div>
+    <!-- Settings — Phosphor: gear fill -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <linearGradient id="ph-set" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A1A1AA"/><stop offset="1" stop-color="#3F3F46"/></linearGradient>
+        </defs>
+        <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#ph-set)"/>
+        <!-- Gear — phosphor fill, bolder -->
+        <g transform="translate(32,32)">
+          <path d="M0,-22L5,-20L7,-15L12,-13L17,-16L20,-12L17,-8L18,-3L23,-1L23,3L18,5L17,10L20,14L17,18L12,15L7,17L5,22L-1,22L-5,20L-7,15L-12,13L-17,16L-20,12L-17,8L-18,3L-23,1L-23,-3L-18,-5L-17,-10L-20,-14L-17,-18L-12,-15L-7,-17L-5,-22Z" fill="white" fill-opacity="0.9" transform="scale(0.82)"/>
+          <circle cx="0" cy="0" r="8" fill="#52525B"/>
+          <circle cx="0" cy="0" r="5" fill="white" fill-opacity="0.2"/>
+        </g>
+      </svg>
+      <span class="icon-label">Settings</span>
+    </div>
+    <!-- Server Admin — Phosphor: shield check -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <linearGradient id="ph-sa" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#34D399"/><stop offset="1" stop-color="#065F46"/></linearGradient>
+        </defs>
+        <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#ph-sa)"/>
+        <!-- Shield fill — phosphor bold -->
+        <path d="M32 8L52 18V32C52 44 43 52 32 56C21 52 12 44 12 32V18L32 8Z" fill="white" fill-opacity="0.9"/>
+        <!-- Inner shield -->
+        <path d="M32 13L48 21V32C48 42 40 49 32 52C24 49 16 42 16 32V21L32 13Z" fill="#059669" fill-opacity="0.15"/>
+        <!-- Bold checkmark -->
+        <polyline points="23,32 29,38 41,26" stroke="#065F46" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="icon-label">Server Admin</span>
+    </div>
+    <!-- Fleet — Phosphor: globe hemisphere -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <linearGradient id="ph-fl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#38BDF8"/><stop offset="1" stop-color="#0C4A6E"/></linearGradient>
+        </defs>
+        <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#ph-fl)"/>
+        <!-- Globe — phosphor bold -->
+        <circle cx="32" cy="32" r="20" stroke="white" stroke-width="3.5" fill="white" fill-opacity="0.1"/>
+        <ellipse cx="32" cy="32" rx="9" ry="20" stroke="white" stroke-width="2" fill="none"/>
+        <line x1="12" y1="32" x2="52" y2="32" stroke="white" stroke-width="2"/>
+        <path d="M14 22H50" stroke="white" stroke-width="1.5" stroke-opacity="0.5"/>
+        <path d="M14 42H50" stroke="white" stroke-width="1.5" stroke-opacity="0.5"/>
+        <!-- Server nodes -->
+        <circle cx="22" cy="22" r="3.5" fill="white"/><circle cx="42" cy="42" r="3.5" fill="white"/><circle cx="18" cy="40" r="2.5" fill="white" fill-opacity="0.6"/>
+      </svg>
+      <span class="icon-label">Fleet</span>
+    </div>
+    <!-- AI Agent — Phosphor: robot -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <linearGradient id="ph-ai" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A78BFA"/><stop offset="1" stop-color="#5B21B6"/></linearGradient>
+        </defs>
+        <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#ph-ai)"/>
+        <!-- Robot — phosphor bold filled -->
+        <rect x="14" y="20" width="36" height="26" rx="6" fill="white" fill-opacity="0.9"/>
+        <!-- Eyes -->
+        <rect x="20" y="26" width="8" height="8" rx="3" fill="#7C3AED"/>
+        <rect x="36" y="26" width="8" height="8" rx="3" fill="#7C3AED"/>
+        <rect x="22" y="28" width="3" height="3" rx="1" fill="white"/>
+        <rect x="38" y="28" width="3" height="3" rx="1" fill="white"/>
+        <!-- Mouth -->
+        <rect x="24" y="38" width="16" height="4" rx="2" fill="#DDD6FE"/>
+        <line x1="28" y1="38" x2="28" y2="42" stroke="white" stroke-width="1"/>
+        <line x1="32" y1="38" x2="32" y2="42" stroke="white" stroke-width="1"/>
+        <line x1="36" y1="38" x2="36" y2="42" stroke="white" stroke-width="1"/>
+        <!-- Antenna -->
+        <line x1="32" y1="20" x2="32" y2="10" stroke="white" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="32" cy="9" r="4" fill="white"/>
+        <!-- Spark -->
+        <path d="M52 10L54 14L52 18L50 14Z" fill="white" fill-opacity="0.7"/>
+        <path d="M10 10L11.5 13L10 16L8.5 13Z" fill="white" fill-opacity="0.5"/>
+        <!-- Side panels -->
+        <rect x="6" y="28" width="8" height="10" rx="4" fill="white" fill-opacity="0.5"/>
+        <rect x="50" y="28" width="8" height="10" rx="4" fill="white" fill-opacity="0.5"/>
+      </svg>
+      <span class="icon-label">AI Agent</span>
+    </div>
+    <!-- Observatory — Phosphor: binoculars -->
+    <div class="icon-cell">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <linearGradient id="ph-obs" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F472B6"/><stop offset="1" stop-color="#9D174D"/></linearGradient>
+        </defs>
+        <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#ph-obs)"/>
+        <!-- Telescope — phosphor bold -->
+        <g transform="translate(0,2)">
+          <rect x="10" y="16" width="38" height="14" rx="7" fill="white" fill-opacity="0.9" transform="rotate(-18, 29, 23)"/>
+          <!-- Lens -->
+          <circle cx="12" cy="28" r="8" fill="white" fill-opacity="0.9"/>
+          <circle cx="12" cy="28" r="5.5" fill="#F9A8D4"/>
+          <circle cx="12" cy="28" r="3" fill="#F472B6"/>
+          <!-- Eyepiece -->
+          <rect x="46" y="10" width="10" height="8" rx="3" fill="white" fill-opacity="0.7" transform="rotate(-18, 51, 14)"/>
+          <!-- Tripod legs -->
+          <line x1="30" y1="34" x2="18" y2="56" stroke="white" stroke-width="3.5" stroke-linecap="round"/>
+          <line x1="30" y1="34" x2="42" y2="56" stroke="white" stroke-width="3.5" stroke-linecap="round"/>
+          <line x1="30" y1="34" x2="30" y2="56" stroke="white" stroke-width="3" stroke-linecap="round"/>
+        </g>
+        <!-- Stars -->
+        <circle cx="54" cy="8" r="2" fill="white" fill-opacity="0.8"/>
+        <circle cx="48" cy="50" r="1" fill="white" fill-opacity="0.4"/>
+      </svg>
+      <span class="icon-label">Observatory</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- Desktop Mock Previews -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<h2 class="section-title">Desktop Preview — How each pack looks on the desktop</h2>
+
+<!-- Pack A Desktop -->
+<div class="pack-section">
+  <h3 style="font-size:16px; margin-bottom:16px; color:#94a3b8;">Option A: Papirus Style Desktop</h3>
+  <div class="desktop-mock" style="background: linear-gradient(135deg, #1a2332 0%, #0d1117 50%, #1a1a2e 100%);">
+    <div class="desktop-icon">
+      <svg width="48" height="48" viewBox="0 0 64 64"><rect x="4" y="4" width="56" height="56" rx="6" fill="url(#dm-p1)"/><path d="M60 10L60 60H10L60 10Z" fill="black" fill-opacity="0.08"/><circle cx="32" cy="34" r="18" fill="white" fill-opacity="0.95"/><circle cx="32" cy="34" r="15" fill="#E3F2FD"/><path d="M20 42 A15 15 0 0 1 44 42" stroke="#1E88E5" stroke-width="3" fill="none" stroke-linecap="round"/><line x1="32" y1="34" x2="38" y2="22" stroke="#37474F" stroke-width="2.5" stroke-linecap="round"/><circle cx="32" cy="34" r="3" fill="#37474F"/><defs><linearGradient id="dm-p1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#42A5F5"/><stop offset="1" stop-color="#1E88E5"/></linearGradient></defs></svg>
+      <span class="desktop-icon-label">Dashboard</span>
+    </div>
+    <div class="desktop-icon">
+      <svg width="48" height="48" viewBox="0 0 64 64"><path d="M6 18C6 15.24 8.24 13 11 13H22L28 18H53C55.76 18 58 20.24 58 23V51C58 53.76 55.76 56 53 56H11C8.24 56 6 53.76 6 51V18Z" fill="#FF8F00"/><path d="M4 24C4 22 6 20 8 20H56C58 20 60 22 60 24V52C60 54.76 57.76 57 55 57H9C6.24 57 4 54.76 4 52V24Z" fill="#FFC107"/><path d="M4 24C4 22 6 20 8 20H56C58 20 60 22 60 24V28H4V24Z" fill="white" fill-opacity="0.2"/></svg>
+      <span class="desktop-icon-label">Files</span>
+    </div>
+    <div class="desktop-icon">
+      <svg width="48" height="48" viewBox="0 0 64 64"><rect x="4" y="8" width="56" height="48" rx="6" fill="#263238"/><rect x="4" y="8" width="56" height="12" rx="6" fill="#455A64"/><rect x="4" y="14" width="56" height="6" fill="#455A64"/><circle cx="14" cy="14" r="3" fill="#EF5350"/><circle cx="23" cy="14" r="3" fill="#FFC107"/><circle cx="32" cy="14" r="3" fill="#66BB6A"/><text x="10" y="33" fill="#66BB6A" font-family="monospace" font-size="9" font-weight="bold">$</text><rect x="18" y="28" width="28" height="3" rx="1.5" fill="#66BB6A" fill-opacity="0.7"/></svg>
+      <span class="desktop-icon-label">Terminal</span>
+    </div>
+    <div class="desktop-icon">
+      <svg width="48" height="48" viewBox="0 0 64 64"><rect x="4" y="4" width="56" height="56" rx="6" fill="#00897B"/><path d="M32 10L50 19V33C50 43 42 51 32 56C22 51 14 43 14 33V19L32 10Z" fill="white" fill-opacity="0.93"/><polyline points="24,32 30,38 40,26" stroke="#00897B" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="desktop-icon-label">Server Admin</span>
+    </div>
+    <div class="desktop-icon">
+      <svg width="48" height="48" viewBox="0 0 64 64"><rect x="4" y="4" width="56" height="56" rx="6" fill="#7B1FA2"/><rect x="16" y="18" width="32" height="24" rx="5" fill="white" fill-opacity="0.93"/><circle cx="25" cy="28" r="4" fill="#7B1FA2"/><circle cx="39" cy="28" r="4" fill="#7B1FA2"/><circle cx="26" cy="27" r="1.5" fill="white"/><circle cx="40" cy="27" r="1.5" fill="white"/><rect x="24" y="36" width="16" height="3" rx="1.5" fill="#CE93D8"/><line x1="32" y1="18" x2="32" y2="10" stroke="white" stroke-width="2" stroke-linecap="round"/><circle cx="32" cy="9" r="3" fill="#E1BEE7"/></svg>
+      <span class="desktop-icon-label">AI Agent</span>
+    </div>
+  </div>
+</div>
+
+<!-- Pack B Desktop -->
+<div class="pack-section">
+  <h3 style="font-size:16px; margin-bottom:16px; color:#94a3b8;">Option B: Fluent Design Desktop</h3>
+  <div class="desktop-mock" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1a1a2e 100%);">
+    <div class="desktop-icon">
+      <svg width="48" height="48" viewBox="0 0 64 64"><defs><radialGradient id="dm-f1" cx="0.3" cy="0.2" r="0.8"><stop offset="0" stop-color="#64B5F6"/><stop offset="1" stop-color="#1565C0"/></radialGradient></defs><rect x="2" y="2" width="60" height="60" rx="14" fill="url(#dm-f1)"/><path d="M16 40 A18 18 0 1 1 48 40" stroke="white" stroke-width="4" fill="none" stroke-linecap="round"/><line x1="32" y1="34" x2="40" y2="20" stroke="white" stroke-width="3" stroke-linecap="round"/><circle cx="32" cy="34" r="4" fill="white"/><circle cx="32" cy="34" r="2" fill="#1565C0"/></svg>
+      <span class="desktop-icon-label">Dashboard</span>
+    </div>
+    <div class="desktop-icon">
+      <svg width="48" height="48" viewBox="0 0 64 64"><defs><linearGradient id="dm-f2a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFB74D"/><stop offset="1" stop-color="#F57C00"/></linearGradient><linearGradient id="dm-f2b" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFD54F"/><stop offset="0.5" stop-color="#FFB300"/><stop offset="1" stop-color="#FF8F00"/></linearGradient></defs><path d="M6 20C6 17 8 15 11 15H22L27 19H53C56 19 58 21 58 24V49C58 52 56 54 53 54H11C8 54 6 52 6 49V20Z" fill="url(#dm-f2a)"/><path d="M4 26C4 23.5 6 22 8 22H56C58 22 60 23.5 60 26V50C60 53 58 55 55 55H9C6 55 4 53 4 50V26Z" fill="url(#dm-f2b)"/><path d="M4 26C4 23.5 6 22 8 22H56C58 22 60 23.5 60 26V32H4V26Z" fill="white" fill-opacity="0.25"/></svg>
+      <span class="desktop-icon-label">Files</span>
+    </div>
+    <div class="desktop-icon">
+      <svg width="48" height="48" viewBox="0 0 64 64"><rect x="4" y="6" width="56" height="48" rx="8" fill="#1a1a2e"/><rect x="4" y="6" width="56" height="14" rx="8" fill="#455A64"/><rect x="4" y="14" width="56" height="6" fill="#455A64"/><rect x="10" y="9" width="18" height="8" rx="4" fill="#37474F"/><rect x="10" y="17" width="18" height="2" fill="#4FC3F7"/><path d="M12 28L20 34L12 40" stroke="#4FC3F7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><rect x="24" y="32" width="20" height="3" rx="1.5" fill="white" fill-opacity="0.5"/></svg>
+      <span class="desktop-icon-label">Terminal</span>
+    </div>
+    <div class="desktop-icon">
+      <svg width="48" height="48" viewBox="0 0 64 64"><defs><radialGradient id="dm-f4" cx="0.3" cy="0.2" r="0.8"><stop offset="0" stop-color="#4DB6AC"/><stop offset="1" stop-color="#00695C"/></radialGradient></defs><rect x="2" y="2" width="60" height="60" rx="14" fill="url(#dm-f4)"/><path d="M32 10L50 19V33C50 43 42 51 32 56C22 51 14 43 14 33V19L32 10Z" fill="white" fill-opacity="0.93"/><rect x="26" y="30" width="12" height="12" rx="2" fill="#00695C"/><path d="M28 30V26C28 22.68 30.68 20 32 20C33.32 20 36 22.68 36 26V30" stroke="#00695C" stroke-width="2.5" fill="none" stroke-linecap="round"/><circle cx="32" cy="36" r="2" fill="white"/></svg>
+      <span class="desktop-icon-label">Server Admin</span>
+    </div>
+    <div class="desktop-icon">
+      <svg width="48" height="48" viewBox="0 0 64 64"><defs><radialGradient id="dm-f5" cx="0.3" cy="0.2" r="0.8"><stop offset="0" stop-color="#CE93D8"/><stop offset="1" stop-color="#6A1B9A"/></radialGradient></defs><rect x="2" y="2" width="60" height="60" rx="14" fill="url(#dm-f5)"/><rect x="14" y="16" width="36" height="28" rx="8" fill="white" fill-opacity="0.93"/><circle cx="24" cy="28" r="3" fill="#9C27B0"/><circle cx="25" cy="27" r="1" fill="white"/><circle cx="40" cy="28" r="3" fill="#9C27B0"/><circle cx="41" cy="27" r="1" fill="white"/><path d="M26 36C26 36 28 40 32 40C36 40 38 36 38 36" stroke="#9C27B0" stroke-width="2" fill="none" stroke-linecap="round"/><line x1="32" y1="16" x2="32" y2="8" stroke="white" stroke-width="2.5" stroke-linecap="round"/><circle cx="32" cy="7" r="3.5" fill="#CE93D8"/><path d="M52 10L54 14L52 18L50 14Z" fill="white" fill-opacity="0.8"/></svg>
+      <span class="desktop-icon-label">AI Agent</span>
+    </div>
+  </div>
+</div>
+
+<!-- Pack C Desktop -->
+<div class="pack-section">
+  <h3 style="font-size:16px; margin-bottom:16px; color:#94a3b8;">Option C: Phosphor Bold Desktop</h3>
+  <div class="desktop-mock" style="background: linear-gradient(135deg, #1a2332 0%, #0d1117 50%, #1a1a2e 100%);">
+    <div class="desktop-icon">
+      <svg width="48" height="48" viewBox="0 0 64 64"><defs><linearGradient id="dm-ph1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#60A5FA"/><stop offset="1" stop-color="#1E40AF"/></linearGradient></defs><rect x="2" y="2" width="60" height="60" rx="14" fill="url(#dm-ph1)"/><path d="M16 40 A18 18 0 1 1 48 40" stroke="white" stroke-width="4" fill="none" stroke-linecap="round"/><line x1="32" y1="34" x2="42" y2="22" stroke="white" stroke-width="3.5" stroke-linecap="round"/><circle cx="32" cy="34" r="4" fill="white"/></svg>
+      <span class="desktop-icon-label">Dashboard</span>
+    </div>
+    <div class="desktop-icon">
+      <svg width="48" height="48" viewBox="0 0 64 64"><defs><linearGradient id="dm-ph2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FBBF24"/><stop offset="1" stop-color="#D97706"/></linearGradient></defs><rect x="2" y="2" width="60" height="60" rx="14" fill="url(#dm-ph2)"/><path d="M12 22V18C12 16 14 14 16 14H25L30 18H48C50 18 52 20 52 22V24" stroke="white" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 28L14 46C14.5 48 16 49 18 49H46C48 49 49.5 48 50 46L54 28C54.5 26 53 24 51 24H13C11 24 9.5 26 10 28Z" fill="white" fill-opacity="0.9"/></svg>
+      <span class="desktop-icon-label">Files</span>
+    </div>
+    <div class="desktop-icon">
+      <svg width="48" height="48" viewBox="0 0 64 64"><defs><linearGradient id="dm-ph3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#334155"/><stop offset="1" stop-color="#0f172a"/></linearGradient></defs><rect x="2" y="2" width="60" height="60" rx="14" fill="url(#dm-ph3)"/><rect x="8" y="10" width="48" height="44" rx="6" fill="white" fill-opacity="0.12"/><rect x="8" y="10" width="48" height="12" rx="6" fill="white" fill-opacity="0.08"/><circle cx="16" cy="16" r="2.5" fill="#EF5350" fill-opacity="0.9"/><circle cx="24" cy="16" r="2.5" fill="#FFC107" fill-opacity="0.9"/><circle cx="32" cy="16" r="2.5" fill="#66BB6A" fill-opacity="0.9"/><path d="M14 30L24 37L14 44" stroke="white" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/><rect x="30" y="40" width="20" height="4" rx="2" fill="white" fill-opacity="0.5"/></svg>
+      <span class="desktop-icon-label">Terminal</span>
+    </div>
+    <div class="desktop-icon">
+      <svg width="48" height="48" viewBox="0 0 64 64"><defs><linearGradient id="dm-ph4" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#34D399"/><stop offset="1" stop-color="#065F46"/></linearGradient></defs><rect x="2" y="2" width="60" height="60" rx="14" fill="url(#dm-ph4)"/><path d="M32 8L52 18V32C52 44 43 52 32 56C21 52 12 44 12 32V18L32 8Z" fill="white" fill-opacity="0.9"/><polyline points="23,32 29,38 41,26" stroke="#065F46" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="desktop-icon-label">Server Admin</span>
+    </div>
+    <div class="desktop-icon">
+      <svg width="48" height="48" viewBox="0 0 64 64"><defs><linearGradient id="dm-ph5" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A78BFA"/><stop offset="1" stop-color="#5B21B6"/></linearGradient></defs><rect x="2" y="2" width="60" height="60" rx="14" fill="url(#dm-ph5)"/><rect x="14" y="20" width="36" height="26" rx="6" fill="white" fill-opacity="0.9"/><rect x="20" y="26" width="8" height="8" rx="3" fill="#7C3AED"/><rect x="36" y="26" width="8" height="8" rx="3" fill="#7C3AED"/><rect x="22" y="28" width="3" height="3" rx="1" fill="white"/><rect x="38" y="28" width="3" height="3" rx="1" fill="white"/><line x1="32" y1="20" x2="32" y2="10" stroke="white" stroke-width="3" stroke-linecap="round"/><circle cx="32" cy="9" r="4" fill="white"/><path d="M52 10L54 14L52 18L50 14Z" fill="white" fill-opacity="0.7"/></svg>
+      <span class="desktop-icon-label">AI Agent</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- Comparison Table -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<table class="comparison-table">
+  <thead>
+    <tr>
+      <th>Criteria</th>
+      <th>A: Papirus</th>
+      <th>B: Fluent Design</th>
+      <th>C: Phosphor Bold</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Style</strong></td>
+      <td>Flat material + long shadows</td>
+      <td>Modern 3D-flat, vivid gradients</td>
+      <td>Clean geometric, bold strokes</td>
+    </tr>
+    <tr>
+      <td><strong>OS Feel</strong></td>
+      <td class="pro">Linux desktop — very OS-like ✓</td>
+      <td class="pro">Windows 11 — polished & modern ✓</td>
+      <td>Generic app — clean but less "OS"</td>
+    </tr>
+    <tr>
+      <td><strong>Uniqueness per icon</strong></td>
+      <td class="pro">High — each icon is distinct ✓</td>
+      <td class="pro">High — depth + radial gradients ✓</td>
+      <td>Medium — glyph-on-square pattern</td>
+    </tr>
+    <tr>
+      <td><strong>Small size (24-32px)</strong></td>
+      <td class="pro">Good — clear at small sizes ✓</td>
+      <td>OK — some detail lost</td>
+      <td class="pro">Excellent — bold strokes read well ✓</td>
+    </tr>
+    <tr>
+      <td><strong>GitHub Stars</strong></td>
+      <td>14,000+</td>
+      <td>5,000+ (Fluent System Icons)</td>
+      <td>9,000+</td>
+    </tr>
+    <tr>
+      <td><strong>License</strong></td>
+      <td>GPL-3.0</td>
+      <td class="pro">MIT ✓</td>
+      <td class="pro">MIT ✓</td>
+    </tr>
+    <tr>
+      <td><strong>Implementation</strong></td>
+      <td>Custom SVGs (hand-crafted)</td>
+      <td>Custom SVGs + radial gradients</td>
+      <td>npm: @phosphor-icons/react</td>
+    </tr>
+    <tr>
+      <td><strong>Consistency</strong></td>
+      <td class="pro">Unified icon language ✓</td>
+      <td class="pro">Unified icon language ✓</td>
+      <td class="pro">Very consistent — same weight system ✓</td>
+    </tr>
+    <tr>
+      <td><strong>Dark theme fit</strong></td>
+      <td class="pro">Excellent — designed for it ✓</td>
+      <td class="pro">Excellent — vivid on dark ✓</td>
+      <td class="pro">Good — white on gradient works ✓</td>
+    </tr>
+    <tr class="winner">
+      <td><strong>Best for HeadlessOS?</strong></td>
+      <td>Great "Linux desktop" feel</td>
+      <td><strong>⭐ Best overall — modern OS, polished, MIT</strong></td>
+      <td>Good if you want simplicity</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- Vote -->
+<div class="vote-section">
+  <h2>Which icon pack should HeadlessOS use?</h2>
+  <p style="color: #94a3b8; margin-bottom: 20px; font-size: 14px;">Click to select — scroll up to compare the full sets and desktop mockups</p>
+  <div class="vote-buttons">
+    <button class="vote-btn" onclick="select(this, 'A')">🎨 A: Papirus Style</button>
+    <button class="vote-btn" onclick="select(this, 'B')">✨ B: Fluent Design</button>
+    <button class="vote-btn" onclick="select(this, 'C')">⚡ C: Phosphor Bold</button>
+  </div>
+  <p id="vote-result" style="margin-top: 16px; color: #60a5fa; font-weight: 600; display: none;"></p>
+</div>
+
+<script>
+function select(btn, pack) {
+  document.querySelectorAll('.vote-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  const el = document.getElementById('vote-result');
+  el.style.display = 'block';
+  const msgs = {
+    A: 'Papirus selected! Rich material icons with genuine Linux desktop feel.',
+    B: 'Fluent Design selected! Modern, polished, and MIT licensed — recommended choice.',
+    C: 'Phosphor Bold selected! Clean, geometric, and highly readable at all sizes.'
+  };
+  el.textContent = msgs[pack];
+}
+</script>
+
+</body>
+</html>

@@ -32,7 +32,7 @@ function LazyFallback() {
   );
 }
 
-function WindowContent({ appId, serverId, windowId }: { appId: string; serverId: string; windowId: string }) {
+function WindowContent({ appId, serverId, windowId, meta }: { appId: string; serverId: string; windowId: string; meta?: Record<string, string> }) {
   switch (appId) {
     case 'dashboard':
       return (
@@ -43,7 +43,7 @@ function WindowContent({ appId, serverId, windowId }: { appId: string; serverId:
     case 'files':
       return (
         <div className="h-full overflow-hidden">
-          <FileExplorerView serverId={serverId} />
+          <FileExplorerView serverId={serverId} initialPath={meta?.initialPath} />
         </div>
       );
     case 'terminal':
@@ -129,7 +129,7 @@ export function WindowManager() {
       {windows.map(win => (
         <WindowFrame key={win.id} win={win}>
           <Suspense fallback={<LazyFallback />}>
-            <WindowContent appId={win.appId} serverId={win.serverId} windowId={win.id} />
+            <WindowContent appId={win.appId} serverId={win.serverId} windowId={win.id} meta={win.meta} />
           </Suspense>
         </WindowFrame>
       ))}

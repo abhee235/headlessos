@@ -127,7 +127,12 @@ export const ALLOWED_COMMANDS = new Map<string, CommandRule>([
 
   // Process management
   ['kill', { pattern: /^kill\s+-\d{1,2}\s+\d{1,5}$/, risk: 'high' }],
-]);
+
+  // File search (read-only, limited depth)
+  ['find', { pattern: /^find\s+\/[\w.\/\- ]*\s+-maxdepth\s+\d{1,2}\s+/, risk: 'low' }],
+  // Trash management (HeadlessOS trash dir only)
+  ['rm trash', { pattern: /^rm\s+-rf\s+'\/tmp\/\.headlessos-trash(\/[^']*)?'$/, risk: 'medium' }],
+  ['mkdir trash', { pattern: /^mkdir\s+-p\s+'\/tmp\/\.headlessos-trash'$/, risk: 'low' }],]);
 
 // ---------------------------------------------------------------------------
 // Blocked Commands (NEVER allowed)

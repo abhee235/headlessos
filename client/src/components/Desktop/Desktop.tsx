@@ -14,6 +14,7 @@ import {
   FleetIcon,
   AgentIcon,
   UIAgentIcon,
+  RecycleBinIcon,
 } from '../ui/FileIcon';
 import {
   ContextMenu,
@@ -44,6 +45,7 @@ import {
   Check,
 } from 'lucide-react';
 import { Wallpaper } from './Wallpaper';
+
 import { createDirectory, writeFile } from '../../lib/api';
 import { toast } from 'sonner';
 
@@ -96,6 +98,12 @@ const DESKTOP_ICONS: DesktopIcon[] = [
     appId: 'ui-agent',
     label: 'UI Agent',
     IconComponent: UIAgentIcon,
+  },
+  {
+    id: 'desktop-recycle-bin',
+    appId: 'recycle-bin',
+    label: 'Recycle Bin',
+    IconComponent: RecycleBinIcon,
   },
 ];
 
@@ -162,6 +170,11 @@ export function Desktop() {
 
   const handleDoubleClick = (icon: DesktopIcon) => {
     if (!activeServerId || !isConnected) return;
+    if (icon.appId === 'recycle-bin') {
+      // Open File Explorer navigated to the trash virtual folder
+      openWindow('files', activeServerId, 'Recycle Bin', 'files', { initialPath: '__trash__' });
+      return;
+    }
     openWindow(icon.appId, activeServerId, icon.label, icon.appId);
   };
 

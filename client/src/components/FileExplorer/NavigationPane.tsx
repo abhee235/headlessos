@@ -10,6 +10,7 @@ import {
   Clock,
   HardDrive,
   Server,
+  Trash2,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -31,6 +32,7 @@ const FAVOURITES: NavItem[] = [
   { label: 'Documents', path: '/home/testuser/Documents', icon: FileText },
   { label: 'Downloads', path: '/home/testuser/Downloads', icon: Download },
   { label: 'Recents', path: '/tmp', icon: Clock },
+  { label: 'Recycle Bin', path: '__trash__', icon: Trash2 },
 ];
 
 const LOCATIONS: NavItem[] = [

@@ -9,6 +9,7 @@ import {
   RefreshCw,
   ChevronRight as Separator,
   Folder,
+  Trash2,
 } from 'lucide-react';
 
 interface AddressBarProps {
@@ -57,8 +58,9 @@ export function AddressBar({
     setEditing(false);
   }, [editValue, currentPath, onNavigate]);
 
-  const parts = currentPath === '/' ? [] : currentPath.split('/').filter(Boolean);
-  const canGoUp = currentPath !== '/';
+  const isTrash = currentPath === '__trash__';
+  const parts = currentPath === '/' || isTrash ? [] : currentPath.split('/').filter(Boolean);
+  const canGoUp = currentPath !== '/' && !isTrash;
 
   return (
     <div className="flex items-center gap-2 px-3 pt-1 pb-2">
@@ -87,9 +89,9 @@ export function AddressBar({
       {/* Address / breadcrumb area */}
       <div
         className="flex-1 flex items-center min-w-0 h-10 bg-foreground/3 rounded-xl px-3.5 cursor-text hover:bg-foreground/5 focus-within:bg-background focus-within:ring-2 focus-within:ring-primary/20 transition-all"
-        onClick={() => setEditing(true)}
+        onClick={() => !isTrash && setEditing(true)}
       >
-        {editing ? (
+        {editing && !isTrash ? (
           <input
             ref={inputRef}
             className="w-full bg-transparent text-sm text-foreground outline-none font-mono"
@@ -109,6 +111,15 @@ export function AddressBar({
           />
         ) : (
           <div className="flex items-center gap-0.5 text-sm overflow-x-auto min-w-0 select-none">
+            {isTrash ? (
+              <button
+                className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-lg text-foreground font-medium shrink-0"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-xs font-medium">Recycle Bin</span>
+              </button>
+            ) : (
+            <>
             <button
               onClick={e => {
                 e.stopPropagation();
@@ -141,6 +152,8 @@ export function AddressBar({
                 </span>
               );
             })}
+            </>
+            )}
           </div>
         )}
       </div>
