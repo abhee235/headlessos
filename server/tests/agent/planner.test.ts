@@ -557,5 +557,30 @@ describe('Planner', () => {
       expect(PLANNER_SYSTEM_PROMPT).not.toContain('docker ps');
       expect(PLANNER_SYSTEM_PROMPT).not.toContain('nginx -T');
     });
+
+    // EX5-A.3: CLI Introspection Prompt Engineering
+    it('includes CLI tool UI pattern section', () => {
+      expect(PLANNER_SYSTEM_PROMPT).toContain('CLI Tool UI Pattern');
+    });
+
+    it('includes cli-introspection as a recognized dataSourceHint pattern', () => {
+      expect(PLANNER_SYSTEM_PROMPT).toContain('cli-introspection');
+    });
+
+    it('includes CLI tool UI examples (restic, nginx)', () => {
+      expect(PLANNER_SYSTEM_PROMPT).toContain('Build me a UI for restic');
+      expect(PLANNER_SYSTEM_PROMPT).toContain('Create a management UI for nginx');
+    });
+
+    it('instructs setting full-management for CLI tool requests', () => {
+      expect(PLANNER_SYSTEM_PROMPT).toContain('full-management');
+      expect(PLANNER_SYSTEM_PROMPT).toContain('needsWrite');
+    });
+
+    it('instructs setting complex estimatedComplexity for CLI tool requests', () => {
+      // The CLI Tool UI Pattern section should mention complex
+      const cliSection = PLANNER_SYSTEM_PROMPT.split('CLI Tool UI Pattern')[1];
+      expect(cliSection).toContain('complex');
+    });
   });
 });

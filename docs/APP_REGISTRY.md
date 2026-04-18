@@ -82,6 +82,8 @@ interface ActionDefinition {
 
 ## Built-in Apps
 
+> **EX6-C.3:** "Fleet Overview" was removed from the in-desktop app registry. It now lives in **Control Center → Fleet** (the pre-desktop landing surface). The component file (`client/src/components/Fleet/FleetDashboardView.tsx`) is reused there. To open it: launch the app, switch to the Fleet tab, or press `Ctrl/Cmd+Shift+Space` from any session.
+
 ### System Dashboard
 
 ```typescript

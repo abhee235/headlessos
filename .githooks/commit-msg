@@ -1,0 +1,37 @@
+#!/bin/sh
+# Enforce commit message format: {type}({TaskID}): {description}
+# Types: feat, fix, refactor, docs, test, chore
+# TaskID: M{n}.{n} or EX{n}-{letter}.{n} or M{n} or EX{n}
+# Examples:
+#   feat(M1.4): implement command orchestrator
+#   fix(EX6-A.3): session store hydration
+#   docs(M0): initial documentation
+
+commit_msg_file="$1"
+commit_msg=$(head -1 "$commit_msg_file")
+
+# Allow merge commits
+if echo "$commit_msg" | grep -qE '^Merge '; then
+  exit 0
+fi
+
+# Validate format: type(TaskID): description
+if ! echo "$commit_msg" | grep -qE '^(feat|fix|refactor|docs|test|chore)\((M[0-9]+(\.[0-9]+)?|EX[0-9]+(-[A-Z])?\.[0-9]+|EX[0-9]+)\): .+'; then
+  echo ""
+  echo "ERROR: Invalid commit message format."
+  echo ""
+  echo "Required: {type}({TaskID}): {description}"
+  echo ""
+  echo "Types:    feat, fix, refactor, docs, test, chore"
+  echo "TaskID:   M1.4, EX6-A.3, M0, EX3, etc."
+  echo ""
+  echo "Examples:"
+  echo "  feat(M1.4): implement command orchestrator"
+  echo "  fix(EX6-A.3): session store hydration bug"
+  echo "  docs(M0): initial documentation and project setup"
+  echo "  test(M1.3): add parsing pipeline unit tests"
+  echo ""
+  echo "Your message: $commit_msg"
+  echo ""
+  exit 1
+fi

@@ -401,7 +401,7 @@ describe('DynamicUIGenerator', () => {
       ['git status', 'git-status'],
       ['top -bn1', 'process-top'],
       ['ss -tulnp', 'port-table'],
-      ['cat /var/log/syslog', 'log-viewer'],
+      ['cat /var/log/syslog', 'system-logs-journal'],
       ['crontab -l', 'cron-schedule'],
     ];
 

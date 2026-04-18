@@ -126,7 +126,31 @@ User: "Manage Docker containers"
 → complex, full-management, suggestedLayout: "stack", suggestedSections: ["Containers", "Images", "Networks"],
   expectedWidgets: ["table", "stat-card", "form"],
   dataSourceHints: ["container list", "docker stats", "container logs"],
-  skipPostReflection: false`;
+  skipPostReflection: false
+
+User: "Build me a UI for restic"
+→ complex, full-management, suggestedLayout: "stack", suggestedSections: ["Overview", "Snapshots", "Backup"],
+  expectedWidgets: ["key-value", "table", "form"],
+  dataSourceHints: ["cli-introspection", "restic snapshots", "restic backup options"],
+  skipPostReflection: false
+  (Note: include "cli-introspection" in dataSourceHints when the user asks to build a UI for a CLI tool)
+
+User: "Create a management UI for nginx"
+→ complex, full-management, suggestedLayout: "stack", suggestedSections: ["Status", "Config", "Logs"],
+  expectedWidgets: ["key-value", "code-block", "form", "log-viewer"],
+  dataSourceHints: ["cli-introspection", "nginx status", "nginx configuration", "nginx logs"],
+  skipPostReflection: false
+
+## CLI Tool UI Pattern
+When the user asks to "build UI for <tool>", "create management UI for <tool>", "generate app for <tool>",
+or similar requests that involve a specific CLI tool:
+- Set interactivityLevel to 'full-management' (the user wants to use the tool, not just see data)
+- Include "cli-introspection" in dataSourceHints (tells executor to introspect the tool first)
+- Include the tool name in additional dataSourceHints (e.g. "restic snapshots", "docker stats")
+- Use suggestedSections like ["Overview", "<subcommand1>", "<subcommand2>"] based on the tool
+- Expected widgets should include "form" (for action subcommands) and "table" (for list subcommands)
+- Set needsWrite to true (forms will execute CLI commands)
+- Set estimatedComplexity to 'complex' (CLI introspection involves multiple discovery steps)`;
 
 // ── Planner ──
 

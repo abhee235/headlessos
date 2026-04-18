@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import { SHORTCUT_REFERENCE } from '../../hooks/useKeyboardShortcuts';
 import { usePreferencesStore, ACCENT_PRESETS, type CursorStyle, type DateFormat, type ToastPosition } from '../../store/preferences-store';
+import { useSessionsStore } from '../../store/sessions-store';
+import { useEffectivePref, setPreferenceOverride, clearPreferenceOverride } from '../../store/effective-preferences';
 import { useThemeStore, type Theme } from '../../store/theme-store';
 import {
   BUILTIN_WALLPAPERS,
@@ -284,8 +286,32 @@ function AddPhotoCard({ onUpload }: { onUpload: (file: File) => void }) {
 // ─── Wallpaper Page ─────────────────────────────────────────────────────────
 
 function WallpaperPage() {
-  const wallpaperId = usePreferencesStore((s) => s.wallpaperId);
-  const setWallpaperId = usePreferencesStore((s) => s.setWallpaperId);
+  // EX6-D.3: Per-session wallpaper override.
+  // Read effective (override > global). Write target depends on scope toggle.
+  const wallpaperId = useEffectivePref('wallpaperId');
+  const globalWallpaperId = usePreferencesStore((s) => s.wallpaperId);
+  const setGlobalWallpaperId = usePreferencesStore((s) => s.setWallpaperId);
+  const activeServerId = useSessionsStore((s) => s.activeServerId);
+  const sessionOverride = useSessionsStore((s) =>
+    s.activeServerId ? s.sessions[s.activeServerId]?.preferenceOverrides.wallpaperId : undefined,
+  );
+  // Default scope: 'session' if there's an active server, else 'global'
+  const [scope, setScope] = useState<'session' | 'global'>(activeServerId ? 'session' : 'global');
+  // Force scope back to 'global' if no session
+  useEffect(() => {
+    if (!activeServerId) setScope('global');
+  }, [activeServerId]);
+
+  const setWallpaperId = useCallback(
+    (id: string) => {
+      if (scope === 'session' && activeServerId) {
+        setPreferenceOverride('wallpaperId', id);
+      } else {
+        setGlobalWallpaperId(id);
+      }
+    },
+    [scope, activeServerId, setGlobalWallpaperId],
+  );
   const [systemWps, setSystemWps] = useState<ImageWallpaper[]>([]);
   const [userWps, setUserWps] = useState<ImageWallpaper[]>([]);
   const [loading, setLoading] = useState(true);
@@ -333,6 +359,55 @@ function WallpaperPage() {
 
   return (
     <div className="space-y-5">
+      {/* ── EX6-D.3: Per-session vs global scope toggle ── */}
+      {activeServerId && (
+        <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/30">
+          <div className="flex-1 min-w-0">
+            <div className="text-[13px] font-medium text-foreground">Apply wallpaper to</div>
+            <div className="text-[11px] text-muted-foreground">
+              {scope === 'session'
+                ? 'Only this server session (overrides global)'
+                : 'All sessions (global default)'}
+            </div>
+          </div>
+          <div className="inline-flex rounded-md border border-border overflow-hidden text-[12px]">
+            <button
+              type="button"
+              onClick={() => setScope('session')}
+              className={cn(
+                'px-3 py-1.5 transition-colors',
+                scope === 'session' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
+              )}
+              data-testid="wp-scope-session"
+            >
+              This session
+            </button>
+            <button
+              type="button"
+              onClick={() => setScope('global')}
+              className={cn(
+                'px-3 py-1.5 transition-colors border-l border-border',
+                scope === 'global' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
+              )}
+              data-testid="wp-scope-global"
+            >
+              All sessions
+            </button>
+          </div>
+          {sessionOverride !== undefined && (
+            <button
+              type="button"
+              onClick={() => clearPreferenceOverride('wallpaperId')}
+              className="px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground rounded"
+              title={`Reset to global (${globalWallpaperId})`}
+              data-testid="wp-reset-override"
+            >
+              Reset
+            </button>
+          )}
+        </div>
+      )}
+
       {/* ── Current Wallpaper ─────────────────────── */}
       <div className="flex items-start gap-4">
         <div className="w-45 h-28 rounded-lg overflow-hidden border border-border shrink-0">
@@ -803,6 +878,9 @@ function GeneralPage() {
   const setAutoRefreshInterval = usePreferencesStore((s) => s.setAutoRefreshInterval);
   const dateFormat = usePreferencesStore((s) => s.dateFormat);
   const setDateFormat = usePreferencesStore((s) => s.setDateFormat);
+  // EX6-D.5: Auto-hibernation
+  const autoHibernateMinutes = usePreferencesStore((s) => s.autoHibernateMinutes);
+  const setAutoHibernateMinutes = usePreferencesStore((s) => s.setAutoHibernateMinutes);
 
   return (
     <div className="space-y-6">
@@ -880,6 +958,34 @@ function GeneralPage() {
         <p className="text-[11px] text-muted-foreground mt-2">
           Server-side connection settings will be configurable after LLM backend integration (M7.3).
         </p>
+      </div>
+
+      {/* ── EX6-D.5: Sessions ───────────────── */}
+      <div>
+        <SectionHeader title="Sessions" />
+        <GroupedCard>
+          <div className="flex items-center justify-between px-3 py-2.5">
+            <div>
+              <span className="text-[13px] text-foreground">Auto-Hibernate Inactive Sessions</span>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Disconnect background sessions that have been idle for this long. The active session is never auto-hibernated.
+              </p>
+            </div>
+            <select
+              value={autoHibernateMinutes}
+              onChange={(e) => setAutoHibernateMinutes(Number(e.target.value))}
+              className="bg-transparent text-[13px] text-muted-foreground text-right cursor-pointer outline-none appearance-none pr-1 hover:text-foreground transition-colors"
+              data-testid="auto-hibernate-select"
+            >
+              <option value={0}>Off</option>
+              <option value={5}>5 minutes</option>
+              <option value={15}>15 minutes</option>
+              <option value={30}>30 minutes</option>
+              <option value={60}>1 hour</option>
+              <option value={180}>3 hours</option>
+            </select>
+          </div>
+        </GroupedCard>
       </div>
     </div>
   );

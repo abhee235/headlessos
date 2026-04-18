@@ -319,6 +319,13 @@ export const FormWidgetSchema = z.object({
   submitLabel: z.string().default('Save'),
   readOnly: z.boolean().default(false),
   dataSource: DataSourceSchema.nullable().optional(),
+  // EX5-A.2: CLI command template & submit wiring
+  commandTemplate: z.string().nullable().optional()
+    .describe('CLI command template with {fieldName} placeholders, e.g. "restic backup {--repo} {--exclude} {path}"'),
+  confirmSubmit: z.boolean().default(false)
+    .describe('Show confirmation dialog before executing the command'),
+  confirmMessage: z.string().nullable().optional()
+    .describe('Custom confirmation message (defaults to "Execute this command?")'),
 }).describe('Editable form widget for configuration');
 
 // ── Card list widget (EX3-P.6) ─────────────────────────

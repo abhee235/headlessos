@@ -19,6 +19,9 @@ import { withSpan, withSpanGen, setSpanAttributes } from '../observatory/context
 
 // ── Agent Event Types ──
 
+/** EX3-C.2: Layout update phases for progressive rendering */
+export type LayoutUpdatePhase = 'skeleton' | 'widget' | 'complete' | 'error';
+
 export type AgentEvent =
   | { type: 'thinking'; message: string }
   | { type: 'tool_result'; tool: string; success: boolean; outputPreview: string; latencyMs: number }
@@ -27,7 +30,8 @@ export type AgentEvent =
   | { type: 'generation_complete'; view: DynamicView }
   | { type: 'reflection'; feedback: string; action: 'approve' | 'fix' }
   | { type: 'safety_warning'; warning: 'consecutive_mistakes' | 'tool_repetition'; tool?: string; message?: string }
-  | { type: 'error'; message: string };
+  | { type: 'error'; message: string }
+  | { type: 'layout_update'; phase: LayoutUpdatePhase; view: DynamicView; widgetId?: string; progress?: number };
 
 // ── Executor Config ──
 
@@ -363,7 +367,7 @@ ${layoutGuidance}
 
 ## Data Sources Needed
 ${hints.dataSourceHints.map((h, i) => `${i + 1}. ${h}`).join('\n')}
-
+${this.buildCLIIntrospectionGuidance(hints)}
 ## DynamicViewSchema Reference
 
 The final JSON you pass to generate_schema() MUST conform to this structure exactly:
@@ -522,6 +526,65 @@ ${reflectionIssues.map((issue, i) => `${i + 1}. [${issue.severity}] ${issue.desc
     }
 
     return prompt;
+  }
+
+  // EX5-A.3: CLI Introspection Prompt Engineering
+  /**
+   * Build CLI introspection guidance when dataSourceHints include 'cli-introspection'.
+   * Returns an empty string when CLI introspection is not needed.
+   */
+  private buildCLIIntrospectionGuidance(hints: PlannerHints): string {
+    const hasIntrospection = hints.dataSourceHints.some(
+      (h) => h.toLowerCase().includes('cli-introspection'),
+    );
+    if (!hasIntrospection) return '\n';
+
+    return `
+## CLI Tool Introspection Workflow (MANDATORY for this request)
+
+The user is asking you to build a management UI for a CLI tool. Follow this structured discovery pattern:
+
+### Phase 1: Discovery
+1. **Check binary exists**: \`which <tool>\` or \`command -v <tool>\`
+   - If not found, tell the user via an alert widget: "Tool <tool> is not installed on this server"
+2. **Get version**: \`<tool> --version\` (or \`<tool> version\`)
+   - Show as a key-value pair in the Overview section
+3. **Parse top-level help**: \`<tool> --help\` (or \`<tool> -h\` or \`<tool> help\`)
+   - Identify available subcommands and global flags
+4. **Iterate key subcommands**: \`<tool> <subcmd> --help\` for each important subcommand
+   - Parse available flags and options for each subcommand
+   - Focus on the most useful subcommands (typically 3-6)
+
+### Phase 2: UI Mapping
+Map discovered CLI structure to DynamicView widgets:
+
+| CLI Pattern | Widget Type | Example |
+|-------------|------------|---------|
+| Subcommand that lists items (e.g. \`list\`, \`ls\`, \`ps\`, \`status\`) | **table** | \`restic snapshots\` → table of snapshots |
+| Subcommand that shows info (e.g. \`info\`, \`show\`, \`stats\`) | **key-value** | \`restic stats\` → key-value pairs |
+| Subcommand that performs action (e.g. \`backup\`, \`restore\`, \`create\`, \`delete\`) | **form** with commandTemplate | \`restic backup\` → form with path + flags |
+| Tool version + global info | **stat-card** or **key-value** | version, install path, config location |
+| Config file content | **code-block** | \`/etc/<tool>/config.yaml\` |
+| Log output | **log-viewer** | \`<tool> logs\` or \`journalctl -u <tool>\` |
+
+### Phase 3: Form CommandTemplate Wiring
+For action subcommands, create form widgets with \`commandTemplate\`:
+- Map each CLI flag to a form field (text/number/boolean/select)
+- Use \`{fieldName}\` placeholders in the template: e.g. \`"restic backup {--repo} {--exclude} {path}"\`
+- Boolean flags: include flag name when true, omit when false
+- Set \`confirmSubmit: true\` for destructive actions (delete, prune, etc.)
+- Set \`confirmMessage\` to describe what the command will do
+
+### Progressive Rendering During Discovery
+- After Phase 1 step 1 (binary check): send update_view with Overview section showing tool name + version placeholder
+- After Phase 1 step 3 (top-level help): update_view with sidebar sections for discovered subcommands
+- After each subcommand discovery: update_view with that section's widgets filled in
+- Call generate_schema() only after all sections are populated
+
+### Meta Fields
+Set \`meta.tool\` to the CLI tool name (e.g. "restic") — this enables the "Save as App" feature.
+Set \`meta.command\` to the primary discovery command used.
+`;
   }
 
   /**

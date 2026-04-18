@@ -72,15 +72,7 @@ export const APPS: AppDefinition[] = [
     requiredTools: [],
     singleInstance: true,
   },
-  {
-    id: 'fleet',
-    name: 'Fleet Overview',
-    icon: 'Globe',
-    description: 'Aggregate dashboard across all connected servers',
-    requiredTools: [],
-    singleInstance: true,
-    refreshInterval: 30_000,
-  },
+  // EX6-C.3: Fleet Overview removed from in-desktop registry — now lives in Control Center
   {
     id: 'agent',
     name: 'AI Agent',

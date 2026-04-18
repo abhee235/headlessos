@@ -52,6 +52,8 @@ interface DesktopState {
   toggleStartMenu: () => void;
   closeStartMenu: () => void;
   toggleShowDesktop: () => void;
+  /** EX6-A.7: Bump the internal window-counter past `n` to avoid ID collisions after restoring persisted windows. */
+  setCounterFloor: (n: number) => void;
 }
 
 let windowCounter = 0;
@@ -333,5 +335,9 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
         };
       }
     });
+  },
+
+  setCounterFloor: (n) => {
+    if (n > windowCounter) windowCounter = n;
   },
 }));

@@ -328,6 +328,42 @@ body {
     0 4px 16px -4px oklch(0 0 0 / 30%);
 }
 
+/* ── EX3-D.3: Widget entrance animations with stagger ── */
+@keyframes widgetEnter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes tabSlideIn {
+  from { opacity: 0; transform: translateX(8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.animate-widget-enter {
+  animation: widgetEnter 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--stagger-index, 0) * 50ms);
+}
+
+.animate-tab-slide-in {
+  animation: tabSlideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .animate-widget-enter,
+  .animate-tab-slide-in,
+  .animate-contextMenuIn,
+  .animate-dialogIn,
+  .animate-slideUpIn,
+  .animate-scaleIn,
+  .animate-windowOpen,
+  .animate-windowClose {
+    animation: none !important;
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* ── Animations ── */
 @keyframes contextMenuIn {
   from { opacity: 0; transform: scale(0.96) translateY(-4px); }

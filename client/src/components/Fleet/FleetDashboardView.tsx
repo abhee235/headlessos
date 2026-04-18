@@ -33,7 +33,7 @@ import {
 
 // ── Server Card ─────────────────────────────────────────
 
-function ServerCard({ srv }: { srv: FleetServerSummary }) {
+function ServerCard({ srv, onActivate }: { srv: FleetServerSummary; onActivate?: (id: string) => void }) {
   const setActiveServer = useAppStore(s => s.setActiveServer);
   const connectServer = useAppStore(s => s.connectServer);
   const openWindow = useDesktopStore(s => s.openWindow);
@@ -45,6 +45,7 @@ function ServerCard({ srv }: { srv: FleetServerSummary }) {
       connectServer(srv.id);
     }
     openWindow('dashboard', srv.id, `Dashboard — ${srv.name}`, 'dashboard');
+    onActivate?.(srv.id);
   };
 
   return (
@@ -233,7 +234,12 @@ function TotalsBar({ totals }: { totals: FleetOverview['totals'] }) {
 
 // ── Main View ───────────────────────────────────────────
 
-export function FleetDashboardView() {
+interface FleetDashboardViewProps {
+  /** Optional callback when a server card's Open Dashboard is clicked. */
+  onServerActivated?: (serverId: string) => void;
+}
+
+export function FleetDashboardView({ onServerActivated }: FleetDashboardViewProps = {}) {
   const [data, setData] = useState<FleetOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -325,7 +331,7 @@ export function FleetDashboardView() {
       {/* Server grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         {data.servers.map(srv => (
-          <ServerCard key={srv.id} srv={srv} />
+          <ServerCard key={srv.id} srv={srv} onActivate={onServerActivated} />
         ))}
       </div>
 

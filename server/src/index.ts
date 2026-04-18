@@ -15,6 +15,7 @@ import multipart from '@fastify/multipart';
 import { ServiceContainer } from './services/container.js';
 import { ConnectionManager } from './ssh/connection-manager.js';
 import { ConfigStore } from './config/store.js';
+import { SessionStore } from './config/session-store.js';
 import { ParsingPipeline } from './parsers/pipeline.js';
 import { CommandOrchestrator } from './orchestrator/orchestrator.js';
 import { serverRoutes } from './routes/servers.js';
@@ -29,6 +30,7 @@ import { serverAdminRoutes } from './routes/serveradmin.js';
 import { statsRoutes } from './routes/stats.js';
 import { llmRoutes } from './routes/llm.js';
 import { fleetRoutes } from './routes/fleet.js';
+import { sessionRoutes } from './routes/sessions.js';
 import { agentRoutes } from './routes/agent.js';
 import { agentUIRoutes } from './routes/agent-ui.js';
 import { dynamicUIRoutes } from './routes/dynamic-ui.js';
@@ -41,7 +43,10 @@ import { DynamicUIDiskCache } from './cache/dynamic-ui-cache.js';
 import { ModelRouter } from './llm/model-router.js';
 import { observatoryRoutes } from './routes/observatory.js';
 import { TraceStore } from './observatory/trace-store.js';
+import { TracePersistence } from './observatory/trace-persistence.js';
 import { initObservatory } from './observatory/context.js';
+import { AppStore } from './dynamic-ui/app-store.js';
+import { appStoreRoutes } from './routes/app-store.js';
 
 const PORT = Number(process.env.PORT) || 3001;
 
@@ -50,6 +55,7 @@ async function main(): Promise<void> {
   const container = new ServiceContainer();
 
   const configStore = new ConfigStore('config');
+  const sessionStore = new SessionStore('session-store');
   const connectionManager = new ConnectionManager('ssh');
   const pipeline = new ParsingPipeline('parser');
   const orchestrator = new CommandOrchestrator('orchestrator');
@@ -57,15 +63,23 @@ async function main(): Promise<void> {
   const usageTracker = new LLMUsageTracker();
   const traceStore = new TraceStore();
   initObservatory(traceStore);
+  // EX6-D.7: Persist ended traces to disk + retention sweep (30 days / 10k cap)
+  const tracePersistence = new TracePersistence('trace-persistence');
   const investigationAgent = new InvestigationAgent(connectionManager, null);
   const diskCache = new DynamicUIDiskCache();
   await diskCache.init();
+  const appStore = new AppStore();
+  await appStore.init();
   let dynamicUIGenerator = new DynamicUIGenerator({ outputCache, usageTracker, diskCache });
+  // Wire AppStore to TemplateRegistry so saved apps are auto-matched
+  appStore.setTemplateRegistry(dynamicUIGenerator.getRegistry());
 
   container.register('config', configStore);
+  container.register('session-store', sessionStore);
   container.register('ssh', connectionManager);
   container.register('parser', pipeline);
   container.register('orchestrator', orchestrator);
+  container.register('trace-persistence', tracePersistence);
 
   // LLM provider is optional — configured if OPENAI_API_KEY is set
   let modelRouter: ModelRouter | null = null;
@@ -110,6 +124,11 @@ async function main(): Promise<void> {
 
   await container.boot();
   console.log('✅ Service container booted');
+
+  // EX6-D.7: attach trace persistence after boot (writes ended traces to disk).
+  tracePersistence.attach(traceStore);
+  // Run an initial sweep on boot so stale traces don't grow unbounded across restarts.
+  void tracePersistence.sweep().catch(() => { /* best-effort */ });
 
   // Seed fake-server into config store when in fake mode
   if (process.env.LLM_PROVIDER === 'fake') {
@@ -217,8 +236,10 @@ async function main(): Promise<void> {
   await app.register(statsRoutes, { usageTracker, outputCache });
   await app.register(llmRoutes, { pipeline });
   await app.register(fleetRoutes, { orchestrator, connectionManager, configStore });
+  await app.register(sessionRoutes, { sessionStore, connectionManager });
   await app.register(agentRoutes, { connectionManager, agent: investigationAgent });
   await app.register(dynamicUIRoutes, { connectionManager, generator: dynamicUIGenerator, diskCache });
+  await app.register(appStoreRoutes, { appStore });
   await app.register(observatoryRoutes, { traceStore });
 
   // UI Agent WebSocket (requires LLM)
@@ -241,8 +262,26 @@ async function main(): Promise<void> {
   }
 
   // -- Graceful Shutdown --
+  // EX6-A.10: Mark all sessions with live SSH connections as hibernated so the
+  // frontend can wake them on next launch. Best-effort; never block exit.
+  let shuttingDown = false;
   const shutdown = async () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     console.log('\n🛑 Shutting down...');
+
+    try {
+      const activeIds = connectionManager.getConnectedServerIds();
+      if (activeIds.length > 0) {
+        console.log(`💾 Hibernating ${activeIds.length} active session(s)...`);
+        await Promise.allSettled(
+          activeIds.map((id) => sessionStore.markHibernated(id)),
+        );
+      }
+    } catch (err) {
+      console.warn('[shutdown] Session hibernation error:', err);
+    }
+
     await app.close();
     outputCache.destroy();
     traceStore.clear();

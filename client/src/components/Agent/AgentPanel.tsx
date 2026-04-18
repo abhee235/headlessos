@@ -44,6 +44,7 @@ export type AgentEventType =
   | { type: 'rate_limited'; retryInMs: number; attempt: number }
   | { type: 'context_compacted'; originalTokens: number; compactedTokens: number }
   | { type: 'complete'; view: unknown; meta: AgentMetaType }
+  | { type: 'layout_update'; phase: string; view: unknown; widgetId?: string; progress?: number }
   | { type: 'error'; message: string };
 
 export interface AgentMetaType {

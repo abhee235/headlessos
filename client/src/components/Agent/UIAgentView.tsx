@@ -5,7 +5,8 @@
 // Frontend view for the UI Agent. Users enter a prompt describing what
 // they want to see, and the agent generates a Dynamic UI view in real-time.
 // Shows the agent's thinking process via AgentPanel as events stream in.
-// Opens a DynamicAppWindow on first partial_view for progressive rendering.
+// EX3-C.3: Opens a desktop DynamicUI window immediately on generation start
+// with skeleton loading, progressively filling as partial_view events arrive.
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
@@ -15,19 +16,28 @@ import {
   Loader2,
   Sparkles,
   RotateCcw,
+  Shield,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useUIAgent } from '../../hooks/useUIAgent';
 import { useAgentStore, type AgentSession } from '../../store/agent-store';
-import { AgentPanel, type AgentPanelProps } from './AgentPanel';
-import { openDynamicUIWindow } from '../DynamicUI';
-import { DynamicAppWindow } from '../DynamicUI/DynamicAppWindow';
+import { useSessionsStore } from '../../store/sessions-store';
+import { AgentPanel } from './AgentPanel';
+import { useDynamicUIStore } from '@/store/dynamic-ui-store';
+import { useDesktopStore } from '@/store/window-store';
 import { DynamicViewSchema } from 'headlessos-shared/schemas/dynamic-view';
 import type { DynamicView, DeepPartial } from 'headlessos-shared/schemas/dynamic-view';
-import { ExternalLink, Eye } from 'lucide-react';
+import { checkDockerAvailable } from '../../lib/api';
+import { cn } from '@/lib/utils';
 
 // ── Preset prompts ──────────────────────────────────────
 
@@ -40,6 +50,27 @@ const PRESETS = [
   { label: 'Network Ports', prompt: 'Show all open network ports and the services listening on them' },
 ];
 
+// ── Helper: open a loading desktop window immediately ───
+
+function openLoadingWindow(serverId: string, title: string): string {
+  const dynStore = useDynamicUIStore.getState();
+
+  // 1. Pin an empty loading view
+  const viewId = dynStore.pinLoadingView(serverId, title, 'Sparkles');
+
+  // 2. Open a desktop window
+  useDesktopStore.getState().openWindow('dynamic-ui', serverId, title || 'Generating…', 'Sparkles');
+
+  // 3. Link newest window to the pinned view — read FRESH state after openWindow
+  const windows = useDesktopStore.getState().windows;
+  const newestWindow = windows[windows.length - 1];
+  if (newestWindow) {
+    dynStore.linkWindow(newestWindow.id, viewId);
+  }
+
+  return viewId;
+}
+
 // ── Main View ───────────────────────────────────────────
 
 interface UIAgentViewProps {
@@ -51,6 +82,10 @@ export function UIAgentView({ serverId }: UIAgentViewProps) {
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // EX5-B.4: Sandbox mode state
+  const [sandboxEnabled, setSandboxEnabled] = useState(false);
+  const [dockerAvailable, setDockerAvailable] = useState<boolean | null>(null);
+
   const { generate, abort, connected } = useUIAgent(serverId);
   const sessions = useAgentStore(s => s.sessions);
 
@@ -61,6 +96,19 @@ export function UIAgentView({ serverId }: UIAgentViewProps) {
 
   const isRunning = activeSession?.status === 'running';
 
+  // EX5-B.4: Check Docker availability on the server
+  useEffect(() => {
+    if (!serverId || !connected) {
+      setDockerAvailable(null);
+      return;
+    }
+    let cancelled = false;
+    void checkDockerAvailable(serverId).then((available) => {
+      if (!cancelled) setDockerAvailable(available);
+    });
+    return () => { cancelled = true; };
+  }, [serverId, connected]);
+
   // Auto-scroll on new events
   useEffect(() => {
     if (activeSession && scrollRef.current) {
@@ -68,78 +116,90 @@ export function UIAgentView({ serverId }: UIAgentViewProps) {
     }
   }, [activeSession?.events.length]);
 
+  // Track the pinned view ID for the current generation session
+  const pinnedViewIdRef = useRef<Map<string, string>>(new Map());
+
   const handleGenerate = useCallback((p?: string) => {
     const finalPrompt = p ?? prompt;
     if (!finalPrompt.trim()) return;
 
     try {
-      const requestId = generate(finalPrompt);
+      const requestId = generate(finalPrompt, {
+        sandboxMode: sandboxEnabled && dockerAvailable === true ? true : undefined,
+      });
       setActiveRequestId(requestId);
+
+      // EX3-C.3: Open a desktop window immediately with loading skeleton
+      const viewId = openLoadingWindow(serverId, finalPrompt.substring(0, 60));
+      pinnedViewIdRef.current.set(requestId, viewId);
     } catch {
       // Error handled by the hook (sets error state in store)
     }
-  }, [prompt, generate]);
+  }, [prompt, generate, sandboxEnabled, dockerAvailable, serverId]);
 
   const handleAbort = useCallback(() => {
     if (activeRequestId) {
       abort(activeRequestId);
+      // Mark the loading window as no longer loading
+      const viewId = pinnedViewIdRef.current.get(activeRequestId);
+      if (viewId) {
+        useDynamicUIStore.getState().setViewLoading(viewId, false);
+      }
     }
   }, [activeRequestId, abort]);
 
   const handleReset = useCallback(() => {
     setActiveRequestId(null);
     setPrompt('');
-    setShowPreview(false);
   }, []);
 
-  // Progressive rendering: show inline DynamicAppWindow preview
-  const [showPreview, setShowPreview] = useState(false);
-
-  // Auto-show preview when first partial_view arrives
-  const previewOpenedRef = useRef<Set<string>>(new Set());
+  // EX3-C.3: Progressively update the desktop window as partial_view events arrive
   useEffect(() => {
-    if (
-      activeSession?.partialView &&
-      activeRequestId &&
-      !previewOpenedRef.current.has(activeRequestId)
-    ) {
-      previewOpenedRef.current.add(activeRequestId);
-      setShowPreview(true);
-    }
-  }, [activeSession?.partialView, activeRequestId]);
+    if (!activeRequestId) return;
+    const viewId = pinnedViewIdRef.current.get(activeRequestId);
+    if (!viewId) return;
 
-  // Auto-open as desktop window when generation completes
-  const openedRef = useRef<Set<string>>(new Set());
+    const dynStore = useDynamicUIStore.getState();
+
+    // Update with partial view
+    const partialView = activeSession?.partialView as DeepPartial<DynamicView> | null;
+    if (partialView) {
+      dynStore.updatePinnedView(viewId, partialView);
+    }
+  }, [activeRequestId, activeSession?.partialView]);
+
+  // Finalize the desktop window when generation completes
+  const completedRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (
       activeSession?.status === 'complete' &&
       activeSession.view &&
       activeRequestId &&
-      !openedRef.current.has(activeRequestId)
+      !completedRef.current.has(activeRequestId)
     ) {
-      openedRef.current.add(activeRequestId);
-      const parsed = DynamicViewSchema.safeParse(activeSession.view);
-      if (parsed.success) {
-        openDynamicUIWindow(serverId, parsed.data, parsed.data.icon ?? undefined);
+      completedRef.current.add(activeRequestId);
+      const viewId = pinnedViewIdRef.current.get(activeRequestId);
+      if (viewId) {
+        const parsed = DynamicViewSchema.safeParse(activeSession.view);
+        if (parsed.success) {
+          useDynamicUIStore.getState().completePinnedView(viewId, parsed.data);
+        }
       }
     }
-  }, [activeSession?.status, activeSession?.view, activeRequestId, serverId]);
+  }, [activeSession?.status, activeSession?.view, activeRequestId]);
 
-  // Get the current view to display — prefer final view, fall back to partial
-  const currentView: DeepPartial<DynamicView> | null =
-    activeSession?.view
-      ? (activeSession.view as DeepPartial<DynamicView>)
-      : activeSession?.partialView
-        ? (activeSession.partialView as DeepPartial<DynamicView>)
-        : null;
-
-  const handleOpenInWindow = useCallback(() => {
-    if (!activeSession?.view) return;
-    const parsed = DynamicViewSchema.safeParse(activeSession.view);
-    if (parsed.success) {
-      openDynamicUIWindow(serverId, parsed.data, parsed.data.icon ?? undefined);
+  // Mark loading window as done on error/abort
+  useEffect(() => {
+    if (
+      activeRequestId &&
+      (activeSession?.status === 'error' || activeSession?.status === 'aborted')
+    ) {
+      const viewId = pinnedViewIdRef.current.get(activeRequestId);
+      if (viewId) {
+        useDynamicUIStore.getState().setViewLoading(viewId, false);
+      }
     }
-  }, [activeSession?.view, serverId]);
+  }, [activeRequestId, activeSession?.status]);
 
   return (
     <div className="flex flex-col h-full">
@@ -200,6 +260,11 @@ export function UIAgentView({ serverId }: UIAgentViewProps) {
             </div>
           )}
 
+          {/* EX6-D.6: Conversation history (persistent across sessions) */}
+          {!activeSession && (
+            <AgentHistoryList serverId={serverId} onReRun={handleGenerate} />
+          )}
+
           {/* Running indicator (before events start arriving) */}
           {isRunning && activeSession.events.length === 0 && (
             <div className="flex items-center gap-3 py-8 justify-center">
@@ -218,61 +283,15 @@ export function UIAgentView({ serverId }: UIAgentViewProps) {
             />
           )}
 
-          {/* Progressive live preview — shown during generation */}
-          {activeSession && currentView && isRunning && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Eye className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
-                  <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                    Building view…
-                  </span>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowPreview(!showPreview)}
-                  className="h-6 px-2 text-[10px]"
-                >
-                  {showPreview ? 'Hide' : 'Show'} Preview
-                </Button>
-              </div>
-              {showPreview && (
-                <div className="border border-emerald-500/20 rounded-lg overflow-hidden bg-background/50">
-                  <DynamicAppWindow
-                    view={currentView}
-                    open={true}
-                    onClose={() => setShowPreview(false)}
-                    loading={true}
-                    serverId={serverId}
-                  />
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Completion summary + rendered view */}
+          {/* Completion summary */}
           {activeSession?.status === 'complete' && activeSession.meta && (
             <div className="space-y-4">
               <div className="border border-emerald-500/20 rounded-lg p-3 bg-emerald-500/5 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-emerald-500" />
-                    <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
-                      View Generated
-                    </span>
-                  </div>
-                  {activeSession.view != null && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleOpenInWindow}
-                      className="h-7 px-2.5 gap-1.5 text-xs"
-                    >
-                      <ExternalLink className="w-3 h-3" />
-                      Open in Window
-                    </Button>
-                  )}
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-emerald-500" />
+                  <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                    View Generated
+                  </span>
                 </div>
                 <p className="text-[11px] text-muted-foreground">
                   Completed in {((activeSession.meta.latencyMs ?? 0) / 1000).toFixed(1)}s
@@ -281,9 +300,9 @@ export function UIAgentView({ serverId }: UIAgentViewProps) {
                   {activeSession.meta.reflectionLoops > 0 && (
                     <> · {activeSession.meta.reflectionLoops} reflection{activeSession.meta.reflectionLoops !== 1 ? 's' : ''}</>
                   )}
+                  {' · '}View is open in a desktop window
                 </p>
               </div>
-
             </div>
           )}
 
@@ -300,7 +319,46 @@ export function UIAgentView({ serverId }: UIAgentViewProps) {
       </ScrollArea>
 
       {/* Input area */}
-      <div className="border-t border-border/40 p-3">
+      <div className="border-t border-border/40 p-3 space-y-2">
+        {/* EX5-B.4: Sandbox toggle */}
+        <div className="flex items-center justify-between" data-testid="sandbox-toggle-row">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <label
+                className={cn(
+                  'flex items-center gap-2 cursor-pointer select-none',
+                  dockerAvailable === false && 'opacity-50 cursor-not-allowed',
+                )}
+                htmlFor="sandbox-toggle"
+              >
+                <Shield className={cn(
+                  'w-3.5 h-3.5',
+                  sandboxEnabled && dockerAvailable !== false
+                    ? 'text-emerald-500'
+                    : 'text-muted-foreground',
+                )} />
+                <span className="text-xs font-medium text-muted-foreground">
+                  Sandbox Mode
+                </span>
+              </label>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-[240px]">
+              {dockerAvailable === false
+                ? 'Requires Docker on the server'
+                : 'Discovery commands run in an isolated Docker container on the server'
+              }
+            </TooltipContent>
+          </Tooltip>
+          <Switch
+            id="sandbox-toggle"
+            checked={sandboxEnabled && dockerAvailable !== false}
+            onCheckedChange={setSandboxEnabled}
+            disabled={isRunning || dockerAvailable === false}
+            data-testid="sandbox-switch"
+            className="scale-75"
+          />
+        </div>
+
         <div className="flex items-end gap-2">
           <Textarea
             value={prompt}
@@ -339,6 +397,84 @@ export function UIAgentView({ serverId }: UIAgentViewProps) {
         <p className="text-[10px] text-muted-foreground mt-1.5 px-1">
           The agent runs commands on your server, parses the output, and generates a UI view. Requires LLM API key.
         </p>
+      </div>
+    </div>
+  );
+}
+
+// ── EX6-D.6: Persisted conversation history list ────────────────
+
+function formatRelativeTime(iso: string): string {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return '—';
+  const diffMs = Date.now() - then;
+  const sec = Math.floor(diffMs / 1000);
+  if (sec < 60) return `${sec}s ago`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const day = Math.floor(hr / 24);
+  return `${day}d ago`;
+}
+
+interface AgentHistoryListProps {
+  serverId: string;
+  onReRun: (prompt: string) => void;
+}
+
+function AgentHistoryList({ serverId, onReRun }: AgentHistoryListProps) {
+  const session = useSessionsStore((s) => s.sessions[serverId]);
+  const history = session?.agentHistory ?? [];
+  if (history.length === 0) return null;
+
+  // Newest first
+  const ordered = [...history].sort((a, b) => (a.startedAt < b.startedAt ? 1 : -1));
+
+  return (
+    <div className="space-y-2" data-testid="agent-history-list">
+      <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
+        Recent runs
+      </p>
+      <div className="space-y-1.5">
+        {ordered.map((h) => (
+          <button
+            key={h.requestId}
+            className="w-full text-left px-3 py-2 rounded-lg border border-border/40 hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-colors group"
+            onClick={() => onReRun(h.prompt)}
+            data-testid={`agent-history-item-${h.requestId}`}
+            title={`Re-run: ${h.prompt}`}
+          >
+            <div className="flex items-center gap-2">
+              <Badge
+                variant={
+                  h.status === 'complete'
+                    ? 'success'
+                    : h.status === 'error'
+                      ? 'destructive'
+                      : 'outline'
+                }
+                className="text-[10px] uppercase"
+              >
+                {h.status}
+              </Badge>
+              <span className="text-[10px] text-muted-foreground">
+                {formatRelativeTime(h.startedAt)}
+              </span>
+              {h.viewTitle && (
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 truncate">
+                  {h.viewTitle}
+                </span>
+              )}
+            </div>
+            <p className="text-xs mt-1 leading-snug line-clamp-2">{h.prompt}</p>
+            {h.errorMessage && (
+              <p className="text-[10px] text-destructive mt-0.5 line-clamp-1">
+                {h.errorMessage}
+              </p>
+            )}
+          </button>
+        ))}
       </div>
     </div>
   );

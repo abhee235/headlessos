@@ -81,12 +81,7 @@ const DESKTOP_ICONS: DesktopIcon[] = [
     label: 'Server Admin',
     IconComponent: ServerAdminIcon,
   },
-  {
-    id: 'desktop-fleet',
-    appId: 'fleet',
-    label: 'Fleet Overview',
-    IconComponent: FleetIcon,
-  },
+  // EX6-C.3: Fleet moved to Control Center
   {
     id: 'desktop-agent',
     appId: 'agent',

@@ -19,6 +19,7 @@
 | **Phase EX2** | **UI Generation Agent (Experimental)** | **TBD** | **Not started** | [phase-ex2.md](phases/phase-ex2.md) |
 | **Phase EX3** | **Smart Layout Engine (Experimental)** | **TBD** | **In progress** | [phase-ex3.md](phases/phase-ex3.md) |
 | **Phase EX4** | **LLM Observatory (Experimental)** | **TBD** | **Not started** | [phase-ex4.md](phases/phase-ex4.md) |
+| **Phase EX5** | **CLI App Generation + Sandbox (Experimental)** | **TBD** | **In progress** | [phase-ex5.md](phases/phase-ex5.md) |
 
 ## Task ID System
 
@@ -58,11 +59,16 @@ Phase 0 (Foundation)
                     │     └── EX3-D: Unified Window & Visual Polish
                     │
                     └── Phase EX4 (LLM Observatory) ← depends on EX2 (Agent) + M4.8 (LLM Stats)
-                          ├── EX4-A: Data Models & TraceStore (schemas + ring buffer + AsyncLocalStorage)
-                          ├── EX4-B: Instrumentation (ModelRouter + Agent + DynamicUIGenerator)
-                          ├── EX4-C: Backend API (REST + WebSocket live events)
-                          ├── EX4-D: Frontend — Trace List & Stats (observatory app + list + charts)
-                          └── EX4-E: Frontend — Trace Tree & Detail (tree + timeline + span detail)
+                    │     ├── EX4-A: Data Models & TraceStore (schemas + ring buffer + AsyncLocalStorage)
+                    │     ├── EX4-B: Instrumentation (ModelRouter + Agent + DynamicUIGenerator)
+                    │     ├── EX4-C: Backend API (REST + WebSocket live events)
+                    │     ├── EX4-D: Frontend — Trace List & Stats (observatory app + list + charts)
+                    │     └── EX4-E: Frontend — Trace Tree & Detail (tree + timeline + span detail)
+                    │
+                    └── Phase EX5 (CLI App Generation + Sandbox) ← depends on EX2 (Agent) + Docker routes
+                          ├── EX5-A: Foundation (CLI allowlist + form command wiring + prompts)
+                          ├── EX5-B: Sandbox (SandboxManager + sandbox_exec tool + two-phase flow + UI toggle)
+                          └── EX5-C: Save & Reuse (app persistence + save UI + app launcher)
 ```
 
 ## Quick Links

@@ -90,3 +90,27 @@ export type {
   TraceDetailResponse,
   SpanDetailResponse,
 } from './observatory.js';
+
+// EX6-A.3: Session schemas
+// @see docs/phases/phase-ex6.md
+
+export {
+  SessionLifecycleSchema,
+  PersistedWindowSchema,
+  SessionPreferenceOverridesSchema,
+  PersistedAgentMessageSchema,
+  SessionStateSchema,
+  SessionSummarySchema,
+  AGENT_HISTORY_CAP,
+  createEmptySessionState,
+  trimAgentHistory,
+} from './session.js';
+
+export type {
+  SessionLifecycle,
+  PersistedWindow,
+  SessionPreferenceOverrides,
+  PersistedAgentMessage,
+  SessionState,
+  SessionSummary,
+} from './session.js';

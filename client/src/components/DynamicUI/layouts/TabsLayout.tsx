@@ -54,10 +54,10 @@ export function TabsLayout({ layout }: { layout: TabsLayout }) {
         const tabId = tab.id ?? `tab-${i}`;
         const children = ((tab as Record<string, unknown>).children ?? []) as unknown[];
         return (
-          <TabsContent key={tabId} value={tabId}>
+          <TabsContent key={tabId} value={tabId} className="animate-tab-slide-in">
             <div className="space-y-4 pt-2">
               {children.filter(Boolean).map((child, ci) => (
-                <ContentRenderer key={ci} item={child as DeepPartial<Layout>} />
+                <ContentRenderer key={ci} item={child as DeepPartial<Layout>} index={ci} />
               ))}
             </div>
           </TabsContent>

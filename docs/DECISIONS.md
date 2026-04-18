@@ -781,6 +781,247 @@ Since HeadlessOS is a localhost app with no external dependencies, we need an em
 
 ---
 
+## ADR-019: Sandbox CLI Discovery for Agent App Generation
+
+**Status:** Accepted
+**Date:** 2026-04-12
+
+**Context:**
+HeadlessOS's UIAgent (EX2) can generate dynamic UIs from terminal output, but to create management UIs for arbitrary CLI tools (restic, nginx, redis-cli, etc.), the agent needs to run discovery commands like `--help`, `--version`, and `man`. Running unknown commands directly on a production server carries risk — a malformed flag or unexpected side-effect could cause harm. We need a safe environment for CLI introspection while still generating schemas that work against the real server.
+
+**Options Considered:**
+
+1. **Run discovery directly on the target server** — Simplest. Just open the allowlist for `--help` patterns. Risk: unexpected tool behavior, resource consumption, or side effects.
+2. **Docker container on target server** — Spin up an ephemeral container matching the server's OS, install the tool, run discovery inside it, then destroy it. Schema applies to the real server.
+3. **Docker container locally (Mac/desktop)** — Run discovery on the user's machine. Zero server impact but different OS/arch may produce different `--help` output.
+4. **firejail/bubblewrap on server** — Kernel-level sandboxing. Not universally available, complex setup.
+
+**Decision:** Option 2 — Ephemeral Docker container on the target server, with Option 1 as fallback when Docker isn't available.
+
+**Rationale:**
+- Option 2 provides real isolation (separate PID/network/filesystem namespace) while matching the server's OS/architecture so `--help` output, paths, and package names are accurate
+- Resource-capped (`--memory=256m`, `--cpus=0.5`, `--pids-limit=100`) and network-isolated (`--network=none` during discovery)
+- Automatic cleanup: 5-minute TTL + orphan reaper on service start
+- HeadlessOS already has full Docker management routes (`docker run/exec/rm`) and multi-server SSH — minimal new infrastructure needed
+- Option 1 (direct execution) remains available as fallback with a clear toggle — some users may prefer speed over isolation for trusted tools
+- Option 3 rejected: Cross-platform differences make schemas unreliable (e.g., macOS `--help` vs Linux `--help` differ for many tools)
+- Option 4 rejected: Not available on all servers, complex configuration
+
+### Key Design Decisions
+
+**1. `docker exec` (Not SSH-into-container)**
+- No sshd needed inside the sandbox container
+- Uses existing `connectionManager.exec()` with `docker exec {containerId} {command}`
+- Simpler, faster, fewer attack vectors
+
+**2. Network Toggle for Package Installation**
+- Sandbox starts with `--network=none` for discovery safety
+- Temporarily connects to bridge network for `apt install` via `docker network connect/disconnect`
+- Alternatively: pre-install packages before applying network restrictions
+
+**3. OS-Matched Base Image**
+- `get_server_context()` already detects the server's OS (Ubuntu/Debian/CentOS/Alpine)
+- Sandbox uses matching base image so discovery output matches reality
+- Fallback: `ubuntu:22.04` if OS detection fails
+
+**4. Two-Phase Agent Flow**
+- Phase 1 (Discovery): All `--help` / `man` / `--version` commands routed to sandbox via `sandbox_exec` tool
+- Phase 2 (Apply): Schema rendered against real server, `dataSource` commands and action buttons use real `exec_command`
+- Clean separation: sandbox is for learning about the tool, real server is for using it
+
+**5. SandboxManager as BaseService**
+- Follows existing ServiceContainer pattern (ADR-011)
+- Lifecycle: `_construct()` → `_init()` (reap orphans) → `_destroy()` (destroy all active sandboxes)
+- Registered in `ServiceContainer` alongside existing services
+
+**Consequences:**
+- (+) Safe discovery — unknown CLI tools can't harm production server
+- (+) Accurate schemas — same OS/arch as target server
+- (+) Reuses existing infrastructure — Docker routes, SSH manager, agent tools
+- (+) Optional — users can toggle sandbox off for trusted tools or servers without Docker
+- (+) Bounded resources — memory/CPU/PID limits prevent resource exhaustion
+- (+) Auto-cleanup — TTL + orphan reaper prevent container leaks
+- (-) Requires Docker on target server (graceful fallback to direct mode)
+- (-) ~10-15s overhead for container creation + package installation
+- (-) Network toggle for install is a brief moment of connectivity (mitigated: only `apt install`, then disconnect)
+- (-) Additional complexity in the agent flow (two-phase execution)
+
+**Reference:** See [phases/phase-ex5.md](phases/phase-ex5.md) for the full implementation spec.
+
+---
+
+## ADR-020: Multi-Session Desktop Architecture (Citrix-Style)
+
+**Status:** Accepted
+**Date:** 2026-04-18
+
+**Context:**
+HeadlessOS today supports a **single active desktop**. `app-store.activeServerId` selects which server's windows are rendered; switching servers wipes the visible UI even though `window-store.windows` are tagged with `serverId`. Real users (per requirements: ~6 servers — app, db, logging, monitoring, etc.) need to keep multiple servers "open" at the same time the way Citrix Workspace / RDP keeps multiple sessions alive, and switch between them without losing state.
+
+**Options Considered:**
+1. **Status quo: single active server** — simple, but every server switch is jarring; no persistence
+2. **Tabbed servers** — one server per browser tab; relies on the OS window manager. Loses unified UI, can't share clipboard or notifications
+3. **Multi-session model (Citrix-style)** — N concurrent in-memory sessions, each with its own desktop state, switched via a top-edge hover bar. One session per server.
+4. **N sessions per server (XenApp-style)** — multiple parallel sessions on the same server with explicit session IDs. Maximum flexibility, maximum complexity.
+
+**Decision:** Option 3 — one session per server, multiple concurrent sessions, hover-reveal Session Switcher.
+
+**Rationale:**
+- Matches the user's mental model: "the DB server", "the logging server" — one persistent workspace per box
+- Re-uses the existing `serverId` tagging on windows — windows just become session-scoped instead of globally filtered
+- Single SSH connection per server is already the model (ADR-005 multi-channel) — no SSH topology change required
+- Background sessions stay connected (no idle-hibernate); only explicit user action or app close hibernates a session — avoids constant reconnect churn for users who switch servers all day
+- Hover-reveal switcher mirrors Citrix's familiar pattern and keeps screen real estate clean
+- Per-session accent color is the **primary safety mechanism** against running destructive commands on the wrong server (more reliable than reading the title bar)
+- N-per-server (Option 4) deferred indefinitely — adds session-IDs everywhere for a use case that isn't requested
+
+**Consequences:**
+- (+) Users can keep many servers "live" and switch instantly
+- (+) Clear visual identity per server reduces cross-server mistakes
+- (+) Cleanly separates "this server" (session-scoped state) from "across servers" (global state like Fleet, LLM Observatory)
+- (+) Forces a clean refactor of stores into well-defined scopes (session vs global)
+- (–) N parallel SSH connections — must throttle background polling for inactive sessions
+- (–) Significant refactor: every store currently scoped to `activeServerId` must move into the session
+- (–) `Fleet` view must move out of the desktop (it's a meta view) — see ADR-020 follow-on
+
+**Reference:** See [phases/phase-ex6.md](phases/phase-ex6.md) for the implementation plan.
+
+---
+
+## ADR-021: Session Persistence & Hibernation
+
+**Status:** Accepted
+**Date:** 2026-04-18
+
+**Context:**
+Multi-session desktops (ADR-020) need a persistence story so closing the laptop or browser doesn't destroy work. Users want Windows-hibernation-style behavior: reopen the app, unlock once, find every server's windows back where they were.
+
+**Options Considered:**
+1. **Ephemeral only** — sessions live in memory, lost on refresh. Status quo for the existing single-desktop. Unacceptable for multi-session.
+2. **Browser-only persistence** — IndexedDB / `localStorage`. Survives refresh but lost on browser data clear / new device.
+3. **Backend-file persistence** — JSON per server in `~/.headlessos/sessions/{serverId}.json`, matching the existing `servers.json` pattern (ADR-001 / M1.6). Authoritative, survives browser, enables future multi-device sync.
+4. **Three-tier (Hot / Warm / Cold)** — in-memory for active, debounced `localStorage` for refresh-safety, backend file for hibernation.
+
+**Decision:** Option 4 — three-tier storage with backend file as the cold tier (authoritative).
+
+**Storage Tiers:**
+
+| Tier | Where | Survives | Latency | Purpose |
+|------|-------|----------|---------|---------|
+| Hot | `useSessionsStore` (Zustand, in-memory) | tab open | instant | active + background sessions |
+| Warm | `localStorage` (debounced 500ms flush) | browser refresh | ~ms | crash recovery |
+| Cold | `~/.headlessos/sessions/{serverId}.json` | browser close, multi-device | ~10–50ms | hibernation, app restart |
+
+**Lifecycle States:**
+
+| State | SSH | In-Memory | Persisted | Rendered |
+|-------|-----|-----------|-----------|----------|
+| `active` | connected | yes | warm + dirty-flag | foreground |
+| `background` | connected | yes | warm + dirty-flag | hidden, throttled polling |
+| `hibernated` | disconnected | no | cold | not rendered |
+| `terminated` | — | no | none | not rendered |
+
+**Hibernation triggers (auto-hibernate disabled by default):**
+- Explicit user action (right-click tile → Hibernate, `Ctrl/Cmd+Shift+H`)
+- App close / browser close (graceful flush via `beforeunload`)
+- Backend graceful shutdown
+
+**Wake flow:**
+1. App load detects hibernated sessions
+2. Single unified lock screen → unlock once → all sessions begin parallel reconnect
+3. Each session shows status in switcher (connected / reconnecting / failed-click-to-retry / hibernated)
+4. User lands on the last-active session
+
+**Persisted Per Session (cold tier):**
+- Window layout: positions, sizes, z-order, minimized/maximized, app id + per-window meta
+- Open dynamic-ui pinned views (refs, not rendered HTML)
+- Terminal references (cwd, app id) — process not restored, terminal re-spawns fresh
+- Per-session preference overrides (ADR-022)
+- Last-active app, last-focused window
+- Clipboard (already per-server)
+- Agent conversation history (cap: last 50 sessions per server)
+- Notification badge counts
+
+**Not Persisted:**
+- SSH connection (recreated on wake)
+- Live terminal scrollback
+- In-flight agent generations (must restart)
+- LLM Observatory traces (separate global persistence — see ADR-021 follow-on)
+
+**Rationale:**
+- Backend file matches the existing `servers.json` pattern users already trust
+- Three tiers separate "instant" (hot) from "refresh-safe" (warm) from "device-safe" (cold) — each problem solved at the right layer
+- Unified lock-screen wake is simpler than per-session locks and mirrors Windows hibernation UX
+- No idle auto-hibernate avoids the daily-switcher pain point of constant SSH reconnects
+- Capping agent history at 50 per server bounds disk usage (~5–50MB per server worst case)
+
+**Consequences:**
+- (+) Survives browser close, laptop shutdown, browser reinstall
+- (+) Single auth gate on wake — fast for trusted environments, secure for shared machines
+- (+) Reuses existing `~/.headlessos/` config dir convention
+- (+) Authoritative source enables future multi-device sync without rewriting persistence
+- (–) Adds backend write traffic on every dirty-flush (mitigated: warm tier debounces; cold tier only on hibernate / app close)
+- (–) Schema migration burden — `SessionStateSchema` versioning needed for future changes
+- (–) Need a sane handling of corrupted session files (graceful drop + warning, never block app load)
+
+**Reference:** See [phases/phase-ex6.md](phases/phase-ex6.md) for the implementation plan.
+
+---
+
+## ADR-022: Per-Session Preference Layering
+
+**Status:** Accepted
+**Date:** 2026-04-18
+
+**Context:**
+With multi-session desktops (ADR-020), preferences like wallpaper, accent color, terminal font, polling interval, and pinned apps need to be **per-server**, not globally shared. A user's prod-DB session may want a red accent and high polling, while their logging server wants a blue accent and low polling. But forcing every preference per-server would force users to reconfigure each server they add — bad UX.
+
+**Options Considered:**
+1. **Global only (status quo)** — prefs apply everywhere. Simple but no per-server tuning.
+2. **Per-server only** — every preference is owned by a session. Maximum flexibility, painful default.
+3. **Layered: global defaults ⊕ per-session overrides** — global value is the default, per-session value overrides if set.
+
+**Decision:** Option 3 — layered preferences with global defaults and per-session overrides.
+
+**Resolution rule:** `effective[key] = sessionOverrides[key] ?? globalDefaults[key]`
+
+**UI implication:** Settings dialog gets a scope toggle: **`Global / This Server`**. The "This Server" view shows only overrides; an explicit "Reset to global default" button clears an override. Most preferences default to inheriting the global value.
+
+**Always Global (cannot be per-session):**
+- Theme mode (light/dark/auto) — confusing if servers disagree on theme
+- LLM provider config and API keys — shared across all sessions
+- Account / sign-out behavior
+
+**Per-session by default:**
+- Accent color (drives session visual identity — ADR-020)
+- Wallpaper (defer — EX6-D)
+- Terminal font / size
+- Auto-refresh polling interval
+- Default app on launch
+- Clock format (defer — keep global initially)
+
+**Per-session optional override:**
+- Pinned apps (default: global; can override per server for specialized servers)
+- Notification preferences
+
+**Rationale:**
+- Layered model is the smallest change that enables per-server differentiation while keeping the "set once globally" workflow for common preferences
+- Accent color being per-session-by-default forces visual differentiation — this is a safety feature, not a cosmetic one
+- Theme being global avoids the "white desktop / dark window" jank when switching sessions
+- Clear scope toggle in Settings makes the model legible to users without explaining "layering"
+
+**Consequences:**
+- (+) Sane defaults — adding a new server inherits all global preferences
+- (+) Power users get full per-server control where it matters
+- (+) Visual safety — per-session accent prevents wrong-server commands
+- (–) Settings UI gets more complex (scope toggle, override indicators)
+- (–) Must define the always-global allowlist carefully and document it
+- (–) Migration: existing global preferences become defaults; no per-session overrides exist initially
+
+**Reference:** See [phases/phase-ex6.md](phases/phase-ex6.md) for the implementation plan.
+
+---
+
 ## Template for New ADRs
 
 ```markdown

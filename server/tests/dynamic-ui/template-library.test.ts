@@ -10,8 +10,8 @@ import type { UITemplate } from '../../src/dynamic-ui/types.js';
 // ─── Schema Validation: every template must pass DynamicViewSchema ───
 
 describe('Template Library — Schema Validation', () => {
-  it('has at least 15 templates', () => {
-    expect(ALL_TEMPLATES.length).toBeGreaterThanOrEqual(15);
+  it('has at least 25 templates', () => {
+    expect(ALL_TEMPLATES.length).toBeGreaterThanOrEqual(25);
   });
 
   it.each(ALL_TEMPLATES.map((t) => [t.id, t]))(
@@ -262,10 +262,11 @@ describe('TemplateRegistry — Command Matching', () => {
     expect(matches[0].template.id).toBe('security-audit');
   });
 
-  it('matches "psql -c" to database-info', () => {
+  it('matches "psql -c" to a database template', () => {
     const matches = registry.matchCommand('psql mydb -c "SELECT 1"');
     expect(matches.length).toBeGreaterThanOrEqual(1);
-    expect(matches[0].template.id).toBe('database-info');
+    // May match database-info or database-status — both are valid
+    expect(matches[0].template.id).toMatch(/^database-/);
   });
 
   it('returns empty for unrecognized command', () => {

@@ -3,6 +3,7 @@
 
 import { lazy, Suspense } from 'react';
 import { useDesktopStore } from '../../store/window-store';
+import { useAppStore } from '../../store/app-store';
 import { WindowFrame } from './Window';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -123,10 +124,18 @@ function WindowContent({ appId, serverId, windowId, meta }: { appId: string; ser
 
 export function WindowManager() {
   const windows = useDesktopStore(s => s.windows);
+  const activeServerId = useAppStore(s => s.activeServerId);
+
+  // EX6-D: Citrix-style session isolation — only render windows belonging
+  // to the active session. Other live sessions keep their windows in the
+  // store but are visually hidden until the user switches to them.
+  const visible = activeServerId
+    ? windows.filter(w => w.serverId === activeServerId)
+    : [];
 
   return (
     <>
-      {windows.map(win => (
+      {visible.map(win => (
         <WindowFrame key={win.id} win={win}>
           <Suspense fallback={<LazyFallback />}>
             <WindowContent appId={win.appId} serverId={win.serverId} windowId={win.id} meta={win.meta} />
