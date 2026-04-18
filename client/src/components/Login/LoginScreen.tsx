@@ -19,7 +19,12 @@ import {
 
 type LoginView = 'select' | 'credentials' | 'add-server';
 
-export function LoginScreen() {
+interface LoginScreenProps {
+  /** When true, skips the full-screen wallpaper + overlay (caller provides chrome). */
+  embedded?: boolean;
+}
+
+export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
   const {
     servers,
     loginError,
@@ -138,12 +143,12 @@ export function LoginScreen() {
   };
 
   return (
-    <div className="fixed inset-0 z-[99999] select-none">
+    <div className={embedded ? 'relative w-full h-full select-none' : 'fixed inset-0 z-[99999] select-none'}>
       {/* Wallpaper */}
-      <Wallpaper />
+      {!embedded && <Wallpaper />}
 
       {/* Subtle overlay for contrast */}
-      <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" />
+      {!embedded && <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" />}
 
       {/* Content */}
       <div className="absolute inset-0 flex items-center justify-center">
@@ -171,6 +176,7 @@ export function LoginScreen() {
               {servers.map(srv => (
                 <ServerAvatar
                   key={srv.id}
+                  id={srv.id}
                   name={srv.name}
                   host={srv.host}
                   port={srv.port}

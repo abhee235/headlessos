@@ -2,7 +2,7 @@
 // @see docs/phases/phase-ex1.md
 
 import { create } from 'zustand';
-import type { DynamicView } from 'headlessos-shared/schemas/dynamic-view';
+import type { DynamicView, DeepPartial } from 'headlessos-shared/schemas/dynamic-view';
 
 export interface PinnedView {
   /** Unique ID for this pinned view */
@@ -17,6 +17,10 @@ export interface PinnedView {
   view: DynamicView;
   /** When it was pinned */
   pinnedAt: number;
+  /** Whether the view is currently being generated (loading/progressive) */
+  loading?: boolean;
+  /** Partial view during progressive generation */
+  partialView?: DeepPartial<DynamicView>;
 }
 
 interface DynamicUIState {
@@ -27,6 +31,14 @@ interface DynamicUIState {
 
   /** Pin a dynamic view (returns the pinned view ID) */
   pinView: (serverId: string, view: DynamicView, icon?: string) => string;
+  /** Pin an empty loading placeholder (returns the pinned view ID) */
+  pinLoadingView: (serverId: string, title: string, icon?: string) => string;
+  /** Update the partial view for a pinned view (progressive rendering) */
+  updatePinnedView: (id: string, partialView: DeepPartial<DynamicView>) => void;
+  /** Mark a pinned view as complete with the final view */
+  completePinnedView: (id: string, view: DynamicView) => void;
+  /** Set the loading state on a pinned view */
+  setViewLoading: (id: string, loading: boolean) => void;
   /** Unpin a view by ID */
   unpinView: (id: string) => void;
   /** Associate a window ID with a pinned view ID */
@@ -35,6 +47,8 @@ interface DynamicUIState {
   getViewForWindow: (windowId: string) => PinnedView | undefined;
   /** Clean up window mapping when window closes */
   unlinkWindow: (windowId: string) => void;
+  /** EX6-A.9: Remove all pinned views for a given server (called on hibernate/terminate). */
+  unpinAllForServer: (serverId: string) => void;
   /** Load pinned views from favorites API */
   loadFromFavorites: (favorites: Array<{ id: string; label: string; view: DynamicView }>) => void;
 }
@@ -62,6 +76,85 @@ export const useDynamicUIStore = create<DynamicUIState>((set, get) => ({
     }));
 
     return id;
+  },
+
+  pinLoadingView: (serverId, title, icon) => {
+    viewCounter++;
+    const id = `dyn-${Date.now()}-${viewCounter}`;
+    // Create a minimal placeholder view
+    const placeholderView: DynamicView = {
+      title: title || 'Generating…',
+      description: 'The agent is building this view…',
+      icon: icon ?? 'Sparkles',
+      sections: {},
+      sidebarItems: [],
+    };
+    const pinned: PinnedView = {
+      id,
+      serverId,
+      title: title || 'Generating…',
+      icon: icon ?? 'Sparkles',
+      view: placeholderView,
+      pinnedAt: Date.now(),
+      loading: true,
+    };
+
+    set(state => ({
+      pinnedViews: { ...state.pinnedViews, [id]: pinned },
+    }));
+
+    return id;
+  },
+
+  updatePinnedView: (id, partialView) => {
+    set(state => {
+      const existing = state.pinnedViews[id];
+      if (!existing) return state;
+      return {
+        pinnedViews: {
+          ...state.pinnedViews,
+          [id]: {
+            ...existing,
+            partialView,
+            title: (partialView.title as string) ?? existing.title,
+            icon: (partialView.icon as string) ?? existing.icon,
+          },
+        },
+      };
+    });
+  },
+
+  completePinnedView: (id, view) => {
+    set(state => {
+      const existing = state.pinnedViews[id];
+      if (!existing) return state;
+      return {
+        pinnedViews: {
+          ...state.pinnedViews,
+          [id]: {
+            ...existing,
+            view,
+            partialView: undefined,
+            loading: false,
+            title: view.title || existing.title,
+            icon: view.icon ?? existing.icon,
+          },
+        },
+      };
+    });
+  },
+
+  setViewLoading: (id, loading) => {
+    set(state => {
+      const existing = state.pinnedViews[id];
+      if (!existing) return state;
+      return {
+        pinnedViews: {
+          ...state.pinnedViews,
+          [id]: { ...existing, loading },
+        },
+      };
+    });
   },
 
   unpinView: (id) => {
@@ -93,6 +186,25 @@ export const useDynamicUIStore = create<DynamicUIState>((set, get) => ({
     set(state => {
       const { [windowId]: _, ...rest } = state.windowToView;
       return { windowToView: rest };
+    });
+  },
+
+  unpinAllForServer: (serverId) => {
+    set(state => {
+      const remaining: Record<string, PinnedView> = {};
+      const removedIds = new Set<string>();
+      for (const [id, view] of Object.entries(state.pinnedViews)) {
+        if (view.serverId === serverId) {
+          removedIds.add(id);
+        } else {
+          remaining[id] = view;
+        }
+      }
+      const windowToView = { ...state.windowToView };
+      for (const [winId, viewId] of Object.entries(windowToView)) {
+        if (removedIds.has(viewId)) delete windowToView[winId];
+      }
+      return { pinnedViews: remaining, windowToView };
     });
   },
 

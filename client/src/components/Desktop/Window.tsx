@@ -28,8 +28,14 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuShortcut,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
+import { useSessionsStore } from '../../store/sessions-store';
+import { useAppStore } from '../../store/app-store';
+import { moveWindowToSession } from '../../store/window-session-sync';
 
 const APP_ICONS: Record<string, LucideIcon> = {
   dashboard: LayoutDashboard,
@@ -329,6 +335,7 @@ export function WindowFrame({ win, children }: WindowFrameProps) {
             <Move className="w-4 h-4 mr-2 opacity-60" />
             Move
           </ContextMenuItem>
+          <MoveToSessionSubmenu windowId={win.id} sourceServerId={win.serverId} />
           <ContextMenuItem
             onClick={() => minimizeWindow(win.id)}
           >
@@ -378,5 +385,55 @@ export function WindowFrame({ win, children }: WindowFrameProps) {
         </div>
       )}
     </div>
+  );
+}
+
+// ── EX6-D.2: "Move to session" context-menu submenu ────────────
+
+function MoveToSessionSubmenu({
+  windowId,
+  sourceServerId,
+}: {
+  windowId: string;
+  sourceServerId: string;
+}) {
+  const sessions = useSessionsStore((s) => s.sessions);
+  const servers = useAppStore((s) => s.servers);
+
+  // Only LIVE sessions other than the source can be drop targets in v1.
+  const targets = Object.values(sessions).filter((s) => s.serverId !== sourceServerId);
+
+  if (targets.length === 0) {
+    return (
+      <ContextMenuItem disabled>
+        <Move className="w-4 h-4 mr-2 opacity-60" />
+        Move to session…
+        <span className="ml-auto text-[10px] text-muted-foreground">none</span>
+      </ContextMenuItem>
+    );
+  }
+
+  return (
+    <ContextMenuSub>
+      <ContextMenuSubTrigger>
+        <Move className="w-4 h-4 mr-2 opacity-60" />
+        Move to session
+      </ContextMenuSubTrigger>
+      <ContextMenuSubContent>
+        {targets.map((t) => {
+          const name = servers.find((s) => s.id === t.serverId)?.name ?? t.serverId;
+          return (
+            <ContextMenuItem
+              key={t.serverId}
+              onClick={() => {
+                moveWindowToSession(windowId, t.serverId);
+              }}
+            >
+              {name}
+            </ContextMenuItem>
+          );
+        })}
+      </ContextMenuSubContent>
+    </ContextMenuSub>
   );
 }

@@ -16,9 +16,17 @@ export interface WriteBackData {
   values: Record<string, string | number | boolean>;
 }
 
+/** EX5-B.4: Options for generate() */
+export interface GenerateOptions {
+  /** Run CLI discovery in an isolated Docker sandbox */
+  sandboxMode?: boolean;
+  /** CLI tool name to discover (e.g. 'nginx', 'restic') */
+  toolName?: string;
+}
+
 export interface UseUIAgentReturn {
   /** Start a new agent generation session. Returns requestId. */
-  generate: (prompt: string) => string;
+  generate: (prompt: string, options?: GenerateOptions) => string;
   /** Abort an active session */
   abort: (requestId: string) => void;
   /** Send a write-back request for a session */
@@ -121,6 +129,15 @@ export function useUIAgent(serverId: string | null): UseUIAgentReturn {
           originalTokens: msg.originalTokens ?? 0,
           compactedTokens: msg.compactedTokens ?? 0,
         };
+      // EX3-C.2: Progressive layout updates
+      case 'layout_update':
+        return {
+          type: 'layout_update',
+          phase: (msg as Record<string, unknown>).phase as string,
+          view: msg.view,
+          widgetId: (msg as Record<string, unknown>).widgetId as string | undefined,
+          progress: (msg as Record<string, unknown>).progress as number | undefined,
+        } as AgentEventType;
       case 'error':
         return { type: 'error', message: msg.message ?? msg.error ?? 'Unknown error' };
       default:
@@ -205,6 +222,11 @@ export function useUIAgent(serverId: string | null): UseUIAgentReturn {
         store.updatePartialView(msg.requestId, msg.view as Record<string, unknown>);
       }
 
+      // EX3-C.2: Handle layout_update — progressive rendering updates
+      if (msg.type === 'layout_update' && msg.view) {
+        store.updatePartialView(msg.requestId, msg.view as Record<string, unknown>);
+      }
+
       if (msg.type === 'error') {
         store.errorSession(msg.requestId, msg.message ?? msg.error ?? 'Unknown error');
       }
@@ -268,7 +290,7 @@ export function useUIAgent(serverId: string | null): UseUIAgentReturn {
 
   // ── Actions ──
 
-  const generate = useCallback((prompt: string): string => {
+  const generate = useCallback((prompt: string, options?: GenerateOptions): string => {
     const requestId = crypto.randomUUID();
 
     if (!serverIdRef.current) {
@@ -284,6 +306,8 @@ export function useUIAgent(serverId: string | null): UseUIAgentReturn {
         type: 'generate',
         requestId,
         prompt,
+        ...(options?.sandboxMode ? { sandboxMode: true } : {}),
+        ...(options?.toolName ? { toolName: options.toolName } : {}),
       }));
     } else {
       store.errorSession(requestId, 'WebSocket not connected');

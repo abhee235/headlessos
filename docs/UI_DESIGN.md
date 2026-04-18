@@ -2,6 +2,11 @@
 
 > **Purpose**: This document defines the visual design language, component patterns, and UI architecture for HeadlessOS. It serves as the single source of truth for AI assistants (Copilot, Cursor) and human developers when building any UI surface.
 
+> **EX6 (Multi-Session Desktop)**: HeadlessOS now runs as a **multi-session workspace** in the Citrix style. Three top-level surfaces:
+> 1. **LockScreen** — single unified unlock for the workspace.
+> 2. **ControlCenter** (was: LoginScreen) — pre-desktop landing with three tabs: **Sessions** (server picker + connect), **Fleet** (multi-server overview), **Global Settings**. Open via `Ctrl/Cmd+Shift+Space` from any session.
+> 3. **DesktopLayout** — per-session desktop. A hover-reveal `SessionSwitcher` at the top edge cycles between active sessions; a 3px accent strip identifies the active one. See [phase-ex6.md](phases/phase-ex6.md).
+
 ---
 
 ## 1. Design Philosophy

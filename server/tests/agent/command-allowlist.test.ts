@@ -88,6 +88,75 @@ describe('command-allowlist', () => {
       expect(isReadCommandAllowed('cat /etc/os-release | rm -rf /')).toBe(false);
     });
 
+    // ── CLI Discovery (EX5-A.1) ─────────────────────────
+    it('allows CLI discovery: which / command -v / type', () => {
+      expect(isReadCommandAllowed('which restic')).toBe(true);
+      expect(isReadCommandAllowed('which nginx')).toBe(true);
+      expect(isReadCommandAllowed('which docker')).toBe(true);
+      expect(isReadCommandAllowed('command -v restic')).toBe(true);
+      expect(isReadCommandAllowed('command -v python3')).toBe(true);
+      expect(isReadCommandAllowed('type restic')).toBe(true);
+      expect(isReadCommandAllowed('type git')).toBe(true);
+    });
+
+    it('allows CLI discovery: --help and -h', () => {
+      expect(isReadCommandAllowed('restic --help')).toBe(true);
+      expect(isReadCommandAllowed('nginx --help')).toBe(true);
+      expect(isReadCommandAllowed('redis-cli --help')).toBe(true);
+      expect(isReadCommandAllowed('/usr/bin/restic --help')).toBe(true);
+      expect(isReadCommandAllowed('restic -h')).toBe(true);
+      expect(isReadCommandAllowed('docker -h')).toBe(true);
+    });
+
+    it('allows CLI discovery: subcommand help', () => {
+      expect(isReadCommandAllowed('restic backup --help')).toBe(true);
+      expect(isReadCommandAllowed('restic snapshots --help')).toBe(true);
+      expect(isReadCommandAllowed('docker compose up --help')).toBe(true);
+      expect(isReadCommandAllowed('restic help backup')).toBe(true);
+      expect(isReadCommandAllowed('restic help')).toBe(true);
+      expect(isReadCommandAllowed('git remote --help')).toBe(true);
+      expect(isReadCommandAllowed('restic backup -h')).toBe(true);
+    });
+
+    it('allows CLI discovery: --version', () => {
+      expect(isReadCommandAllowed('restic --version')).toBe(true);
+      expect(isReadCommandAllowed('nginx --version')).toBe(true);
+      expect(isReadCommandAllowed('restic -v')).toBe(true);
+      expect(isReadCommandAllowed('python3 -V')).toBe(true);
+      expect(isReadCommandAllowed('restic version')).toBe(true);
+      expect(isReadCommandAllowed('docker version')).toBe(true);
+    });
+
+    it('allows CLI discovery: man and apropos', () => {
+      expect(isReadCommandAllowed('man restic')).toBe(true);
+      expect(isReadCommandAllowed('man nginx')).toBe(true);
+      expect(isReadCommandAllowed('apropos backup')).toBe(true);
+      expect(isReadCommandAllowed('apropos network')).toBe(true);
+    });
+
+    it('allows CLI discovery: package info', () => {
+      expect(isReadCommandAllowed('dpkg -l restic')).toBe(true);
+      expect(isReadCommandAllowed('dpkg -l')).toBe(true);
+      expect(isReadCommandAllowed('dpkg -L restic')).toBe(true);
+      expect(isReadCommandAllowed('rpm -qi restic')).toBe(true);
+      expect(isReadCommandAllowed('rpm -q restic')).toBe(true);
+      expect(isReadCommandAllowed('apt list --installed')).toBe(true);
+      expect(isReadCommandAllowed('apt list --installed restic')).toBe(true);
+      expect(isReadCommandAllowed('apt show restic')).toBe(true);
+      expect(isReadCommandAllowed('snap info restic')).toBe(true);
+    });
+
+    it('rejects CLI discovery with injection attempts', () => {
+      // Semicolon injection
+      expect(isReadCommandAllowed('restic --help; rm -rf /')).toBe(false);
+      // Pipe to dangerous command
+      expect(isReadCommandAllowed('restic --help | bash')).toBe(false);
+      // Multi-word which (injection)
+      expect(isReadCommandAllowed('which restic; rm -rf /')).toBe(false);
+      // Path traversal in binary name
+      expect(isReadCommandAllowed('which ../../etc/passwd')).toBe(false);
+    });
+
     it('handles whitespace correctly', () => {
       expect(isReadCommandAllowed('  hostname  ')).toBe(true);
       expect(isReadCommandAllowed('  uptime  ')).toBe(true);

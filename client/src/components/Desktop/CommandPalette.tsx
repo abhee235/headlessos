@@ -38,12 +38,14 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useAppStore } from '../../store/app-store';
 import { useDesktopStore } from '../../store/window-store';
 import { useThemeStore } from '../../store/theme-store';
+import { useSavedAppStore } from '../../store/saved-app-store';
 import { APPS } from '../../lib/apps';
 import {
   fetchDynamicUITemplates,
   type TemplateSummary,
 } from '../../lib/api';
 import { DynamicAppWindow } from '../DynamicUI';
+import { getLucideIcon } from '../DynamicUI/widgets/icon-helper';
 
 // ── Icon Map ────────────────────────────────────────────
 
@@ -75,6 +77,12 @@ export function CommandPalette() {
   const setTheme = useThemeStore(s => s.setTheme);
   const toggleStartMenu = useDesktopStore(s => s.toggleStartMenu);
 
+  // EX5-C.3: Saved apps
+  const savedApps = useSavedAppStore(s => s.apps);
+  const fetchSavedApps = useSavedAppStore(s => s.fetchApps);
+  const savedAppsFetched = useSavedAppStore(s => s.fetched);
+  const openSavedApp = useSavedAppStore(s => s.openApp);
+
   // Fetch templates when palette opens
   useEffect(() => {
     if (open && templates.length === 0) {
@@ -82,7 +90,11 @@ export function CommandPalette() {
         // Silently fail — templates are optional
       });
     }
-  }, [open, templates.length]);
+    // EX5-C.3: Fetch saved apps when palette opens
+    if (open && !savedAppsFetched) {
+      void fetchSavedApps();
+    }
+  }, [open, templates.length, savedAppsFetched, fetchSavedApps]);
 
   // Clear search on close
   useEffect(() => {
@@ -156,6 +168,13 @@ export function CommandPalette() {
     setDynamicUILoading(false);
   }, [activeServerId]);
 
+  // EX5-C.3: Open a saved app from Command Palette
+  const handleOpenSavedApp = useCallback((app: (typeof savedApps)[number]) => {
+    if (!activeServerId) return;
+    openSavedApp(app, activeServerId);
+    setOpen(false);
+  }, [activeServerId, openSavedApp]);
+
   // Filter templates based on search query (fuzzy match against name, description, tags)
   const filteredTemplates = useMemo(() => {
     if (!searchQuery.trim()) return templates.slice(0, 5); // Show top 5 by default
@@ -196,6 +215,29 @@ export function CommandPalette() {
                   </CommandItem>
                 ))}
               </CommandGroup>
+            )}
+
+            {/* EX5-C.3: Saved user apps */}
+            {hasServer && savedApps.length > 0 && (
+              <>
+                <CommandSeparator />
+                <CommandGroup heading="My Apps">
+                  {savedApps.map(app => {
+                    const IconComp = getLucideIcon(app.icon);
+                    return (
+                      <CommandItem
+                        key={`saved-${app.id}`}
+                        value={`saved-app-${app.id}-${app.name}-${app.cliTool}-${app.tags.join('-')}`}
+                        onSelect={() => handleOpenSavedApp(app)}
+                      >
+                        {IconComp ? <IconComp size={16} /> : <Sparkles size={16} />}
+                        <span>{app.name}</span>
+                        <span className="ml-auto text-xs text-muted-foreground">{app.cliTool}</span>
+                      </CommandItem>
+                    );
+                  })}
+                </CommandGroup>
+              </>
             )}
 
             <CommandSeparator />

@@ -6,6 +6,7 @@ import './register-widgets';
 
 export { DynamicViewRenderer } from './DynamicViewRenderer';
 export { DynamicAppWindow } from './DynamicAppWindow';
+export { SaveAsAppDialog } from './SaveAsAppDialog';
 export { DynamicUIPlayground } from './DynamicUIPlayground';
 export { DynamicUITabView } from './DynamicUITabView';
 export { DynamicViewProvider, useDynamicViewContext } from './DynamicViewContext';

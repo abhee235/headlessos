@@ -55,6 +55,27 @@ vi.mock('../../src/lib/api', () => ({
   fetchDynamicUITemplates: (...args: unknown[]) => mockFetchTemplates(...args),
 }));
 
+// EX5-C.3: Mock saved app store
+const mockSavedApps: Array<{ id: string; name: string; icon: string; cliTool: string; tags: string[]; view: Record<string, unknown> }> = [];
+const mockFetchSavedApps = vi.fn();
+const mockOpenSavedApp = vi.fn();
+let mockSavedAppsFetched = false;
+
+vi.mock('../../src/store/saved-app-store', () => ({
+  useSavedAppStore: (selector: (state: unknown) => unknown) =>
+    selector({
+      apps: mockSavedApps,
+      fetchApps: mockFetchSavedApps,
+      fetched: mockSavedAppsFetched,
+      openApp: mockOpenSavedApp,
+    }),
+}));
+
+// Mock icon helper
+vi.mock('../../src/components/DynamicUI/widgets/icon-helper', () => ({
+  getLucideIcon: () => undefined, // Always return undefined — will use fallback Sparkles icon
+}));
+
 // Mock DynamicAppWindow to simplify testing
 vi.mock('../../src/components/DynamicUI', () => ({
   DynamicAppWindow: ({ open, onClose }: { open: boolean; onClose: () => void }) =>
@@ -79,6 +100,9 @@ describe('CommandPalette', () => {
     mockActiveServerId = 'server-1';
     mockServers = [{ id: 'server-1' }];
     mockTheme = 'dark';
+    // Reset saved apps
+    mockSavedApps.length = 0;
+    mockSavedAppsFetched = false;
     mockFetchTemplates.mockResolvedValue([
       { id: 'disk-usage', name: 'Disk Usage', description: 'Disk utilization', tags: ['system', 'disk'] },
       { id: 'docker-overview', name: 'Docker Overview', description: 'Container status', tags: ['docker', 'containers'] },
@@ -219,6 +243,60 @@ describe('CommandPalette', () => {
       render(<CommandPalette />);
       openPalette();
       expect(screen.getByText('Apps')).toBeInTheDocument();
+    });
+  });
+
+  // EX5-C.3: Saved user apps in Command Palette
+  describe('saved apps (EX5-C.3)', () => {
+    it('fetches saved apps when palette opens and not yet fetched', async () => {
+      render(<CommandPalette />);
+      openPalette();
+      await waitFor(() => {
+        expect(mockFetchSavedApps).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('does not fetch saved apps if already fetched', async () => {
+      mockSavedAppsFetched = true;
+      render(<CommandPalette />);
+      openPalette();
+      await new Promise(r => setTimeout(r, 50));
+      expect(mockFetchSavedApps).not.toHaveBeenCalled();
+    });
+
+    it('shows My Apps group when saved apps exist', async () => {
+      mockSavedApps.push({
+        id: 'app-1',
+        name: 'Docker Dashboard',
+        icon: 'Container',
+        cliTool: 'docker',
+        tags: ['docker'],
+        view: { title: 'Docker Dashboard', sidebarItems: [], sections: {} },
+      });
+      render(<CommandPalette />);
+      openPalette();
+      expect(screen.getByText('My Apps')).toBeInTheDocument();
+      expect(screen.getByText('Docker Dashboard')).toBeInTheDocument();
+    });
+
+    it('does not show My Apps when no saved apps', async () => {
+      render(<CommandPalette />);
+      openPalette();
+      expect(screen.queryByText('My Apps')).not.toBeInTheDocument();
+    });
+
+    it('shows cliTool as secondary text for saved apps', async () => {
+      mockSavedApps.push({
+        id: 'app-1',
+        name: 'Nginx Monitor',
+        icon: 'Globe',
+        cliTool: 'nginx',
+        tags: ['web'],
+        view: { title: 'Nginx Monitor', sidebarItems: [], sections: {} },
+      });
+      render(<CommandPalette />);
+      openPalette();
+      expect(screen.getByText('nginx')).toBeInTheDocument();
     });
   });
 });

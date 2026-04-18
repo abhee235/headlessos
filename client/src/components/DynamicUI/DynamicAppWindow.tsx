@@ -1,8 +1,9 @@
-// EX1.3 + EX1.12 + EX1.13: DynamicAppWindow — wraps DynamicViewRenderer in AppWindow overlay
+// EX1.3 + EX1.12 + EX1.13 + EX3-D.1: DynamicAppWindow — wraps DynamicViewRenderer in AppWindow overlay
 // Window chrome always includes a sidebar (lifted from LLM layout) for consistent navigation.
-// @see docs/phases/phase-ex1.md
+// EX3-D.1: Enhanced with loading → skeleton → progressive → complete states.
+// @see docs/phases/phase-ex1.md, docs/phases/phase-ex3.md
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { DynamicView, DeepPartial } from 'headlessos-shared/schemas/dynamic-view';
 import { DynamicViewSchema } from 'headlessos-shared/schemas/dynamic-view';
 import { AppWindow } from '@/components/ui/app-window';
@@ -11,9 +12,15 @@ import { DynamicViewProvider } from './DynamicViewContext';
 import { SectionContent } from './SectionContent';
 import { useDynamicSidebar } from './useDynamicSidebar';
 import { openDynamicUIWindow } from './open-dynamic-ui-window';
+import { SaveAsAppDialog } from './SaveAsAppDialog';
 import { Button } from '@/components/ui/button';
-import { Code2, RotateCcw, Pin } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Code2, RotateCcw, Pin, Save, Copy, Maximize2 } from 'lucide-react';
 import { getLucideIcon } from './widgets/icon-helper';
+import { toast } from 'sonner';
+
+/** EX3-D.1: Generation phase for progressive states */
+type GenerationPhase = 'loading' | 'skeleton' | 'progressive' | 'complete';
 
 interface DynamicAppWindowProps {
   /** The dynamic view data to render */
@@ -28,6 +35,10 @@ interface DynamicAppWindowProps {
   loading?: boolean;
   /** Server ID for live data refresh (EX1.12) */
   serverId?: string | null;
+  /** CLI tool name for Save As App pre-fill (EX5-C.2) */
+  cliTool?: string;
+  /** Tags for Save As App pre-fill (EX5-C.2) */
+  tags?: string[];
 }
 
 export function DynamicAppWindow({
@@ -37,12 +48,40 @@ export function DynamicAppWindow({
   onRegenerate,
   loading = false,
   serverId = null,
+  cliTool,
+  tags,
 }: DynamicAppWindowProps) {
   const [showJson, setShowJson] = useState(false);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
   const { items, activeId, setActiveId, activeLayout } = useDynamicSidebar(view);
 
   const title = (view.title as string) ?? 'Dynamic View';
   const meta = view.meta as DynamicView['meta'] | undefined;
+
+  // EX3-D.1: Determine the current generation phase
+  const phase: GenerationPhase = useMemo(() => {
+    if (!loading) return 'complete';
+    // Check if view has any real content (sections with children)
+    const sections = view.sections as Record<string, unknown> | undefined;
+    if (!sections || Object.keys(sections).length === 0) return 'loading';
+    // Check if any section has children with real data
+    const hasContent = Object.values(sections).some((section) => {
+      const s = section as Record<string, unknown> | undefined;
+      if (!s) return false;
+      if (Array.isArray(s.children) && s.children.length > 0) return true;
+      if (Array.isArray(s.tabs) && s.tabs.length > 0) return true;
+      return false;
+    });
+    return hasContent ? 'progressive' : 'skeleton';
+  }, [loading, view.sections]);
+
+  // EX3-D.2: Copy JSON to clipboard
+  const handleCopyJson = () => {
+    const json = JSON.stringify(view, null, 2);
+    void navigator.clipboard.writeText(json).then(() => {
+      toast.success('View JSON copied to clipboard');
+    });
+  };
 
   return (
     <AppWindow
@@ -71,6 +110,7 @@ export function DynamicAppWindow({
       )}
 
       <AppWindow.Toolbar>
+        {/* EX3-D.2: Refresh / Regenerate */}
         {onRegenerate && (
           <Button
             variant="ghost"
@@ -83,6 +123,18 @@ export function DynamicAppWindow({
             Regenerate
           </Button>
         )}
+        {/* EX3-D.2: Copy JSON */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleCopyJson}
+          className="h-7 text-xs"
+          title="Copy view schema as JSON"
+        >
+          <Copy className="w-3.5 h-3.5 mr-1" />
+          Copy JSON
+        </Button>
+        {/* Toggle JSON/Preview */}
         <Button
           variant={showJson ? 'secondary' : 'ghost'}
           size="sm"
@@ -92,12 +144,12 @@ export function DynamicAppWindow({
           <Code2 className="w-3.5 h-3.5 mr-1" />
           {showJson ? 'Preview' : 'JSON'}
         </Button>
+        {/* Pin as desktop window */}
         {serverId && (
           <Button
             variant="ghost"
             size="sm"
             onClick={() => {
-              // Validate the partial view as a full DynamicView before pinning
               const parsed = DynamicViewSchema.safeParse(view);
               if (parsed.success) {
                 openDynamicUIWindow(serverId, parsed.data);
@@ -111,11 +163,28 @@ export function DynamicAppWindow({
             Pin
           </Button>
         )}
+        {/* EX5-C.2: Save as App button */}
+        {!loading && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowSaveDialog(true)}
+            className="h-7 text-xs"
+            title="Save as reusable app"
+            data-testid="save-as-app-button"
+          >
+            <Save className="w-3.5 h-3.5 mr-1" />
+            Save as App
+          </Button>
+        )}
       </AppWindow.Toolbar>
 
       <AppWindow.Body>
         <DynamicViewProvider serverId={serverId}>
-          {showJson ? (
+          {/* EX3-D.1: Phase-based rendering */}
+          {phase === 'loading' ? (
+            <SkeletonBody />
+          ) : showJson ? (
             <pre className="overflow-auto rounded-md bg-muted p-3 text-xs font-mono leading-relaxed max-h-full">
               <code>{JSON.stringify(view, null, 2)}</code>
             </pre>
@@ -125,17 +194,65 @@ export function DynamicAppWindow({
         </DynamicViewProvider>
       </AppWindow.Body>
 
-      {meta && (
-        <AppWindow.Footer>
-          <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-            {meta.command && <span>Command: {meta.command}</span>}
-            {meta.templateId && <span>Template: {meta.templateId}</span>}
-            {meta.generatedAt && (
-              <span>Generated: {new Date(meta.generatedAt).toLocaleTimeString()}</span>
-            )}
-          </div>
-        </AppWindow.Footer>
-      )}
+      {/* Footer: generation stats */}
+      <AppWindow.Footer>
+        <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+          {loading && (
+            <span className="text-emerald-500 animate-pulse">
+              {phase === 'loading' ? 'Preparing…' : phase === 'skeleton' ? 'Building layout…' : 'Populating widgets…'}
+            </span>
+          )}
+          {meta?.command && <span>Command: {meta.command}</span>}
+          {meta?.templateId && <span>Template: {meta.templateId}</span>}
+          {meta?.generatedAt && (
+            <span>Generated: {new Date(meta.generatedAt).toLocaleTimeString()}</span>
+          )}
+        </div>
+      </AppWindow.Footer>
+
+      {/* EX5-C.2: Save As App Dialog */}
+      {(() => {
+        const parsed = DynamicViewSchema.safeParse(view);
+        if (!parsed.success) return null;
+        const derivedCliTool = cliTool ?? meta?.tool ?? '';
+        const derivedTags = tags ?? (derivedCliTool ? [derivedCliTool] : []);
+        return (
+          <SaveAsAppDialog
+            open={showSaveDialog}
+            onOpenChange={setShowSaveDialog}
+            view={parsed.data}
+            defaultName={(view.title as string) ?? ''}
+            defaultDescription={(view.description as string) ?? ''}
+            defaultCliTool={derivedCliTool}
+            defaultIcon={(view.icon as string) ?? 'Package'}
+            defaultTags={derivedTags}
+            serverId={serverId}
+          />
+        );
+      })()}
     </AppWindow>
+  );
+}
+
+/** EX3-D.1: Skeleton placeholder during loading phase */
+function SkeletonBody() {
+  return (
+    <div className="p-4 space-y-4 animate-in fade-in duration-300">
+      {/* Stat card skeletons */}
+      <div className="grid grid-cols-3 gap-3">
+        <Skeleton className="h-[72px] rounded-lg" />
+        <Skeleton className="h-[72px] rounded-lg" />
+        <Skeleton className="h-[72px] rounded-lg" />
+      </div>
+      {/* Table skeleton */}
+      <div className="space-y-2">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-8 w-[80%]" />
+      </div>
+    </div>
   );
 }

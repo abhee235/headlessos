@@ -21,6 +21,7 @@ export { generateSchemaTool } from './generate-schema.js';
 export { grepOutputTool } from './grep-output.js';
 export { getServerContextTool, clearServerContextCache } from './get-server-context.js';
 export { updateViewTool } from './update-view.js';
+export { sandboxExecTool } from './sandbox-exec.js';
 
 // ── All Default Tools ───────────────────────────────────
 import { execCommandTool } from './exec-command.js';

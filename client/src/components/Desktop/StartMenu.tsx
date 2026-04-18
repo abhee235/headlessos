@@ -4,6 +4,7 @@
 import { useDesktopStore } from '../../store/window-store';
 import { useAppStore } from '../../store/app-store';
 import { usePreferencesStore } from '../../store/preferences-store';
+import { useSavedAppStore } from '../../store/saved-app-store';
 import {
   Search,
   Power,
@@ -14,7 +15,9 @@ import {
   Unplug,
   Lock,
   ArrowLeftRight,
+  Sparkles,
 } from 'lucide-react';
+import { getLucideIcon } from '../DynamicUI/widgets/icon-helper';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   DashboardIcon,
@@ -54,7 +57,7 @@ const PINNED_APPS: AppEntry[] = [
   { id: 'taskmanager', label: 'Tasks', IconComponent: TaskManagerIcon },
   { id: 'docker', label: 'Docker', IconComponent: DockerIcon },
   { id: 'services', label: 'Services', IconComponent: ServicesIcon },
-  { id: 'fleet', label: 'Fleet', IconComponent: FleetIcon },
+  // EX6-C.3: Fleet moved to Control Center
   { id: 'agent', label: 'AI Agent', IconComponent: AgentIcon },
   { id: 'settings', label: 'Personalize', IconComponent: SettingsIcon },
 ];
@@ -64,7 +67,7 @@ const ALL_APPS: AppEntry[] = [
   { id: 'dashboard', label: 'Dashboard', IconComponent: DashboardIcon },
   { id: 'docker', label: 'Docker', IconComponent: DockerIcon },
   { id: 'files', label: 'File Explorer', IconComponent: FileExplorerIcon },
-  { id: 'fleet', label: 'Fleet Overview', IconComponent: FleetIcon },
+  // EX6-C.3: Fleet moved to Control Center
   { id: 'observatory', label: 'LLM Observatory', IconComponent: ObservatoryIcon },
   { id: 'serveradmin', label: 'Server Admin', IconComponent: ServerAdminIcon },
   { id: 'services', label: 'Services', IconComponent: ServicesIcon },
@@ -129,6 +132,10 @@ export function StartMenu() {
     signOut,
   } = useAppStore();
   const recentApps = usePreferencesStore(s => s.recentApps);
+  const savedApps = useSavedAppStore(s => s.apps);
+  const fetchSavedApps = useSavedAppStore(s => s.fetchApps);
+  const savedAppsFetched = useSavedAppStore(s => s.fetched);
+  const openSavedApp = useSavedAppStore(s => s.openApp);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAllApps, setShowAllApps] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(-1);
@@ -138,6 +145,13 @@ export function StartMenu() {
   const activeServer = servers.find((s) => s.id === activeServerId);
   const isConnected = activeServer?.state?.status === 'connected';
   const serverStatus = activeServer?.state?.status ?? 'disconnected';
+
+  // Fetch saved apps on first open
+  useEffect(() => {
+    if (startMenuOpen && !savedAppsFetched) {
+      void fetchSavedApps();
+    }
+  }, [startMenuOpen, savedAppsFetched, fetchSavedApps]);
 
   // Focus search on open
   useEffect(() => {
@@ -178,6 +192,22 @@ export function StartMenu() {
     openWindow(appId, activeServerId, label, appId);
     closeStartMenu();
   };
+
+  // EX5-C.3: Open a saved app as a DynamicUI window
+  const handleOpenSavedApp = useCallback((app: (typeof savedApps)[number]) => {
+    if (!activeServerId || !isConnected) return;
+    openSavedApp(app, activeServerId);
+    closeStartMenu();
+  }, [activeServerId, isConnected, openSavedApp, closeStartMenu]);
+
+  // EX5-C.3: Filtered saved apps for search
+  const filteredSavedApps = searchQuery
+    ? savedApps.filter(a =>
+        a.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        a.cliTool.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        a.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()))
+      )
+    : savedApps;
 
   // Keyboard navigation for app grid/list
   const currentApps = showAllApps
@@ -289,6 +319,40 @@ export function StartMenu() {
                 </span>
               </button>
             ))}
+            {/* EX5-C.3: Saved user apps in All Apps list */}
+            {filteredSavedApps.length > 0 && (
+              <>
+                <div className="mt-2 mb-1 px-2">
+                  <span className="text-[10px] font-bold text-foreground/40 uppercase tracking-wider">My Apps</span>
+                </div>
+                {filteredSavedApps.map((app) => {
+                  const IconComp = getLucideIcon(app.icon);
+                  return (
+                    <button
+                      key={`saved-${app.id}`}
+                      className={`group flex items-center gap-3 px-2 py-2 rounded-xl transition-all text-left ${
+                        isConnected
+                          ? 'hover:bg-black/5 dark:hover:bg-white/8 cursor-pointer'
+                          : 'opacity-40 cursor-not-allowed'
+                      }`}
+                      disabled={!isConnected}
+                      onClick={() => handleOpenSavedApp(app)}
+                      data-testid={`saved-app-${app.id}`}
+                    >
+                      <div className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-primary/10">
+                        {IconComp ? <IconComp size={18} className="text-primary" /> : <Sparkles size={18} className="text-primary" />}
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-[13px] text-foreground/75 font-semibold group-hover:text-foreground transition-colors block truncate">
+                          {app.name}
+                        </span>
+                        <span className="text-[10px] text-foreground/35">{app.cliTool}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </>
+            )}
           </div>
         </div>
       ) : (
@@ -330,6 +394,38 @@ export function StartMenu() {
                 </button>
               ))}
             </div>
+
+            {/* EX5-C.3: My Apps compact row (saved apps) */}
+            {filteredSavedApps.length > 0 && (
+              <div className="mt-3">
+                <h4 className="text-[11px] font-bold text-foreground/50 tracking-tight mb-1.5 px-0.5">
+                  My Apps
+                </h4>
+                <div className="flex flex-wrap gap-1">
+                  {filteredSavedApps.slice(0, 4).map((app) => {
+                    const IconComp = getLucideIcon(app.icon);
+                    return (
+                      <button
+                        key={`saved-pinned-${app.id}`}
+                        className={`group flex items-center gap-1.5 px-2 py-1.5 rounded-lg transition-all text-left text-[11px] ${
+                          isConnected
+                            ? 'hover:bg-black/5 dark:hover:bg-white/8 cursor-pointer'
+                            : 'opacity-40 cursor-not-allowed'
+                        }`}
+                        disabled={!isConnected}
+                        onClick={() => handleOpenSavedApp(app)}
+                        data-testid={`saved-app-pinned-${app.id}`}
+                      >
+                        {IconComp ? <IconComp size={14} className="text-primary shrink-0" /> : <Sparkles size={14} className="text-primary shrink-0" />}
+                        <span className="text-foreground/60 font-semibold truncate max-w-20 group-hover:text-foreground/90 transition-colors">
+                          {app.name}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Divider */}

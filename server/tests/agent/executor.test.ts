@@ -794,5 +794,55 @@ describe('ReactiveExecutor', () => {
       expect(systemPrompt).toContain('write-back');
       expect(systemPrompt).toContain('sensitive data');
     });
+
+    // EX5-A.3: CLI Introspection Prompt Engineering
+    it('includes CLI introspection guidance when dataSourceHints has cli-introspection', async () => {
+      const generateTool = createGenerateSchemaTool();
+      toolRegistry.register(generateTool);
+
+      const hints = createDefaultHints({
+        intent: 'Build a management UI for restic',
+        interactivityLevel: 'full-management',
+        dataSourceHints: ['cli-introspection', 'restic snapshots', 'restic backup options'],
+        expectedWidgets: ['key-value', 'table', 'form'],
+        estimatedComplexity: 'complex',
+      });
+
+      const modelRouter = createMockModelRouter([
+        makeToolCallResponse([{ name: 'generate_schema', args: { schema: VALID_DYNAMIC_VIEW } }]),
+      ]);
+
+      const executor = new ReactiveExecutor(modelRouter, toolRegistry);
+      await collectEvents(executor.execute(hints, createMockToolContext()));
+
+      const chatCall = (modelRouter.chat as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      const systemPrompt = chatCall.messages[0].content as string;
+      expect(systemPrompt).toContain('CLI Tool Introspection Workflow');
+      expect(systemPrompt).toContain('Phase 1: Discovery');
+      expect(systemPrompt).toContain('Phase 2: UI Mapping');
+      expect(systemPrompt).toContain('Phase 3: Form CommandTemplate Wiring');
+      expect(systemPrompt).toContain('commandTemplate');
+      expect(systemPrompt).toContain('meta.tool');
+    });
+
+    it('does NOT include CLI introspection guidance for non-CLI requests', async () => {
+      const generateTool = createGenerateSchemaTool();
+      toolRegistry.register(generateTool);
+
+      const hints = createDefaultHints({
+        dataSourceHints: ['filesystem usage'],
+      });
+
+      const modelRouter = createMockModelRouter([
+        makeToolCallResponse([{ name: 'generate_schema', args: { schema: VALID_DYNAMIC_VIEW } }]),
+      ]);
+
+      const executor = new ReactiveExecutor(modelRouter, toolRegistry);
+      await collectEvents(executor.execute(hints, createMockToolContext()));
+
+      const chatCall = (modelRouter.chat as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      const systemPrompt = chatCall.messages[0].content as string;
+      expect(systemPrompt).not.toContain('CLI Tool Introspection Workflow');
+    });
   });
 });

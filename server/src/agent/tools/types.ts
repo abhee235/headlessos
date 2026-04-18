@@ -4,6 +4,7 @@
 import type { z } from 'zod';
 import type { ConnectionManager } from '../../ssh/connection-manager.js';
 import type { TemplateRegistry } from '../../dynamic-ui/template-registry.js';
+import type { SandboxManager } from '../sandbox-manager.js';
 
 // ── Security Tier ───────────────────────────────────────
 
@@ -24,6 +25,10 @@ export interface ToolContext {
   templateRegistry: TemplateRegistry;
   /** Cached command outputs for grep_output (command → output) */
   previousOutputs: Map<string, string>;
+  /** Optional sandbox manager for isolated CLI discovery (EX5-B.2) */
+  sandboxManager?: SandboxManager;
+  /** Active sandbox ID — set when sandbox mode is active */
+  activeSandboxId?: string;
 }
 
 // ── Tool Result ─────────────────────────────────────────

@@ -33,8 +33,70 @@
 | M11: Fleet, Agent & Platform | Week 15-16 | ✅ | 7/7 tasks | — |
 | **EX1: Dynamic UI Engine** | **Experimental** | **✅** | **15/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
 | **EX2: UI Generation Agent** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
-| **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **🔄** | **16/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
+| **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **✅** | **26/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
 | **EX4: LLM Observatory** | **Experimental** | **✅** | **16/16 tasks** | [phase-ex4](phases/phase-ex4.md) |
+| **EX5: CLI App Generation + Sandbox** | **Experimental** | **✅** | **10/10 tasks** | [phase-ex5](phases/phase-ex5.md) |
+| **EX6: Multi-Session Desktop & Hibernation** | **Experimental** | **🔄** | **11/27 tasks** | [phase-ex6](phases/phase-ex6.md) |
+
+---
+
+## EX6: Multi-Session Desktop, Per-Server Preferences & Hibernation (Experimental)
+
+> See [ADR-020](DECISIONS.md), [ADR-021](DECISIONS.md), [ADR-022](DECISIONS.md), and [phase-ex6.md](phases/phase-ex6.md) for full spec.
+> Citrix-style multi-server desktop. Each server is a persistent session with its own windows, preferences, and accent color. Sessions hibernate to disk and wake on app reopen. Fleet Overview moves to Control Center.
+
+### Sub-Phase EX6-A: Foundation (Data Model + Storage)
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| EX6-A.1 | ADRs (020/021/022) drafted | ✅ | DECISIONS.md updated |
+| EX6-A.2 | Phase doc + PROGRESS entries | ✅ | phase-ex6.md created, PROGRESS row added |
+| EX6-A.3 | `SessionStateSchema` (shared) | ✅ | Schema in `shared/schemas/session.ts`, 16 round-trip tests pass |
+| EX6-A.4 | Backend `SessionStore` service | ✅ | `server/src/config/session-store.ts`, atomic writes, 16 tests pass |
+| EX6-A.5 | Backend `routes/sessions.ts` (REST CRUD + hibernate) | ✅ | 5 endpoints wired in `server/src/index.ts` |
+| EX6-A.6 | Frontend `useSessionsStore` | ✅ | `client/src/store/sessions-store.ts` + 23 tests pass; lifecycle, debounced warm/cold flush, beforeunload beacon |
+| EX6-A.7 | Migrate `useDesktopStore` → session-scoped windows | ✅ | `client/src/store/window-session-sync.ts` + 17 tests; bidirectional debounced sync, cross-session isolation verified |
+| EX6-A.8 | Migrate preferences → layered (global ⊕ override) | ✅ | `client/src/store/effective-preferences.ts` + 20 tests; allowlist of 7 keys enforced |
+| EX6-A.9 | Migrate clipboard + dynamic-ui to per-session | ✅ | Clipboard now in `SessionState.clipboard`; `unpinAllForServer` on hibernate; 8 isolation tests |
+| EX6-A.10 | Backend graceful shutdown flush hook | ✅ | SIGTERM/SIGINT marks all live SSH sessions hibernated via `connectionManager.getConnectedServerIds()` + 5 tests |
+| EX6-A.11 | Tests + CI green | ✅ | Full sweep: 1815 server + 514 client = 2329 tests green |
+
+### Sub-Phase EX6-B: Session Switcher UI
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| EX6-B.1 | `SessionSwitcher` component (hover-reveal top bar) | ✅ | 4px trigger zone, 200ms slide-down, sticky-pin via localStorage |
+| EX6-B.2 | `SessionTile` with thumbnail + status badges | ✅ | connected/connecting/error/hibernated dot + icon, window count |
+| EX6-B.3 | Tile context menu (rename, color, hibernate, disconnect) | ✅ | Activate/Hibernate/Disconnect/Terminate; rename+color deferred to C |
+| EX6-B.4 | Keyboard shortcuts (Ctrl+1..9, Ctrl+Tab, Ctrl+Shift+H) | ✅ | `useSessionShortcuts` + 8 tests; input/contentEditable guards |
+| EX6-B.5 | Per-session visual identity (3px accent strip + taskbar tint) | ✅ | 3px strip from session-derived accent (deterministic hash) |
+| EX6-B.6 | Multi-session connection coordination (background polling throttle) | ✅ | `useEffectiveRefreshInterval` 4× multiplier + 5 tests |
+| EX6-B.7 | Wake-on-boot flow (single unlock → parallel reconnect) | ✅ | `loadAll()` rehydrates summaries; bridge forwards activate on first selection |
+| EX6-B.8 | Tests + DevTools MCP visual verification | ✅ | 18 new client tests; total 532 client + 1815 server = 2347 green |
+
+### Sub-Phase EX6-C: Control Center (Relocate Fleet)
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| EX6-C.1 | Rename `LoginScreen` → `ControlCenter` (3 sections) | ✅ | `client/src/components/ControlCenter/ControlCenter.tsx`; segmented Sessions/Fleet/Settings tabs |
+| EX6-C.2 | Move `FleetDashboardView` to Control Center | ✅ | Embedded in Fleet tab via `onServerActivated` callback that triggers `goToDesktop()` |
+| EX6-C.3 | Remove Fleet from desktop app registry | ✅ | Removed from `apps.ts`, `StartMenu`, `Desktop`, `Taskbar`; `WindowManager` case kept as legacy fallback |
+| EX6-C.4 | Sessions section (Resume/Wake/Connect cards) | ✅ | Reuses existing LoginScreen flow via `embedded` prop |
+| EX6-C.5 | Global Settings section (always-global preferences) | ✅ | `GlobalSettingsSection.tsx`: accent default, date format, notifications; pointer to per-session Settings app |
+| EX6-C.6 | Entry points (shortcut, switcher overflow, no-active-session boot) | ✅ | `Ctrl/Cmd+Shift+Space` opens Control Center via `useSessionShortcuts` |
+| EX6-C.7 | Update docs (ARCHITECTURE/CONTEXT/UI_DESIGN/APP_REGISTRY) | ✅ | All four docs updated |
+
+### Sub-Phase EX6-D: Polish (Defer if Scope Tight)
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| EX6-D.1 | Per-session lock (optional re-auth on wake) | ✅ | `lockOnHibernate` flag on `SessionState`/`SessionSummary`; `WakeConfirmDialog.tsx` registers an activation guard via `registerActivationGuard()`; toggle in `SessionTile` context menu |
+| EX6-D.2 | Drag/move-window-between-sessions | ✅ | `moveWindowToSession()` in `window-session-sync.ts`; "Move to session" submenu in window context menu; **Citrix isolation**: `WindowManager` and `Taskbar` filter by `activeServerId` |
+| EX6-D.3 | Per-session wallpaper | ✅ | `Wallpaper.tsx` switched to `useEffectivePref('wallpaperId')`; per-session scope toggle (session/global/reset) in `SettingsView WallpaperPage` |
+| EX6-D.4 | Session export / import | ✅ | `client/src/lib/session-io.ts` (envelope `{exportVersion: 1, exportedAt, state}`); export from `SessionTile`, import from `GlobalSettingsSection`; imports forced to `hibernated` |
+| EX6-D.5 | Auto-hibernation (opt-in, configurable timeout) | ✅ | `autoHibernateMinutes` preference (Off/5/15/30/60/180); `useAutoHibernate` 30s watchdog wired in `DesktopLayout`; UI in `GeneralPage` |
+| EX6-D.6 | Agent conversation history UI | ✅ | `agent-store` persists complete/error/aborted runs into `SessionState.agentHistory` (cap 50); `AgentHistoryList` in `UIAgentView` (testid `agent-history-list`) — click to re-run |
+| EX6-D.7 | LLM Observatory persistence + retention | ✅ | `TracePersistence` service writes ended traces to `~/.headlessos/observatory/traces/<id>.json`; sweep enforces 30-day OR 10k cap, runs every 6h + on boot; **6 tests passing** |
 
 ---
 
@@ -323,32 +385,32 @@ Example:
 | EX3-A.5 | Sparkline Stat Card | ✅ | Stat-card with optional AreaChart sparkline behind value, 7 tests |
 | EX3-A.6 | Enhanced Chart Options | ✅ | Stacking, thresholds, unit formatting, grid/legend toggles, 53 tests |
 
-### Sub-Phase EX3-B: Design System Prompt & Templates
+### Sub-Phase EX3-B: Design System Prompt & Templates (Complete)
 
 | Task ID | Task | Status | Verification |
 |---------|------|--------|--------------|
 | EX3-B.1 | Design System Rules in Prompt | ✅ | Auto-generated from layout pattern registry, injected into system prompt, 10 tests |
 | EX3-B.2 | Improve Existing 15 Templates | ✅ | All 15 templates use layoutPattern, autoFit grids, stat-cards, tabs, search filters |
-| EX3-B.3 | Expand to 25+ Templates | ⬜ | 10+ new templates: docker-images, memory, SSL certs, git repos, etc. |
-| EX3-B.4 | FakeLLM Generator | ⬜ | Deterministic view generation from template + fixture data, no LLM |
+| EX3-B.3 | Expand to 25+ Templates | ✅ | 12 new templates (27 total): docker-images, docker-compose, memory-analysis, network-interfaces, system-logs-journal, ssl-certificates, environment-variables, git-repositories, database-status, backup-status, kernel-modules, port-scan. All schema-validated. |
+| EX3-B.4 | FakeLLM Generator | ✅ | FakeLLMGenerator class: generate/generateFromCommand/generateAll/hasTemplate, deterministic view generation from templates, 27 templates |
 
-### Sub-Phase EX3-C: Progressive Multi-Step Generation
-
-| Task ID | Task | Status | Verification |
-|---------|------|--------|--------------|
-| EX3-C.1 | WorkingView & Mutation Tools | ⬜ | addWidget, replaceWidget, addTab, getSnapshot, getDiff |
-| EX3-C.2 | `layout_update` Event Pipeline | ⬜ | skeleton → widget → complete events via WebSocket |
-| EX3-C.3 | Early Window Opening | ⬜ | Window opens immediately, skeleton in < 500ms, progressive fill |
-| EX3-C.4 | Multi-Step Executor Prompt | ⬜ | Agent builds view incrementally via mutation tools |
-
-### Sub-Phase EX3-D: Unified Window & Visual Polish
+### Sub-Phase EX3-C: Progressive Multi-Step Generation (Complete)
 
 | Task ID | Task | Status | Verification |
 |---------|------|--------|--------------|
-| EX3-D.1 | DynamicUIWindow Component | ⬜ | Purpose-built window with loading → skeleton → complete states |
-| EX3-D.2 | View Toolbar | ⬜ | Refresh, Copy JSON, Fullscreen, Pin actions |
-| EX3-D.3 | Entrance Animations | ⬜ | Fade+scale widget entrance, tab slide-in, respects reduced-motion |
-| EX3-D.4 | Template QA & Visual Regression | ⬜ | All 25+ templates pass visual QA in playground |
+| EX3-C.1 | WorkingView & Mutation Tools | ✅ | WorkingView class + createSkeleton(): addWidget, replaceWidget, addTab, updateMetadata, addSection, getSnapshot, getDiff, validate |
+| EX3-C.2 | `layout_update` Event Pipeline | ✅ | LayoutUpdatePhase type (skeleton/widget/complete/error), layout_update AgentEvent in executor, frontend handler in useUIAgent + AgentPanel |
+| EX3-C.3 | Early Window Opening | ✅ | UIAgentView opens preview immediately on isRunning, skeleton loading state with animated pulse placeholders |
+| EX3-C.4 | Multi-Step Executor Prompt | ✅ | buildMultiStepPrompt() + formatClassification() in prompts/multi-step.ts, skeleton→primary→secondary→polish build order |
+
+### Sub-Phase EX3-D: Unified Window & Visual Polish (Complete)
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| EX3-D.1 | DynamicUIWindow Component | ✅ | GenerationPhase type (loading/skeleton/progressive/complete), phase-based rendering, SkeletonBody component, phase-aware footer with generation stats |
+| EX3-D.2 | View Toolbar | ✅ | Regenerate, Copy JSON (clipboard + toast), JSON toggle, Pin, Save as App — toolbar reorganized |
+| EX3-D.3 | Entrance Animations | ✅ | CSS @keyframes widgetEnter + tabSlideIn, staggered via --stagger-index custom property, @media (prefers-reduced-motion: reduce) |
+| EX3-D.4 | Template QA & Visual Regression | ✅ | 117 new tests in ex3-template-qa.test.ts: 27 template schema validation, FakeLLMGenerator, WorkingView, multi-step prompts, layout patterns |
 
 ---
 
@@ -400,6 +462,39 @@ Example:
 
 ---
 
+## EX5: CLI App Generation with Sandbox Discovery (Experimental)
+
+> Agent-driven CLI tool introspection → DynamicView generation → Save as reusable app.
+> Optional sandbox mode runs discovery in an ephemeral Docker container for safety.
+> See [ADR-019](DECISIONS.md) and [phase-ex5.md](phases/phase-ex5.md) for full spec.
+
+### Sub-Phase EX5-A: Foundation — Allowlist & Form Wiring
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| EX5-A.1 | CLI Discovery Command Allowlist | ✅ | 22 regex patterns added, 32 tests passing — `--help`, `which`, `man`, etc. |
+| EX5-A.2 | Form CommandTemplate & Submit Wiring | ✅ | commandTemplate/confirmSubmit/confirmMessage added to schema + WidgetRenderer FormCommandWrapper + 14 tests |
+| EX5-A.3 | CLI Introspection Prompt Engineering | ✅ | Planner: CLI Tool UI Pattern section + 2 CLI examples + cli-introspection hint; Executor: buildCLIIntrospectionGuidance with 3-phase workflow (Discovery/UI Mapping/Form Wiring) + meta.tool; 7 new tests passing |
+
+### Sub-Phase EX5-B: Sandbox Execution Environment
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| EX5-B.1 | SandboxManager Service | ✅ | SandboxManager extends BaseService, 33 tests passing. create/exec/install/destroy + TTL auto-cleanup |
+| EX5-B.2 | sandbox_exec Agent Tool | ✅ | sandbox_exec tool with allowlist + sandbox-specific guards, 17 tests passing |
+| EX5-B.3 | Two-Phase Agent Flow | ✅ | UIAgent sandbox lifecycle: create → install → wire context → generate → destroy. Fallback on Docker unavailability. 16 tests passing |
+| EX5-B.4 | Frontend Sandbox Toggle | ✅ | Shield toggle with Docker check, GenerateOptions in useUIAgent, 12 tests passing |
+
+### Sub-Phase EX5-C: Save & Reuse Apps
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| EX5-C.1 | User App Persistence (Backend) | ✅ | AppStore CRUD + disk persistence + TemplateRegistry integration, 5 REST endpoints, 37 tests passing |
+| EX5-C.2 | Save As App UI (Frontend) | ✅ | SaveAsAppDialog component, icon picker, client API functions, wired into DynamicAppWindow toolbar, 15 tests passing |
+| EX5-C.3 | App Launcher Integration | ✅ | Zustand saved-app-store + StartMenu "My Apps" section + CommandPalette "My Apps" group + 13 tests passing |
+
+---
+
 ## Backlog (Future)
 
 | # | Task | Priority | Notes |
@@ -428,6 +523,9 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-04-18 | **EX6 ✅** Multi-Session Desktop & Hibernation complete (32/32 tasks). EX6-D Polish: D.1 per-session lock + activation guard + WakeConfirmDialog; D.2 move-window-between-sessions + **Citrix isolation** (WindowManager/Taskbar filter by activeServerId — fixes cross-session window bleed); D.3 per-session wallpaper via useEffectivePref; D.4 session export/import (envelope JSON); D.5 auto-hibernation watchdog (30s tick); D.6 agent conversation history persisted into SessionState.agentHistory; D.7 Observatory trace persistence to `~/.headlessos/observatory/traces/` with 30d/10k retention sweep. **2,360 tests passing** (1,821 server + 539 client). |
+| 2026-04-18 | **EX6 🔄** Multi-Session Desktop & Hibernation phase started. ADR-020 (Multi-Session Architecture), ADR-021 (Persistence & Hibernation), ADR-022 (Per-Session Preference Layering) drafted. Phase spec: phase-ex6.md (27 tasks across 4 sub-phases A/B/C/D). EX6-A.1 ✅ (ADRs), EX6-A.2 ✅ (phase doc + PROGRESS). Citrix-style multi-server desktop with hover-reveal Session Switcher, three-tier persistence (hot/warm/cold), per-session accent colors as safety mechanism, Fleet relocated to new Control Center. |
+| 2026-04-14 | **EX3 ✅** Smart Layout Engine & Progressive UI complete (26/26 tasks). EX3-B.3: 12 new templates (27 total, all schema-validated). EX3-B.4: FakeLLMGenerator class. EX3-C.1: WorkingView + createSkeleton. EX3-C.2: layout_update event pipeline. EX3-C.3: Early window opening with skeleton. EX3-C.4: Multi-step executor prompt. EX3-D.1: Phase-based DynamicAppWindow rendering. EX3-D.2: Copy JSON toolbar button. EX3-D.3: Staggered entrance animations + prefers-reduced-motion. EX3-D.4: 117 QA tests. **2,224 tests passing** (1,778 server + 446 client). |
 | 2026-04-13 | **EX4 ⬜** LLM Observatory planned (16 tasks, 5 sub-phases). ADR-018 created. Phase spec: phase-ex4.md. Embedded Phoenix-inspired trace & span debugger — in-memory ring buffer, AsyncLocalStorage context, hierarchical trace tree, timeline bars, span detail with input/output content. Zero external dependencies. ~128 estimated tests. |
 | 2026-04-11 | **EX1 ⬜** Dynamic UI Engine planned (14 tasks, 3 phases). ADR-015 created. Phase spec: phase-ex1.md. Core feature: LLM generates JSON schemas from terminal output → generic renderer builds live UI with streaming/incremental rendering. |
 | 2026-04-06 | **M7.3 ⏭️** LLM / AI Configuration moved to backlog (B.15) — core functionality already covered by M10.7. M7 now fully complete (6/6). All 11 milestones (M0–M11) complete. |

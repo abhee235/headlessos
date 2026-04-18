@@ -73,7 +73,7 @@ const ALL_APPS: AppMeta[] = [
   { id: 'services', label: 'Services', IconComponent: ServicesIcon },
   { id: 'settings', label: 'Settings', IconComponent: SettingsIcon },
   { id: 'serveradmin', label: 'Server Admin', IconComponent: ThisPCIcon },
-  { id: 'fleet', label: 'Fleet Overview', IconComponent: FleetIcon },
+  // EX6-C.3: Fleet moved to Control Center
   { id: 'agent', label: 'AI Agent', IconComponent: AgentIcon },
 ];
 
@@ -399,8 +399,13 @@ export function Taskbar() {
 
   // Build set of pinned app IDs for quick lookup
   const pinnedIdSet = new Set(pinnedAppIds);
-  // Non-pinned open windows
-  const unpinnedWindows = windows.filter((w) => !pinnedIdSet.has(w.appId));
+  // EX6-D: Citrix-style session isolation — only show running windows
+  // that belong to the active session in the taskbar.
+  const sessionWindows = activeServerId
+    ? windows.filter((w) => w.serverId === activeServerId)
+    : [];
+  // Non-pinned open windows (scoped to active session)
+  const unpinnedWindows = sessionWindows.filter((w) => !pinnedIdSet.has(w.appId));
 
   return (
     <ContextMenu>

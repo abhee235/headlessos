@@ -20,7 +20,7 @@ export function StackLayout({ layout }: { layout: StackLayout }) {
   return (
     <div className={cn('flex flex-col', gap)}>
       {children.filter(Boolean).map((child, i) => (
-        <ContentRenderer key={i} item={child as DeepPartial<Layout>} />
+        <ContentRenderer key={i} item={child as DeepPartial<Layout>} index={i} />
       ))}
     </div>
   );

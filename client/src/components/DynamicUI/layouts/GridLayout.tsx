@@ -33,7 +33,7 @@ export function GridLayout({ layout }: { layout: GridLayout }) {
   return (
     <div className={cn('grid gap-4', fixedCols)} style={gridStyle}>
       {children.filter(Boolean).map((child, i) => (
-        <ContentRenderer key={i} item={child as DeepPartial<Layout>} />
+        <ContentRenderer key={i} item={child as DeepPartial<Layout>} index={i} />
       ))}
     </div>
   );

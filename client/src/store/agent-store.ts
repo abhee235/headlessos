@@ -6,6 +6,32 @@
 
 import { create } from 'zustand';
 import type { AgentEventType, AgentMetaType } from '../components/Agent/AgentPanel';
+import { useSessionsStore } from './sessions-store';
+import { trimAgentHistory, type PersistedAgentMessage } from 'headlessos-shared/schemas/session';
+
+// ── EX6-D.6: Persist completed agent runs into session.agentHistory ────
+function persistAgentRun(
+  serverId: string,
+  requestId: string,
+  prompt: string,
+  startedAtMs: number,
+  status: PersistedAgentMessage['status'],
+  extras: Partial<PersistedAgentMessage>,
+): void {
+  const sessions = useSessionsStore.getState();
+  const session = sessions.sessions[serverId];
+  if (!session) return;
+  const entry: PersistedAgentMessage = {
+    requestId,
+    prompt,
+    status,
+    startedAt: new Date(startedAtMs).toISOString(),
+    completedAt: new Date().toISOString(),
+    ...extras,
+  };
+  const next = trimAgentHistory([...session.agentHistory, entry]);
+  sessions.updateSession(serverId, { agentHistory: next });
+}
 
 // ── Types ──
 
@@ -116,48 +142,63 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
   },
 
   completeSession: (requestId, view, meta) => {
+    let captured: { serverId: string; prompt: string; startedAt: number } | null = null;
     set((state) => {
       const sessions = new Map(state.sessions);
       const session = sessions.get(requestId);
       if (!session) return state;
-
-      sessions.set(requestId, {
-        ...session,
-        status: 'complete',
-        view,
-        meta,
-      });
+      captured = { serverId: session.serverId, prompt: session.prompt, startedAt: session.startedAt };
+      sessions.set(requestId, { ...session, status: 'complete', view, meta });
       return { sessions };
     });
+    if (captured) {
+      const { serverId, prompt, startedAt } = captured;
+      const viewTitle = (view as { title?: string } | null)?.title;
+      persistAgentRun(serverId, requestId, prompt, startedAt, 'complete', {
+        viewTitle: typeof viewTitle === 'string' ? viewTitle : undefined,
+        meta: meta
+          ? {
+              latencyMs: typeof meta.latencyMs === 'number' ? meta.latencyMs : undefined,
+              stepsCompleted:
+                typeof meta.stepsCompleted === 'number' ? meta.stepsCompleted : undefined,
+              reflectionLoops:
+                typeof meta.reflectionLoops === 'number' ? meta.reflectionLoops : undefined,
+            }
+          : undefined,
+      });
+    }
   },
 
   errorSession: (requestId, message) => {
+    let captured: { serverId: string; prompt: string; startedAt: number } | null = null;
     set((state) => {
       const sessions = new Map(state.sessions);
       const session = sessions.get(requestId);
       if (!session) return state;
-
-      sessions.set(requestId, {
-        ...session,
-        status: 'error',
-        errorMessage: message,
-      });
+      captured = { serverId: session.serverId, prompt: session.prompt, startedAt: session.startedAt };
+      sessions.set(requestId, { ...session, status: 'error', errorMessage: message });
       return { sessions };
     });
+    if (captured) {
+      const { serverId, prompt, startedAt } = captured;
+      persistAgentRun(serverId, requestId, prompt, startedAt, 'error', { errorMessage: message });
+    }
   },
 
   abortSession: (requestId) => {
+    let captured: { serverId: string; prompt: string; startedAt: number } | null = null;
     set((state) => {
       const sessions = new Map(state.sessions);
       const session = sessions.get(requestId);
       if (!session) return state;
-
-      sessions.set(requestId, {
-        ...session,
-        status: 'aborted',
-      });
+      captured = { serverId: session.serverId, prompt: session.prompt, startedAt: session.startedAt };
+      sessions.set(requestId, { ...session, status: 'aborted' });
       return { sessions };
     });
+    if (captured) {
+      const { serverId, prompt, startedAt } = captured;
+      persistAgentRun(serverId, requestId, prompt, startedAt, 'aborted', {});
+    }
   },
 
   removeSession: (requestId) => {

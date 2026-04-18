@@ -2,6 +2,8 @@
 
 > System design, component diagram, and data flow for HeadlessOS.
 
+> **EX6 (Multi-Session Workspace)**: HeadlessOS now supports multiple concurrent server sessions in a single browser. The frontend has three top-level screens: **LockScreen** (workspace unlock), **ControlCenter** (Sessions / Fleet / Global Settings tabs — replaces the old LoginScreen, opened via `Ctrl/Cmd+Shift+Space`), and **DesktopLayout** (per-session desktop with hover `SessionSwitcher`). Session state lives in three tiers: hot (Zustand) → warm (localStorage, 500ms debounce) → cold (`PUT /api/sessions/:id`, 2s debounce, `~/.headlessos/sessions/{serverId}.json`). Lifecycle hooks (`onActivate / onBeforeHibernate / onHibernate / onTerminate`) coordinate window persistence. Fleet Overview was removed from the in-desktop app registry and is now reachable only via the ControlCenter Fleet tab. See [phases/phase-ex6.md](phases/phase-ex6.md).
+
 ## System Overview
 
 HeadlessOS is a **client-only** application. Nothing is installed on the target server. The entire system runs on the user's local machine and communicates with remote servers exclusively via SSH.
@@ -1041,6 +1043,47 @@ Trace: "UIAgent: docker overview"  (4.2s, $0.05, 12 spans)
 - **4 SpanKinds:** LLM (individual call), AGENT (root session), CHAIN (pipeline phase), TOOL (tool execution)
 
 See [ADR-018](DECISIONS.md) and [phase-ex4.md](phases/phase-ex4.md).
+
+---
+
+### 8. CLI App Generation with Sandbox Discovery (EX5)
+
+**Location:** Backend: `server/src/agent/sandbox-manager.ts`, `server/src/agent/tools/sandbox-exec.ts`, `server/src/dynamic-ui/app-store.ts`
+
+HeadlessOS can generate management UIs for **any CLI tool** installed on a server. The agent introspects the tool's `--help` output, discovers subcommands and flags, and generates a complete `DynamicViewSchema` with tables, forms, and action buttons.
+
+**Sandbox Discovery Pipeline:**
+```
+User: "Build UI for restic"
+  │
+  ├─ 1. SandboxManager.create(serverId, "restic")
+  │     → docker run --rm -d --network=none --memory=256m ubuntu:22.04
+  │
+  ├─ 2. SandboxManager.install(sandboxId, ["restic"])
+  │     → docker exec ... apt-get install -y restic
+  │
+  ├─ 3. Agent uses sandbox_exec tool for discovery:
+  │     → sandbox_exec("restic --help")     → parse subcommands
+  │     → sandbox_exec("restic backup -h")  → parse flags → form fields
+  │     → sandbox_exec("restic snapshots -h") → parse flags → table columns
+  │
+  ├─ 4. Agent generates DynamicViewSchema JSON
+  │
+  ├─ 5. SandboxManager.destroy(sandboxId)
+  │
+  └─ 6. Schema applied to real server (dataSource commands, action buttons)
+```
+
+**Key features:**
+- **Ephemeral containers** — Created per-session, destroyed after discovery, 5-min TTL
+- **Resource-capped** — `--memory=256m --cpus=0.5 --pids-limit=100`
+- **Network-isolated** — `--network=none` during discovery (brief bridge connection for package install)
+- **OS-matched** — Base image matches server OS (Ubuntu→ubuntu:22.04, Debian→debian:12, etc.)
+- **Fallback** — Direct discovery on server when Docker unavailable
+- **Save as App** — Generated schemas persist to `~/.headlessos/user-apps/` and register as reusable templates
+- **Form → Command** — `commandTemplate` field on FormWidget composes CLI commands from form values
+
+See [ADR-019](DECISIONS.md) and [phase-ex5.md](phases/phase-ex5.md).
 
 ---
 

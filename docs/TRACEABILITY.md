@@ -626,6 +626,64 @@ None (all changes to existing files).
 
 ---
 
+## EX3: Smart Layout Engine & Progressive UI — Completed
+
+> 26/26 tasks complete. 12 new templates (27 total), progressive rendering pipeline, entrance animations, 117 QA tests. 2,224 total tests (1,778 server + 446 client).
+
+### EX3-B.3: Expand to 25+ Templates
+- **Status:** ✅ Complete
+- **Files created:** `server/src/dynamic-ui/templates/docker-images.ts`, `docker-compose.ts`, `memory-analysis.ts`, `network-interfaces.ts`, `system-logs-journal.ts`, `ssl-certificates.ts`, `environment-variables.ts`, `git-repositories.ts`, `database-status.ts`, `backup-status.ts`, `kernel-modules.ts`, `port-scan.ts`
+- **Files modified:** `server/src/dynamic-ui/templates/index.ts` (12 new imports, ALL_TEMPLATES expanded to 27)
+- **Verification:** All 27 templates pass DynamicViewSchema.safeParse(); 383 dynamic-ui tests passing
+
+### EX3-B.4: FakeLLM Generator
+- **Status:** ✅ Complete
+- **Files created:** `server/src/dynamic-ui/fake-generator.ts` (FakeLLMGenerator class: generate, generateFromCommand, generateAll, hasTemplate, size)
+- **Verification:** Deterministic view generation from all 27 templates; tested in ex3-template-qa.test.ts
+
+### EX3-C.1: WorkingView & Mutation Tools
+- **Status:** ✅ Complete
+- **Files created:** `server/src/dynamic-ui/working-view.ts` (WorkingView class + createSkeleton helper: addWidget, replaceWidget, updateMetadata, addTab, addSidebarItem, addSection, getSnapshot, getDiff, validate)
+- **Verification:** All mutation methods tested; getDiff tracks changes; validate uses DynamicViewSchema
+
+### EX3-C.2: layout_update Event Pipeline
+- **Status:** ✅ Complete
+- **Files modified:** `server/src/agent/executor.ts` (LayoutUpdatePhase type, layout_update AgentEvent), `client/src/hooks/useUIAgent.ts` (layout_update parseServerMessage + store handler), `client/src/components/Agent/AgentPanel.tsx` (layout_update AgentEventType)
+- **Verification:** WebSocket events flow from executor → useUIAgent → store
+
+### EX3-C.3: Early Window Opening
+- **Status:** ✅ Complete
+- **Files modified:** `client/src/components/Agent/UIAgentView.tsx` (preview opens on isRunning, skeleton loading with animated pulse placeholders)
+- **Verification:** Window opens immediately when generation starts; shows skeleton before first partial_view
+
+### EX3-C.4: Multi-Step Executor Prompt
+- **Status:** ✅ Complete
+- **Files created:** `server/src/dynamic-ui/prompts/multi-step.ts` (buildMultiStepPrompt + formatClassification)
+- **Verification:** Generates structured prompt with skeleton, classification, build order, widget selection rules
+
+### EX3-D.1: DynamicUIWindow Component
+- **Status:** ✅ Complete
+- **Files modified:** `client/src/components/DynamicUI/DynamicAppWindow.tsx` (GenerationPhase type, phase-based rendering, SkeletonBody component, phase-aware footer with generation stats)
+- **Verification:** Renders loading/skeleton/progressive/complete phases correctly
+
+### EX3-D.2: View Toolbar
+- **Status:** ✅ Complete
+- **Files modified:** `client/src/components/DynamicUI/DynamicAppWindow.tsx` (Copy JSON button with clipboard + toast)
+- **Verification:** Toolbar: Regenerate, Copy JSON, JSON toggle, Pin, Save as App
+
+### EX3-D.3: Entrance Animations
+- **Status:** ✅ Complete
+- **Files modified:** `client/src/styles.css` (widgetEnter/tabSlideIn @keyframes, .animate-widget-enter with --stagger-index, prefers-reduced-motion), `client/src/components/DynamicUI/WidgetRenderer.tsx` (index prop, stagger), `client/src/components/DynamicUI/ContentRenderer.tsx` (index prop), `client/src/components/DynamicUI/layouts/StackLayout.tsx`, `GridLayout.tsx`, `TabsLayout.tsx` (pass index, animate-tab-slide-in)
+- **Verification:** Widgets enter with staggered fade+translateY; tabs slide in; animations disabled with prefers-reduced-motion
+
+### EX3-D.4: Template QA Tests
+- **Status:** ✅ Complete
+- **Files created:** `server/tests/dynamic-ui/ex3-template-qa.test.ts` (117 tests: 27 template schema validation, FakeLLMGenerator API, WorkingView mutations, multi-step prompts, layout patterns)
+- **Files modified:** `server/tests/dynamic-ui/template-library.test.ts` (assertion updated ≥25), `server/tests/dynamic-ui/generator.test.ts` (cat /var/log/syslog→system-logs-journal)
+- **Verification:** All 383 dynamic-ui tests passing; all 2,224 tests passing (1,778 server + 446 client)
+
+---
+
 ## EX4: LLM Observatory — Completed
 
 > Phoenix-inspired embedded LLM tracing. 16/16 tasks complete. 133 backend tests + 75 frontend tests = 208 new tests.
@@ -728,6 +786,71 @@ None (all changes to existing files).
 - **Files created:** `client/src/hooks/useObservatorySocket.ts`
 - **Tests:** `client/tests/hooks/useObservatorySocket.test.ts` — 10 tests
 - **Verification:** WebSocket hook with auto-reconnect, exponential backoff capped at 30s
+
+---
+
+## EX5: CLI App Generation with Sandbox Discovery — In Progress
+
+### EX5-A.1: CLI Discovery Command Allowlist
+- **Status:** ✅ Complete
+- **Files modified:** `server/src/agent/command-allowlist.ts` — 22 new regex patterns added (which, command -v, type, --help, -h, help, --version, -v, -V, version, man, apropos, dpkg, rpm, apt list/show, brew info, snap info, flatpak info)
+- **Tests:** `server/tests/agent/command-allowlist.test.ts` — 7 new test blocks (60+ assertions), 32 total passing
+- **Verification:** All CLI discovery patterns validated; injection attacks rejected
+
+### EX5-B.1: SandboxManager Service
+- **Status:** ✅ Complete
+- **Files created:** `server/src/agent/sandbox-manager.ts`
+- **Tests:** `server/tests/agent/sandbox-manager.test.ts` — 33 tests (detectBaseImage: 8, create: 5, exec: 3, install: 5, destroySandbox: 4, destroyAll: 2, getSandbox/listActive: 3, auto-destroy timer: 2, lifecycle: 1)
+- **Verification:** SandboxManager extends BaseService; create/exec/install/destroySandbox/destroyAll with mocked SSH; OS auto-detection; TTL auto-cleanup; resource limits (--memory=256m, --cpus=0.5, --network=none, --pids-limit=100)
+
+### EX5-B.2: sandbox_exec Agent Tool
+- **Status:** ✅ Complete
+- **Files created:** `server/src/agent/tools/sandbox-exec.ts`
+- **Files modified:** `server/src/agent/tools/types.ts` (added `sandboxManager?`, `activeSandboxId?` to ToolContext), `server/src/agent/tools/index.ts` (exported sandboxExecTool)
+- **Tests:** `server/tests/agent/sandbox-exec.test.ts` — 17 tests (metadata: 1, success path: 3, guard no-manager: 1, guard no-sandbox: 1, allowlist rejection: 1, sandbox blocks: 4, error handling: 2, allowlist integration: 4)
+- **Verification:** Route commands through SandboxManager.exec(); read-only allowlist + sandbox-specific block patterns (curl|bash, apt/pip install); caches output in previousOutputs; graceful error handling
+
+### EX5-A.2: Form CommandTemplate & Submit Wiring
+- **Status:** ✅ Complete
+- **Files created:** `client/src/lib/command-template.ts` (shellEscape + composeCommand utilities)
+- **Files modified:** `shared/schemas/dynamic-view.ts` (added commandTemplate, confirmSubmit, confirmMessage to FormWidgetSchema), `client/src/components/DynamicUI/WidgetRenderer.tsx` (FormCommandWrapper component wiring onSubmit → compose command → execute action), `server/src/agent/tools/types.ts` (added sandboxManager + activeSandboxId to ToolContext)
+- **Tests:** `client/tests/lib/command-template.test.ts` — 14 tests (shellEscape: 5, composeCommand: 9 — string values, numbers, boolean flags, omit empty, special chars, complex templates, whitespace cleanup)
+- **Verification:** FormWidget onSubmit → composeCommand(template, values) → executeWidgetAction() with optional ConfirmDialog; new schema fields validated by Zod
+
+### EX5-B.3: Two-Phase Agent Flow
+- **Status:** ✅ Complete
+- **Files modified:** `server/src/agent/ui-agent.ts` (sandbox lifecycle in generateCore: create → install → wire context → try/finally destroy; extractToolName helper; UIAgentOptions extended with sandboxMode/toolName; constructor deps extended with sandboxManager/toolRegistry), `server/src/routes/agent-ui.ts` (SandboxManager import, AgentUIRouteDeps extended, sandboxManager/toolRegistry passed to UIAgent, ClientMessage extended with sandboxMode/toolName, forwarded to agent.generate())
+- **Tests:** `server/tests/agent/ui-agent-sandbox.test.ts` — 16 tests (lifecycle: 4 — create/install/destroy/context wiring/tool registration; fallback: 3 — creation failure/install failure/destroy failure; disabled: 3 — sandboxMode false/omitted/no manager; abort: 1 — cleanup on abort; extractToolName: 4 — explicit/pattern/fallback; dedup: 1 — skip duplicate registration)
+- **Verification:** Sandbox created before agent loop, destroyed in finally block; graceful fallback on Docker unavailability; sandbox context wired into ToolContext for sandbox_exec tool; tool registry dynamically extended with sandbox_exec
+
+### EX5-B.4: Frontend Sandbox Toggle
+- **Status:** ✅ Complete
+- **Files modified:** `client/src/components/Agent/UIAgentView.tsx` (Shield icon + Switch toggle + Tooltip with Docker-aware messaging; sandboxEnabled/dockerAvailable state; useEffect Docker check on mount; handleGenerate passes sandboxMode option; disabled when Docker unavailable or running), `client/src/hooks/useUIAgent.ts` (GenerateOptions interface with sandboxMode/toolName; generate signature updated to accept options; WebSocket message conditionally includes sandboxMode/toolName), `client/src/lib/api.ts` (checkDockerAvailable function using fetchDockerContainers)
+- **Tests:** `client/tests/components/SandboxToggle.test.tsx` — 12 tests (rendering: 4, Docker availability: 3, toggle interaction: 2, generate with sandbox options: 3)
+- **Verification:** Toggle renders with Shield icon and "Sandbox Mode" label; disables when Docker unavailable; sandboxMode passed through WebSocket when enabled; all 2,011 tests passing (1,593 server + 418 client)
+
+### EX5-C.1: User App Persistence (Backend)
+- **Status:** ✅ Complete
+- **Files created:** `server/src/dynamic-ui/app-store.ts` (AppStore class with CRUD + disk persistence + TemplateRegistry integration; SavedAppSchema/CreateAppSchema/UpdateAppSchema Zod schemas; UUID generation; JSON file storage at ~/.headlessos/user-apps/), `server/src/routes/app-store.ts` (5 REST endpoints: GET/POST /api/dynamic-ui/apps, GET/PUT/DELETE /api/dynamic-ui/apps/:id), `server/tests/dynamic-ui/app-store.test.ts` (28 tests: CRUD 8, disk persistence 5, validation 4, TemplateRegistry integration 5, schema tests 4, misc 2), `server/tests/routes/app-store.test.ts` (9 route logic tests)
+- **Files modified:** `server/src/index.ts` (AppStore import, instantiation, init, setTemplateRegistry, appStoreRoutes registration)
+- **Verification:** All 2,048 tests passing (1,630 server + 418 client); apps persisted to disk as individual JSON files; reloaded on server restart; auto-registered as UITemplates for command pattern matching
+
+### EX5-C.2: Save As App UI (Frontend)
+- **Status:** ✅ Complete
+- **Files created:** `client/src/components/DynamicUI/SaveAsAppDialog.tsx` (Save As App dialog with name/icon picker/CLI tool/description/tags fields; Lucide icon grid picker; createSavedApp API call; success/error toast notifications), `client/tests/components/SaveAsAppDialog.test.tsx` (15 tests: rendering 3, pre-fill 4, icon picker 2, save action 3, validation 3)
+- **Files modified:** `client/src/lib/api.ts` (added SavedApp/CreateAppInput/UpdateAppInput types + fetchSavedApps/fetchSavedApp/createSavedApp/updateSavedApp/deleteSavedApp API functions), `client/src/components/DynamicUI/DynamicAppWindow.tsx` (added Save as App button in toolbar, showSaveDialog state, SaveAsAppDialog integration with pre-fill from view meta), `client/src/components/DynamicUI/index.ts` (added SaveAsAppDialog barrel export)
+- **Verification:** All 2,063 tests passing (1,630 server + 433 client); Save button visible in DynamicAppWindow toolbar; dialog pre-fills from view title/description/meta.tool/icon; icon picker grid with 56 icons; validation prevents save without name/icon/cliTool
+
+### EX5-C.3: App Launcher Integration
+- **Status:** ✅ Complete
+- **Files created:** `client/src/store/saved-app-store.ts` (Zustand store: apps[], loading, fetched; fetchApps→API, removeApp→API+local filter, openApp→openDynamicUIWindow), `client/tests/store/saved-app-store.test.ts` (8 tests: initial state, fetchApps success/error/loading-guard, removeApp success/API-call/error, openApp)
+- **Files modified:** `client/src/components/Desktop/StartMenu.tsx` (added "My Apps" subsection in All Apps list view + compact row in pinned view; fetch saved apps on first open; filteredSavedApps search), `client/src/components/Desktop/CommandPalette.tsx` (added "My Apps" CommandGroup with saved apps; fetch on palette open; handleOpenSavedApp callback), `client/tests/components/CommandPalette.test.tsx` (added saved-app-store mock + icon-helper mock + 5 new tests: fetch on open, skip if fetched, My Apps group visible, hidden when empty, cliTool text)
+- **Verification:** All 2,076 tests passing (1,630 server + 446 client); saved apps appear in Start Menu "My Apps" section + Command Palette "My Apps" group; search filters by name/cliTool/tags; opening a saved app launches openDynamicUIWindow with stored view JSON
+
+### EX5-A.3: CLI Introspection Prompt Engineering
+- **Status:** ✅ Complete
+- **Files modified:** `server/src/agent/planner.ts` (added "CLI Tool UI Pattern" section with examples for restic/nginx, cli-introspection dataSourceHint pattern, guidance for full-management + complex + needsWrite), `server/src/agent/executor.ts` (added buildCLIIntrospectionGuidance() method with 3-phase workflow: Discovery→UI Mapping→Form CommandTemplate Wiring; injected into system prompt when dataSourceHints contains 'cli-introspection'; includes CLI→widget mapping table and meta.tool guidance), `server/tests/agent/planner.test.ts` (5 new tests: CLI Tool UI Pattern section, cli-introspection hint, CLI examples, full-management instruction, complex complexity), `server/tests/agent/executor.test.ts` (2 new tests: CLI guidance included for introspection requests, omitted for non-CLI requests)
+- **Verification:** All 2,083 tests passing (1,637 server + 446 client); planner prompt recognizes "build UI for X" patterns; executor adds structured CLI discovery workflow when cli-introspection hint is present
 
 ---
 

@@ -15,6 +15,8 @@ import { PostGenerationReflector, type ReflectionIssue } from './reflector.js';
 import { ToolRegistry } from './tools/tool-registry.js';
 import type { ToolContext } from './tools/types.js';
 import { withTraceGen, setSpanAttributes } from '../observatory/context.js';
+import type { SandboxManager } from './sandbox-manager.js';
+import { sandboxExecTool } from './tools/sandbox-exec.js';
 
 // ── Agent Meta ──
 
@@ -44,6 +46,10 @@ export interface UIAgentOptions {
   maxPostReflections?: number;
   /** AbortController signal for cancellation */
   signal?: AbortSignal;
+  /** EX5-B.3: Enable sandbox mode for CLI discovery */
+  sandboxMode?: boolean;
+  /** EX5-B.3: CLI tool name to discover in sandbox (e.g. 'nginx', 'restic') */
+  toolName?: string;
 }
 
 // ── Complete Event (extends AgentEvent) ──
@@ -71,6 +77,10 @@ export class UIAgent {
   private reflector: PostGenerationReflector;
   private ssh: ConnectionManager;
   private templateRegistry: TemplateRegistry;
+  /** EX5-B.3: Optional sandbox manager for isolated CLI discovery */
+  private sandboxManager?: SandboxManager;
+  /** EX5-B.3: Tool registry for dynamic tool registration (sandbox_exec) */
+  private toolRegistry?: ToolRegistry;
 
   constructor(deps: {
     modelRouter: ModelRouter;
@@ -79,6 +89,8 @@ export class UIAgent {
     reflector: PostGenerationReflector;
     ssh: ConnectionManager;
     templateRegistry: TemplateRegistry;
+    sandboxManager?: SandboxManager;
+    toolRegistry?: ToolRegistry;
   }) {
     this.modelRouter = deps.modelRouter;
     this.planner = deps.planner;
@@ -86,6 +98,8 @@ export class UIAgent {
     this.reflector = deps.reflector;
     this.ssh = deps.ssh;
     this.templateRegistry = deps.templateRegistry;
+    this.sandboxManager = deps.sandboxManager;
+    this.toolRegistry = deps.toolRegistry;
   }
 
   /**
@@ -135,6 +149,46 @@ export class UIAgent {
       previousOutputs: new Map(),
     };
 
+    // ── EX5-B.3: SANDBOX SETUP (when sandboxMode=true) ──
+    let sandboxId: string | undefined;
+    const useSandbox = options.sandboxMode && this.sandboxManager;
+
+    if (useSandbox) {
+      const toolName = options.toolName ?? this.extractToolName(request);
+      try {
+        yield { type: 'thinking', message: `Creating sandbox container for "${toolName}"...` };
+        const sandbox = await this.sandboxManager!.create(serverId, toolName);
+        sandboxId = sandbox.id;
+
+        // Install tool in sandbox
+        yield { type: 'thinking', message: `Installing ${toolName} in sandbox...` };
+        try {
+          await this.sandboxManager!.install(sandboxId, [toolName]);
+        } catch {
+          // Tool may already be in the base image or not installable — continue
+          yield { type: 'thinking', message: `Note: ${toolName} may not need installation, continuing discovery...` };
+        }
+
+        // Wire sandbox into context
+        context.sandboxManager = this.sandboxManager;
+        context.activeSandboxId = sandboxId;
+
+        // Register sandbox_exec tool for this session
+        if (this.toolRegistry && !this.toolRegistry.has('sandbox_exec')) {
+          this.toolRegistry.register(sandboxExecTool);
+        }
+
+        yield { type: 'thinking', message: 'Sandbox ready — discovering CLI structure...' };
+      } catch (err) {
+        yield {
+          type: 'thinking',
+          message: `Sandbox creation failed: ${err instanceof Error ? err.message : 'unknown'}. Falling back to direct execution.`,
+        };
+        sandboxId = undefined; // Clear so we don't try to destroy
+      }
+    }
+
+    try {
     // ── STACK-BASED LOOP (from Roo Code) ──
     const stack: StackItem[] = [{ phase: 'plan', attempt: 0 }];
 
@@ -320,9 +374,47 @@ export class UIAgent {
         }
       }
     }
+    } finally {
+      // ── EX5-B.3: SANDBOX CLEANUP ──
+      if (sandboxId && this.sandboxManager) {
+        try {
+          await this.sandboxManager.destroySandbox(sandboxId);
+          yield { type: 'thinking', message: 'Sandbox destroyed ✓' };
+        } catch {
+          // Best-effort cleanup
+        }
+      }
+    }
   }
 
   // ── Helpers ──
+
+  /**
+   * Extract CLI tool name from a user request.
+   * e.g., "build UI for nginx" → "nginx"
+   *       "create a form for restic backup" → "restic"
+   */
+  private extractToolName(request: string): string {
+    // Try common patterns
+    const patterns = [
+      /\bfor\s+(\w[\w.-]*)/i,        // "for nginx", "for restic"
+      /\b(?:of|about)\s+(\w[\w.-]*)/i, // "about htop", "of docker"
+      /\bui\s+(\w[\w.-]*)/i,           // "ui nginx"
+    ];
+    for (const pattern of patterns) {
+      const match = request.match(pattern);
+      if (match?.[1]) {
+        const name = match[1].toLowerCase();
+        // Skip common stop words
+        if (!['the', 'a', 'an', 'this', 'that', 'my'].includes(name)) {
+          return name;
+        }
+      }
+    }
+    // Fallback: last word that looks like a tool name
+    const words = request.split(/\s+/).filter(w => /^[a-z][\w.-]*$/i.test(w));
+    return words[words.length - 1]?.toLowerCase() ?? 'tool';
+  }
 
   private buildMeta(
     sessionId: string,

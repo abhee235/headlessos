@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "../../.."
+		},
+		{
+			"path": "../../../../headlessOS-Web"
+		}
+	],
+	"settings": {
+		"github.copilot.chat.codeGeneration.useInstructionFiles": true
+	}
+}

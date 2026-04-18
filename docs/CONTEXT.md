@@ -107,7 +107,9 @@ headlessOS/
 │   │   ├── ServerAdmin/   # Server admin (network, firewall, security, packages, logs, etc.)
 │   │   ├── TaskManager/   # Process manager
 │   │   ├── Terminal/      # xterm.js wrapper
-│   │   ├── Login/         # Lock/login screen
+│   │   ├── Login/         # LockScreen + LoginScreen (LoginScreen used embedded in ControlCenter)
+│   │   ├── ControlCenter/ # EX6-C: pre-desktop landing — Sessions / Fleet / Global Settings tabs
+│   │   ├── Fleet/         # FleetDashboardView (now rendered inside ControlCenter, removed from in-desktop apps)
 │   │   └── ui/            # Reusable: Table, Card, TreeView, ContextMenu, etc.
 │   ├── hooks/             # React hooks
 │   └── store/             # Zustand state

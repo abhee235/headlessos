@@ -1,52 +1,97 @@
-// M6.7: File Clipboard Store — manages cut/copy/paste state for file operations
+// M6.7 + EX6-A.9: File Clipboard Store — per-session facade
 // @see docs/phases/phase-6.md
+// @see docs/phases/phase-ex6.md (made session-scoped)
+//
+// Backwards-compatible API: keeps `entries` / `operation` / `sourceDir` /
+// `copy` / `cut` / `clear` / `hasEntries`. Storage now lives inside
+// `useSessionsStore.sessions[activeServerId].clipboard`, so each server
+// has its own clipboard (Citrix-style isolation).
 
 import { create } from 'zustand';
+import { useSessionsStore } from './sessions-store';
+import {
+  EMPTY_CLIPBOARD,
+  type ClipboardEntry,
+  type SessionClipboard,
+} from 'headlessos-shared/schemas/session';
 
-export interface ClipboardEntry {
-  /** Server the file belongs to */
-  serverId: string;
-  /** Full path to the file/directory */
-  path: string;
-  /** File name */
-  name: string;
-  /** Whether it's a directory */
-  isDirectory: boolean;
-}
-
+export type { ClipboardEntry } from 'headlessos-shared/schemas/session';
 export type ClipboardOperation = 'copy' | 'cut';
 
 interface ClipboardState {
-  /** Files currently in clipboard */
   entries: ClipboardEntry[];
-  /** Whether it's a copy or cut operation */
   operation: ClipboardOperation | null;
-  /** Source directory where the copy/cut happened */
   sourceDir: string | null;
 
-  // Actions
   copy: (entries: ClipboardEntry[], sourceDir: string) => void;
   cut: (entries: ClipboardEntry[], sourceDir: string) => void;
   clear: () => void;
   hasEntries: () => boolean;
 }
 
-export const useClipboardStore = create<ClipboardState>((set, get) => ({
-  entries: [],
-  operation: null,
-  sourceDir: null,
+function readActiveClipboard(): SessionClipboard {
+  const s = useSessionsStore.getState();
+  if (!s.activeServerId) return EMPTY_CLIPBOARD;
+  const session = s.sessions[s.activeServerId];
+  return session?.clipboard ?? EMPTY_CLIPBOARD;
+}
 
-  copy: (entries, sourceDir) => {
-    set({ entries, operation: 'copy', sourceDir });
-  },
+function writeActiveClipboard(next: SessionClipboard): void {
+  const s = useSessionsStore.getState();
+  if (!s.activeServerId) return;
+  s.updateSession(s.activeServerId, { clipboard: next });
+}
 
-  cut: (entries, sourceDir) => {
-    set({ entries, operation: 'cut', sourceDir });
-  },
+export const useClipboardStore = create<ClipboardState>((set, get) => {
+  const initial = readActiveClipboard();
 
-  clear: () => {
-    set({ entries: [], operation: null, sourceDir: null });
-  },
+  // Subscribe to session changes — push active session's clipboard into this store.
+  // Runs in both browser and jsdom (test) environments.
+  useSessionsStore.subscribe((state, prev) => {
+    const activeChanged = state.activeServerId !== prev.activeServerId;
+    let clipChanged = false;
+    if (state.activeServerId) {
+      const a = state.sessions[state.activeServerId]?.clipboard;
+      const b = prev.sessions[state.activeServerId]?.clipboard;
+      clipChanged = a !== b;
+    }
+    if (activeChanged || clipChanged) {
+      const next = readActiveClipboard();
+      const cur = get();
+      if (
+        cur.entries !== next.entries ||
+        cur.operation !== next.operation ||
+        cur.sourceDir !== next.sourceDir
+      ) {
+        set({
+          entries: next.entries,
+          operation: next.operation,
+          sourceDir: next.sourceDir,
+        });
+      }
+    }
+  });
 
-  hasEntries: () => get().entries.length > 0,
-}));
+  return {
+    entries: initial.entries,
+    operation: initial.operation,
+    sourceDir: initial.sourceDir,
+
+    copy: (entries, sourceDir) => {
+      writeActiveClipboard({ entries, operation: 'copy', sourceDir });
+      set({ entries, operation: 'copy', sourceDir });
+    },
+
+    cut: (entries, sourceDir) => {
+      writeActiveClipboard({ entries, operation: 'cut', sourceDir });
+      set({ entries, operation: 'cut', sourceDir });
+    },
+
+    clear: () => {
+      writeActiveClipboard({ ...EMPTY_CLIPBOARD });
+      set({ entries: [], operation: null, sourceDir: null });
+    },
+
+    hasEntries: () => get().entries.length > 0,
+  };
+});

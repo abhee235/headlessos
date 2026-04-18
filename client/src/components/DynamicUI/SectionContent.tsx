@@ -9,14 +9,24 @@ import { Skeleton } from '@/components/ui/skeleton';
 interface SectionContentProps {
   /** The Layout object to render for the active section (null = loading/empty) */
   layout: DeepPartial<Layout> | null;
+  /** Whether the parent view is still loading (progressive generation) */
+  loading?: boolean;
+}
+
+/** Check whether a layout has meaningful renderable content */
+function isLayoutEmpty(layout: DeepPartial<Layout>): boolean {
+  if (!layout.layout) return true;
+  const children = (layout as Record<string, unknown>).children;
+  if (Array.isArray(children) && children.length === 0) return true;
+  return false;
 }
 
 /**
  * Renders the content for a given sidebar section.
  * Shows skeleton placeholders when the section is still loading (null during progressive rendering).
  */
-export function SectionContent({ layout }: SectionContentProps) {
-  if (!layout) {
+export function SectionContent({ layout, loading }: SectionContentProps) {
+  if (!layout || (loading && isLayoutEmpty(layout))) {
     return (
       <div className="space-y-4 animate-pulse">
         <Skeleton className="h-5 w-32" />

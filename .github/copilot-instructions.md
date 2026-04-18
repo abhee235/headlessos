@@ -103,7 +103,7 @@ Used consistently across:
 | `docs/CONTEXT.md` | 2-min AI briefing |
 | `docs/ARCHITECTURE.md` | System design, data flow, patterns |
 | `docs/IMPLEMENTATION_INDEX.md` | Phase overview + task ID system |
-| `docs/phases/phase-{0-5}.md` | Detailed task specs per phase |
+| `docs/phases/phase-{0-8,ex1-ex6}.md` | Detailed task specs per phase |
 | `docs/TRACEABILITY.md` | Task → files → commits audit trail |
 | `docs/PROGRESS.md` | Live task tracker |
 | `docs/DECISIONS.md` | Architecture Decision Records (ADR-001 to ADR-014) |
@@ -174,6 +174,24 @@ Host: `127.0.0.1`, Port: `2222`, User: `testuser`, Pass: `testpass`
 | Get detailed task spec | `docs/phases/phase-{n}.md` |
 | Track what files a task created | `docs/TRACEABILITY.md` |
 
+## Environment Setup
+
+Copy `.env.example` to `.env` and set `OPENAI_API_KEY`. Run `npm install` from root (npm workspaces monorepo: server, client, shared).
+
+## Quick Start Commands
+
+```bash
+npm run dev          # Start server (:3001) + client (:3000)
+npm test             # Run all tests (~2,300+ tests)
+npm run test:server  # Server tests only
+npm run test:client  # Client tests only
+./dev/vm.sh start    # Start Lima VM for SSH testing
+```
+
+## Reusable Prompts
+
+Task-specific prompts in `.github/prompts/`: `new-feature`, `new-parser`, `new-api-route`, `new-component`, `fix-bug`.
+
 ## shadcn/ui Components
 
-49 component files in `client/src/components/ui/`. All use CSS variable design tokens from `client/src/styles.css`. See `AGENTS.md` §19 for the full inventory. Key components: Button, ContextMenu, DropdownMenu, Dialog, AlertDialog, ConfirmDialog, Sheet, Drawer, Tooltip, Popover, Command, Tabs, Table, Card, Form, Input, Select, Checkbox, Switch, Badge, Accordion, Calendar, Chart, Sidebar, Resizable, ScrollArea, Skeleton, Progress, Carousel, FileIcon (custom SVG).
+51 component files in `client/src/components/ui/`. All use CSS variable design tokens from `client/src/styles.css`. See `AGENTS.md` §19 for the full inventory. Key components: Button, ContextMenu, DropdownMenu, Dialog, AlertDialog, ConfirmDialog, Sheet, Drawer, Tooltip, Popover, Command, Tabs, Table, Card, Form, Input, Select, Checkbox, Switch, Badge, Accordion, Calendar, Chart, Sidebar, Resizable, ScrollArea, Skeleton, Progress, Carousel, FileIcon (custom SVG).

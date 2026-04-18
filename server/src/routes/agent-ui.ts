@@ -10,6 +10,7 @@ import type { FastifyInstance } from 'fastify';
 import type { ConnectionManager } from '../ssh/connection-manager.js';
 import type { ModelRouter } from '../llm/model-router.js';
 import type { TemplateRegistry } from '../dynamic-ui/template-registry.js';
+import type { SandboxManager } from '../agent/sandbox-manager.js';
 import { UIAgent, type UIAgentEvent } from '../agent/ui-agent.js';
 import { Planner } from '../agent/planner.js';
 import { ReactiveExecutor } from '../agent/executor.js';
@@ -28,6 +29,10 @@ interface ClientMessage {
   prompt?: string;
   writeBack?: unknown;
   values?: Record<string, unknown>;
+  /** EX5-B.3: Run CLI discovery in sandboxed container */
+  sandboxMode?: boolean;
+  /** EX5-B.3: CLI tool name to discover (e.g. 'nginx') */
+  toolName?: string;
 }
 
 /** Server → Client message (all events include requestId) */
@@ -43,6 +48,8 @@ export interface AgentUIRouteDeps {
   connectionManager: ConnectionManager;
   modelRouter: ModelRouter;
   templateRegistry: TemplateRegistry;
+  /** EX5-B.3: Optional sandbox manager for isolated CLI discovery */
+  sandboxManager?: SandboxManager;
 }
 
 // ── Active session tracking ──
@@ -58,7 +65,7 @@ export async function agentUIRoutes(
   fastify: FastifyInstance,
   opts: AgentUIRouteDeps,
 ): Promise<void> {
-  const { connectionManager, modelRouter, templateRegistry } = opts;
+  const { connectionManager, modelRouter, templateRegistry, sandboxManager } = opts;
 
   // ── WebSocket: /ws/ui-agent/:serverId ──
 
@@ -83,6 +90,8 @@ export async function agentUIRoutes(
         reflector,
         ssh: connectionManager,
         templateRegistry,
+        sandboxManager,
+        toolRegistry,
       });
 
       // ── Helpers ──
@@ -159,12 +168,24 @@ export async function agentUIRoutes(
         sessions.set(msg.requestId, { abortController, running: true });
 
         // Run agent in background (async generator)
-        void runAgent(msg.requestId, msg.prompt, abortController.signal);
+        void runAgent(msg.requestId, msg.prompt, abortController.signal, {
+          sandboxMode: msg.sandboxMode,
+          toolName: msg.toolName,
+        });
       }
 
-      async function runAgent(requestId: string, prompt: string, signal: AbortSignal): Promise<void> {
+      async function runAgent(
+        requestId: string,
+        prompt: string,
+        signal: AbortSignal,
+        opts: { sandboxMode?: boolean; toolName?: string } = {},
+      ): Promise<void> {
         try {
-          for await (const event of agent.generate(serverId, prompt, { signal })) {
+          for await (const event of agent.generate(serverId, prompt, {
+            signal,
+            sandboxMode: opts.sandboxMode,
+            toolName: opts.toolName,
+          })) {
             sendAgentEvent(requestId, event);
           }
         } catch (err) {

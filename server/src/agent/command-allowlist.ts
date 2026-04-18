@@ -97,6 +97,30 @@ export const AGENT_READ_ONLY_ALLOWLIST: RegExp[] = [
 
   // Git (read-only)
   /^git\s+(log|status|branch|remote|diff|show)/,
+
+  // CLI Discovery (EX5-A.1) — introspect any tool's help/version/man
+  /^which\s+[a-zA-Z0-9_.-]+$/,                                         // which restic
+  /^command\s+-v\s+[a-zA-Z0-9_.-]+$/,                                  // command -v restic
+  /^type\s+[a-zA-Z0-9_.-]+$/,                                          // type restic
+  /^[a-zA-Z0-9_./-]+\s+--help$/,                                       // restic --help
+  /^[a-zA-Z0-9_./-]+\s+-h$/,                                           // restic -h
+  /^[a-zA-Z0-9_./-]+\s+help(\s+[a-zA-Z0-9_.-]+)*$/,                   // restic help backup
+  /^[a-zA-Z0-9_./-]+\s+[a-zA-Z0-9_.-]+\s+--help$/,                    // restic backup --help
+  /^[a-zA-Z0-9_./-]+\s+[a-zA-Z0-9_.-]+\s+-h$/,                        // restic backup -h
+  /^[a-zA-Z0-9_./-]+\s+[a-zA-Z0-9_.-]+\s+[a-zA-Z0-9_.-]+\s+--help$/, // docker compose up --help
+  /^[a-zA-Z0-9_./-]+\s+--version$/,                                    // restic --version
+  /^[a-zA-Z0-9_./-]+\s+-[vV]$/,                                        // restic -v / restic -V
+  /^[a-zA-Z0-9_./-]+\s+version$/,                                      // docker version
+  /^man\s+[a-zA-Z0-9_.-]+$/,                                           // man restic
+  /^apropos\s+[a-zA-Z0-9_.-]+$/,                                       // apropos backup
+  /^dpkg\s+-l(\s+[a-zA-Z0-9_.*-]+)?$/,                                 // dpkg -l restic
+  /^dpkg\s+-L\s+[a-zA-Z0-9_.-]+$/,                                     // dpkg -L restic (list files)
+  /^rpm\s+-qi?\s+[a-zA-Z0-9_.-]+$/,                                    // rpm -qi restic (package info)
+  /^apt\s+list\s+--installed(\s+[a-zA-Z0-9_.*-]+)?$/,                  // apt list --installed restic
+  /^apt\s+show\s+[a-zA-Z0-9_.-]+$/,                                    // apt show restic
+  /^brew\s+info\s+[a-zA-Z0-9_.-]+$/,                                   // brew info restic
+  /^snap\s+info\s+[a-zA-Z0-9_.-]+$/,                                   // snap info restic
+  /^flatpak\s+info\s+[a-zA-Z0-9_.-]+$/,                                // flatpak info restic
 ];
 
 // ── Write Allowlist ─────────────────────────────────────

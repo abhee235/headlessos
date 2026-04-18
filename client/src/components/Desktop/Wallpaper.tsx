@@ -1,10 +1,12 @@
 // M6.3: Wallpaper — renders the selected desktop wallpaper from preferences
 // Supports both CSS gradient (builtin) and image-based (system/user) wallpapers
+// EX6-D.3: Now respects per-session `wallpaperId` override via `useEffectivePref`.
 // @see docs/phases/phase-6.md
+// @see docs/phases/phase-ex6.md
 
 import { useEffect, useState } from 'react';
 import { HeadlessOSLogo, HeadlessOSWordmark } from '../../assets/logo';
-import { usePreferencesStore } from '../../store/preferences-store';
+import { useEffectivePref } from '../../store/effective-preferences';
 import {
   findWallpaper,
   fetchWallpapers,
@@ -19,7 +21,7 @@ interface WallpaperProps {
 }
 
 export function Wallpaper({ className = '' }: WallpaperProps) {
-  const wallpaperId = usePreferencesStore((s) => s.wallpaperId);
+  const wallpaperId = useEffectivePref('wallpaperId');
   const [imageWallpapers, setImageWallpapers] = useState<ImageWallpaper[]>([]);
 
   const isImageId = wallpaperId.startsWith('system:') || wallpaperId.startsWith('user:');
