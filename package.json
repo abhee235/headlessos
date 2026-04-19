@@ -10,7 +10,8 @@
     "test": "npm run test:server && npm run test:client",
     "test:server": "npm test --workspace=server",
     "test:client": "npm test --workspace=client",
-    "test:all": "npm run test:server && npm run test:client"
+    "test:all": "npm run test:server && npm run test:client",
+    "postinstall": "git config core.hooksPath .githooks"
   },
   "devDependencies": {
     "concurrently": "^9.0.0",

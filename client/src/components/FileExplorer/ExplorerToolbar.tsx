@@ -10,6 +10,9 @@ import {
   Grid3x3,
   PanelLeftClose,
   Columns2,
+  Search,
+  RotateCcw,
+  Trash2,
 } from 'lucide-react';
 
 export type ViewMode = 'details' | 'list' | 'small-icons' | 'large-icons';
@@ -20,10 +23,13 @@ interface ExplorerToolbarProps {
   serverId: string;
   currentPath: string;
   onActionComplete: () => void;
-  entryCount: number;
   onStartCreate: (type: 'file' | 'folder') => void;
   splitPane?: boolean;
   onToggleSplitPane?: () => void;
+  onOpenSearch?: () => void;
+  /** When true, show trash actions (Restore / Empty Bin) instead of normal file actions */
+  trashMode?: boolean;
+  onEmptyTrash?: () => void;
 }
 
 const VIEW_MODES: { mode: ViewMode; icon: React.ReactNode; label: string }[] = [
@@ -39,41 +45,67 @@ export function ExplorerToolbar({
   serverId,
   currentPath,
   onActionComplete,
-  entryCount,
   onStartCreate,
   splitPane,
   onToggleSplitPane,
+  onOpenSearch,
+  trashMode,
+  onEmptyTrash,
 }: ExplorerToolbarProps) {
   return (
     <div className="flex items-center gap-2 px-3 py-2 border-b border-border/30">
-      {/* New file / folder */}
-      <div className="flex items-center gap-0.5">
+      {trashMode ? (
+        /* ── Trash mode toolbar ── */
         <button
-          onClick={() => onStartCreate('file')}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-foreground/4 text-foreground/60 hover:text-foreground text-[13px] transition-all duration-150"
-          title="New File"
+          onClick={onEmptyTrash}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-destructive/10 text-sidebar-foreground hover:text-destructive text-[13px] transition-all duration-150"
+          title="Empty Recycle Bin"
         >
-          <File className="w-4 h-4" />
-          <span className="hidden sm:inline">New File</span>
+          <Trash2 className="w-4 h-4 text-sidebar-foreground/70" />
+          <span className="hidden sm:inline">Empty Recycle Bin</span>
         </button>
-        <button
-          onClick={() => onStartCreate('folder')}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-foreground/4 text-foreground/60 hover:text-foreground text-[13px] transition-all duration-150"
-          title="New Folder"
-        >
-          <Folder className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">New Folder</span>
-        </button>
-      </div>
+      ) : (
+        /* ── Normal mode toolbar ── */
+        <>
+          {/* New file / folder */}
+          <div className="flex items-center gap-0.5">
+            <button
+              onClick={() => onStartCreate('file')}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-accent/40 text-sidebar-foreground hover:text-foreground text-[13px] transition-all duration-150"
+              title="New File"
+            >
+              <File className="w-4 h-4 text-sidebar-foreground/70" />
+              <span className="hidden sm:inline">New File</span>
+            </button>
+            <button
+              onClick={() => onStartCreate('folder')}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-accent/40 text-sidebar-foreground hover:text-foreground text-[13px] transition-all duration-150"
+              title="New Folder"
+            >
+              <Folder className="w-4 h-4 text-sidebar-foreground/70" />
+              <span className="hidden sm:inline">New Folder</span>
+            </button>
+          </div>
 
-      {/* Separator */}
-      <div className="w-px h-4 bg-border/30" />
+          {/* Separator */}
+          <div className="w-px h-4 bg-border/30" />
+
+          {/* Search button */}
+          {onOpenSearch && (
+            <button
+              onClick={onOpenSearch}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-accent/40 text-sidebar-foreground hover:text-foreground text-[13px] transition-all duration-150"
+              title="Search Files (Ctrl+F)"
+            >
+              <Search className="w-4 h-4 text-sidebar-foreground/70" />
+              <span className="hidden sm:inline">Search</span>
+            </button>
+          )}
+        </>
+      )}
 
       {/* Spacer */}
       <div className="flex-1" />
-
-      {/* Item count */}
-      <span className="text-[12px] text-foreground/40 mr-1 tabular-nums">{entryCount} items</span>
 
       {/* Split pane toggle */}
       {onToggleSplitPane && (

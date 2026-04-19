@@ -177,9 +177,9 @@ export function getCapabilityInfo(capability: AppCapability): CapabilityInfo | u
 
 export function getRiskColor(risk: 'low' | 'medium' | 'high'): string {
   switch (risk) {
-    case 'low': return 'text-green-400';
-    case 'medium': return 'text-amber-400';
-    case 'high': return 'text-red-400';
+    case 'low': return 'text-success';
+    case 'medium': return 'text-warning';
+    case 'high': return 'text-destructive';
   }
 }
 

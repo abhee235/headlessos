@@ -4,7 +4,11 @@
 import { useEffect } from 'react';
 import { useAppStore } from '../../store/app-store';
 import { useDesktopStore, type SnapZone } from '../../store/window-store';
+import { initWindowSessionSync } from '../../store/window-session-sync';
+import { initAppSessionBridge } from '../../store/app-session-bridge';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
+import { useSessionShortcuts } from '../../hooks/useSessionShortcuts';
+import { useAutoHibernate } from '../../hooks/useAutoHibernate';
 import { Desktop } from './Desktop';
 import { Taskbar } from './Taskbar';
 import { StartMenu } from './StartMenu';
@@ -12,6 +16,8 @@ import { WindowManager } from './WindowManager';
 import { CommandPalette } from './CommandPalette';
 import { WelcomeDialog } from './WelcomeDialog';
 import { NotificationCenter } from './NotificationCenter';
+import { SessionSwitcher } from './SessionSwitcher';
+import { WakeConfirmDialog } from './WakeConfirmDialog';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
 
@@ -59,12 +65,31 @@ export function DesktopLayout() {
     fetchServers();
   }, [fetchServers]);
 
+  // EX6-A.7: Wire window↔session sync once
+  useEffect(() => {
+    initWindowSessionSync();
+  }, []);
+
+  // EX6-B (bridge): Sync legacy app-store ↔ sessions-store
+  useEffect(() => {
+    initAppSessionBridge();
+  }, []);
+
   // Global keyboard shortcuts (Alt+F4, Ctrl+Space, Ctrl+Tab, Ctrl+`, Ctrl+Shift+Esc)
   useKeyboardShortcuts();
+
+  // EX6-B.4: Session-switching shortcuts (Cmd+1..9, Cmd+Tab, Cmd+Shift+H)
+  useSessionShortcuts();
+
+  // EX6-D.5: Auto-hibernate inactive background sessions when configured
+  useAutoHibernate();
 
   return (
     <TooltipProvider delayDuration={400}>
       <div className="relative w-screen h-screen overflow-hidden bg-background text-foreground select-none">
+        {/* EX6-B.1: Session Switcher hover bar (renders only when desktop is active) */}
+        <SessionSwitcher />
+
         {/* Desktop — wallpaper + icons */}
         <Desktop />
 
@@ -91,6 +116,9 @@ export function DesktopLayout() {
 
         {/* Toast notifications */}
         <Toaster />
+
+        {/* EX6-D.1: Wake confirmation prompt for locked sessions */}
+        <WakeConfirmDialog />
       </div>
     </TooltipProvider>
   );

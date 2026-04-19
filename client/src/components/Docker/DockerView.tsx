@@ -20,6 +20,8 @@ import {
   X,
   Download,
 } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
+import { LoadingView } from '@/components/ui/loading-view';
 import type {
   DockerContainerData,
   DockerImageData,
@@ -47,6 +49,7 @@ import {
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { DisconnectedState } from '@/components/ui/disconnected-state';
+import { cn } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -66,12 +69,12 @@ type TabId = 'containers' | 'images';
 interface SidebarEntry {
   id: TabId;
   label: string;
-  icon: React.ReactNode;
+  icon: React.ElementType;
 }
 
 const TABS: SidebarEntry[] = [
-  { id: 'containers', label: 'Containers', icon: <Box size={16} /> },
-  { id: 'images', label: 'Images', icon: <Image size={16} /> },
+  { id: 'containers', label: 'Containers', icon: Box },
+  { id: 'images', label: 'Images', icon: Image },
 ];
 
 // ─── State badge helper ──────────────────────────────────────────────────────
@@ -236,7 +239,7 @@ function ContainersTab({
           <span className="text-xs font-medium text-foreground">
             Containers ({containers.length})
           </span>
-          {refreshing && <RefreshCw className="w-3 h-3 animate-spin text-muted-foreground" />}
+          {refreshing && <Spinner size={12} className="text-muted-foreground" />}
         </div>
         <div className="relative">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
@@ -407,7 +410,7 @@ function ImagesTab({
           <span className="text-xs font-medium text-foreground">
             Images ({images.length})
           </span>
-          {refreshing && <RefreshCw className="w-3 h-3 animate-spin text-muted-foreground" />}
+          {refreshing && <Spinner size={12} className="text-muted-foreground" />}
         </div>
         <div className="relative">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
@@ -725,11 +728,8 @@ export function DockerView({ serverId }: DockerViewProps) {
   // ── Loading state ──
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full bg-background">
-        <div className="flex items-center gap-3 text-muted-foreground">
-          <RefreshCw className="w-5 h-5 animate-spin" />
-          <span className="text-sm">Loading Docker…</span>
-        </div>
+      <div className="h-full bg-background">
+        <LoadingView label="Loading Docker…" />
       </div>
     );
   }
@@ -811,28 +811,32 @@ export function DockerView({ serverId }: DockerViewProps) {
 
   return (
     <div className="flex h-full bg-background">
-      {/* ── Left sidebar — Windows 11 style ── */}
-      <nav className="w-12 shrink-0 border-r border-border bg-sidebar flex flex-col items-center py-2 gap-1">
-        {TABS.map((entry) => (
-          <button
-            key={entry.id}
-            onClick={() => setTab(entry.id)}
-            className={`
-              w-9 h-9 rounded-md flex items-center justify-center transition-colors relative group
-              ${
-                tab === entry.id
-                  ? 'bg-primary/15 text-primary'
-                  : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-              }
-            `}
-            title={entry.label}
-          >
-            {tab === entry.id && (
-              <div className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-primary" />
-            )}
-            {entry.icon}
-          </button>
-        ))}
+      {/* ── Sidebar — Finder-inspired ── */}
+      <nav className="w-50 shrink-0 border-r border-border/40 overflow-y-auto pt-1.5">
+        <div className="px-4 pt-2.5 pb-1.5 text-[11px] font-semibold text-foreground/50 tracking-wide">
+          Docker
+        </div>
+        <div className="px-3 pb-2">
+          {TABS.map((entry) => {
+            const Icon = entry.icon;
+            const isActive = tab === entry.id;
+            return (
+              <button
+                key={entry.id}
+                onClick={() => setTab(entry.id)}
+                className={cn(
+                  'flex items-center gap-2 w-full px-2.5 py-2 text-[13px] rounded-md transition-colors outline-none',
+                  isActive
+                    ? 'bg-primary/15 text-primary font-medium'
+                    : 'text-foreground hover:bg-accent/50',
+                )}
+              >
+                <Icon size={20} strokeWidth={1.6} className={cn('shrink-0', isActive && 'text-primary')} />
+                {entry.label}
+              </button>
+            );
+          })}
+        </div>
       </nav>
 
       {/* ── Content area ── */}

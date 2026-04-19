@@ -1,17 +1,17 @@
-// M1.9 + M5.6b: Terminal View — xterm.js + FitAddon + WebSocket
+// M1.9 + M5.6b + EX1.11: Terminal View — xterm.js + FitAddon + WebSocket + Visualize Hint
 // M7.1: Reads terminal preferences from preferences-store
 // M5.6b: Loading state, context menu, reconnect UI, theme-aware colors
-// @see docs/phases/phase-1.md
+// EX1.11: Terminal buffer capture + "Visualize" button
+// @see docs/phases/phase-1.md, docs/phases/phase-ex1.md
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
-import { AttachAddon } from '@xterm/addon-attach';
 import { terminalWsUrl } from '../../lib/api';
 import { usePreferencesStore } from '../../store/preferences-store';
 import { useThemeStore } from '../../store/theme-store';
 import { toast } from 'sonner';
-import { Loader2, WifiOff, RefreshCw, Copy, ClipboardPaste, Trash2, MousePointerClick } from 'lucide-react';
+import { WifiOff, RefreshCw, Copy, ClipboardPaste, Trash2, MousePointerClick, Sparkles } from 'lucide-react';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -21,6 +21,17 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import '@xterm/xterm/css/xterm.css';
+import { Spinner } from '@/components/ui/spinner';
+import { LoadingView } from '@/components/ui/loading-view';
+
+/** EX1.11: Hint from backend about parseable terminal output */
+interface VisualizeHint {
+  pattern: 'table' | 'json' | 'log' | 'config' | 'list';
+  confidence: number;
+  suggestedTool: string;
+  lineCount: number;
+  rawOutput: string;
+}
 
 type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
 
@@ -72,14 +83,20 @@ const LIGHT_THEME = {
 
 interface TerminalViewProps {
   serverId: string;
+  /** EX1.11: Called when user clicks "Visualize" with the raw terminal output */
+  onVisualize?: (rawOutput: string, suggestedTool: string) => void;
 }
 
-export function TerminalView({ serverId }: TerminalViewProps) {
+export function TerminalView({ serverId, onVisualize }: TerminalViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>('connecting');
+
+  // EX1.11: Visualize hint state
+  const [visualizeHint, setVisualizeHint] = useState<VisualizeHint | null>(null);
+  const visualizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Read terminal preferences
   const fontSize = usePreferencesStore((s) => s.terminalFontSize);
@@ -103,6 +120,11 @@ export function TerminalView({ serverId }: TerminalViewProps) {
       termRef.current.dispose();
       termRef.current = null;
     }
+    if (visualizeTimerRef.current) {
+      clearTimeout(visualizeTimerRef.current);
+      visualizeTimerRef.current = null;
+    }
+    setVisualizeHint(null);
     fitRef.current = null;
   }, []);
 
@@ -176,8 +198,43 @@ export function TerminalView({ serverId }: TerminalViewProps) {
 
     ws.onopen = () => {
       setStatus('connected');
-      const attachAddon = new AttachAddon(ws);
-      term.loadAddon(attachAddon);
+
+      // Instead of AttachAddon, handle messages manually to intercept JSON control messages
+      ws.onmessage = (event) => {
+        const data = event.data;
+        // Check if it's a JSON control message from the server
+        if (typeof data === 'string') {
+          try {
+            const msg = JSON.parse(data);
+            if (msg.type === 'visualize-hint' && msg.hint) {
+              // EX1.11: Show "Visualize" button
+              setVisualizeHint({
+                ...msg.hint,
+                rawOutput: msg.rawOutput ?? '',
+              });
+              // Auto-dismiss after 10 seconds
+              if (visualizeTimerRef.current) clearTimeout(visualizeTimerRef.current);
+              visualizeTimerRef.current = setTimeout(() => setVisualizeHint(null), 10000);
+              return; // Don't write control message to terminal
+            }
+            if (msg.type === 'buffer-snapshot' || msg.type === 'error') {
+              return; // Don't write control messages to terminal
+            }
+          } catch {
+            // Not JSON — write to terminal as normal text
+          }
+          term.write(data);
+        } else if (data instanceof ArrayBuffer) {
+          term.write(new Uint8Array(data));
+        }
+      };
+
+      // Terminal input → WebSocket
+      term.onData((data: string) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(data);
+        }
+      });
 
       // Send initial resize
       const dims = fitAddon.proposeDimensions();
@@ -285,10 +342,7 @@ export function TerminalView({ serverId }: TerminalViewProps) {
           {/* Loading overlay */}
           {status === 'connecting' && (
             <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-10">
-              <div className="flex flex-col items-center gap-3">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                <span className="text-sm text-muted-foreground">Connecting…</span>
-              </div>
+              <LoadingView label="Connecting…" />
             </div>
           )}
 
@@ -305,6 +359,24 @@ export function TerminalView({ serverId }: TerminalViewProps) {
               >
                 <RefreshCw className="w-3 h-3" />
                 Reconnect
+              </button>
+            </div>
+          )}
+
+          {/* EX1.11: Visualize button — appears when parseable output detected */}
+          {visualizeHint && onVisualize && (
+            <div className="absolute bottom-2 right-3 z-10 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <button
+                onClick={() => {
+                  onVisualize(visualizeHint.rawOutput, visualizeHint.suggestedTool);
+                  setVisualizeHint(null);
+                  if (visualizeTimerRef.current) clearTimeout(visualizeTimerRef.current);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-primary/90 hover:bg-primary text-primary-foreground shadow-lg backdrop-blur transition-all"
+                title={`Detected ${visualizeHint.pattern} output (${visualizeHint.lineCount} lines)`}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Visualize
               </button>
             </div>
           )}

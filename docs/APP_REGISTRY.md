@@ -82,6 +82,8 @@ interface ActionDefinition {
 
 ## Built-in Apps
 
+> **EX6-C.3:** "Fleet Overview" was removed from the in-desktop app registry. It now lives in **Control Center → Fleet** (the pre-desktop landing surface). The component file (`client/src/components/Fleet/FleetDashboardView.tsx`) is reused there. To open it: launch the app, switch to the Fleet tab, or press `Ctrl/Cmd+Shift+Space` from any session.
+
 ### System Dashboard
 
 ```typescript
@@ -546,3 +548,32 @@ Eventually, apps could be distributed as npm packages:
 ```
 
 This is **post-MVP**. For now, all apps are built-in.
+
+---
+
+## Dynamic UI Engine (EX1) — Runtime Counterpart
+
+The `AppManifest` schema above is for **statically-defined, built-in apps** where developers write React components manually. The **Dynamic UI Engine** (EX1) provides the **runtime equivalent**: dynamically-generated UIs from a JSON schema.
+
+| Aspect | AppManifest (Static) | DynamicViewSchema (Dynamic) |
+|--------|--------------------|-----------------------------|
+| Source | Developer-written code | LLM-generated JSON |
+| Schema location | `server/src/apps/manifests/` | `shared/schemas/dynamic-view.ts` |
+| Frontend components | Custom per-app (`client/src/components/`) | Generic `DynamicViewRenderer` + widget library |
+| Adding new tool | Write route + parser + React component | LLM generates JSON automatically |
+| Rendering | Hardcoded React component per view | Generic renderer dispatches by widget type |
+| Speed | Instant (pre-built) | 1-5s (LLM generation, cached after first run) |
+| Consistency | Developer-controlled | Template library + LLM |
+
+**Relationship:** Static `AppManifest` apps remain for core views (Dashboard, Docker, Files) where quality and speed are critical. `DynamicViewSchema` extends coverage to **any CLI tool** without developer effort. Over time, popular dynamic UIs can be "promoted" into static templates or even full AppManifest apps.
+
+**DynamicViewSchema widgets** map directly to existing shadcn/ui components:
+- `table` → `Table` component
+- `stat-card` → `Card` component
+- `badge-grid` → `Badge` components
+- `progress-bar` → `Progress` component
+- `chart` → `ChartContainer` + recharts
+- `code-block` → styled `<pre>` block
+- `alert` → `Alert` component
+
+See [ADR-015](DECISIONS.md) for the architecture decision and [phase-ex1.md](phases/phase-ex1.md) for the full implementation spec.

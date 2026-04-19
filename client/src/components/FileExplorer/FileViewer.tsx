@@ -9,6 +9,7 @@ import {
   AlertCircle,
   FileText,
 } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
 import { readFile, writeFile } from '../../lib/api';
 import { toast } from 'sonner';
 
@@ -78,7 +79,7 @@ export function FileViewer({ serverId, filePath, onClose, onSave }: FileViewerPr
           <span className="text-sm text-foreground truncate">{fileName}</span>
           <span className="text-xs text-muted-foreground truncate hidden sm:inline">{filePath}</span>
           {hasChanges && (
-            <span className="text-xs text-amber-500 shrink-0">● modified</span>
+            <span className="text-xs text-warning shrink-0">● modified</span>
           )}
         </div>
 
@@ -97,7 +98,7 @@ export function FileViewer({ serverId, filePath, onClose, onSave }: FileViewerPr
       {/* Content */}
       {loading && (
         <div className="flex items-center justify-center h-48">
-          <RefreshCw className="w-4 h-4 animate-spin text-muted-foreground" />
+          <Spinner size={16} className="text-muted-foreground" />
         </div>
       )}
 

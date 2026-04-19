@@ -66,7 +66,9 @@ interface UserPreferences {
   showToasts: boolean;
   /** Toast notification position */
   toastPosition: ToastPosition;
-
+  // ── Auto-hibernation (EX6-D.5) ─────────────────────────────────────
+  /** Auto-hibernate inactive sessions after N minutes (0 = disabled). Default: off. */
+  autoHibernateMinutes: number;
   // ── Recently Used (M9.2) ──────────────────────────────────────────────────
   /** Recently opened app IDs with timestamps */
   recentApps: Array<{ appId: string; timestamp: number }>;
@@ -98,6 +100,7 @@ interface PreferencesState extends UserPreferences {
   setDateFormat: (format: DateFormat) => void;
   setShowToasts: (show: boolean) => void;
   setToastPosition: (position: ToastPosition) => void;
+  setAutoHibernateMinutes: (minutes: number) => void;
   recordAppUsage: (appId: string) => void;
   pinApp: (appId: string) => void;
   unpinApp: (appId: string) => void;
@@ -127,6 +130,7 @@ const DEFAULTS: UserPreferences = {
   dateFormat: '12h',
   showToasts: true,
   toastPosition: 'bottom-right',
+  autoHibernateMinutes: 0,
   recentApps: [],
   pinnedAppIds: ['dashboard', 'files', 'terminal', 'docker', 'taskmanager', 'settings'],
   hasSeenOnboarding: false,
@@ -265,6 +269,12 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => {
       savePreferences({ ...get(), toastPosition: position });
     },
 
+    setAutoHibernateMinutes: (minutes) => {
+      const safe = Math.max(0, Math.floor(minutes));
+      set({ autoHibernateMinutes: safe });
+      savePreferences({ ...get(), autoHibernateMinutes: safe });
+    },
+
     recordAppUsage: (appId) => {
       const current = get();
       const filtered = current.recentApps.filter(r => r.appId !== appId);
@@ -322,6 +332,7 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => {
         dateFormat: updated.dateFormat,
         showToasts: updated.showToasts,
         toastPosition: updated.toastPosition,
+        autoHibernateMinutes: updated.autoHibernateMinutes,
         recentApps: updated.recentApps,
         pinnedAppIds: updated.pinnedAppIds,
         hasSeenOnboarding: updated.hasSeenOnboarding,

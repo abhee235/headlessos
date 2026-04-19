@@ -2,8 +2,7 @@
 // @see docs/phases/phase-8.md
 
 import { useCallback, useEffect, useState, useRef } from 'react';
-import { RefreshCw, Loader2, AlertCircle, Package, Download, Trash2, ArrowUpCircle, Search, X, RotateCw } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { RefreshCw, AlertCircle, Package, Download, Trash2, ArrowUpCircle, Search, X, RotateCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -16,6 +15,7 @@ import {
 } from '@/components/ui/table';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 import {
   fetchPackageInfo,
   aptUpdate,
@@ -27,6 +27,8 @@ import {
 } from '@/lib/api';
 import type { PackageInfo, AptSearchResult } from '@/lib/api';
 import { toast } from 'sonner';
+import { Spinner } from '@/components/ui/spinner';
+import { LoadingView } from '@/components/ui/loading-view';
 
 export function PackagesSection({ serverId }: { serverId: string }) {
   const [data, setData] = useState<PackageInfo | null>(null);
@@ -38,7 +40,7 @@ export function PackagesSection({ serverId }: { serverId: string }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<AptSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
-  const searchTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const searchTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Confirm dialog state
   const [confirmAction, setConfirmAction] = useState<{
@@ -193,19 +195,14 @@ export function PackagesSection({ serverId }: { serverId: string }) {
   // ── Render ──
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground">
-        <Loader2 className="animate-spin mr-2" size={18} />
-        Loading package info…
-      </div>
-    );
+    return <LoadingView label="Loading package info…" fullHeight={false} />;
   }
 
   if (error || !data) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-3 text-muted-foreground">
+      <div className="flex flex-col items-center justify-center py-20 text-foreground/40 gap-3">
         <AlertCircle size={24} />
-        <p className="text-sm">{error || 'No data'}</p>
+        <span className="text-sm">{error || 'No data'}</span>
         <Button variant="outline" size="sm" onClick={load}>Retry</Button>
       </div>
     );
@@ -213,33 +210,34 @@ export function PackagesSection({ serverId }: { serverId: string }) {
 
   if (!data.available) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-3 text-muted-foreground">
+      <div className="flex flex-col items-center justify-center py-20 text-foreground/40 gap-3">
         <Package size={32} className="opacity-40" />
-        <p className="text-sm">{data.message || 'APT package manager not available'}</p>
-        <p className="text-xs">This section requires a Debian/Ubuntu-based system</p>
+        <span className="text-sm">{data.message || 'APT package manager not available'}</span>
+        <span className="text-xs">This section requires a Debian/Ubuntu-based system</span>
       </div>
     );
   }
 
   return (
-    <div className="p-4 space-y-5">
+    <div className="@container p-6 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Package size={18} className="text-primary" />
-          <h2 className="text-lg font-semibold">Packages</h2>
+        <div className="flex items-center gap-3">
+          <Package size={22} className="text-primary" />
+          <h2 className="text-xl font-bold text-foreground">Packages</h2>
         </div>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
+            className="h-8 text-xs border-border/50"
             onClick={handleAptUpdate}
             disabled={!!busy}
           >
-            {busy === 'update' ? <Loader2 className="animate-spin mr-1" size={14} /> : <RotateCw size={14} className="mr-1" />}
+            {busy === 'update' ? <Spinner className="mr-1" size={14} /> : <RotateCw size={14} className="mr-1" />}
             Update Lists
           </Button>
-          <Button variant="ghost" size="icon" onClick={load} title="Refresh" disabled={!!busy}>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground/30 hover:text-foreground" onClick={load}>
             <RefreshCw size={16} />
           </Button>
         </div>
@@ -247,16 +245,16 @@ export function PackagesSection({ serverId }: { serverId: string }) {
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="p-4 rounded-lg border bg-card">
-          <p className="text-sm text-muted-foreground">Installed</p>
-          <p className="text-2xl font-bold">{data.totalInstalled.toLocaleString()}</p>
+        <div className="p-4 bg-muted/20 rounded-lg">
+          <p className="text-xs text-foreground/40">Installed</p>
+          <p className="text-2xl font-bold text-foreground">{data.totalInstalled.toLocaleString()}</p>
         </div>
-        <div className="p-4 rounded-lg border bg-card">
-          <p className="text-sm text-muted-foreground">Upgradable</p>
-          <p className="text-2xl font-bold">
+        <div className="p-4 bg-muted/20 rounded-lg">
+          <p className="text-xs text-foreground/40">Upgradable</p>
+          <p className="text-2xl font-bold text-foreground">
             {data.upgradable.length}
             {data.upgradable.length > 0 && (
-              <Badge variant="warning" className="ml-2 text-xs align-middle">updates available</Badge>
+              <span className={cn('ml-2 text-xs align-middle px-2 py-0.5 rounded-full font-medium', 'bg-amber-500/10 text-amber-600')}>updates available</span>
             )}
           </p>
         </div>
@@ -264,21 +262,21 @@ export function PackagesSection({ serverId }: { serverId: string }) {
 
       {/* Tabs: Upgradable / Search */}
       <Tabs defaultValue="upgradable">
-        <TabsList>
-          <TabsTrigger value="upgradable">
+        <TabsList className="h-auto p-1 bg-muted rounded-lg gap-1 w-auto inline-flex">
+          <TabsTrigger value="upgradable" className="rounded-md px-3 py-1.5 text-[13px] font-medium text-foreground/50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all hover:text-foreground/70">
             Upgradable
             {data.upgradable.length > 0 && (
-              <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5">{data.upgradable.length}</Badge>
+              <span className="ml-1.5 text-[11px] tabular-nums opacity-50">{data.upgradable.length}</span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="search">
-            <Search size={14} className="mr-1" />
+          <TabsTrigger value="search" className="rounded-md px-3 py-1.5 text-[13px] font-medium text-foreground/50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all hover:text-foreground/70">
+            <Search size={14} className="mr-1.5" />
             Search &amp; Install
           </TabsTrigger>
         </TabsList>
 
         {/* Upgradable tab */}
-        <TabsContent value="upgradable" className="space-y-3">
+        <TabsContent value="upgradable" className="mt-4 space-y-3">
           {data.upgradable.length > 0 && (
             <div className="flex justify-end">
               <Button
@@ -291,46 +289,46 @@ export function PackagesSection({ serverId }: { serverId: string }) {
                 })}
                 disabled={!!busy}
               >
-                {busy === 'upgrade-all' ? <Loader2 className="animate-spin mr-1" size={14} /> : <ArrowUpCircle size={14} className="mr-1" />}
+                {busy === 'upgrade-all' ? <Spinner className="mr-1" size={14} /> : <ArrowUpCircle size={14} className="mr-1" />}
                 Upgrade All ({data.upgradable.length})
               </Button>
             </div>
           )}
 
           {data.upgradable.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+            <div className="flex flex-col items-center justify-center text-foreground/30 py-12 text-sm">
               <Package size={32} className="opacity-40 mb-2" />
-              <p className="text-sm">All packages are up to date</p>
-              <p className="text-xs mt-1">Click &quot;Update Lists&quot; to check for new updates</p>
+              <p>All packages are up to date</p>
+              <p className="text-xs mt-1 opacity-70">Click &quot;Update Lists&quot; to check for new updates</p>
             </div>
           ) : (
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Package</TableHead>
-                  <TableHead>Current</TableHead>
-                  <TableHead>Available</TableHead>
-                  <TableHead>Arch</TableHead>
-                  <TableHead className="w-24 text-right">Action</TableHead>
+                <TableRow className="hover:bg-transparent border-0">
+                  <TableHead className="text-xs font-medium text-foreground/40 h-9">Package</TableHead>
+                  <TableHead className="text-xs font-medium text-foreground/40 h-9">Current</TableHead>
+                  <TableHead className="text-xs font-medium text-foreground/40 h-9">Available</TableHead>
+                  <TableHead className="text-xs font-medium text-foreground/40 h-9">Arch</TableHead>
+                  <TableHead className="w-24 text-right text-xs font-medium text-foreground/40 h-9">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {data.upgradable.map((pkg) => (
-                  <TableRow key={`${pkg.name}-${pkg.architecture}`}>
-                    <TableCell className="font-mono text-xs">{pkg.name}</TableCell>
-                    <TableCell className="text-xs">{pkg.currentVersion}</TableCell>
+                  <TableRow key={`${pkg.name}-${pkg.architecture}`} className="border-0 hover:bg-muted/20 group">
+                    <TableCell className="font-mono text-xs text-foreground/80">{pkg.name}</TableCell>
+                    <TableCell className="text-xs text-foreground/50">{pkg.currentVersion}</TableCell>
                     <TableCell className="text-xs font-medium text-primary">{pkg.newVersion}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{pkg.architecture}</TableCell>
+                    <TableCell className="text-xs text-foreground/50">{pkg.architecture}</TableCell>
                     <TableCell className="text-right">
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-7 text-xs"
+                        className="h-7 text-xs border-border/50"
                         disabled={!!busy}
                         onClick={() => handleUpgradePackage(pkg.name)}
                       >
                         {busy === `upgrade:${pkg.name}` ? (
-                          <Loader2 className="animate-spin mr-1" size={12} />
+                          <Spinner className="mr-1" size={12} />
                         ) : (
                           <ArrowUpCircle size={12} className="mr-1" />
                         )}
@@ -345,19 +343,19 @@ export function PackagesSection({ serverId }: { serverId: string }) {
         </TabsContent>
 
         {/* Search & Install tab */}
-        <TabsContent value="search" className="space-y-3">
+        <TabsContent value="search" className="mt-4 space-y-3">
           <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/30" />
             <Input
               placeholder="Search packages (e.g. nginx, python3, htop)…"
               value={searchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className="pl-9 pr-9"
+              className="pl-9 pr-9 shadow-none h-8 text-xs"
             />
             {searchQuery && (
               <button
                 type="button"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground"
                 onClick={() => { setSearchQuery(''); setSearchResults([]); }}
               >
                 <X size={14} />
@@ -366,41 +364,41 @@ export function PackagesSection({ serverId }: { serverId: string }) {
           </div>
 
           {searching && (
-            <div className="flex items-center justify-center py-8 text-muted-foreground">
-              <Loader2 className="animate-spin mr-2" size={16} />
+            <div className="flex items-center justify-center py-8 text-foreground/40">
+              <Spinner className="mr-2" size={16} />
               Searching…
             </div>
           )}
 
           {!searching && searchQuery.length >= 2 && searchResults.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+            <div className="flex flex-col items-center justify-center text-foreground/30 py-12 text-sm">
               <Search size={24} className="opacity-40 mb-2" />
-              <p className="text-sm">No packages found for &quot;{searchQuery}&quot;</p>
+              <p>No packages found for &quot;{searchQuery}&quot;</p>
             </div>
           )}
 
           {!searching && searchResults.length > 0 && (
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Package</TableHead>
-                  <TableHead>Version</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-24 text-right">Action</TableHead>
+                <TableRow className="hover:bg-transparent border-0">
+                  <TableHead className="text-xs font-medium text-foreground/40 h-9">Package</TableHead>
+                  <TableHead className="text-xs font-medium text-foreground/40 h-9">Version</TableHead>
+                  <TableHead className="text-xs font-medium text-foreground/40 h-9">Description</TableHead>
+                  <TableHead className="text-xs font-medium text-foreground/40 h-9">Status</TableHead>
+                  <TableHead className="w-24 text-right text-xs font-medium text-foreground/40 h-9">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {searchResults.map((pkg) => (
-                  <TableRow key={`${pkg.name}-${pkg.architecture}`}>
-                    <TableCell className="font-mono text-xs">{pkg.name}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{pkg.version}</TableCell>
-                    <TableCell className="text-xs max-w-[300px] truncate">{pkg.description}</TableCell>
+                  <TableRow key={`${pkg.name}-${pkg.architecture}`} className="border-0 hover:bg-muted/20 group">
+                    <TableCell className="font-mono text-xs text-foreground/80">{pkg.name}</TableCell>
+                    <TableCell className="text-xs text-foreground/50">{pkg.version}</TableCell>
+                    <TableCell className="text-xs text-foreground/50 max-w-75 truncate">{pkg.description}</TableCell>
                     <TableCell>
                       {pkg.installed ? (
-                        <Badge variant="success" className="text-[10px]">Installed</Badge>
+                        <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium', 'bg-emerald-500/10 text-emerald-600')}>Installed</span>
                       ) : (
-                        <Badge variant="outline" className="text-[10px]">Not installed</Badge>
+                        <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium', 'bg-foreground/5 text-foreground/50')}>Not installed</span>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
@@ -408,7 +406,7 @@ export function PackagesSection({ serverId }: { serverId: string }) {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-7 text-xs text-destructive hover:text-destructive"
+                          className="h-7 text-xs text-destructive hover:text-destructive border-border/50"
                           disabled={!!busy}
                           onClick={() => setConfirmAction({
                             title: `Remove ${pkg.name}?`,
@@ -418,7 +416,7 @@ export function PackagesSection({ serverId }: { serverId: string }) {
                           })}
                         >
                           {busy === `remove:${pkg.name}` ? (
-                            <Loader2 className="animate-spin mr-1" size={12} />
+                            <Spinner className="mr-1" size={12} />
                           ) : (
                             <Trash2 size={12} className="mr-1" />
                           )}
@@ -428,7 +426,7 @@ export function PackagesSection({ serverId }: { serverId: string }) {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-7 text-xs"
+                          className="h-7 text-xs border-border/50"
                           disabled={!!busy}
                           onClick={() => setConfirmAction({
                             title: `Install ${pkg.name}?`,
@@ -437,7 +435,7 @@ export function PackagesSection({ serverId }: { serverId: string }) {
                           })}
                         >
                           {busy === `install:${pkg.name}` ? (
-                            <Loader2 className="animate-spin mr-1" size={12} />
+                            <Spinner className="mr-1" size={12} />
                           ) : (
                             <Download size={12} className="mr-1" />
                           )}
@@ -452,10 +450,10 @@ export function PackagesSection({ serverId }: { serverId: string }) {
           )}
 
           {!searching && searchQuery.length < 2 && searchResults.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+            <div className="flex flex-col items-center justify-center text-foreground/30 py-12 text-sm">
               <Search size={32} className="opacity-40 mb-2" />
-              <p className="text-sm">Search for packages to install or remove</p>
-              <p className="text-xs mt-1">Type at least 2 characters to search</p>
+              <p>Search for packages to install or remove</p>
+              <p className="text-xs mt-1 opacity-70">Type at least 2 characters to search</p>
             </div>
           )}
         </TabsContent>
@@ -469,7 +467,7 @@ export function PackagesSection({ serverId }: { serverId: string }) {
           title={confirmAction.title}
           description={confirmAction.description}
           confirmLabel="Continue"
-          destructive={confirmAction.destructive}
+          variant={confirmAction.destructive ? 'destructive' : 'default'}
           onConfirm={() => {
             confirmAction.onConfirm();
             setConfirmAction(null);

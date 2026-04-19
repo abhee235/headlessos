@@ -28,9 +28,9 @@ export function DiskCard({ disks }: DiskCardProps) {
   const toShow = meaningful.length > 0 ? meaningful : disks;
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
+    <div className="rounded-xl border border-border bg-card p-4">
       <div className="flex items-center gap-2 mb-3">
-        <HardDrive className="w-4 h-4 text-green-400" />
+        <HardDrive className="w-4 h-4 text-success" />
         <h3 className="text-sm font-medium text-card-foreground">Disk Usage</h3>
       </div>
 
@@ -46,10 +46,10 @@ export function DiskCard({ disks }: DiskCardProps) {
 function DiskRow({ disk }: { disk: DiskEntry }) {
   const color =
     disk.usePercent >= 90
-      ? 'bg-red-500'
+      ? 'bg-destructive'
       : disk.usePercent >= 70
-        ? 'bg-amber-500'
-        : 'bg-green-500';
+        ? 'bg-warning'
+        : 'bg-success';
 
   return (
     <div>

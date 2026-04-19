@@ -26,14 +26,64 @@ export interface ParseResult<T> {
   model: string;
 }
 
+// ── Chat with Tools types (EX2.1) ──
+
+export interface ChatMessage {
+  role: 'system' | 'user' | 'assistant' | 'tool';
+  content: string | null;
+  tool_calls?: ToolCall[];
+  tool_call_id?: string;
+}
+
+export interface ToolCall {
+  id: string;
+  type: 'function';
+  function: {
+    name: string;
+    arguments: string;  // JSON string
+  };
+}
+
+export interface ChatCompletionTool {
+  type: 'function';
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;  // JSON Schema
+  };
+}
+
+export interface ChatWithToolsInput {
+  messages: ChatMessage[];
+  tools?: ChatCompletionTool[];
+  tool_choice?: 'auto' | 'none' | 'required';
+  maxTokens?: number;
+}
+
+export interface ChatWithToolsResult {
+  message: ChatMessage;
+  tokensUsed: { input: number; output: number };
+  latencyMs: number;
+  model: string;
+  finishReason: 'stop' | 'tool_calls' | 'length' | 'content_filter';
+}
+
 /**
  * Provider-agnostic LLM interface.
  * Implementations: OpenAI, Anthropic, Ollama (future).
  */
 export interface LLMProvider {
   name: string;
+  model: string;
   parseText<T>(input: ParseTextInput<T>): Promise<ParseResult<T>>;
   parseImage<T>(input: ParseImageInput<T>): Promise<ParseResult<T>>;
+
+  /**
+   * Chat completion with native function calling support.
+   * Used by the Reactive Executor (EX2.5) for tool-calling loops.
+   * Optional — not all providers/models support function calling.
+   */
+  chatWithTools?(input: ChatWithToolsInput): Promise<ChatWithToolsResult>;
 }
 
 export const SYSTEM_PROMPT = `You are a Linux terminal output parser. You receive raw command output and parse it into structured JSON matching the provided schema.

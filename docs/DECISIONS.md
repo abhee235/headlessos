@@ -428,6 +428,600 @@ rm -rf /, mkfs, dd if=, shutdown, reboot, init 0,
 
 ---
 
+## ADR-015: Dynamic UI Engine — JSON Schema → LLM-Generated Interfaces
+
+**Status:** Accepted
+**Date:** 2026-04-11
+
+**Context:**
+HeadlessOS currently has hardcoded React components for every view (Dashboard, Docker, Files, etc.). Adding a new tool requires creating a complete React component, backend route, parser, and schema — significant effort even for simple data displays.
+
+The "core differentiator" vision for HeadlessOS is **dynamic UI generation**: an LLM analyzes terminal output and produces a JSON schema that describes widgets (tables, charts, badges, key-value pairs, etc.), and a generic renderer turns that schema into a live visual interface. This eliminates the need for per-tool hardcoded UIs and allows HeadlessOS to visually represent **any** command output without developer effort.
+
+**Options Considered:**
+
+1. **Full LLM generation (LLM invents layout every time)** — Maximum flexibility, but slow (2-5s), expensive, and inconsistent layouts between runs.
+2. **Template-only (pre-built JSON templates, no LLM)** — Fast, free, consistent, but requires a template for every tool (back to square one).
+3. **Hybrid: Template Library + LLM Customization** — LLM picks from a curated template library, customizes fields/labels/colors for the specific data. Falls back to pure generation for unknown tools.
+
+**Decision:** Option 3 — Hybrid Template + LLM.
+
+### Core Architecture
+
+```
+User triggers (Command Palette / Agent)
+    │
+    ▼
+DynamicUIGenerator (backend service)
+    ├── Template Library (15-20 JSON templates for common patterns)
+    ├── LLM Generation (streaming) — picks template OR generates from scratch
+    └── Zod Validation (DynamicViewSchema)
+    │
+    ▼ (WebSocket — incremental JSON chunks)
+    │
+DynamicViewRenderer (React)
+    ├── Renders widgets progressively as JSON arrives
+    ├── Widget components: Table, KV, Badge, Chart, StatCard, CodeBlock, Alert, Progress, Tree, LogViewer
+    └── Layout components: Tabs, Sidebar, Grid
+```
+
+### Key Sub-Decisions
+
+**1. Streaming / Incremental Rendering (CRITICAL)**
+- The LLM generates JSON **incrementally** via streaming (not waiting for full response)
+- Backend streams partial `DynamicViewSchema` chunks to the frontend via WebSocket
+- Frontend `DynamicViewRenderer` renders each widget **as it arrives** in the JSON stream
+- This creates a "magical" progressive build effect — the user sees the UI assembling in real-time
+- Partial schemas are valid: `{ widgets: [widget1] }` renders immediately, then `widget2` appears when it arrives
+- Similar pattern to agent step streaming (M11.6) but for UI elements instead of investigation steps
+
+**2. DynamicViewSchema (Zod)**
+- Single Zod schema defines all possible widget types and layouts
+- Serves dual purpose: runtime validation + `zodResponseFormat()` for LLM structured output
+- Widget types: `table`, `key-value`, `badge-grid`, `stat-card`, `progress-bar`, `code-block`, `alert`, `chart`, `tree`, `log-viewer`, `form`
+- Layout types: `stack` (vertical), `grid`, `tabs`, `sidebar`
+- Each widget has optional `dataSource` for live refresh
+
+**3. DynamicViewRenderer (React)**
+- Generic renderer that maps widget types → React components
+- All widget components use existing shadcn/ui primitives (Table, Card, Badge, Progress, etc.)
+- Handles partial schemas gracefully (renders what's available, shows skeleton for pending)
+- Wrapped in `AppWindow` for overlay display; can also embed in desktop tabs
+
+**4. Template Library**
+- JSON templates for common patterns: system overview, package list, log viewer, config file, port table, user list, etc.
+- Templates are parameterized: `{{ fieldName }}` placeholders filled by LLM or data
+- LLM can select a template and customize it, or generate entirely new JSON for unknown tools
+- Templates live in `server/src/dynamic-ui/templates/`
+
+**5. Trigger Mechanism**
+- Phase 1: Command Palette (user explicitly types tool/package name)
+- Phase 2: Agent integration (investigation agent generates dynamic UIs for its findings)
+- Phase 3: Terminal buffer capture (auto-detect interesting output, offer dynamic view)
+
+**6. Experimental Track**
+- This feature uses task IDs `EX1.1` through `EX1.14` — separate from main milestones
+- Won't disrupt existing hardcoded views — Dynamic UI is additive
+- Hardcoded views remain for core apps (Dashboard, Docker, Files) — dynamic UI extends to new tools
+
+**Consequences:**
+- (+) Any CLI tool gets a visual UI without writing React components
+- (+) Template library ensures consistency for common patterns
+- (+) Streaming makes generation feel instant and "magical" — no loading spinner, just progressive build
+- (+) Zod schema is single source of truth for both validation and LLM generation
+- (+) Experimental track doesn't risk breaking existing functionality
+- (+) Reuses existing infrastructure: shadcn/ui components, WebSocket streaming, LLM provider, Zod pipeline
+- (-) Streaming JSON parsing adds complexity (must handle partial/incomplete structures)
+- (-) Template library needs ongoing curation as new tools are discovered
+- (-) LLM-generated layouts may occasionally be suboptimal (mitigated by templates)
+- (-) Cost per dynamic UI generation (mitigated by caching + template reuse)
+
+**Reference:** See [phases/phase-ex1.md](phases/phase-ex1.md) for the full implementation spec.
+
+---
+
+## ADR-016: Multi-Model UI Generation Agent (Plan → Reactive Execute → Reflect)
+
+**Status:** Accepted (revised 2026-04-08 based on agent architecture research)
+**Date:** 2026-04-07 (revised 2026-04-08)
+
+**Context:**
+The Dynamic UI Engine (ADR-015) generates `DynamicViewSchema` JSON from terminal output. The current `InvestigationAgent` (M11.5) is a simple single-model, single-loop ReAct agent designed only for read-only server diagnosis. It cannot:
+- Generate structured UI schemas (only produces text answers)
+- Use multiple models for different tasks (reasoning vs structured output)
+- Self-correct on Zod validation failures with deep analysis
+- Perform write operations (edit configs, restart services)
+- Plan multi-step tasks before executing them
+- Reflect on output quality and iterate
+
+We need a **UI Generation Agent** — a robust, multi-model agent specialized in generating interactive `DynamicViewSchema` UIs.
+
+**Research (2026-04-08):** Deep-analyzed three production coding agents — **Roo Code**, **Continue**, and **Aider** — to learn battle-tested agentic AI patterns. Key findings documented in [AGENT_RESEARCH_EX2.md](phases/AGENT_RESEARCH_EX2.md).
+
+**Critical insight from research:** All three agents use **reactive tool-calling loops** where the LLM decides tools dynamically via native function calling — NOT rigid pre-planned step sequences. The original "Planner produces a step-by-step tool list → Executor runs them in order" design was replaced with "Planner produces high-level hints → Executor runs a reactive loop with native function calling."
+
+**Options Considered:**
+
+1. **Extend InvestigationAgent** — Add model routing and schema generation to the existing agent.
+2. **New agent class with rigid Plan→Execute→Reflect** — Original design (pre-research).
+3. **New agent class with reactive Plan→Loop→Reflect** — Research-informed design.
+4. **Agent framework (LangChain, AutoGen, CrewAI)** — Use an existing agent framework.
+
+**Decision:** Option 3 — New `UIAgent` class with reactive tool-calling loop, informed by Roo Code/Continue/Aider patterns.
+
+**Rationale:**
+- Option 1 rejected: InvestigationAgent is fundamentally read-only with a flat ReAct loop. Retrofitting adds complexity.
+- Option 2 revised: The rigid plan-then-execute approach fails when commands return unexpected results. Real agents need to react dynamically.
+- Option 3 chosen: Reactive loop with native function calling matches how all successful coding agents work. The LLM decides tools based on observed results, self-corrects on errors inline, and produces output when ready.
+- Option 4 rejected: Massive dependency trees, abstraction overhead, and vendor lock-in.
+
+### Core Architecture: Plan → Reactive Execute → optional Post-Reflect
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     UI Agent Pipeline (v2)                    │
+│                                                              │
+│  ┌──────────────┐    ┌─────────────────────┐    ┌────────┐ │
+│  │   PLANNER    │───▶│  REACTIVE EXECUTOR  │───▶│REFLECT │ │
+│  │ (Reasoning)  │    │  (Structured Output) │    │(opt.)  │ │
+│  │ o3 / o4-mini │    │  GPT-4.1 + fn call  │    │o4-mini │ │
+│  └──────┬───────┘    └──────┬───────────────┘    └────┬───┘ │
+│         │                   │                         │      │
+│  • Parse intent      • Native function calling  • Quality   │
+│  • Expected widgets  • LLM decides tools        • Semantic   │
+│  • Template hint     • Inline Zod validation    • Optional   │
+│  • Skip-reflect?     • Self-corrects errors     • for complex│
+│         │                   │                         │      │
+│         │              Stack-based loop               │      │
+│         │              (from Roo Code)                │      │
+│         │              Safety rails:                  │      │
+│         │              • consecutiveMistakeCount      │      │
+│         │              • toolRepetitionDetector       │      │
+│         │              • maxSteps (20)                │      │
+│         │              • contextCompaction (80%)      │      │
+│         └───────────────────┴─────────────────────────┘      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Key Design Patterns from Research
+
+| Pattern | Source | Our Implementation |
+|---------|--------|--------------------|
+| Native function calling | Roo Code + Continue | Tools as `ChatCompletionTool[]`, `tool_choice: auto` |
+| Stack-based loop | Roo Code `Task.ts` | Explicit `StackItem[]` in UIAgent orchestrator |
+| Tool-result-per-tool-use | Roo Code | Every tool_call gets a result (even when blocked) |
+| Consecutive mistake detection | Roo Code | 3 turns without tools → abort |
+| Tool repetition detection | Roo Code `ToolRepetitionDetector` | Same tool+args 5x → warning |
+| Error-as-context-item | Continue | Tool failures become tool results for self-correction |
+| Architect → Editor delegation | Aider `ArchitectCoder` | Planner (reasoning) → Executor (structured output) |
+| Typed reflection errors | Aider `reflected_message` | `actualData` + `didYouMean` in reflection issues |
+| Weak model for cheap ops | Aider (main/editor/weak) | `weak` model role for summarization, classification |
+| Context compaction at 80% | Continue `compaction.ts` | ContextManager summarizes history with weak model |
+| Exponential backoff | Roo Code `backoffAndAnnounce` | Rate limit → countdown event → retry with doubling delay |
+| Inline Zod "linting" | Aider auto-lint pattern | Zod failures fed as tool results → LLM fixes inline |
+
+### Key Sub-Decisions
+
+**1. Four Model Roles (OpenAI Only)**
+- **Reasoning model** (o3, o4-mini): Planning, post-reflection, error analysis, CoT thinking
+- **Structured output model** (GPT-4.1, GPT-4o): DynamicViewSchema generation via native function calling + `zodResponseFormat()`
+- **Fast model** (GPT-4.1-mini, GPT-4o-mini): Quick decisions, streaming, cheap UI generation
+- **Weak model** (GPT-4.1-nano): Context compaction/summarization, classification — maximum cost savings
+- Model selection is per-phase, not per-request — the agent controls routing
+
+**2. Reactive Execution with Native Function Calling**
+- Executor uses `tools` parameter with `tool_choice: "auto"` — the LLM decides which tools to call
+- No rigid pre-planned step list — the LLM observes tool results and decides next action dynamically
+- `generate_schema` tool is the terminal action — when the LLM calls it, execution ends successfully
+- Every `tool_call` gets a corresponding `tool` message result (even when blocked by security)
+
+**3. Three-Tier Command Security**
+- **READ tier** (always allowed): All `AGENT_READ_ONLY_ALLOWLIST` commands
+- **WRITE tier** (allowlisted, auto-approved): Config edits via SFTP, service management (`systemctl restart/reload`)
+- **DENY tier** (always blocked): `rm -rf /`, `mkfs`, `dd if=`, `shutdown`, pipe-to-shell. Hardcoded, cannot be bypassed.
+
+**4. Inline Self-Correction (Zod-as-Linter)**
+- When the `generate_schema` tool is called, output is validated with Zod immediately
+- If Zod fails → error is returned as the tool result → LLM fixes inline in the same loop
+- This replaces the old design where validation failures required a separate reflection phase
+- Post-generation reflection is optional — only for complex interactive UIs (forms, multi-tab)
+
+**5. Safety Rails (from Roo Code)**
+- `consecutiveMistakeCount`: 3 turns without tool calls → abort with explanation
+- `ToolRepetitionDetector`: Same tool+args called 5x → warning injected
+- `maxSteps`: Hard limit (default 20) prevents infinite loops
+- `didToolFailInCurrentTurn`: Prevents retry flood after tool failure
+
+**6. Context Management (from Continue)**
+- `ContextManager` tracks token usage across the conversation
+- At 80% of model context window → compact history using weak model
+- Prevents context overflow errors in long agent sessions
+
+**Consequences:**
+- (+) Reactive loop produces higher quality output than rigid pre-planned execution
+- (+) Native function calling leverages LLM training — models are optimized for tool use
+- (+) Inline Zod validation reduces LLM calls (no separate reflection for syntax errors)
+- (+) Four model roles optimize cost (weak model for cheap ops, reasoning only when needed)
+- (+) Safety rails prevent infinite loops and runaway costs (battle-tested in Roo Code)
+- (+) Context compaction allows long agent sessions without context window overflow
+- (+) Self-correcting: errors become tool results → LLM fixes inline
+- (+) Dynamic UIs become interactive — config editing, service management
+- (-) More complex than InvestigationAgent (but solves a harder problem)
+- (-) Multiple LLM calls per generation increases cost (mitigated by caching + weak model)
+- (-) Write tier allowlist needs maintenance as new tools are supported
+- (-) Post-reflection is optional, which may miss semantic quality issues in simple mode
+
+**Reference:** See [phases/phase-ex2.md](phases/phase-ex2.md) for the full implementation spec and [phases/AGENT_RESEARCH_EX2.md](phases/AGENT_RESEARCH_EX2.md) for research synthesis.
+
+---
+
+## ADR-017: Two-Pass Design Classifier & Smart Layout Engine
+
+**Status:** Accepted
+**Date:** 2026-04-12
+
+**Context:**
+The Dynamic UI Engine (EX1) and UI Agent (EX2) generate views from terminal output, but layouts default to vertical stacking — stat-cards stacked instead of gridded, multiple related tables stacked instead of tabbed, no visual hierarchy. The LLM makes layout decisions in the same pass as data extraction, leading to poor design choices. The system is a server management tool, not a visualization/charting platform, but charts were being overused.
+
+**Options Considered:**
+1. **Single-pass with better prompts** — Add more layout rules to the existing system prompt and hope the LLM follows them
+2. **Two-pass design classifier** — A fast, cheap classifier determines content type and layout pattern before the main generator runs, constraining its output
+3. **Template-only approach** — Remove LLM layout decisions entirely, use strict template matching based on command/tool name
+
+**Decision:** Option 2 — Two-pass design classifier with layout pattern library
+
+**Rationale:**
+- Single-pass prompts are unreliable — the LLM's layout choices are inconsistent and degrade with complex output
+- Template-only is too rigid — novel commands or atypical output produce poor results
+- Two-pass combines the best of both: fast classification (< 500ms, cheap model) constrains the generator to follow proven layout patterns while retaining LLM flexibility for data extraction and widget population
+- The classifier also gates chart/gauge usage via `useVisualization` flag, enforcing "widgets first, charts second" philosophy
+
+**Key Design Decisions:**
+- **10 content types** (metrics-overview, data-table, multi-dataset, config-review, status-board, log-analysis, tree-hierarchy, audit-report, comparison, detail-view)
+- **10 layout patterns** (dashboard-metrics, single-table, tabbed-detail, config-viewer, status-overview, log-viewer, tree-explorer, audit-report, comparison-grid, detail-overview)
+- **Responsive auto-fit grid** via CSS `repeat(auto-fit, minmax(Xpx, 1fr))` — stat-cards reflow automatically
+- **Charts/gauges gated** — only used when classifier sets `useVisualization: true` with justification
+- **Progressive assembly** — skeleton first, widgets stream in via `layout_update` events
+
+**Consequences:**
+- (+) Consistent, professional layouts across all content types
+- (+) Fast first visual (< 1.5s skeleton) via early classification
+- (+) Chart/gauge usage properly constrained — not overused
+- (+) Layout patterns are reusable and testable independently of LLM
+- (+) FakeLLM generator enables template QA without LLM costs
+- (-) Two LLM calls per generation (classifier + generator) — mitigated by cheap classifier model
+- (-) 10 patterns may not cover every edge case — need escape hatch for novel layouts
+- (-) Pattern library requires maintenance as new widget types are added
+
+**Reference:** See [phases/phase-ex3.md](phases/phase-ex3.md) for the full implementation spec.
+
+---
+
+## ADR-018: Embedded LLM Observatory — In-Process Trace & Span Debugger
+
+**Status:** Accepted
+**Date:** 2026-04-13
+
+**Context:**
+HeadlessOS makes extensive LLM calls — the UI Agent pipeline alone makes 5-20+ calls per session (plan → reactive executor → reflect), the DynamicUIGenerator makes 2 per view (classify + generate), and the InvestigationAgent makes 3-15 per investigation. Debugging these pipelines is currently impossible: the only observability is `GET /api/stats/llm` which returns flat aggregates (total tokens, cost, calls-by-model). There is no way to see:
+
+- What the planner's prompt looked like and what it returned
+- Which tools the executor called and in what order
+- Why the reflector requested a re-execution
+- Token/cost breakdown per-phase (plan vs execute vs reflect)
+- What went wrong when an agent session produces a bad UI
+
+Python has [Arize Phoenix](https://github.com/Arize-AI/phoenix) — a self-hosted LLM observability tool with trace trees, span details, and token tracking. **Nothing equivalent exists in the JavaScript/Node.js ecosystem.** All JS options (Langfuse, Helicone, OpenLLMetry, Braintrust, Lunary) require external cloud services or heavy infrastructure (PostgreSQL + ClickHouse for self-hosted Langfuse).
+
+Since HeadlessOS is a localhost app with no external dependencies, we need an embedded solution.
+
+**Options Considered:**
+
+1. **Integrate Langfuse self-hosted** — Requires PostgreSQL + ClickHouse. Massive infrastructure for a localhost app.
+2. **Use OpenTelemetry + Jaeger** — OTLP export to Jaeger. Requires running Jaeger as a separate service. Generic tracing, not LLM-aware.
+3. **Build custom, Phoenix-inspired, in-process Observatory** — In-memory TraceStore with ring buffer, AsyncLocalStorage context propagation, REST + WebSocket API, custom React UI.
+4. **Just improve the existing stats endpoint** — Add per-model and per-command breakdowns to `GET /api/stats/llm`. No hierarchy, no content, no tree.
+
+**Decision:** Option 3 — Custom embedded LLM Observatory, inspired by Phoenix's architecture.
+
+**Rationale:**
+- Option 1 rejected: Unacceptable infrastructure requirements for a localhost app. PostgreSQL + ClickHouse just for trace storage.
+- Option 2 rejected: OTLP/Jaeger is designed for distributed systems, not in-process LLM debugging. Generic spans lack LLM-specific abstractions (model, role, tokens, cost, prompt/response).
+- Option 3 chosen: Lightweight, zero-dependency, in-memory. Uses patterns proven by Phoenix (trace→span tree, cumulative token rollup, lazy content serialization) but implemented as a simple Map-based store with AsyncLocalStorage context.
+- Option 4 rejected: Flat stats can't answer "why did the agent produce a bad UI?" — need per-call content and hierarchy.
+
+### Key Design Decisions
+
+**1. In-Memory Ring Buffer (Not Database)**
+- 200-trace ring buffer — oldest evicted when full
+- All storage is `Map<string, Trace/Span>` — O(1) read/write
+- No persistence across server restarts (traces are debugging data, not business data)
+- Memory bounded: ~10-20MB for 200 traces (controlled by lazy serialization)
+
+**2. AsyncLocalStorage for Context Propagation**
+- Node.js native `AsyncLocalStorage` carries `{ traceId, spanId }` through async call stacks
+- `withTrace()` / `withSpan()` wrappers automatically link parent↔child spans
+- Near-zero overhead (~0.01ms, used by Next.js/Fastify for request context)
+- No manual parent tracking needed in instrumented code
+
+**3. Cumulative Token Rollup at Write Time (Phoenix Pattern)**
+- When a span ends, walk up the parent chain to root, updating `cumulative.tokenUsage` and `cumulative.costUsd` at each ancestor
+- This means trace-level totals are always up-to-date without querying all descendant spans
+- Computed at write time (endSpan), not read time (API request) — keeps API responses fast
+
+**4. REST + WebSocket (Not GraphQL)**
+- Phoenix uses Strawberry GraphQL + Relay — overkill for embedded use
+- Simple REST endpoints for list/detail/stats + WebSocket for live updates
+- Matches HeadlessOS's existing API pattern (Fastify REST + WS)
+
+**5. Lazy Content Serialization**
+- Span `input`/`output` stored as JavaScript object references (not JSON strings)
+- Serialized to JSON only when the detail API endpoint is called
+- List and tree endpoints return spans without content (set to `null`)
+- Prevents serialization of large prompts on every API call
+
+**6. Four Span Kinds (Simplified from Phoenix)**
+- Phoenix has 9+ span kinds (LLM, CHAIN, TOOL, AGENT, RETRIEVER, EMBEDDING, EVALUATOR, GUARDRAIL, RERANKER)
+- HeadlessOS needs only 4: **LLM** (individual call), **AGENT** (root session), **CHAIN** (pipeline phase), **TOOL** (tool execution)
+- Fewer kinds = simpler UI, less code, still covers all use cases
+
+**Consequences:**
+- (+) Debug any LLM pipeline by clicking through the trace tree
+- (+) Zero external dependencies — nothing to install, configure, or maintain
+- (+) Near-zero performance overhead (< 1ms per span, ~0.01ms typical)
+- (+) Bounded memory (ring buffer evicts old traces)
+- (+) Live debugging — watch agent spans appear in real-time via WebSocket
+- (+) Reuses existing infrastructure (Fastify REST/WS, shadcn/ui, Zustand, recharts)
+- (-) No persistence — traces are lost on server restart (acceptable for debugging tool)
+- (-) 200-trace limit may miss historical data (can increase if memory allows)
+- (-) Custom UI effort — no existing JS trace viewer to reuse
+- (-) Ring buffer eviction is FIFO, not LRU (could evict actively-referenced traces if 200+ traces generated without clearing)
+
+**Reference:** See [phases/phase-ex4.md](phases/phase-ex4.md) for the full implementation spec.
+
+---
+
+## ADR-019: Sandbox CLI Discovery for Agent App Generation
+
+**Status:** Accepted
+**Date:** 2026-04-12
+
+**Context:**
+HeadlessOS's UIAgent (EX2) can generate dynamic UIs from terminal output, but to create management UIs for arbitrary CLI tools (restic, nginx, redis-cli, etc.), the agent needs to run discovery commands like `--help`, `--version`, and `man`. Running unknown commands directly on a production server carries risk — a malformed flag or unexpected side-effect could cause harm. We need a safe environment for CLI introspection while still generating schemas that work against the real server.
+
+**Options Considered:**
+
+1. **Run discovery directly on the target server** — Simplest. Just open the allowlist for `--help` patterns. Risk: unexpected tool behavior, resource consumption, or side effects.
+2. **Docker container on target server** — Spin up an ephemeral container matching the server's OS, install the tool, run discovery inside it, then destroy it. Schema applies to the real server.
+3. **Docker container locally (Mac/desktop)** — Run discovery on the user's machine. Zero server impact but different OS/arch may produce different `--help` output.
+4. **firejail/bubblewrap on server** — Kernel-level sandboxing. Not universally available, complex setup.
+
+**Decision:** Option 2 — Ephemeral Docker container on the target server, with Option 1 as fallback when Docker isn't available.
+
+**Rationale:**
+- Option 2 provides real isolation (separate PID/network/filesystem namespace) while matching the server's OS/architecture so `--help` output, paths, and package names are accurate
+- Resource-capped (`--memory=256m`, `--cpus=0.5`, `--pids-limit=100`) and network-isolated (`--network=none` during discovery)
+- Automatic cleanup: 5-minute TTL + orphan reaper on service start
+- HeadlessOS already has full Docker management routes (`docker run/exec/rm`) and multi-server SSH — minimal new infrastructure needed
+- Option 1 (direct execution) remains available as fallback with a clear toggle — some users may prefer speed over isolation for trusted tools
+- Option 3 rejected: Cross-platform differences make schemas unreliable (e.g., macOS `--help` vs Linux `--help` differ for many tools)
+- Option 4 rejected: Not available on all servers, complex configuration
+
+### Key Design Decisions
+
+**1. `docker exec` (Not SSH-into-container)**
+- No sshd needed inside the sandbox container
+- Uses existing `connectionManager.exec()` with `docker exec {containerId} {command}`
+- Simpler, faster, fewer attack vectors
+
+**2. Network Toggle for Package Installation**
+- Sandbox starts with `--network=none` for discovery safety
+- Temporarily connects to bridge network for `apt install` via `docker network connect/disconnect`
+- Alternatively: pre-install packages before applying network restrictions
+
+**3. OS-Matched Base Image**
+- `get_server_context()` already detects the server's OS (Ubuntu/Debian/CentOS/Alpine)
+- Sandbox uses matching base image so discovery output matches reality
+- Fallback: `ubuntu:22.04` if OS detection fails
+
+**4. Two-Phase Agent Flow**
+- Phase 1 (Discovery): All `--help` / `man` / `--version` commands routed to sandbox via `sandbox_exec` tool
+- Phase 2 (Apply): Schema rendered against real server, `dataSource` commands and action buttons use real `exec_command`
+- Clean separation: sandbox is for learning about the tool, real server is for using it
+
+**5. SandboxManager as BaseService**
+- Follows existing ServiceContainer pattern (ADR-011)
+- Lifecycle: `_construct()` → `_init()` (reap orphans) → `_destroy()` (destroy all active sandboxes)
+- Registered in `ServiceContainer` alongside existing services
+
+**Consequences:**
+- (+) Safe discovery — unknown CLI tools can't harm production server
+- (+) Accurate schemas — same OS/arch as target server
+- (+) Reuses existing infrastructure — Docker routes, SSH manager, agent tools
+- (+) Optional — users can toggle sandbox off for trusted tools or servers without Docker
+- (+) Bounded resources — memory/CPU/PID limits prevent resource exhaustion
+- (+) Auto-cleanup — TTL + orphan reaper prevent container leaks
+- (-) Requires Docker on target server (graceful fallback to direct mode)
+- (-) ~10-15s overhead for container creation + package installation
+- (-) Network toggle for install is a brief moment of connectivity (mitigated: only `apt install`, then disconnect)
+- (-) Additional complexity in the agent flow (two-phase execution)
+
+**Reference:** See [phases/phase-ex5.md](phases/phase-ex5.md) for the full implementation spec.
+
+---
+
+## ADR-020: Multi-Session Desktop Architecture (Citrix-Style)
+
+**Status:** Accepted
+**Date:** 2026-04-18
+
+**Context:**
+HeadlessOS today supports a **single active desktop**. `app-store.activeServerId` selects which server's windows are rendered; switching servers wipes the visible UI even though `window-store.windows` are tagged with `serverId`. Real users (per requirements: ~6 servers — app, db, logging, monitoring, etc.) need to keep multiple servers "open" at the same time the way Citrix Workspace / RDP keeps multiple sessions alive, and switch between them without losing state.
+
+**Options Considered:**
+1. **Status quo: single active server** — simple, but every server switch is jarring; no persistence
+2. **Tabbed servers** — one server per browser tab; relies on the OS window manager. Loses unified UI, can't share clipboard or notifications
+3. **Multi-session model (Citrix-style)** — N concurrent in-memory sessions, each with its own desktop state, switched via a top-edge hover bar. One session per server.
+4. **N sessions per server (XenApp-style)** — multiple parallel sessions on the same server with explicit session IDs. Maximum flexibility, maximum complexity.
+
+**Decision:** Option 3 — one session per server, multiple concurrent sessions, hover-reveal Session Switcher.
+
+**Rationale:**
+- Matches the user's mental model: "the DB server", "the logging server" — one persistent workspace per box
+- Re-uses the existing `serverId` tagging on windows — windows just become session-scoped instead of globally filtered
+- Single SSH connection per server is already the model (ADR-005 multi-channel) — no SSH topology change required
+- Background sessions stay connected (no idle-hibernate); only explicit user action or app close hibernates a session — avoids constant reconnect churn for users who switch servers all day
+- Hover-reveal switcher mirrors Citrix's familiar pattern and keeps screen real estate clean
+- Per-session accent color is the **primary safety mechanism** against running destructive commands on the wrong server (more reliable than reading the title bar)
+- N-per-server (Option 4) deferred indefinitely — adds session-IDs everywhere for a use case that isn't requested
+
+**Consequences:**
+- (+) Users can keep many servers "live" and switch instantly
+- (+) Clear visual identity per server reduces cross-server mistakes
+- (+) Cleanly separates "this server" (session-scoped state) from "across servers" (global state like Fleet, LLM Observatory)
+- (+) Forces a clean refactor of stores into well-defined scopes (session vs global)
+- (–) N parallel SSH connections — must throttle background polling for inactive sessions
+- (–) Significant refactor: every store currently scoped to `activeServerId` must move into the session
+- (–) `Fleet` view must move out of the desktop (it's a meta view) — see ADR-020 follow-on
+
+**Reference:** See [phases/phase-ex6.md](phases/phase-ex6.md) for the implementation plan.
+
+---
+
+## ADR-021: Session Persistence & Hibernation
+
+**Status:** Accepted
+**Date:** 2026-04-18
+
+**Context:**
+Multi-session desktops (ADR-020) need a persistence story so closing the laptop or browser doesn't destroy work. Users want Windows-hibernation-style behavior: reopen the app, unlock once, find every server's windows back where they were.
+
+**Options Considered:**
+1. **Ephemeral only** — sessions live in memory, lost on refresh. Status quo for the existing single-desktop. Unacceptable for multi-session.
+2. **Browser-only persistence** — IndexedDB / `localStorage`. Survives refresh but lost on browser data clear / new device.
+3. **Backend-file persistence** — JSON per server in `~/.headlessos/sessions/{serverId}.json`, matching the existing `servers.json` pattern (ADR-001 / M1.6). Authoritative, survives browser, enables future multi-device sync.
+4. **Three-tier (Hot / Warm / Cold)** — in-memory for active, debounced `localStorage` for refresh-safety, backend file for hibernation.
+
+**Decision:** Option 4 — three-tier storage with backend file as the cold tier (authoritative).
+
+**Storage Tiers:**
+
+| Tier | Where | Survives | Latency | Purpose |
+|------|-------|----------|---------|---------|
+| Hot | `useSessionsStore` (Zustand, in-memory) | tab open | instant | active + background sessions |
+| Warm | `localStorage` (debounced 500ms flush) | browser refresh | ~ms | crash recovery |
+| Cold | `~/.headlessos/sessions/{serverId}.json` | browser close, multi-device | ~10–50ms | hibernation, app restart |
+
+**Lifecycle States:**
+
+| State | SSH | In-Memory | Persisted | Rendered |
+|-------|-----|-----------|-----------|----------|
+| `active` | connected | yes | warm + dirty-flag | foreground |
+| `background` | connected | yes | warm + dirty-flag | hidden, throttled polling |
+| `hibernated` | disconnected | no | cold | not rendered |
+| `terminated` | — | no | none | not rendered |
+
+**Hibernation triggers (auto-hibernate disabled by default):**
+- Explicit user action (right-click tile → Hibernate, `Ctrl/Cmd+Shift+H`)
+- App close / browser close (graceful flush via `beforeunload`)
+- Backend graceful shutdown
+
+**Wake flow:**
+1. App load detects hibernated sessions
+2. Single unified lock screen → unlock once → all sessions begin parallel reconnect
+3. Each session shows status in switcher (connected / reconnecting / failed-click-to-retry / hibernated)
+4. User lands on the last-active session
+
+**Persisted Per Session (cold tier):**
+- Window layout: positions, sizes, z-order, minimized/maximized, app id + per-window meta
+- Open dynamic-ui pinned views (refs, not rendered HTML)
+- Terminal references (cwd, app id) — process not restored, terminal re-spawns fresh
+- Per-session preference overrides (ADR-022)
+- Last-active app, last-focused window
+- Clipboard (already per-server)
+- Agent conversation history (cap: last 50 sessions per server)
+- Notification badge counts
+
+**Not Persisted:**
+- SSH connection (recreated on wake)
+- Live terminal scrollback
+- In-flight agent generations (must restart)
+- LLM Observatory traces (separate global persistence — see ADR-021 follow-on)
+
+**Rationale:**
+- Backend file matches the existing `servers.json` pattern users already trust
+- Three tiers separate "instant" (hot) from "refresh-safe" (warm) from "device-safe" (cold) — each problem solved at the right layer
+- Unified lock-screen wake is simpler than per-session locks and mirrors Windows hibernation UX
+- No idle auto-hibernate avoids the daily-switcher pain point of constant SSH reconnects
+- Capping agent history at 50 per server bounds disk usage (~5–50MB per server worst case)
+
+**Consequences:**
+- (+) Survives browser close, laptop shutdown, browser reinstall
+- (+) Single auth gate on wake — fast for trusted environments, secure for shared machines
+- (+) Reuses existing `~/.headlessos/` config dir convention
+- (+) Authoritative source enables future multi-device sync without rewriting persistence
+- (–) Adds backend write traffic on every dirty-flush (mitigated: warm tier debounces; cold tier only on hibernate / app close)
+- (–) Schema migration burden — `SessionStateSchema` versioning needed for future changes
+- (–) Need a sane handling of corrupted session files (graceful drop + warning, never block app load)
+
+**Reference:** See [phases/phase-ex6.md](phases/phase-ex6.md) for the implementation plan.
+
+---
+
+## ADR-022: Per-Session Preference Layering
+
+**Status:** Accepted
+**Date:** 2026-04-18
+
+**Context:**
+With multi-session desktops (ADR-020), preferences like wallpaper, accent color, terminal font, polling interval, and pinned apps need to be **per-server**, not globally shared. A user's prod-DB session may want a red accent and high polling, while their logging server wants a blue accent and low polling. But forcing every preference per-server would force users to reconfigure each server they add — bad UX.
+
+**Options Considered:**
+1. **Global only (status quo)** — prefs apply everywhere. Simple but no per-server tuning.
+2. **Per-server only** — every preference is owned by a session. Maximum flexibility, painful default.
+3. **Layered: global defaults ⊕ per-session overrides** — global value is the default, per-session value overrides if set.
+
+**Decision:** Option 3 — layered preferences with global defaults and per-session overrides.
+
+**Resolution rule:** `effective[key] = sessionOverrides[key] ?? globalDefaults[key]`
+
+**UI implication:** Settings dialog gets a scope toggle: **`Global / This Server`**. The "This Server" view shows only overrides; an explicit "Reset to global default" button clears an override. Most preferences default to inheriting the global value.
+
+**Always Global (cannot be per-session):**
+- Theme mode (light/dark/auto) — confusing if servers disagree on theme
+- LLM provider config and API keys — shared across all sessions
+- Account / sign-out behavior
+
+**Per-session by default:**
+- Accent color (drives session visual identity — ADR-020)
+- Wallpaper (defer — EX6-D)
+- Terminal font / size
+- Auto-refresh polling interval
+- Default app on launch
+- Clock format (defer — keep global initially)
+
+**Per-session optional override:**
+- Pinned apps (default: global; can override per server for specialized servers)
+- Notification preferences
+
+**Rationale:**
+- Layered model is the smallest change that enables per-server differentiation while keeping the "set once globally" workflow for common preferences
+- Accent color being per-session-by-default forces visual differentiation — this is a safety feature, not a cosmetic one
+- Theme being global avoids the "white desktop / dark window" jank when switching sessions
+- Clear scope toggle in Settings makes the model legible to users without explaining "layering"
+
+**Consequences:**
+- (+) Sane defaults — adding a new server inherits all global preferences
+- (+) Power users get full per-server control where it matters
+- (+) Visual safety — per-session accent prevents wrong-server commands
+- (–) Settings UI gets more complex (scope toggle, override indicators)
+- (–) Must define the always-global allowlist carefully and document it
+- (–) Migration: existing global preferences become defaults; no per-session overrides exist initially
+
+**Reference:** See [phases/phase-ex6.md](phases/phase-ex6.md) for the implementation plan.
+
+---
+
 ## Template for New ADRs
 
 ```markdown

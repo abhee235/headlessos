@@ -116,6 +116,14 @@ export class ConnectionManager extends BaseService {
     this.setState(serverId, 'disconnected');
   }
 
+  /**
+   * EX6-A.10: List the IDs of all currently connected servers.
+   * Used by graceful shutdown to mark active sessions as hibernated.
+   */
+  getConnectedServerIds(): string[] {
+    return [...this.connections.keys()];
+  }
+
   getState(serverId: string): ConnectionState {
     const conn = this.connections.get(serverId);
     return conn?.state ?? {

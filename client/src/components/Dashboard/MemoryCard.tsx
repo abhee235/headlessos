@@ -24,9 +24,9 @@ export function MemoryCard({ memory }: MemoryCardProps) {
     : 0;
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
+    <div className="rounded-xl border border-border bg-card p-4">
       <div className="flex items-center gap-2 mb-3">
-        <MemoryStick className="w-4 h-4 text-purple-400" />
+        <MemoryStick className="w-4 h-4 text-primary" />
         <h3 className="text-sm font-medium text-card-foreground">Memory</h3>
       </div>
 
@@ -68,10 +68,10 @@ export function MemoryCard({ memory }: MemoryCardProps) {
 function ProgressBar({ percent, color }: { percent: number; color: string }) {
   const barColor =
     color === 'purple'
-      ? 'bg-purple-500'
+      ? 'bg-primary'
       : color === 'amber'
-        ? 'bg-amber-500'
-        : 'bg-blue-500';
+        ? 'bg-warning'
+        : 'bg-primary';
 
   return (
     <div className="w-full bg-muted rounded-full h-2">

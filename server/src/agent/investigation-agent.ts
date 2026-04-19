@@ -11,148 +11,11 @@ import { z } from 'zod';
 import type { ConnectionManager, ExecResult } from '../ssh/connection-manager.js';
 import type { LLMProvider } from '../llm/provider.js';
 import { EventEmitter } from 'events';
+import { isReadCommandAllowed } from './command-allowlist.js';
+import { withTrace, withSpan, setSpanAttributes } from '../observatory/context.js';
 
-// ── Agent allowlist (ADR-014) ───────────────────────────
-
-const AGENT_READ_ONLY_ALLOWLIST: RegExp[] = [
-  // System info
-  /^cat\s+\/proc\/(cpuinfo|meminfo|loadavg|version|stat|uptime|filesystems|mounts|swaps)$/,
-  /^cat\s+\/etc\/(os-release|hostname|hosts|resolv\.conf|fstab|passwd|group|shadow|sudoers)$/,
-  /^head\s+-n\s+\d+\s+/,
-  /^tail\s+-n\s+\d+\s+/,
-  /^tail\s+-f?\s+-n\s+\d+\s+/,
-  /^wc\s+(-[lcw]\s+)?/,
-  /^grep\s+(-[rinlcEP]+\s+)*('|")?.+\2\s+/,
-  /^find\s+\/[^\s;|&]*\s+/,
-  /^ls\s+(-[laRhtr1]+\s+)*(\/[^\s;|&]*)?$/,
-  /^stat\s+/,
-  /^file\s+/,
-
-  // Disk & storage
-  /^df\s+(-[hHTPi]+\s*)+$/,
-  /^du\s+(-[shx]+\s+)*(\/[^\s;|&]*)?$/,
-  /^lsblk(\s+(-[flo]+))?$/,
-  /^findmnt(\s+(-[lnr]+))?/,
-  /^swapon\s+--show/,
-
-  // Memory & CPU
-  /^free\s+(-[mhgb]+\s*)+$/,
-  /^vmstat(\s+\d+\s+\d+)?$/,
-  /^iostat(\s+-[dxc]+)?(\s+\d+\s+\d+)?$/,
-  /^top\s+-b\s*-?n\s*1/,
-  /^top\s+-bn\s*1/,
-  /^uptime$/,
-
-  // Processes
-  /^ps\s+(aux|ef|axo\s+)/,
-  /^pgrep\s+/,
-
-  // Network
-  /^ip\s+((-brief\s+)?addr|route|link|neigh)/,
-  /^ss\s+(-[tlunpa46]+\s*)+/,
-  /^netstat\s+(-[tlunpa]+\s*)+$/,
-  /^nslookup\s+/,
-  /^dig\s+/,
-  /^ping\s+-c\s*[1-5]\s+/,
-  /^curl\s+(-[sISLkvH]+\s+)*https?:\/\//,
-  /^wget\s+(-q\s+)?-O\s*-\s+/,
-
-  // System
-  /^hostname$/,
-  /^uname\s+-[a-z]+$/,
-  /^who(\s+-[a-z]+)*$/,
-  /^w$/,
-  /^last(\s+-\d+)?(\s+-[a-z]+)*$/,
-  /^dmesg(\s+--time-format=\S+)?(\s+\|\s+tail\s+-n\s+\d+)?$/,
-
-  // Logs
-  /^journalctl\s+--no-pager/,
-  /^journalctl\s+(-b|--boot)(\s+--no-pager)?/,
-  /^journalctl\s+-u\s+\S+/,
-  /^tail\s+-n\s+\d+\s+\/var\/log\//,
-  /^cat\s+\/var\/log\//,
-
-  // Docker (read-only)
-  /^docker\s+ps(\s+-[a]+)?(\s+--format\s+\S+)?$/,
-  /^docker\s+images(\s+--format\s+\S+)?$/,
-  /^docker\s+inspect\s+/,
-  /^docker\s+logs\s+(--tail\s+\d+\s+)?/,
-  /^docker\s+stats\s+--no-stream/,
-  /^docker\s+compose\s+(ps|ls|config)/,
-
-  // Systemd (read-only)
-  /^systemctl\s+(status|list-units|list-unit-files|is-active|is-enabled|show)\s+/,
-  /^systemctl\s+list-units(\s+--type=\S+)?(\s+--state=\S+)?$/,
-  /^systemctl\s+--failed$/,
-  /^systemctl\s+list-units\s+--state=failed$/,
-
-  // Nginx (read-only)
-  /^nginx\s+-t/,
-  /^nginx\s+-T$/,
-
-  // Git (read-only)
-  /^git\s+(log|status|branch|remote|diff|show)/,
-];
-
-const BLOCKED_PATTERNS: RegExp[] = [
-  /rm\s+(-[rfdi]+\s+)*\//,
-  /mkfs/,
-  /dd\s+if=/,
-  /shutdown/,
-  /reboot/,
-  /init\s+[06]/,
-  /:\(\)\s*\{\s*:\|:\s*&\s*\}\s*;/,
-  /chmod\s+(-R\s+)?777\s+\//,
-  />\s*\/dev\/sd/,
-  /wget.*\|\s*(sh|bash)/,
-  /curl.*\|\s*(sh|bash)/,
-  /\brm\b.*--no-preserve-root/,
-  />\s*\/etc\//,
-  /sudo\s+su/,
-  /passwd/,
-];
-
-export function isCommandAllowed(cmd: string): boolean {
-  const trimmed = cmd.trim();
-
-  // Check blocked patterns first
-  for (const blocked of BLOCKED_PATTERNS) {
-    if (blocked.test(trimmed)) return false;
-  }
-
-  // Check allowlist — support piped commands (each segment must be allowed or a safe filter)
-  const segments = trimmed.split(/\s*\|\s*/);
-  const PIPE_FILTERS = [
-    /^grep\s+/,
-    /^head\s+/,
-    /^tail\s+/,
-    /^sort(\s+-[a-zA-Z0-9]+)*$/,
-    /^uniq(\s+-[cd]+)?$/,
-    /^wc\s+/,
-    /^awk\s+/,
-    /^sed\s+/,
-    /^cut\s+/,
-    /^tr\s+/,
-    /^column\s+/,
-    /^less$/,
-    /^cat$/,
-  ];
-
-  for (let i = 0; i < segments.length; i++) {
-    const seg = segments[i]!.trim();
-    if (i === 0) {
-      // First command must be in allowlist
-      const allowed = AGENT_READ_ONLY_ALLOWLIST.some(re => re.test(seg));
-      if (!allowed) return false;
-    } else {
-      // Piped commands can be safe filters
-      const isFilter = PIPE_FILTERS.some(re => re.test(seg));
-      if (!isFilter) return false;
-    }
-  }
-
-  return true;
-}
+// Re-export for backwards compatibility
+export const isCommandAllowed = isReadCommandAllowed;
 
 // ── Agent Step Schema (for structured LLM output) ───────
 
@@ -251,6 +114,17 @@ export class InvestigationAgent {
       };
     }
 
+    return withTrace(`Investigation: ${question.slice(0, 50)}`, {
+      trigger: 'investigation-agent',
+      serverId,
+    }, () => this.investigateCore(serverId, question, options));
+  }
+
+  private async investigateCore(
+    serverId: string,
+    question: string,
+    options: AgentOptions = {},
+  ): Promise<AgentResult> {
     const sessionId = crypto.randomUUID();
     const maxSteps = options.maxSteps ?? DEFAULT_MAX_STEPS;
     const cmdTimeout = options.commandTimeout ?? DEFAULT_CMD_TIMEOUT;
@@ -259,6 +133,9 @@ export class InvestigationAgent {
     const startTime = Date.now();
     let finalAnswer = '';
     let status: AgentResult['status'] = 'completed';
+
+    // Record the user's question as input on the root AGENT span
+    setSpanAttributes({ input: question });
 
     // Build conversation history for the LLM
     const conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [
@@ -276,19 +153,28 @@ export class InvestigationAgent {
         break;
       }
 
-      // Ask LLM for next action
+      // Ask LLM for next action — wrapped in Observatory LLM span (EX4-B.2)
       let thought: AgentThought;
       try {
         const userPrompt = conversationHistory
           .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
           .join('\n\n') + `\n\nStep ${step}/${maxSteps}. Respond with your next thought, command to run, or final answer.`;
 
-        const parseResult = await this.llmProvider.parseText({
-          rawOutput: '',
-          command: 'agent-investigate',
-          schema: AgentThoughtSchema,
-          systemPrompt: AGENT_SYSTEM_PROMPT,
-          userPrompt,
+        const parseResult = await withSpan(`InvestigationAgent.think[${step}]`, 'LLM', async () => {
+          const result = await this.llmProvider!.parseText({
+            rawOutput: '',
+            command: 'agent-investigate',
+            schema: AgentThoughtSchema,
+            systemPrompt: AGENT_SYSTEM_PROMPT,
+            userPrompt,
+          });
+          setSpanAttributes({
+            model: result.model,
+            tokenUsage: { inputTokens: result.tokensUsed.input, outputTokens: result.tokensUsed.output, totalTokens: result.tokensUsed.input + result.tokensUsed.output },
+            input: userPrompt.slice(0, 500),
+            output: { decision: result.data.decision, thought: result.data.thought.slice(0, 200) },
+          });
+          return result;
         });
 
         thought = parseResult.data;
@@ -340,10 +226,12 @@ export class InvestigationAgent {
           continue;
         }
 
-        // Execute command
+        // Execute command — wrapped in TOOL span (EX4-B.2)
         let execResult: ExecResult;
         try {
-          execResult = await this.ssh.exec(serverId, cmd, cmdTimeout);
+          execResult = await withSpan(`cmd:${cmd.split(' ')[0]}`, 'TOOL', async () => {
+            return this.ssh.exec(serverId, cmd, cmdTimeout);
+          }, { input: cmd });
         } catch (err) {
           const errMsg = err instanceof Error ? err.message : 'Command execution failed';
           steps.push({
@@ -415,12 +303,21 @@ export class InvestigationAgent {
           .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
           .join('\n\n') + '\n\nYou have reached the maximum number of steps. Provide your best diagnosis now based on what you have gathered.';
 
-        const finalResult = await this.llmProvider!.parseText({
-          rawOutput: '',
-          command: 'agent-final-answer',
-          schema: AgentThoughtSchema,
-          systemPrompt: AGENT_SYSTEM_PROMPT,
-          userPrompt: finalPrompt,
+        const finalResult = await withSpan('InvestigationAgent.finalAnswer', 'LLM', async () => {
+          const result = await this.llmProvider!.parseText({
+            rawOutput: '',
+            command: 'agent-final-answer',
+            schema: AgentThoughtSchema,
+            systemPrompt: AGENT_SYSTEM_PROMPT,
+            userPrompt: finalPrompt,
+          });
+          setSpanAttributes({
+            model: result.model,
+            tokenUsage: { inputTokens: result.tokensUsed.input, outputTokens: result.tokensUsed.output, totalTokens: result.tokensUsed.input + result.tokensUsed.output },
+            input: finalPrompt.slice(0, 500),
+            output: result.data.answer ?? result.data.thought,
+          });
+          return result;
         });
         finalAnswer = finalResult.data.answer ?? finalResult.data.thought;
         totalTokens += finalResult.tokensUsed.input + finalResult.tokensUsed.output;
@@ -430,6 +327,12 @@ export class InvestigationAgent {
     }
 
     this.abortedSessions.delete(sessionId);
+
+    // EX4-B.2: Record investigation result on the trace root span
+    setSpanAttributes({
+      output: { answer: finalAnswer.slice(0, 500), totalSteps: steps.length, status },
+      attributes: { sessionId, totalTokens },
+    });
 
     return {
       sessionId,

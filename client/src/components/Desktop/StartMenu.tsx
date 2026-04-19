@@ -4,6 +4,7 @@
 import { useDesktopStore } from '../../store/window-store';
 import { useAppStore } from '../../store/app-store';
 import { usePreferencesStore } from '../../store/preferences-store';
+import { useSavedAppStore } from '../../store/saved-app-store';
 import {
   Search,
   Power,
@@ -14,7 +15,9 @@ import {
   Unplug,
   Lock,
   ArrowLeftRight,
+  Sparkles,
 } from 'lucide-react';
+import { getLucideIcon } from '../DynamicUI/widgets/icon-helper';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   DashboardIcon,
@@ -27,6 +30,7 @@ import {
   ServerAdminIcon,
   FleetIcon,
   AgentIcon,
+  ObservatoryIcon,
 } from '@/components/ui/FileIcon';
 
 // ─── Greeting ────────────────────────────────────────────────────────────────
@@ -53,7 +57,7 @@ const PINNED_APPS: AppEntry[] = [
   { id: 'taskmanager', label: 'Tasks', IconComponent: TaskManagerIcon },
   { id: 'docker', label: 'Docker', IconComponent: DockerIcon },
   { id: 'services', label: 'Services', IconComponent: ServicesIcon },
-  { id: 'fleet', label: 'Fleet', IconComponent: FleetIcon },
+  // EX6-C.3: Fleet moved to Control Center
   { id: 'agent', label: 'AI Agent', IconComponent: AgentIcon },
   { id: 'settings', label: 'Personalize', IconComponent: SettingsIcon },
 ];
@@ -63,7 +67,8 @@ const ALL_APPS: AppEntry[] = [
   { id: 'dashboard', label: 'Dashboard', IconComponent: DashboardIcon },
   { id: 'docker', label: 'Docker', IconComponent: DockerIcon },
   { id: 'files', label: 'File Explorer', IconComponent: FileExplorerIcon },
-  { id: 'fleet', label: 'Fleet Overview', IconComponent: FleetIcon },
+  // EX6-C.3: Fleet moved to Control Center
+  { id: 'observatory', label: 'LLM Observatory', IconComponent: ObservatoryIcon },
   { id: 'serveradmin', label: 'Server Admin', IconComponent: ServerAdminIcon },
   { id: 'services', label: 'Services', IconComponent: ServicesIcon },
   { id: 'settings', label: 'Settings', IconComponent: SettingsIcon },
@@ -84,6 +89,7 @@ const APP_ICON_MAP: Record<string, React.ComponentType<{ size?: number }>> = {
   taskmanager: TaskManagerIcon,
   settings: SettingsIcon,
   serveradmin: ServerAdminIcon,
+  observatory: ObservatoryIcon,
 };
 
 const APP_LABEL_MAP: Record<string, string> = {
@@ -97,6 +103,7 @@ const APP_LABEL_MAP: Record<string, string> = {
   taskmanager: 'Task Manager',
   settings: 'Settings',
   serveradmin: 'Server Admin',
+  observatory: 'LLM Observatory',
 };
 
 function formatTimeAgo(timestamp: number): string {
@@ -125,6 +132,10 @@ export function StartMenu() {
     signOut,
   } = useAppStore();
   const recentApps = usePreferencesStore(s => s.recentApps);
+  const savedApps = useSavedAppStore(s => s.apps);
+  const fetchSavedApps = useSavedAppStore(s => s.fetchApps);
+  const savedAppsFetched = useSavedAppStore(s => s.fetched);
+  const openSavedApp = useSavedAppStore(s => s.openApp);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAllApps, setShowAllApps] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(-1);
@@ -134,6 +145,13 @@ export function StartMenu() {
   const activeServer = servers.find((s) => s.id === activeServerId);
   const isConnected = activeServer?.state?.status === 'connected';
   const serverStatus = activeServer?.state?.status ?? 'disconnected';
+
+  // Fetch saved apps on first open
+  useEffect(() => {
+    if (startMenuOpen && !savedAppsFetched) {
+      void fetchSavedApps();
+    }
+  }, [startMenuOpen, savedAppsFetched, fetchSavedApps]);
 
   // Focus search on open
   useEffect(() => {
@@ -170,10 +188,30 @@ export function StartMenu() {
     : PINNED_APPS;
 
   const handleOpenApp = (appId: string, label: string) => {
-    if (!activeServerId || !isConnected) return;
-    openWindow(appId, activeServerId, label, appId);
+    // `settings` is a global app (no server needed) — especially the "Personalize" entry.
+    const isGlobalApp = appId === 'settings';
+    if (!isGlobalApp && (!activeServerId || !isConnected)) return;
+    const serverId = isGlobalApp ? '' : (activeServerId ?? '');
+    const meta = appId === 'settings' && label === 'Personalize' ? { initialPage: 'wallpaper' } : undefined;
+    openWindow(appId, serverId, label, appId, meta);
     closeStartMenu();
   };
+
+  // EX5-C.3: Open a saved app as a DynamicUI window
+  const handleOpenSavedApp = useCallback((app: (typeof savedApps)[number]) => {
+    if (!activeServerId || !isConnected) return;
+    openSavedApp(app, activeServerId);
+    closeStartMenu();
+  }, [activeServerId, isConnected, openSavedApp, closeStartMenu]);
+
+  // EX5-C.3: Filtered saved apps for search
+  const filteredSavedApps = searchQuery
+    ? savedApps.filter(a =>
+        a.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        a.cliTool.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        a.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()))
+      )
+    : savedApps;
 
   // Keyboard navigation for app grid/list
   const currentApps = showAllApps
@@ -217,11 +255,11 @@ export function StartMenu() {
 
   const statusDot =
     serverStatus === 'connected'
-      ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50'
+      ? 'bg-success shadow-sm shadow-success/50'
       : serverStatus === 'connecting'
-        ? 'bg-amber-400 animate-pulse'
+        ? 'bg-warning animate-pulse'
         : serverStatus === 'error'
-          ? 'bg-red-500'
+          ? 'bg-destructive'
           : 'bg-foreground/20';
 
   return (
@@ -270,11 +308,11 @@ export function StartMenu() {
               <button
                 key={app.id}
                 className={`group flex items-center gap-3 px-2 py-2 rounded-xl transition-all text-left ${
-                  isConnected
+                  isConnected || app.id === 'settings'
                     ? 'hover:bg-black/5 dark:hover:bg-white/8 cursor-pointer'
                     : 'opacity-40 cursor-not-allowed'
                 } ${idx === focusedIndex ? 'ring-2 ring-primary/40 bg-primary/5' : ''}`}
-                disabled={!isConnected}
+                disabled={!isConnected && app.id !== 'settings'}
                 onClick={() => handleOpenApp(app.id, app.label)}
               >
                 <div className="shrink-0">
@@ -285,6 +323,40 @@ export function StartMenu() {
                 </span>
               </button>
             ))}
+            {/* EX5-C.3: Saved user apps in All Apps list */}
+            {filteredSavedApps.length > 0 && (
+              <>
+                <div className="mt-2 mb-1 px-2">
+                  <span className="text-[10px] font-bold text-foreground/40 uppercase tracking-wider">My Apps</span>
+                </div>
+                {filteredSavedApps.map((app) => {
+                  const IconComp = getLucideIcon(app.icon);
+                  return (
+                    <button
+                      key={`saved-${app.id}`}
+                      className={`group flex items-center gap-3 px-2 py-2 rounded-xl transition-all text-left ${
+                        isConnected
+                          ? 'hover:bg-black/5 dark:hover:bg-white/8 cursor-pointer'
+                          : 'opacity-40 cursor-not-allowed'
+                      }`}
+                      disabled={!isConnected}
+                      onClick={() => handleOpenSavedApp(app)}
+                      data-testid={`saved-app-${app.id}`}
+                    >
+                      <div className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-primary/10">
+                        {IconComp ? <IconComp size={18} className="text-primary" /> : <Sparkles size={18} className="text-primary" />}
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-[13px] text-foreground/75 font-semibold group-hover:text-foreground transition-colors block truncate">
+                          {app.name}
+                        </span>
+                        <span className="text-[10px] text-foreground/35">{app.cliTool}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </>
+            )}
           </div>
         </div>
       ) : (
@@ -310,12 +382,12 @@ export function StartMenu() {
                 <button
                   key={app.id}
                   className={`group flex flex-col items-center gap-1.5 py-3 px-1.5 rounded-xl transition-all duration-150 ${
-                    isConnected
+                    isConnected || app.id === 'settings'
                       ? 'hover:bg-black/5 dark:hover:bg-white/8 cursor-pointer active:scale-[0.97]'
                       : 'opacity-40 cursor-not-allowed'
                   } ${idx === focusedIndex ? 'ring-2 ring-primary/40 bg-primary/5' : ''}`}
                   onClick={() => handleOpenApp(app.id, app.label)}
-                  disabled={!isConnected}
+                  disabled={!isConnected && app.id !== 'settings'}
                 >
                   <div className="transition-transform duration-150 group-hover:scale-110 group-active:scale-100">
                     <app.IconComponent size={44} />
@@ -326,6 +398,38 @@ export function StartMenu() {
                 </button>
               ))}
             </div>
+
+            {/* EX5-C.3: My Apps compact row (saved apps) */}
+            {filteredSavedApps.length > 0 && (
+              <div className="mt-3">
+                <h4 className="text-[11px] font-bold text-foreground/50 tracking-tight mb-1.5 px-0.5">
+                  My Apps
+                </h4>
+                <div className="flex flex-wrap gap-1">
+                  {filteredSavedApps.slice(0, 4).map((app) => {
+                    const IconComp = getLucideIcon(app.icon);
+                    return (
+                      <button
+                        key={`saved-pinned-${app.id}`}
+                        className={`group flex items-center gap-1.5 px-2 py-1.5 rounded-lg transition-all text-left text-[11px] ${
+                          isConnected
+                            ? 'hover:bg-black/5 dark:hover:bg-white/8 cursor-pointer'
+                            : 'opacity-40 cursor-not-allowed'
+                        }`}
+                        disabled={!isConnected}
+                        onClick={() => handleOpenSavedApp(app)}
+                        data-testid={`saved-app-pinned-${app.id}`}
+                      >
+                        {IconComp ? <IconComp size={14} className="text-primary shrink-0" /> : <Sparkles size={14} className="text-primary shrink-0" />}
+                        <span className="text-foreground/60 font-semibold truncate max-w-20 group-hover:text-foreground/90 transition-colors">
+                          {app.name}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Divider */}
@@ -382,7 +486,7 @@ export function StartMenu() {
       {/* ── Footer: user + server status ── */}
       <div className="flex items-center justify-between px-5 py-2.5 border-t border-separator">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-linear-to-br from-blue-400 to-indigo-500 flex items-center justify-center shadow-sm shadow-blue-500/25">
+          <div className="w-9 h-9 rounded-full bg-linear-to-br from-primary to-primary/60 flex items-center justify-center shadow-sm shadow-primary/25">
             <User className="w-4 h-4 text-white" strokeWidth={2.25} />
           </div>
           <div>
@@ -404,7 +508,7 @@ export function StartMenu() {
           {/* Connect / Disconnect */}
           {activeServer && serverStatus === 'connected' ? (
             <button
-              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-black/5 dark:hover:bg-white/6 text-foreground/35 hover:text-red-500 transition-colors"
+              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-black/5 dark:hover:bg-white/6 text-foreground/35 hover:text-destructive transition-colors"
               title="Disconnect"
               onClick={(e) => {
                 e.stopPropagation();
@@ -415,7 +519,7 @@ export function StartMenu() {
             </button>
           ) : activeServer && serverStatus !== 'connecting' ? (
             <button
-              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-black/5 dark:hover:bg-white/6 text-foreground/35 hover:text-emerald-500 transition-colors"
+              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-black/5 dark:hover:bg-white/6 text-foreground/35 hover:text-success transition-colors"
               title="Connect"
               onClick={(e) => {
                 e.stopPropagation();
@@ -455,7 +559,7 @@ export function StartMenu() {
 
           {/* Sign out */}
           <button
-            className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-black/5 dark:hover:bg-white/6 text-foreground/35 hover:text-red-500 transition-colors"
+              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-black/5 dark:hover:bg-white/6 text-foreground/35 hover:text-destructive transition-colors"
             title="Sign Out"
             onClick={() => {
               closeStartMenu();

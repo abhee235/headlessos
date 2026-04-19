@@ -15,6 +15,11 @@
 | Phase 5 | Polish, security, testing | Week 5 | Not started | [phase-5.md](phases/phase-5.md) |
 | Phase 6 | Desktop UI system | Week 6-7 | In progress | [phase-6.md](phases/phase-6.md) |
 | Phase 7 | System settings + Server Admin | Week 8 | In progress | [phase-7.md](phases/phase-7.md) |
+| **Phase EX1** | **Dynamic UI Engine (Experimental)** | **TBD** | **Not started** | [phase-ex1.md](phases/phase-ex1.md) |
+| **Phase EX2** | **UI Generation Agent (Experimental)** | **TBD** | **Not started** | [phase-ex2.md](phases/phase-ex2.md) |
+| **Phase EX3** | **Smart Layout Engine (Experimental)** | **TBD** | **In progress** | [phase-ex3.md](phases/phase-ex3.md) |
+| **Phase EX4** | **LLM Observatory (Experimental)** | **TBD** | **Not started** | [phase-ex4.md](phases/phase-ex4.md) |
+| **Phase EX5** | **CLI App Generation + Sandbox (Experimental)** | **TBD** | **In progress** | [phase-ex5.md](phases/phase-ex5.md) |
 
 ## Task ID System
 
@@ -37,7 +42,33 @@ Phase 0 (Foundation)
         │           └── Phase 4 (Deterministic parsers + caching)
         ├── Phase 5 (Security + Testing + Polish) ← can start in parallel with Phase 4
         ├── Phase 6 (Desktop UI System) ← can start after Phase 3
-        └── Phase 7 (System Settings + Server Admin) ← depends on Phase 1 + Phase 6
+        ├── Phase 7 (System Settings + Server Admin) ← depends on Phase 1 + Phase 6
+        └── Phase EX1 (Dynamic UI Engine) ← depends on Phase 1 (LLM + Zod) + Phase 6 (shadcn/ui)
+              ├── EX1 P1: JSON→UI Renderer (schema + widgets + layouts)
+              ├── EX1 P2: LLM→JSON Generation (templates + streaming generator + command palette)
+              └── EX1 P3: Full Integration (terminal capture + live refresh + desktop tabs + actions)
+                    └── Phase EX2 (UI Generation Agent) ← depends on EX1.1 + EX1.2 + EX1.7
+                    │     ├── EX2 P1: Agent Core (model router + tools + guardrails + context + reactive loop)
+                    │     ├── EX2 P2: Interactive UIs (FormWidget + write-back + error recovery)
+                    │     └── EX2 P3: Frontend Integration (agent panel + WebSocket + hooks)
+                    │
+                    └── Phase EX3 (Smart Layout Engine) ← depends on EX1 + EX2
+                    │     ├── EX3-A: Content Classification & Layout Patterns
+                    │     ├── EX3-B: Design System Prompt & Templates
+                    │     ├── EX3-C: Progressive Multi-Step Generation
+                    │     └── EX3-D: Unified Window & Visual Polish
+                    │
+                    └── Phase EX4 (LLM Observatory) ← depends on EX2 (Agent) + M4.8 (LLM Stats)
+                    │     ├── EX4-A: Data Models & TraceStore (schemas + ring buffer + AsyncLocalStorage)
+                    │     ├── EX4-B: Instrumentation (ModelRouter + Agent + DynamicUIGenerator)
+                    │     ├── EX4-C: Backend API (REST + WebSocket live events)
+                    │     ├── EX4-D: Frontend — Trace List & Stats (observatory app + list + charts)
+                    │     └── EX4-E: Frontend — Trace Tree & Detail (tree + timeline + span detail)
+                    │
+                    └── Phase EX5 (CLI App Generation + Sandbox) ← depends on EX2 (Agent) + Docker routes
+                          ├── EX5-A: Foundation (CLI allowlist + form command wiring + prompts)
+                          ├── EX5-B: Sandbox (SandboxManager + sandbox_exec tool + two-phase flow + UI toggle)
+                          └── EX5-C: Save & Reuse (app persistence + save UI + app launcher)
 ```
 
 ## Quick Links

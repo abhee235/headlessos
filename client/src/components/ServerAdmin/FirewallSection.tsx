@@ -3,18 +3,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
-  RefreshCw,
-  Loader2,
-  AlertCircle,
-  Shield,
-  ShieldOff,
-  Plus,
-  Trash2,
-  Power,
-  Globe,
-  AppWindow,
-} from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+  RefreshCw, AlertCircle, Shield, ShieldOff, Plus, Trash2, Power, Globe, AppWindow } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -37,7 +26,10 @@ import {
   allowDenyUfwApp,
 } from '@/lib/api';
 import type { FirewallStatus, UfwAppProfile } from '@/lib/api';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { Spinner } from '@/components/ui/spinner';
+import { LoadingView } from '@/components/ui/loading-view';
 
 export function FirewallSection({ serverId }: { serverId: string }) {
   const [data, setData] = useState<FirewallStatus | null>(null);
@@ -60,6 +52,9 @@ export function FirewallSection({ serverId }: { serverId: string }) {
   // M8.2 — App profiles state
   const [appProfiles, setAppProfiles] = useState<UfwAppProfile[]>([]);
   const [appsLoading, setAppsLoading] = useState(false);
+
+  // Active tab
+  const [activeTab, setActiveTab] = useState('basic');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -204,19 +199,14 @@ export function FirewallSection({ serverId }: { serverId: string }) {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground">
-        <Loader2 className="animate-spin mr-2" size={18} />
-        Loading firewall status…
-      </div>
-    );
+    return <LoadingView label="Loading firewall status…" fullHeight={false} />;
   }
 
   if (error || !data) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-3 text-muted-foreground">
+      <div className="flex flex-col items-center justify-center py-20 text-foreground/40 gap-3">
         <AlertCircle size={24} />
-        <p className="text-sm">{error || 'No data'}</p>
+        <span className="text-sm">{error || 'No data'}</span>
         <Button variant="outline" size="sm" onClick={load}>Retry</Button>
       </div>
     );
@@ -224,26 +214,31 @@ export function FirewallSection({ serverId }: { serverId: string }) {
 
   if (!data.available) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-3 text-muted-foreground">
+      <div className="flex flex-col items-center justify-center py-20 text-foreground/40 gap-3">
         <ShieldOff size={32} />
-        <p className="text-sm">{data.message || 'UFW is not installed'}</p>
-        <p className="text-xs">Install with: <code className="bg-muted px-1.5 py-0.5 rounded">sudo apt install ufw</code></p>
+        <span className="text-sm">{data.message || 'UFW is not installed'}</span>
+        <span className="text-xs">Install with: <code className="bg-muted px-1.5 py-0.5 rounded">sudo apt install ufw</code></span>
       </div>
     );
   }
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="@container p-6 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Shield size={18} className="text-primary" />
-          <h2 className="text-lg font-semibold">Firewall (UFW)</h2>
-          <Badge variant={data.active ? 'success' : 'destructive'}>
+        <div className="flex items-center gap-3">
+          <Shield size={22} className="text-primary" />
+          <h2 className="text-xl font-bold text-foreground">Firewall (UFW)</h2>
+          <span className={cn(
+            'inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold',
+            data.active
+              ? 'bg-emerald-500/10 text-emerald-600'
+              : 'bg-foreground/5 text-foreground/40'
+          )}>
             {data.active ? 'Active' : 'Inactive'}
-          </Badge>
+          </span>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           <Button
             variant={data.active ? 'outline' : 'default'}
             size="sm"
@@ -253,182 +248,206 @@ export function FirewallSection({ serverId }: { serverId: string }) {
             <Power size={14} className="mr-1" />
             {data.active ? 'Disable' : 'Enable'}
           </Button>
-          <Button variant="ghost" size="icon" onClick={load} title="Refresh">
-            <RefreshCw size={16} />
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground/30 hover:text-foreground" onClick={load} disabled={busy}>
+            <RefreshCw size={16} className={cn(busy && 'animate-spin')} />
           </Button>
         </div>
       </div>
 
-      {/* Rules table (always visible) */}
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-12">#</TableHead>
-            <TableHead>To</TableHead>
-            <TableHead>Action</TableHead>
-            <TableHead>From</TableHead>
-            <TableHead className="w-16" />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data.rules.map((rule) => (
-            <TableRow key={rule.number}>
-              <TableCell className="text-muted-foreground">{rule.number}</TableCell>
-              <TableCell className="font-mono text-xs">{rule.to}</TableCell>
-              <TableCell>
-                <Badge variant={rule.action.startsWith('ALLOW') ? 'success' : 'destructive'} className="text-xs">
-                  {rule.action}
-                </Badge>
-              </TableCell>
-              <TableCell className="font-mono text-xs">{rule.from}</TableCell>
-              <TableCell>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-destructive/70 hover:text-destructive"
-                  onClick={() => handleDeleteRule(rule.number)}
-                  disabled={busy}
-                  title="Delete rule"
-                >
-                  <Trash2 size={14} />
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-          {data.rules.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={5} className="text-center text-muted-foreground">
-                No firewall rules configured
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
-
-      {/* Add Rule Tabs */}
-      <Tabs defaultValue="basic" onValueChange={(v) => { if (v === 'apps') loadApps(); }}>
-        <TabsList>
-          <TabsTrigger value="basic">
-            <Plus size={14} className="mr-1" />
+      {/* Tabs above table */}
+      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); if (v === 'apps') loadApps(); }}>
+        <TabsList className="h-auto p-1 bg-muted rounded-lg gap-1 w-auto inline-flex">
+          <TabsTrigger value="basic" className="rounded-md px-3 py-1.5 text-[13px] font-medium text-foreground/50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all hover:text-foreground/70">
+            <Plus size={14} className="mr-1.5" />
             Basic Rule
           </TabsTrigger>
-          <TabsTrigger value="advanced">
-            <Globe size={14} className="mr-1" />
+          <TabsTrigger value="advanced" className="rounded-md px-3 py-1.5 text-[13px] font-medium text-foreground/50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all hover:text-foreground/70">
+            <Globe size={14} className="mr-1.5" />
             Advanced Rule
           </TabsTrigger>
-          <TabsTrigger value="apps">
-            <AppWindow size={14} className="mr-1" />
+          <TabsTrigger value="apps" className="rounded-md px-3 py-1.5 text-[13px] font-medium text-foreground/50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all hover:text-foreground/70">
+            <AppWindow size={14} className="mr-1.5" />
             App Profiles
           </TabsTrigger>
         </TabsList>
+      </Tabs>
 
-        {/* Basic Rule Form */}
-        <TabsContent value="basic" className="mt-3">
-          <div className="flex items-center gap-2 p-3 rounded-md border border-border bg-muted/30">
-            <Input
-              placeholder="Port"
-              type="number"
-              min={1}
-              max={65535}
-              className="w-24"
-              value={newPort}
-              onChange={(e) => setNewPort(e.target.value)}
-            />
-            <Select value={newProto} onValueChange={(v) => setNewProto(v as 'tcp' | 'udp')}>
-              <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="tcp">TCP</SelectItem>
-                <SelectItem value="udp">UDP</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={newAction} onValueChange={(v) => setNewAction(v as 'allow' | 'deny')}>
-              <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+      {/* Advanced Rule Form (shown above table when advanced tab active) */}
+      {activeTab === 'advanced' && (
+        <div className="space-y-3 p-3 rounded-lg bg-muted/20">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Select value={advAction} onValueChange={(v) => setAdvAction(v as 'allow' | 'deny')}>
+              <SelectTrigger className="w-24 h-8 text-xs shadow-none"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="allow">Allow</SelectItem>
                 <SelectItem value="deny">Deny</SelectItem>
               </SelectContent>
             </Select>
-            <Button size="sm" onClick={handleAddRule} disabled={busy || !newPort}>
+            <span className="text-xs text-foreground/40">from</span>
+            <Input
+              placeholder="Source IP or CIDR (e.g., 10.0.0.0/24)"
+              className="w-56 h-8 text-xs font-mono shadow-none"
+              value={advFrom}
+              onChange={(e) => setAdvFrom(e.target.value)}
+            />
+            <span className="text-xs text-foreground/40">port</span>
+            <Input
+              placeholder="Port or range (e.g., 8000:9000)"
+              className="w-44 h-8 text-xs font-mono shadow-none"
+              value={advPort}
+              onChange={(e) => setAdvPort(e.target.value)}
+            />
+            <Select value={advProto || 'any'} onValueChange={(v) => setAdvProto(v === 'any' ? '' : v as 'tcp' | 'udp')}>
+              <SelectTrigger className="w-20 h-8 text-xs shadow-none"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="any">Any</SelectItem>
+                <SelectItem value="tcp">TCP</SelectItem>
+                <SelectItem value="udp">UDP</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <Input
+              placeholder="Comment (optional)"
+              className="max-w-xs h-8 text-xs shadow-none"
+              value={advComment}
+              onChange={(e) => setAdvComment(e.target.value)}
+            />
+            <Button size="sm" onClick={handleAddAdvancedRule} disabled={busy || !advFrom.trim()}>
               <Plus size={14} className="mr-1" />
-              Add Rule
+              Add Advanced Rule
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground mt-1.5">
-            Add a simple port/protocol rule (e.g., allow 443/tcp)
-          </p>
-        </TabsContent>
-
-        {/* Advanced Rule Form */}
-        <TabsContent value="advanced" className="mt-3">
-          <div className="space-y-3 p-3 rounded-md border border-border bg-muted/30">
-            <div className="flex items-center gap-2 flex-wrap">
-              <Select value={advAction} onValueChange={(v) => setAdvAction(v as 'allow' | 'deny')}>
-                <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="allow">Allow</SelectItem>
-                  <SelectItem value="deny">Deny</SelectItem>
-                </SelectContent>
-              </Select>
-              <span className="text-xs text-muted-foreground">from</span>
-              <Input
-                placeholder="Source IP or CIDR (e.g., 10.0.0.0/24)"
-                className="w-56 font-mono text-sm"
-                value={advFrom}
-                onChange={(e) => setAdvFrom(e.target.value)}
-              />
-              <span className="text-xs text-muted-foreground">port</span>
-              <Input
-                placeholder="Port or range (e.g., 8000:9000)"
-                className="w-44 font-mono text-sm"
-                value={advPort}
-                onChange={(e) => setAdvPort(e.target.value)}
-              />
-              <Select value={advProto || 'any'} onValueChange={(v) => setAdvProto(v === 'any' ? '' : v as 'tcp' | 'udp')}>
-                <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="any">Any</SelectItem>
-                  <SelectItem value="tcp">TCP</SelectItem>
-                  <SelectItem value="udp">UDP</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-2">
-              <Input
-                placeholder="Comment (optional)"
-                className="max-w-xs text-sm"
-                value={advComment}
-                onChange={(e) => setAdvComment(e.target.value)}
-              />
-              <Button size="sm" onClick={handleAddAdvancedRule} disabled={busy || !advFrom.trim()}>
-                <Plus size={14} className="mr-1" />
-                Add Advanced Rule
-              </Button>
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground mt-1.5">
+          <p className="text-xs text-foreground/40">
             Create IP-based rules with optional port range and protocol (e.g., allow from 192.168.1.0/24 to any port 22)
           </p>
-        </TabsContent>
+        </div>
+      )}
 
-        {/* App Profiles */}
-        <TabsContent value="apps" className="mt-3">
+      {/* Rules table (basic + advanced tabs) */}
+      {activeTab !== 'apps' && (
+        <>
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent border-0">
+                <TableHead className="w-12 text-xs font-medium text-foreground/40 h-9">#</TableHead>
+                <TableHead className="text-xs font-medium text-foreground/40 h-9">To</TableHead>
+                <TableHead className="text-xs font-medium text-foreground/40 h-9">Action</TableHead>
+                <TableHead className="text-xs font-medium text-foreground/40 h-9">From</TableHead>
+                <TableHead className="w-16 text-xs font-medium text-foreground/40 h-9" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {/* Inline add row (basic tab) */}
+              {activeTab === 'basic' && (
+                <TableRow className="border-0 hover:bg-transparent">
+                  <TableCell />
+                  <TableCell>
+                    <div className="flex items-center gap-1.5">
+                      <Input
+                        placeholder="Port"
+                        type="number"
+                        min={1}
+                        max={65535}
+                        className="w-24 h-8 text-xs shadow-none"
+                        value={newPort}
+                        onChange={(e) => setNewPort(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && newPort && handleAddRule()}
+                      />
+                      <Select value={newProto} onValueChange={(v) => setNewProto(v as 'tcp' | 'udp')}>
+                        <SelectTrigger className="w-20 h-8 text-xs shadow-none"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="tcp">TCP</SelectItem>
+                          <SelectItem value="udp">UDP</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Select value={newAction} onValueChange={(v) => setNewAction(v as 'allow' | 'deny')}>
+                      <SelectTrigger className="w-24 h-8 text-xs shadow-none"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="allow">Allow</SelectItem>
+                        <SelectItem value="deny">Deny</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell className="text-xs text-foreground/40">Anywhere</TableCell>
+                  <TableCell>
+                    <Button size="sm" onClick={handleAddRule} disabled={busy || !newPort} className="gap-1">
+                      <Plus size={14} />
+                      Add Rule
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              )}
+              {/* Existing rules */}
+              {data.rules.map((rule) => (
+                <TableRow key={rule.number} className="border-0 hover:bg-muted/20 group">
+                  <TableCell className="text-foreground/40">{rule.number}</TableCell>
+                  <TableCell className="font-mono text-xs">{rule.to}</TableCell>
+                  <TableCell>
+                    <span className={cn(
+                      'inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold',
+                      rule.action.startsWith('ALLOW')
+                        ? 'bg-emerald-500/10 text-emerald-600'
+                        : 'bg-red-500/10 text-red-600'
+                    )}>
+                      {rule.action}
+                    </span>
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">{rule.from}</TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-destructive/70 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => handleDeleteRule(rule.number)}
+                      disabled={busy}
+                      title="Delete rule"
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {data.rules.length === 0 && (
+                <TableRow className="border-0">
+                  <TableCell colSpan={5} className="text-center text-foreground/30 py-12 text-sm">
+                    No firewall rules configured
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+          {activeTab === 'basic' && (
+            <p className="text-xs text-foreground/40 mt-1.5">
+              Add a simple port/protocol rule (e.g., allow 443/tcp)
+            </p>
+          )}
+        </>
+      )}
+
+      {/* App Profiles (apps tab) */}
+      {activeTab === 'apps' && (
+        <div className="mt-0">
           {appsLoading ? (
-            <div className="flex items-center justify-center h-24 text-muted-foreground">
-              <Loader2 className="animate-spin mr-2" size={16} />
+            <div className="flex items-center justify-center py-12 text-foreground/40">
+              <Spinner className="mr-2" size={16} />
               Loading app profiles…
             </div>
           ) : appProfiles.length > 0 ? (
             <div className="space-y-2">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Application</TableHead>
-                    <TableHead className="w-40 text-right">Actions</TableHead>
+                  <TableRow className="hover:bg-transparent border-0">
+                    <TableHead className="text-xs font-medium text-foreground/40 h-9">Application</TableHead>
+                    <TableHead className="w-40 text-right text-xs font-medium text-foreground/40 h-9">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {appProfiles.map((app) => (
-                    <TableRow key={app.name}>
+                    <TableRow key={app.name} className="border-0 hover:bg-muted/20 group">
                       <TableCell className="font-medium text-sm">{app.name}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
@@ -456,19 +475,19 @@ export function FirewallSection({ serverId }: { serverId: string }) {
                   ))}
                 </TableBody>
               </Table>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-foreground/40">
                 App profiles are predefined firewall rules for common applications (e.g., &quot;Nginx Full&quot; opens ports 80 + 443)
               </p>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center h-24 gap-2 text-muted-foreground">
+            <div className="flex flex-col items-center justify-center py-12 gap-2 text-foreground/30">
               <AppWindow size={20} className="opacity-40" />
-              <p className="text-sm">No UFW app profiles found</p>
-              <p className="text-xs">App profiles are typically installed with services like Nginx, Apache, OpenSSH</p>
+              <span className="text-sm">No UFW app profiles found</span>
+              <span className="text-xs">App profiles are typically installed with services like Nginx, Apache, OpenSSH</span>
             </div>
           )}
-        </TabsContent>
-      </Tabs>
+        </div>
+      )}
     </div>
   );
 }

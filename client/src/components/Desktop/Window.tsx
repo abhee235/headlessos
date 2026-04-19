@@ -19,6 +19,7 @@ import {
   Minimize2,
   RotateCcw,
   Move,
+  Telescope,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -27,8 +28,14 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuShortcut,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
+import { useSessionsStore } from '../../store/sessions-store';
+import { useAppStore } from '../../store/app-store';
+import { moveWindowToSession } from '../../store/window-session-sync';
 
 const APP_ICONS: Record<string, LucideIcon> = {
   dashboard: LayoutDashboard,
@@ -38,16 +45,18 @@ const APP_ICONS: Record<string, LucideIcon> = {
   taskmanager: Activity,
   docker: Box,
   services: Server,
+  observatory: Telescope,
 };
 
 const APP_ACCENT: Record<string, string> = {
-  dashboard: 'bg-blue-500',
-  files: 'bg-amber-500',
-  terminal: 'bg-emerald-500',
-  settings: 'bg-violet-500',
-  taskmanager: 'bg-teal-500',
-  docker: 'bg-cyan-500',
-  services: 'bg-orange-500',
+  dashboard: 'bg-primary',
+  files: 'bg-warning',
+  terminal: 'bg-success',
+  settings: 'bg-primary/70',
+  taskmanager: 'bg-primary/80',
+  docker: 'bg-primary/80',
+  services: 'bg-warning/80',
+  observatory: 'bg-pink-500',
 };
 
 interface WindowFrameProps {
@@ -302,8 +311,8 @@ export function WindowFrame({ win, children }: WindowFrameProps) {
                 <button
                   className={`flex items-center justify-center w-6 h-6 rounded-lg transition-colors duration-100
                     ${win.focused
-                      ? 'text-foreground/50 hover:text-white hover:bg-red-500'
-                      : 'text-foreground/20 hover:text-white/90 hover:bg-red-500/80'
+                      ? 'text-foreground/50 hover:text-white hover:bg-destructive'
+                      : 'text-foreground/20 hover:text-white/90 hover:bg-destructive/80'
                     }`}
                   onClick={() => closeWindow(win.id)}
                   title="Close"
@@ -326,6 +335,7 @@ export function WindowFrame({ win, children }: WindowFrameProps) {
             <Move className="w-4 h-4 mr-2 opacity-60" />
             Move
           </ContextMenuItem>
+          <MoveToSessionSubmenu windowId={win.id} sourceServerId={win.serverId} />
           <ContextMenuItem
             onClick={() => minimizeWindow(win.id)}
           >
@@ -375,5 +385,55 @@ export function WindowFrame({ win, children }: WindowFrameProps) {
         </div>
       )}
     </div>
+  );
+}
+
+// ── EX6-D.2: "Move to session" context-menu submenu ────────────
+
+function MoveToSessionSubmenu({
+  windowId,
+  sourceServerId,
+}: {
+  windowId: string;
+  sourceServerId: string;
+}) {
+  const sessions = useSessionsStore((s) => s.sessions);
+  const servers = useAppStore((s) => s.servers);
+
+  // Only LIVE sessions other than the source can be drop targets in v1.
+  const targets = Object.values(sessions).filter((s) => s.serverId !== sourceServerId);
+
+  if (targets.length === 0) {
+    return (
+      <ContextMenuItem disabled>
+        <Move className="w-4 h-4 mr-2 opacity-60" />
+        Move to session…
+        <span className="ml-auto text-[10px] text-muted-foreground">none</span>
+      </ContextMenuItem>
+    );
+  }
+
+  return (
+    <ContextMenuSub>
+      <ContextMenuSubTrigger>
+        <Move className="w-4 h-4 mr-2 opacity-60" />
+        Move to session
+      </ContextMenuSubTrigger>
+      <ContextMenuSubContent>
+        {targets.map((t) => {
+          const name = servers.find((s) => s.id === t.serverId)?.name ?? t.serverId;
+          return (
+            <ContextMenuItem
+              key={t.serverId}
+              onClick={() => {
+                moveWindowToSession(windowId, t.serverId);
+              }}
+            >
+              {name}
+            </ContextMenuItem>
+          );
+        })}
+      </ContextMenuSubContent>
+    </ContextMenuSub>
   );
 }

@@ -4,7 +4,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { ConnectionManager } from '../ssh/connection-manager.js';
 import { posix } from 'path';
-import { validatePath } from '../security/validators.js';
+import { validatePath, validateAndSanitizePath } from '../security/validators.js';
 import type { FileEntry, FileStatInfo } from 'headlessos-shared';
 
 interface FileRouteOpts {
@@ -391,6 +391,208 @@ export async function fileRoutes(
         resolve({ success: true });
       });
     });
+  });
+
+  // ── GET /api/servers/:id/files/search?path=/&query=... — search files ──
+
+  fastify.get<{
+    Params: { id: string };
+    Querystring: { path?: string; query?: string; maxDepth?: string };
+  }>('/api/servers/:id/files/search', async (req, reply) => {
+    const { id } = req.params;
+    const basePath = requireValidPath(req.query.path ?? '/');
+    const query = req.query.query?.trim();
+
+    if (!query || query.length === 0) {
+      reply.code(400);
+      return { error: 'query parameter is required' };
+    }
+
+    // Sanitize search query: only allow safe characters for -iname glob
+    if (!/^[\w.*?\[\]\-_ ]+$/.test(query)) {
+      reply.code(400);
+      return { error: 'Invalid search query — only letters, numbers, wildcards (*, ?) and basic characters allowed' };
+    }
+
+    const maxDepth = Math.min(Math.max(parseInt(req.query.maxDepth ?? '5', 10) || 5, 1), 10);
+
+    // Use `find` with -maxdepth to prevent runaway searches
+    // -iname for case-insensitive matching, -not -path to skip hidden dirs
+    const searchPattern = query.includes('*') || query.includes('?') ? query : `*${query}*`;
+    const escapedPath = shellEscapeForCopy(basePath);
+    const escapedPattern = shellEscapeForCopy(searchPattern);
+    const command = `find ${escapedPath} -maxdepth ${maxDepth} -iname ${escapedPattern} -not -path '*/\.*' 2>/dev/null | head -200`;
+
+    const state = connectionManager.getState(id);
+    if (state.status !== 'connected') {
+      throw Object.assign(new Error(`Server "${id}" is not connected`), { statusCode: 400 });
+    }
+
+    const result = await connectionManager.exec(id, command, 15_000);
+
+    const lines = result.stdout.trim().split('\n').filter(Boolean);
+    const results: Array<{ name: string; path: string; type: 'file' | 'directory' | 'other' }> = [];
+
+    for (const line of lines) {
+      const fullPath = line.trim();
+      if (!fullPath.startsWith('/')) continue;
+      const name = posix.basename(fullPath);
+      // Simple heuristic: if it has an extension, it's likely a file; otherwise check with stat
+      // For speed, we use a filename-based heuristic (no trailing slash = file)
+      const isDir = fullPath.endsWith('/');
+      results.push({
+        name,
+        path: fullPath.replace(/\/$/, ''),
+        type: isDir ? 'directory' : 'file',
+      });
+    }
+
+    return { results, basePath, query, truncated: lines.length >= 200 };
+  });
+
+  // ── POST /api/servers/:id/files/trash — move to trash instead of delete ──
+
+  fastify.post<{
+    Params: { id: string };
+    Body: { path: string };
+  }>('/api/servers/:id/files/trash', async (req) => {
+    const { id } = req.params;
+    const targetPath = requireValidPath(req.body.path);
+    const sftp = await requireSftp(id);
+
+    // Trash directory: ~/.headlessos-trash/
+    const trashDir = '/tmp/.headlessos-trash';
+    const timestamp = Date.now();
+    const baseName = posix.basename(targetPath);
+    const trashName = `${timestamp}_${baseName}`;
+    const trashPath = posix.join(trashDir, trashName);
+
+    // Ensure trash directory exists
+    await new Promise<void>((resolve) => {
+      sftp.mkdir(trashDir, (err) => {
+        // Ignore "already exists" errors
+        resolve();
+      });
+    });
+
+    // Move file/dir to trash
+    return new Promise<{ success: boolean; trashPath: string; originalPath: string }>((resolve, reject) => {
+      sftp.rename(targetPath, trashPath, (err) => {
+        if (err) return reject(new Error(`Failed to move to trash: ${err.message}`));
+        resolve({ success: true, trashPath, originalPath: targetPath });
+      });
+    });
+  });
+
+  // ── GET /api/servers/:id/files/trash — list trash contents ──
+
+  fastify.get<{
+    Params: { id: string };
+  }>('/api/servers/:id/files/trash', async (req, reply) => {
+    const { id } = req.params;
+    const sftp = await requireSftp(id);
+    const trashDir = '/tmp/.headlessos-trash';
+
+    return new Promise<Array<{ name: string; originalName: string; trashedAt: string; path: string }>>(
+      (resolve, reject) => {
+        sftp.readdir(trashDir, (err, list) => {
+          if (err) {
+            // If trash dir doesn't exist, return empty
+            if (err.message.includes('No such file')) return resolve([]);
+            return reject(new Error(`Failed to read trash: ${err.message}`));
+          }
+
+          const items = list.map(item => {
+            const name = item.filename;
+            // Parse timestamp_originalname format
+            const underscoreIdx = name.indexOf('_');
+            const timestamp = underscoreIdx > 0 ? parseInt(name.substring(0, underscoreIdx), 10) : 0;
+            const originalName = underscoreIdx > 0 ? name.substring(underscoreIdx + 1) : name;
+
+            return {
+              name,
+              originalName,
+              trashedAt: timestamp > 0 ? new Date(timestamp).toISOString() : new Date(item.attrs.mtime * 1000).toISOString(),
+              path: posix.join(trashDir, name),
+              size: item.attrs.size,
+              isDirectory: item.attrs.isDirectory(),
+            };
+          });
+
+          // Sort by most recently trashed first
+          items.sort((a, b) => new Date(b.trashedAt).getTime() - new Date(a.trashedAt).getTime());
+          resolve(items);
+        });
+      },
+    );
+  });
+
+  // ── POST /api/servers/:id/files/trash/restore — restore from trash ──
+
+  fastify.post<{
+    Params: { id: string };
+    Body: { trashName: string; restorePath: string };
+  }>('/api/servers/:id/files/trash/restore', async (req) => {
+    const { id } = req.params;
+    const { trashName, restorePath } = req.body;
+
+    if (!trashName || typeof trashName !== 'string') {
+      throw Object.assign(new Error('trashName is required'), { statusCode: 400 });
+    }
+    // Validate trash name — must not contain path separators
+    if (trashName.includes('/') || trashName.includes('..')) {
+      throw Object.assign(new Error('Invalid trash name'), { statusCode: 400 });
+    }
+
+    const destination = requireValidPath(restorePath);
+    const sftp = await requireSftp(id);
+    const trashDir = '/tmp/.headlessos-trash';
+    const trashPath = posix.join(trashDir, trashName);
+
+    return new Promise<{ success: boolean }>((resolve, reject) => {
+      sftp.rename(trashPath, destination, (err) => {
+        if (err) return reject(new Error(`Failed to restore: ${err.message}`));
+        resolve({ success: true });
+      });
+    });
+  });
+
+  // ── DELETE /api/servers/:id/files/trash — empty trash permanently ──
+
+  fastify.delete<{
+    Params: { id: string };
+    Querystring: { name?: string };
+  }>('/api/servers/:id/files/trash', async (req) => {
+    const { id } = req.params;
+    const specificName = req.query.name;
+    const trashDir = '/tmp/.headlessos-trash';
+
+    const state = connectionManager.getState(id);
+    if (state.status !== 'connected') {
+      throw Object.assign(new Error(`Server "${id}" is not connected`), { statusCode: 400 });
+    }
+
+    if (specificName) {
+      // Delete a specific item from trash
+      if (specificName.includes('/') || specificName.includes('..')) {
+        throw Object.assign(new Error('Invalid trash name'), { statusCode: 400 });
+      }
+      const itemPath = posix.join(trashDir, specificName);
+      const command = `rm -rf ${shellEscapeForCopy(itemPath)}`;
+      const result = await connectionManager.exec(id, command, 30_000);
+      if (result.exitCode !== 0) {
+        throw Object.assign(new Error(`Failed to delete from trash: ${result.stderr}`), { statusCode: 500 });
+      }
+      return { success: true };
+    } else {
+      // Empty entire trash
+      const command = `rm -rf ${shellEscapeForCopy(trashDir)} && mkdir -p ${shellEscapeForCopy(trashDir)}`;
+      const result = await connectionManager.exec(id, command, 30_000);
+      if (result.exitCode !== 0) {
+        throw Object.assign(new Error(`Failed to empty trash: ${result.stderr}`), { statusCode: 500 });
+      }
+      return { success: true };
+    }
   });
 }
 
