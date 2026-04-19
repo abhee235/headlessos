@@ -2,7 +2,7 @@
 // @see docs/phases/phase-8.md
 
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshCw, Loader2, AlertCircle, Clock, Plus, Pencil, Trash2 } from 'lucide-react';
+import { RefreshCw, AlertCircle, Clock, Plus, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,6 +20,8 @@ import { fetchCronInfo, addCronJob, deleteCronJob, editCronJob } from '@/lib/api
 import type { CronInfo } from '@/lib/api';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { Spinner } from '@/components/ui/spinner';
+import { LoadingView } from '@/components/ui/loading-view';
 
 // ── Schedule presets ──────────────────────────────────────────────
 const PRESETS: { label: string; value: string }[] = [
@@ -192,12 +194,7 @@ export function CronSection({ serverId }: { serverId: string }) {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20 text-foreground/40">
-        <Loader2 className="animate-spin mr-2" size={20} />
-        Loading cron jobs…
-      </div>
-    );
+    return <LoadingView label="Loading cron jobs…" fullHeight={false} />;
   }
 
   if (error || !data) {
@@ -302,7 +299,7 @@ export function CronSection({ serverId }: { serverId: string }) {
           {/* Actions */}
           <div className="flex items-center gap-2 pt-1">
             <Button size="sm" onClick={handleSubmit} disabled={busy || !isFormValid}>
-              {busy && <Loader2 size={14} className="animate-spin mr-1" />}
+              {busy && <Spinner size={14} className="mr-1" />}
               {editIndex !== null ? 'Update' : 'Add'}
             </Button>
             <Button variant="ghost" size="sm" onClick={closeForm} disabled={busy}>

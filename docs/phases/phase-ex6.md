@@ -418,6 +418,18 @@ interface SessionsState {
 - `docs/UI_DESIGN.md` — Session Switcher patterns, accent color rules
 - `docs/APP_REGISTRY.md` — note that `fleet` app is removed
 
+### EX6-C.8: Branded Loading Spinner Rollout
+
+**Files:** `client/src/components/ui/Spinner.tsx`, existing loading-state views under `client/src/components/`
+
+- Add a reusable HeadlessOS spinner component (Ring-Tick mark) with size and className props.
+- Use solid-color spinning treatment (`currentColor`) for readability at small sizes.
+- Replace `Loader2` usage in active loading indicators across key UI surfaces (login, dashboard states, server admin states, agent states).
+
+**Verification:**
+- Active loading indicators no longer use `Loader2`.
+- Client test suite stays green.
+
 ---
 
 ## Sub-Phase EX6-D: Polish (Defer if Scope Tight)

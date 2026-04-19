@@ -188,8 +188,12 @@ export function StartMenu() {
     : PINNED_APPS;
 
   const handleOpenApp = (appId: string, label: string) => {
-    if (!activeServerId || !isConnected) return;
-    openWindow(appId, activeServerId, label, appId);
+    // `settings` is a global app (no server needed) — especially the "Personalize" entry.
+    const isGlobalApp = appId === 'settings';
+    if (!isGlobalApp && (!activeServerId || !isConnected)) return;
+    const serverId = isGlobalApp ? '' : (activeServerId ?? '');
+    const meta = appId === 'settings' && label === 'Personalize' ? { initialPage: 'wallpaper' } : undefined;
+    openWindow(appId, serverId, label, appId, meta);
     closeStartMenu();
   };
 
@@ -304,11 +308,11 @@ export function StartMenu() {
               <button
                 key={app.id}
                 className={`group flex items-center gap-3 px-2 py-2 rounded-xl transition-all text-left ${
-                  isConnected
+                  isConnected || app.id === 'settings'
                     ? 'hover:bg-black/5 dark:hover:bg-white/8 cursor-pointer'
                     : 'opacity-40 cursor-not-allowed'
                 } ${idx === focusedIndex ? 'ring-2 ring-primary/40 bg-primary/5' : ''}`}
-                disabled={!isConnected}
+                disabled={!isConnected && app.id !== 'settings'}
                 onClick={() => handleOpenApp(app.id, app.label)}
               >
                 <div className="shrink-0">
@@ -378,12 +382,12 @@ export function StartMenu() {
                 <button
                   key={app.id}
                   className={`group flex flex-col items-center gap-1.5 py-3 px-1.5 rounded-xl transition-all duration-150 ${
-                    isConnected
+                    isConnected || app.id === 'settings'
                       ? 'hover:bg-black/5 dark:hover:bg-white/8 cursor-pointer active:scale-[0.97]'
                       : 'opacity-40 cursor-not-allowed'
                   } ${idx === focusedIndex ? 'ring-2 ring-primary/40 bg-primary/5' : ''}`}
                   onClick={() => handleOpenApp(app.id, app.label)}
-                  disabled={!isConnected}
+                  disabled={!isConnected && app.id !== 'settings'}
                 >
                   <div className="transition-transform duration-150 group-hover:scale-110 group-active:scale-100">
                     <app.IconComponent size={44} />

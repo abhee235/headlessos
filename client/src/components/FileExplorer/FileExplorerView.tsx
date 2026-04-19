@@ -3,6 +3,8 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { RefreshCw, AlertCircle, Trash2 } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
+import { LoadingView } from '@/components/ui/loading-view';
 import type { FileEntryData } from '../../lib/api';
 import { fetchFiles, listTrash, restoreFromTrash, deleteFromTrash, emptyTrash, type TrashItem } from '../../lib/api';
 import { FileList } from './FileListNew';
@@ -291,14 +293,7 @@ export function FileExplorerView({ serverId, initialPath }: FileExplorerViewProp
           onUploadComplete={handleRefresh}
         >
           <div className="flex-1 min-h-0 bg-background h-full">
-          {loading && (
-            <div className="flex items-center justify-center h-full">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                <span className="text-xs">Loading…</span>
-              </div>
-            </div>
-          )}
+          {loading && <LoadingView />}
 
           {error && !loading && /not connected/i.test(error) && (
             <DisconnectedState

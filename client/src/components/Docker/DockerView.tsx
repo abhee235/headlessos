@@ -20,6 +20,8 @@ import {
   X,
   Download,
 } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
+import { LoadingView } from '@/components/ui/loading-view';
 import type {
   DockerContainerData,
   DockerImageData,
@@ -237,7 +239,7 @@ function ContainersTab({
           <span className="text-xs font-medium text-foreground">
             Containers ({containers.length})
           </span>
-          {refreshing && <RefreshCw className="w-3 h-3 animate-spin text-muted-foreground" />}
+          {refreshing && <Spinner size={12} className="text-muted-foreground" />}
         </div>
         <div className="relative">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
@@ -408,7 +410,7 @@ function ImagesTab({
           <span className="text-xs font-medium text-foreground">
             Images ({images.length})
           </span>
-          {refreshing && <RefreshCw className="w-3 h-3 animate-spin text-muted-foreground" />}
+          {refreshing && <Spinner size={12} className="text-muted-foreground" />}
         </div>
         <div className="relative">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
@@ -726,11 +728,8 @@ export function DockerView({ serverId }: DockerViewProps) {
   // ── Loading state ──
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full bg-background">
-        <div className="flex items-center gap-3 text-muted-foreground">
-          <RefreshCw className="w-5 h-5 animate-spin" />
-          <span className="text-sm">Loading Docker…</span>
-        </div>
+      <div className="h-full bg-background">
+        <LoadingView label="Loading Docker…" />
       </div>
     );
   }

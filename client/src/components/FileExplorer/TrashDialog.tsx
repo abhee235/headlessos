@@ -3,14 +3,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import {
-  Trash2,
-  RotateCcw,
-  X as XIcon,
-  Loader2,
-  AlertCircle,
-  Folder,
-  File,
-} from 'lucide-react';
+  Trash2, RotateCcw, X as XIcon, AlertCircle, Folder, File } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -25,6 +18,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { listTrash, restoreFromTrash, deleteFromTrash, emptyTrash, type TrashItem } from '../../lib/api';
 import { FileIcon, FolderSVG } from '../ui/FileIcon';
 import { toast } from 'sonner';
+import { Spinner } from '@/components/ui/spinner';
 
 interface TrashDialogProps {
   open: boolean;
@@ -148,7 +142,7 @@ export function TrashDialog({
           <div className="border-t border-border/30">
             {loading && (
               <div className="flex items-center justify-center py-12 gap-2 text-muted-foreground">
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Spinner className="w-4 h-4" />
                 <span className="text-xs">Loading trash...</span>
               </div>
             )}
@@ -202,7 +196,7 @@ export function TrashDialog({
                           title="Restore to /tmp/"
                         >
                           {actionLoading === item.name ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <Spinner className="w-3.5 h-3.5" />
                           ) : (
                             <RotateCcw className="w-3.5 h-3.5" />
                           )}
@@ -233,7 +227,7 @@ export function TrashDialog({
                 className="text-xs"
               >
                 {actionLoading === '__empty__' ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                  <Spinner className="w-3.5 h-3.5mr-1.5" />
                 ) : (
                   <Trash2 className="w-3.5 h-3.5 mr-1.5" />
                 )}

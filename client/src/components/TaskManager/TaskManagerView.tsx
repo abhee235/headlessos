@@ -13,6 +13,8 @@ import {
   RefreshCw,
   AlertCircle,
 } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
+import { LoadingView } from '@/components/ui/loading-view';
 import type {
   TaskManagerData,
   TaskManagerResponse,
@@ -151,11 +153,8 @@ export function TaskManagerView({ serverId }: TaskManagerViewProps) {
   // ── Loading state ──
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full bg-background">
-        <div className="flex items-center gap-3 text-muted-foreground">
-          <RefreshCw className="w-5 h-5 animate-spin" />
-          <span className="text-sm">Loading task manager…</span>
-        </div>
+      <div className="h-full bg-background">
+        <LoadingView label="Loading task manager…" />
       </div>
     );
   }

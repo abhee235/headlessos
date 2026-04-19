@@ -3,6 +3,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { RefreshCw, AlertCircle, ArrowRight } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
 import type { FileEntryData } from '../../lib/api';
 import { fetchFiles } from '../../lib/api';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -49,7 +50,7 @@ function MiniFileList({
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <RefreshCw className="w-4 h-4 animate-spin text-muted-foreground" />
+        <Spinner size={16} className="text-muted-foreground" />
       </div>
     );
   }

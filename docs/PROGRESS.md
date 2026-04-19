@@ -85,6 +85,7 @@
 | EX6-C.5 | Global Settings section (always-global preferences) | ✅ | `GlobalSettingsSection.tsx`: accent default, date format, notifications; pointer to per-session Settings app |
 | EX6-C.6 | Entry points (shortcut, switcher overflow, no-active-session boot) | ✅ | `Ctrl/Cmd+Shift+Space` opens Control Center via `useSessionShortcuts` |
 | EX6-C.7 | Update docs (ARCHITECTURE/CONTEXT/UI_DESIGN/APP_REGISTRY) | ✅ | All four docs updated |
+| EX6-C.8 | Branded loading spinner rollout | ✅ | `client/src/components/ui/spinner.tsx` added; active loading indicators migrated from `Loader2`; `npm run test:client` passed (36 files, 539 tests) |
 
 ### Sub-Phase EX6-D: Polish (Defer if Scope Tight)
 

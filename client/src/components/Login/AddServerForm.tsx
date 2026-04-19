@@ -4,16 +4,9 @@
 import { useState, useEffect, useRef } from 'react';
 import type { ServerConfig } from 'headlessos-shared';
 import {
-  Server,
-  Loader2,
-  KeyRound,
-  Upload,
-  FileText,
-  ChevronDown,
-  Check,
-  FolderOpen,
-} from 'lucide-react';
+  Server, KeyRound, Upload, FileText, ChevronDown, Check, FolderOpen } from 'lucide-react';
 import { fetchSSHKeys, fetchSSHKeyContent, type SSHKeyInfo } from '../../lib/api';
+import { Spinner } from '@/components/ui/spinner';
 
 type AuthMethod = 'password' | 'privateKey' | 'agent';
 type KeySource = 'detect' | 'upload' | 'paste';
@@ -305,7 +298,7 @@ export function AddServerForm({ onSubmit, onCancel }: AddServerFormProps) {
                 </label>
                 {loadingKeys ? (
                   <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-white/40 text-sm">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <Spinner className="w-3.5 h-3.5" />
                     Scanning ~/.ssh ...
                   </div>
                 ) : detectedKeys.length === 0 ? (
@@ -359,7 +352,7 @@ export function AddServerForm({ onSubmit, onCancel }: AddServerFormProps) {
                 {/* Loading indicator when fetching key content */}
                 {loadingKeyContent && (
                   <div className="flex items-center gap-2 mt-2 text-white/40 text-xs">
-                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <Spinner className="w-3 h-3" />
                     Loading key content...
                   </div>
                 )}
@@ -452,7 +445,7 @@ export function AddServerForm({ onSubmit, onCancel }: AddServerFormProps) {
           >
             {submitting ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Spinner className="w-4 h-4" />
                 Adding...
               </>
             ) : (

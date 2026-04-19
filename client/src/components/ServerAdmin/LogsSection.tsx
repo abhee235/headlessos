@@ -4,9 +4,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  RefreshCw, Loader2, AlertCircle, ScrollText, Search,
-  Download, ArrowDown, X, Filter,
-} from 'lucide-react';
+  RefreshCw, AlertCircle, ScrollText, Search, Download, ArrowDown, X, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -22,6 +20,8 @@ import { cn } from '@/lib/utils';
 import { fetchLogInfo, getLogExportUrl } from '@/lib/api';
 import type { LogInfo, LogQueryOpts } from '@/lib/api';
 import { toast } from 'sonner';
+import { Spinner } from '@/components/ui/spinner';
+import { LoadingView } from '@/components/ui/loading-view';
 
 type LogSource = 'journal' | 'dmesg' | 'syslog';
 
@@ -340,9 +340,8 @@ export function LogsSection({ serverId }: { serverId: string }) {
 
       {/* Content */}
       {loading && !data ? (
-        <div className="flex items-center justify-center flex-1 text-foreground/40">
-          <Loader2 className="animate-spin mr-2" size={20} />
-          Loading logs…
+        <div className="flex-1">
+          <LoadingView label="Loading logs…" />
         </div>
       ) : error && !data ? (
         <div className="flex flex-col items-center justify-center flex-1 gap-3 text-foreground/40">
@@ -357,7 +356,7 @@ export function LogsSection({ serverId }: { serverId: string }) {
         >
           {loading && (
             <div className="absolute top-2 right-2 z-10">
-              <Loader2 className="animate-spin text-foreground/40" size={14} />
+              <Spinner className="text-foreground/40" size={14} />
             </div>
           )}
           {!data || data.entries.length === 0 ? (

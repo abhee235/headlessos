@@ -4,15 +4,7 @@
 import { useAppStore } from '../../store/app-store';
 import { useDesktopStore } from '../../store/window-store';
 import {
-  Server,
-  Plus,
-  Wifi,
-  WifiOff,
-  Loader2,
-  X,
-  Power,
-  PowerOff,
-} from 'lucide-react';
+  Server, Plus, Wifi, WifiOff, X, Power, PowerOff } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,

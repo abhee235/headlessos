@@ -56,7 +56,7 @@ function WindowContent({ appId, serverId, windowId, meta }: { appId: string; ser
     case 'settings':
       return (
         <div className="h-full overflow-hidden">
-          <SettingsView />
+          <SettingsView initialPage={meta?.initialPage as 'general' | 'appearance' | 'wallpaper' | 'terminal' | 'keyboard' | 'notifications' | 'ai' | 'plugins' | 'about' | undefined} />
         </div>
       );
     case 'taskmanager':
@@ -129,9 +129,10 @@ export function WindowManager() {
   // EX6-D: Citrix-style session isolation — only render windows belonging
   // to the active session. Other live sessions keep their windows in the
   // store but are visually hidden until the user switches to them.
-  const visible = activeServerId
-    ? windows.filter(w => w.serverId === activeServerId)
-    : [];
+  // Global apps (empty serverId, e.g. Settings/Personalize) are always visible.
+  const visible = windows.filter(
+    w => w.serverId === '' || (activeServerId !== null && w.serverId === activeServerId),
+  );
 
   return (
     <>

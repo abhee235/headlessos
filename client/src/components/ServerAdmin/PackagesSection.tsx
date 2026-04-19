@@ -2,7 +2,7 @@
 // @see docs/phases/phase-8.md
 
 import { useCallback, useEffect, useState, useRef } from 'react';
-import { RefreshCw, Loader2, AlertCircle, Package, Download, Trash2, ArrowUpCircle, Search, X, RotateCw } from 'lucide-react';
+import { RefreshCw, AlertCircle, Package, Download, Trash2, ArrowUpCircle, Search, X, RotateCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -27,6 +27,8 @@ import {
 } from '@/lib/api';
 import type { PackageInfo, AptSearchResult } from '@/lib/api';
 import { toast } from 'sonner';
+import { Spinner } from '@/components/ui/spinner';
+import { LoadingView } from '@/components/ui/loading-view';
 
 export function PackagesSection({ serverId }: { serverId: string }) {
   const [data, setData] = useState<PackageInfo | null>(null);
@@ -193,12 +195,7 @@ export function PackagesSection({ serverId }: { serverId: string }) {
   // ── Render ──
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20 text-foreground/40">
-        <Loader2 size={20} className="animate-spin mr-2" />
-        Loading package info…
-      </div>
-    );
+    return <LoadingView label="Loading package info…" fullHeight={false} />;
   }
 
   if (error || !data) {
@@ -237,7 +234,7 @@ export function PackagesSection({ serverId }: { serverId: string }) {
             onClick={handleAptUpdate}
             disabled={!!busy}
           >
-            {busy === 'update' ? <Loader2 className="animate-spin mr-1" size={14} /> : <RotateCw size={14} className="mr-1" />}
+            {busy === 'update' ? <Spinner className="mr-1" size={14} /> : <RotateCw size={14} className="mr-1" />}
             Update Lists
           </Button>
           <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground/30 hover:text-foreground" onClick={load}>
@@ -292,7 +289,7 @@ export function PackagesSection({ serverId }: { serverId: string }) {
                 })}
                 disabled={!!busy}
               >
-                {busy === 'upgrade-all' ? <Loader2 className="animate-spin mr-1" size={14} /> : <ArrowUpCircle size={14} className="mr-1" />}
+                {busy === 'upgrade-all' ? <Spinner className="mr-1" size={14} /> : <ArrowUpCircle size={14} className="mr-1" />}
                 Upgrade All ({data.upgradable.length})
               </Button>
             </div>
@@ -331,7 +328,7 @@ export function PackagesSection({ serverId }: { serverId: string }) {
                         onClick={() => handleUpgradePackage(pkg.name)}
                       >
                         {busy === `upgrade:${pkg.name}` ? (
-                          <Loader2 className="animate-spin mr-1" size={12} />
+                          <Spinner className="mr-1" size={12} />
                         ) : (
                           <ArrowUpCircle size={12} className="mr-1" />
                         )}
@@ -368,7 +365,7 @@ export function PackagesSection({ serverId }: { serverId: string }) {
 
           {searching && (
             <div className="flex items-center justify-center py-8 text-foreground/40">
-              <Loader2 className="animate-spin mr-2" size={16} />
+              <Spinner className="mr-2" size={16} />
               Searching…
             </div>
           )}
@@ -419,7 +416,7 @@ export function PackagesSection({ serverId }: { serverId: string }) {
                           })}
                         >
                           {busy === `remove:${pkg.name}` ? (
-                            <Loader2 className="animate-spin mr-1" size={12} />
+                            <Spinner className="mr-1" size={12} />
                           ) : (
                             <Trash2 size={12} className="mr-1" />
                           )}
@@ -438,7 +435,7 @@ export function PackagesSection({ serverId }: { serverId: string }) {
                           })}
                         >
                           {busy === `install:${pkg.name}` ? (
-                            <Loader2 className="animate-spin mr-1" size={12} />
+                            <Spinner className="mr-1" size={12} />
                           ) : (
                             <Download size={12} className="mr-1" />
                           )}

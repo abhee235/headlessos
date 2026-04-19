@@ -3,12 +3,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
-  RefreshCw, Loader2, AlertCircle, Wifi, Pencil,
-  ArrowUpCircle, ArrowDownCircle, Save, X,
-  Activity, Globe, Radio, Search, MoreHorizontal,
-  Shield, Lock, Eye, Ban, FileText, Circle,
-  CheckCircle2, Target, SlidersHorizontal, ChevronDown,
-} from 'lucide-react';
+  RefreshCw, AlertCircle, Wifi, Pencil, ArrowUpCircle, ArrowDownCircle, Save, X, Activity, Globe, Radio, Search, MoreHorizontal, Shield, Lock, Eye, Ban, FileText, Circle, CheckCircle2, Target, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -33,6 +28,8 @@ import { cn } from '@/lib/utils';
 import { fetchNetworkInfo, setHostname, setDnsConfig, setInterfaceUp, setInterfaceDown } from '@/lib/api';
 import type { NetworkInfo } from '@/lib/api';
 import { toast } from 'sonner';
+import { Spinner } from '@/components/ui/spinner';
+import { LoadingView } from '@/components/ui/loading-view';
 
 export function NetworkSection({ serverId }: { serverId: string }) {
   const [data, setData] = useState<NetworkInfo | null>(null);
@@ -137,12 +134,7 @@ export function NetworkSection({ serverId }: { serverId: string }) {
 
   // ── Loading/Error guards ─────────────────────
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20 text-foreground/40">
-        <Loader2 size={20} className="animate-spin mr-2" />
-        Loading network info…
-      </div>
-    );
+    return <LoadingView label="Loading network info…" fullHeight={false} />;
   }
 
   if (error || !data) {
@@ -631,7 +623,7 @@ export function NetworkSection({ serverId }: { serverId: string }) {
                 </div>
                 <div className="flex items-center gap-2 pt-1">
                   <Button size="sm" onClick={() => void handleSaveDns()} disabled={busy || !dnsInput.trim()}>
-                    {busy && <Loader2 size={14} className="animate-spin mr-1" />}
+                    {busy && <Spinner size={14} className="mr-1" />}
                     Save
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => setEditingDns(false)} disabled={busy}>Cancel</Button>

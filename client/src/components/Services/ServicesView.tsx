@@ -4,22 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePreferencesStore } from '../../store/preferences-store';
 import {
-  Server,
-  Play,
-  Square,
-  RotateCcw,
-  Power,
-  PowerOff,
-  RefreshCw,
-  AlertCircle,
-  FileText,
-  Search,
-  X,
-  Circle,
-  CheckCircle2,
-  XCircle,
-  Loader2,
-} from 'lucide-react';
+  Server, Play, Square, RotateCcw, Power, PowerOff, RefreshCw, AlertCircle, FileText, Search, X, Circle, CheckCircle2, XCircle } from 'lucide-react';
 import type { ServiceData, ServicesResponse } from '../../lib/api';
 import {
   fetchServices,
@@ -37,6 +22,8 @@ import {
 } from '@/components/ui/context-menu';
 import { toast } from 'sonner';
 import { DisconnectedState } from '@/components/ui/disconnected-state';
+import { Spinner } from '@/components/ui/spinner';
+import { LoadingView } from '@/components/ui/loading-view';
 
 // ─── State indicator ─────────────────────────────────────────────────────────
 
@@ -48,7 +35,7 @@ function ActiveStateIcon({ state }: { state: string }) {
       return <XCircle size={13} className="text-destructive" />;
     case 'activating':
     case 'deactivating':
-      return <Loader2 size={13} className="text-warning animate-spin" />;
+      return <Spinner size={13} className="text-warning" />;
     default:
       return <Circle size={13} className="text-muted-foreground" />;
   }
@@ -247,11 +234,8 @@ export function ServicesView({ serverId }: ServicesViewProps) {
   // ── Loading state ──
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full bg-background">
-        <div className="flex items-center gap-3 text-muted-foreground">
-          <RefreshCw className="w-5 h-5 animate-spin" />
-          <span className="text-sm">Loading services…</span>
-        </div>
+      <div className="h-full bg-background">
+        <LoadingView label="Loading services…" />
       </div>
     );
   }
@@ -309,7 +293,7 @@ export function ServicesView({ serverId }: ServicesViewProps) {
           <span className="text-xs font-medium text-foreground">
             Services ({services.length})
           </span>
-          {refreshing && <RefreshCw className="w-3 h-3 animate-spin text-muted-foreground" />}
+          {refreshing && <Spinner size={12} className="text-muted-foreground" />}
 
           {/* State filter pills */}
           <div className="flex items-center gap-1">
