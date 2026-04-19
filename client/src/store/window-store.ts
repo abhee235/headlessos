@@ -88,6 +88,15 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
         w => w.appId === appId && w.serverId === serverId,
       );
       if (existing) {
+        // If new meta is passed, update it so e.g. "Personalize" jumps to wallpaper
+        // page even when a Settings window is already open.
+        if (meta) {
+          set({
+            windows: state.windows.map(w =>
+              w.id === existing.id ? { ...w, meta: { ...(w.meta ?? {}), ...meta }, title } : w,
+            ),
+          });
+        }
         get().focusWindow(existing.id);
         if (existing.minimized) get().restoreWindow(existing.id);
         return;

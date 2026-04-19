@@ -11,7 +11,7 @@ import { terminalWsUrl } from '../../lib/api';
 import { usePreferencesStore } from '../../store/preferences-store';
 import { useThemeStore } from '../../store/theme-store';
 import { toast } from 'sonner';
-import { Loader2, WifiOff, RefreshCw, Copy, ClipboardPaste, Trash2, MousePointerClick, Sparkles } from 'lucide-react';
+import { WifiOff, RefreshCw, Copy, ClipboardPaste, Trash2, MousePointerClick, Sparkles } from 'lucide-react';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -21,6 +21,8 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import '@xterm/xterm/css/xterm.css';
+import { Spinner } from '@/components/ui/spinner';
+import { LoadingView } from '@/components/ui/loading-view';
 
 /** EX1.11: Hint from backend about parseable terminal output */
 interface VisualizeHint {
@@ -340,10 +342,7 @@ export function TerminalView({ serverId, onVisualize }: TerminalViewProps) {
           {/* Loading overlay */}
           {status === 'connecting' && (
             <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-10">
-              <div className="flex flex-col items-center gap-3">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                <span className="text-sm text-muted-foreground">Connecting…</span>
-              </div>
+              <LoadingView label="Connecting…" />
             </div>
           )}
 

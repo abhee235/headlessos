@@ -2,7 +2,7 @@
 // @see docs/phases/phase-7.md, docs/phases/phase-8.md
 
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshCw, Loader2, AlertCircle, Lock, Users, LogIn, Key, ShieldCheck, Ban, ShieldOff, RotateCw, Plus, Trash2, KeyRound, UserPlus } from 'lucide-react';
+import { RefreshCw, AlertCircle, Lock, Users, LogIn, Key, ShieldCheck, Ban, ShieldOff, RotateCw, Plus, Trash2, KeyRound, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -38,6 +38,8 @@ import {
 } from '@/lib/api';
 import type { SecurityInfo, Fail2banJailDetail } from '@/lib/api';
 import { toast } from 'sonner';
+import { Spinner } from '@/components/ui/spinner';
+import { LoadingView } from '@/components/ui/loading-view';
 
 export function SecuritySection({ serverId }: { serverId: string }) {
   const [data, setData] = useState<SecurityInfo | null>(null);
@@ -265,12 +267,7 @@ export function SecuritySection({ serverId }: { serverId: string }) {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20 text-foreground/40">
-        <Loader2 className="animate-spin mr-2" size={20} />
-        Loading security info…
-      </div>
-    );
+    return <LoadingView label="Loading security info…" fullHeight={false} />;
   }
 
   if (error || !data) {
@@ -402,7 +399,7 @@ export function SecuritySection({ serverId }: { serverId: string }) {
               </div>
               <div className="flex items-center gap-2 pt-1">
                 <Button size="sm" onClick={handleCreateUser} disabled={busy || !newUsername.trim()}>
-                  {busy && <Loader2 size={14} className="animate-spin mr-1" />}
+                  {busy && <Spinner size={14} className="mr-1" />}
                   Create
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => setShowAddUser(false)} disabled={busy}>
@@ -504,7 +501,7 @@ export function SecuritySection({ serverId }: { serverId: string }) {
               <DialogFooter>
                 <Button variant="ghost" onClick={() => setPasswordTarget(null)} disabled={busy}>Cancel</Button>
                 <Button onClick={handleSetPassword} disabled={busy || !passwordInput}>
-                  {busy && <Loader2 size={14} className="animate-spin mr-1" />}
+                  {busy && <Spinner size={14} className="mr-1" />}
                   Set Password
                 </Button>
               </DialogFooter>
@@ -536,7 +533,7 @@ export function SecuritySection({ serverId }: { serverId: string }) {
               <DialogFooter>
                 <Button variant="ghost" onClick={() => setGroupTarget(null)} disabled={busy}>Cancel</Button>
                 <Button onClick={handleAddToGroup} disabled={busy || !groupInput.trim()}>
-                  {busy && <Loader2 size={14} className="animate-spin mr-1" />}
+                  {busy && <Spinner size={14} className="mr-1" />}
                   Add to Group
                 </Button>
               </DialogFooter>
@@ -584,7 +581,7 @@ export function SecuritySection({ serverId }: { serverId: string }) {
               <DialogFooter>
                 <Button variant="ghost" onClick={() => setDeleteTarget(null)} disabled={busy}>Cancel</Button>
                 <Button variant="destructive" onClick={() => { void handleDeleteUser(); }} disabled={busy}>
-                  {busy && <Loader2 size={14} className="animate-spin mr-1" />}
+                  {busy && <Spinner size={14} className="mr-1" />}
                   Delete User
                 </Button>
               </DialogFooter>
@@ -666,7 +663,7 @@ export function SecuritySection({ serverId }: { serverId: string }) {
                   disabled={actionLoading === 'reload'}
                 >
                   {actionLoading === 'reload' ? (
-                    <Loader2 size={14} className="animate-spin mr-1" />
+                    <Spinner size={14} className="mr-1" />
                   ) : (
                     <RotateCw size={14} className="mr-1" />
                   )}
@@ -691,7 +688,7 @@ export function SecuritySection({ serverId }: { serverId: string }) {
 
                   {jailLoading ? (
                     <div className="flex items-center justify-center py-12 text-foreground/40">
-                      <Loader2 className="animate-spin mr-2" size={16} />
+                      <Spinner className="mr-2" size={16} />
                       Loading jail details…
                     </div>
                   ) : jailDetail ? (
@@ -740,7 +737,7 @@ export function SecuritySection({ serverId }: { serverId: string }) {
                           disabled={!banIpInput.trim() || actionLoading === 'ban'}
                         >
                           {actionLoading === 'ban' ? (
-                            <Loader2 size={14} className="animate-spin mr-1" />
+                            <Spinner size={14} className="mr-1" />
                           ) : (
                             <Ban size={14} className="mr-1" />
                           )}
@@ -770,7 +767,7 @@ export function SecuritySection({ serverId }: { serverId: string }) {
                                     className="text-destructive hover:text-destructive"
                                   >
                                     {actionLoading === `unban:${ip}` ? (
-                                      <Loader2 size={14} className="animate-spin mr-1" />
+                                      <Spinner size={14} className="mr-1" />
                                     ) : (
                                       <ShieldOff size={14} className="mr-1" />
                                     )}

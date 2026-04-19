@@ -367,7 +367,7 @@ export function Desktop() {
           Server Admin
         </ContextMenuItem>
 
-        <ContextMenuItem onClick={() => openWindow('settings', '', 'Settings', 'settings')}>
+        <ContextMenuItem onClick={() => openWindow('settings', '', 'Personalize', 'settings', { initialPage: 'wallpaper' })}>
           <Paintbrush className="w-4 h-4 mr-2 opacity-60" />
           Personalize
         </ContextMenuItem>

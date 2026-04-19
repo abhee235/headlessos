@@ -6,16 +6,8 @@ import { useAppStore } from '../../store/app-store';
 import { Wallpaper } from '../Desktop/Wallpaper';
 import { ServerAvatar } from './ServerAvatar';
 import { AddServerForm } from './AddServerForm';
-import {
-  Server,
-  Plus,
-  ArrowLeft,
-  Eye,
-  EyeOff,
-  Loader2,
-  KeyRound,
-  AlertCircle,
-} from 'lucide-react';
+import { Server, Plus, ArrowLeft, Eye, EyeOff, KeyRound, AlertCircle } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
 
 type LoginView = 'select' | 'credentials' | 'add-server';
 
@@ -169,7 +161,7 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
             <div className="flex flex-wrap justify-center gap-6 max-w-lg">
               {loadingServers && servers.length === 0 && (
                 <div className="flex items-center gap-2 text-white/50">
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <Spinner className="w-5 h-5" />
                   <span className="text-sm">Loading servers…</span>
                 </div>
               )}
@@ -318,7 +310,7 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
             >
               {connecting ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Spinner className="w-4 h-4" />
                   Connecting...
                 </>
               ) : (

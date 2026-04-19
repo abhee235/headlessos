@@ -7,7 +7,8 @@ import { useObservatorySocket } from '../../hooks/useObservatorySocket';
 import { TraceListView } from './TraceListView';
 import { StatsPanel } from './StatsPanel';
 import { TraceDetailView } from './TraceDetailView';
-import { Wifi, WifiOff, Loader2 } from 'lucide-react';
+import { Wifi, WifiOff } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
 
 export function ObservatoryView() {
   const {
@@ -49,7 +50,7 @@ export function ObservatoryView() {
         )}
         {status === 'connecting' && (
           <>
-            <Loader2 className="w-3 h-3 animate-spin" />
+            <Spinner className="w-3 h-3" />
             <span>Connecting...</span>
           </>
         )}

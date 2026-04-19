@@ -2,7 +2,7 @@
 // @see docs/phases/phase-8.md
 
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshCw, Loader2, AlertCircle, Globe, CheckCircle2, XCircle, Lock, Power, RotateCw, Eye, FileText } from 'lucide-react';
+import { RefreshCw, AlertCircle, Globe, CheckCircle2, XCircle, Lock, Power, RotateCw, Eye, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -31,6 +31,8 @@ import {
 } from '@/lib/api';
 import type { WebServerInfo } from '@/lib/api';
 import { toast } from 'sonner';
+import { Spinner } from '@/components/ui/spinner';
+import { LoadingView } from '@/components/ui/loading-view';
 
 export function WebServerSection({ serverId }: { serverId: string }) {
   const [data, setData] = useState<WebServerInfo | null>(null);
@@ -168,12 +170,7 @@ export function WebServerSection({ serverId }: { serverId: string }) {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20 text-foreground/40">
-        <Loader2 size={20} className="animate-spin mr-2" />
-        Loading web server info…
-      </div>
-    );
+    return <LoadingView label="Loading web server info…" fullHeight={false} />;
   }
 
   if (error || !data) {
@@ -223,7 +220,7 @@ export function WebServerSection({ serverId }: { serverId: string }) {
             disabled={busy || testing}
             title="Test configuration"
           >
-            {testing ? <Loader2 size={14} className="animate-spin mr-1" /> : <FileText size={14} className="mr-1" />}
+            {testing ? <Spinner size={14} className="mr-1" /> : <FileText size={14} className="mr-1" />}
             Test
           </Button>
           <Button
@@ -383,7 +380,7 @@ export function WebServerSection({ serverId }: { serverId: string }) {
           </DialogHeader>
           {configLoading ? (
             <div className="flex items-center justify-center h-32 text-foreground/40">
-              <Loader2 className="animate-spin mr-2" size={16} />
+              <Spinner className="mr-2" size={16} />
               Loading config…
             </div>
           ) : (

@@ -7,11 +7,12 @@ import { DynamicViewProvider } from './DynamicViewContext';
 import { SectionContent } from './SectionContent';
 import { useDynamicSidebar } from './useDynamicSidebar';
 import { useDynamicUIStore } from '@/store/dynamic-ui-store';
-import { Sparkles, Loader2 } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { getLucideIcon } from './widgets/icon-helper';
+import { Spinner } from '@/components/ui/spinner';
 
 interface DynamicUITabViewProps {
   /** Server ID this window is connected to */
@@ -71,7 +72,7 @@ export function DynamicUITabView({ serverId, windowId }: DynamicUITabViewProps) 
 function LoadingFooter({ title, hasContent }: { title: string; hasContent: boolean }) {
   return (
     <div className="border-t border-border/40 px-4 py-2 flex items-center gap-2">
-      <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-500" />
+      <Spinner className="w-3.5 h-3.5text-emerald-500" />
       <span className="text-xs text-emerald-600 dark:text-emerald-400">
         {hasContent ? 'Building view…' : 'Preparing layout…'}
       </span>

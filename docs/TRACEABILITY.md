@@ -68,6 +68,42 @@ After completing a task, add an entry here:
 
 _No tasks completed yet._
 
+## EX6-C.8: Branded Loading Spinner Rollout
+
+- **Status:** ✅ Complete
+- **Date:** 2026-04-18
+- **Phase Doc:** [phase-ex6.md](phases/phase-ex6.md)
+- **Files Created:**
+  - `client/src/components/ui/spinner.tsx`
+- **Files Modified:**
+  - `client/src/components/Login/LoginScreen.tsx`
+  - `client/src/components/Login/AddServerForm.tsx`
+  - `client/src/components/Terminal/TerminalView.tsx`
+  - `client/src/components/Services/ServicesView.tsx`
+  - `client/src/components/Agent/AgentPanel.tsx`
+  - `client/src/components/Agent/AgentView.tsx`
+  - `client/src/components/Agent/UIAgentView.tsx`
+  - `client/src/components/ServerAdmin/FirewallSection.tsx`
+  - `client/src/components/ServerAdmin/LogsSection.tsx`
+  - `client/src/components/ServerAdmin/PackagesSection.tsx`
+  - `client/src/components/ServerAdmin/CronSection.tsx`
+  - `client/src/components/ServerAdmin/SecuritySection.tsx`
+  - `client/src/components/ServerAdmin/NetworkSection.tsx`
+  - `client/src/components/ServerAdmin/StorageSection.tsx`
+  - `client/src/components/ServerAdmin/WebServerSection.tsx`
+  - `client/src/components/Desktop/WallpaperPicker.tsx`
+  - `client/src/components/Desktop/SessionTile.tsx`
+  - `client/src/components/FileExplorer/FileSearchDialog.tsx`
+  - `client/src/components/FileExplorer/TrashDialog.tsx`
+  - `client/src/components/FileExplorer/UploadDropZone.tsx`
+  - `client/src/components/DynamicUI/DynamicUITabView.tsx`
+  - `client/src/components/Observatory/ObservatoryView.tsx`
+- **Verification:**
+  - `npm run test:client` passed (36 files, 539 tests) ✅
+  - Search check confirmed no `Loader2` usage remains in `client/src/**` ✅
+- **Notes:**
+  - `npm run build --workspace=client` reports unrelated pre-existing TypeScript errors in Dynamic UI and Command Palette type paths.
+
 ## M1.1: SSH Connection Manager
 
 - **Files Created:**

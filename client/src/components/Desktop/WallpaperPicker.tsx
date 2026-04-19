@@ -5,29 +5,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePreferencesStore } from '../../store/preferences-store';
 import {
-  BUILTIN_WALLPAPERS,
-  fetchWallpapers,
-  uploadWallpaper,
-  deleteWallpaper,
-  type WallpaperDefinition,
-  type ImageWallpaper,
-} from './wallpapers';
+  BUILTIN_WALLPAPERS, fetchWallpapers, uploadWallpaper, deleteWallpaper, type WallpaperDefinition, type ImageWallpaper, } from './wallpapers';
 import { WallpaperPreview } from './Wallpaper';
 import { AppWindow } from '@/components/ui/app-window';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
-  Check,
-  Paintbrush,
-  Upload,
-  Trash2,
-  Loader2,
-  ImageIcon,
-  Palette,
-  Monitor,
-  User,
-} from 'lucide-react';
+  Check, Paintbrush, Upload, Trash2, ImageIcon, Palette, Monitor, User } from 'lucide-react';
 import { toast } from 'sonner';
+import { Spinner } from '@/components/ui/spinner';
 
 type Category = 'builtin' | 'system' | 'user';
 
@@ -159,7 +145,7 @@ export function WallpaperPicker({ open, onOpenChange }: WallpaperPickerProps) {
           className="gap-1.5 text-xs"
         >
           {uploading ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            <Spinner className="w-3.5 h-3.5" />
           ) : (
             <Upload className="w-3.5 h-3.5" />
           )}
@@ -182,7 +168,7 @@ export function WallpaperPicker({ open, onOpenChange }: WallpaperPickerProps) {
       <AppWindow.Body>
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            <Spinner className="w-6 h-6 text-muted-foreground" />
           </div>
         ) : currentWallpapers.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 gap-2 text-muted-foreground">

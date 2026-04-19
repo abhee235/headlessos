@@ -2,7 +2,7 @@
 // @see docs/phases/phase-7.md
 
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshCw, Loader2, AlertCircle, HardDrive } from 'lucide-react';
+import { RefreshCw, AlertCircle, HardDrive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -16,6 +16,8 @@ import {
 import { cn } from '@/lib/utils';
 import { fetchStorageInfo } from '@/lib/api';
 import type { StorageInfo } from '@/lib/api';
+import { Spinner } from '@/components/ui/spinner';
+import { LoadingView } from '@/components/ui/loading-view';
 
 export function StorageSection({ serverId }: { serverId: string }) {
   const [data, setData] = useState<StorageInfo | null>(null);
@@ -42,12 +44,7 @@ export function StorageSection({ serverId }: { serverId: string }) {
   useEffect(() => { load(); }, [load]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20 text-foreground/40">
-        <Loader2 className="animate-spin mr-2" size={20} />
-        Loading storage info…
-      </div>
-    );
+    return <LoadingView label="Loading storage info…" fullHeight={false} />;
   }
 
   if (error || !data) {

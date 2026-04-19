@@ -10,14 +10,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  Wand2,
-  Send,
-  Square,
-  Loader2,
-  Sparkles,
-  RotateCcw,
-  Shield,
-} from 'lucide-react';
+  Wand2, Send, Square, Sparkles, RotateCcw, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -38,6 +31,7 @@ import { DynamicViewSchema } from 'headlessos-shared/schemas/dynamic-view';
 import type { DynamicView, DeepPartial } from 'headlessos-shared/schemas/dynamic-view';
 import { checkDockerAvailable } from '../../lib/api';
 import { cn } from '@/lib/utils';
+import { Spinner } from '@/components/ui/spinner';
 
 // ── Preset prompts ──────────────────────────────────────
 
@@ -268,7 +262,7 @@ export function UIAgentView({ serverId }: UIAgentViewProps) {
           {/* Running indicator (before events start arriving) */}
           {isRunning && activeSession.events.length === 0 && (
             <div className="flex items-center gap-3 py-8 justify-center">
-              <Loader2 className="w-5 h-5 animate-spin text-emerald-500" />
+              <Spinner className="w-5 h-5 text-emerald-500" />
               <span className="text-sm text-muted-foreground">Starting agent…</span>
             </div>
           )}

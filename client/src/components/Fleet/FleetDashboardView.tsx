@@ -13,6 +13,8 @@ import {
   Tag,
   AlertCircle,
 } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
+import { LoadingView } from '@/components/ui/loading-view';
 import { fetchFleetOverview, type FleetOverview, type FleetServerSummary } from '../../lib/api';
 import { useAppStore } from '../../store/app-store';
 import { useDesktopStore } from '../../store/window-store';
@@ -279,11 +281,8 @@ export function FleetDashboardView({ onServerActivated }: FleetDashboardViewProp
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="flex items-center gap-3 text-muted-foreground">
-          <RefreshCw className="w-5 h-5 animate-spin" />
-          <span className="text-sm">Loading fleet overview…</span>
-        </div>
+      <div className="h-64">
+        <LoadingView label="Loading fleet overview…" />
       </div>
     );
   }

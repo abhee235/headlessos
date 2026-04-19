@@ -1596,8 +1596,12 @@ function PluginsPage() {
 // SETTINGS VIEW (root)
 // ═════════════════════════════════════════════════════════════════════════════
 
-export function SettingsView() {
-  const [page, setPage] = useState<PageId>('general');
+interface SettingsViewProps {
+  initialPage?: PageId;
+}
+
+export function SettingsView({ initialPage }: SettingsViewProps = {}) {
+  const [page, setPage] = useState<PageId>(initialPage ?? 'general');
 
   return (
     <div className="flex h-full bg-background">

@@ -3,27 +3,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  LayoutDashboard,
-  FolderOpen,
-  Terminal,
-  Box,
-  Server,
-  Activity,
-  Settings,
-  Shield,
-  Search,
-  Moon,
-  Sun,
-  Monitor,
-  Keyboard,
-  Image,
-  Paintbrush,
-  Bell,
-  Info,
-  Wand2,
-  Sparkles,
-  Loader2,
-} from 'lucide-react';
+  LayoutDashboard, FolderOpen, Terminal, Box, Server, Activity, Settings, Shield, Search, Moon, Sun, Monitor, Keyboard, Image, Paintbrush, Bell, Info, Wand2, Sparkles } from 'lucide-react';
 import {
   Command,
   CommandEmpty,

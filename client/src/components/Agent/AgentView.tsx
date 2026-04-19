@@ -3,21 +3,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import {
-  Bot,
-  Send,
-  Square,
-  Terminal,
-  Brain,
-  CheckCircle2,
-  XCircle,
-  AlertTriangle,
-  Loader2,
-  Clock,
-  ChevronDown,
-  ChevronRight,
-  Copy,
-  Zap,
-} from 'lucide-react';
+  Bot, Send, Square, Terminal, Brain, CheckCircle2, XCircle, AlertTriangle, Clock, ChevronDown, ChevronRight, Copy, Zap } from 'lucide-react';
 import { startAgentInvestigation, type AgentResult, type AgentStep } from '../../lib/api';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -29,6 +15,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
+import { Spinner } from '@/components/ui/spinner';
 
 // ── Preset questions ────────────────────────────────────
 
@@ -265,7 +252,7 @@ export function AgentView({ serverId }: AgentViewProps) {
           {/* Running indicator */}
           {running && !result && (
             <div className="flex items-center gap-3 py-8 justify-center">
-              <Loader2 className="w-5 h-5 animate-spin text-primary" />
+              <Spinner className="w-5 h-5 text-primary" />
               <span className="text-sm text-muted-foreground">Investigating…</span>
             </div>
           )}

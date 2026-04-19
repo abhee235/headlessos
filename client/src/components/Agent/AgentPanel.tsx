@@ -7,29 +7,13 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  Bot,
-  Brain,
-  Wrench,
-  ShieldAlert,
-  CheckCircle2,
-  XCircle,
-  AlertTriangle,
-  Loader2,
-  ChevronDown,
-  ChevronRight,
-  Square,
-  Clock,
-  Eye,
-  Minimize2,
-  Maximize2,
-  Package,
-  Search,
-} from 'lucide-react';
+  Bot, Brain, Wrench, ShieldAlert, CheckCircle2, XCircle, AlertTriangle, ChevronDown, ChevronRight, Square, Clock, Eye, Minimize2, Maximize2, Package, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
+import { Spinner } from '@/components/ui/spinner';
 
 // ── Types (mirroring server-side AgentEvent + UIAgentEvent) ──
 
@@ -199,7 +183,7 @@ export function AgentPanel({ events, isRunning, onAbort, className }: AgentPanel
       >
         <Bot className="w-4 h-4 text-primary" />
         <span className="text-sm font-medium flex-1">UI Agent</span>
-        {isRunning && <Loader2 className="w-4 h-4 animate-spin text-primary" />}
+        {isRunning && <Spinner className="w-4 h-4 text-primary" />}
         <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setCollapsed(false)}>
           <Maximize2 className="w-3.5 h-3.5" />
         </Button>
@@ -246,7 +230,7 @@ export function AgentPanel({ events, isRunning, onAbort, className }: AgentPanel
 
           {isRunning && (
             <div className="flex items-center gap-2 px-3 py-1.5 text-sm text-muted-foreground">
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Spinner className="w-4 h-4" />
               <span>Working...</span>
             </div>
           )}

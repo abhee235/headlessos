@@ -3,17 +3,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
-  RefreshCw,
-  Loader2,
-  AlertCircle,
-  Shield,
-  ShieldOff,
-  Plus,
-  Trash2,
-  Power,
-  Globe,
-  AppWindow,
-} from 'lucide-react';
+  RefreshCw, AlertCircle, Shield, ShieldOff, Plus, Trash2, Power, Globe, AppWindow } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -38,6 +28,8 @@ import {
 import type { FirewallStatus, UfwAppProfile } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { Spinner } from '@/components/ui/spinner';
+import { LoadingView } from '@/components/ui/loading-view';
 
 export function FirewallSection({ serverId }: { serverId: string }) {
   const [data, setData] = useState<FirewallStatus | null>(null);
@@ -207,12 +199,7 @@ export function FirewallSection({ serverId }: { serverId: string }) {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20 text-foreground/40">
-        <Loader2 size={20} className="animate-spin mr-2" />
-        Loading firewall status…
-      </div>
-    );
+    return <LoadingView label="Loading firewall status…" fullHeight={false} />;
   }
 
   if (error || !data) {
@@ -446,7 +433,7 @@ export function FirewallSection({ serverId }: { serverId: string }) {
         <div className="mt-0">
           {appsLoading ? (
             <div className="flex items-center justify-center py-12 text-foreground/40">
-              <Loader2 className="animate-spin mr-2" size={16} />
+              <Spinner className="mr-2" size={16} />
               Loading app profiles…
             </div>
           ) : appProfiles.length > 0 ? (

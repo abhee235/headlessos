@@ -2,7 +2,7 @@
 // @see docs/phases/phase-ex6.md
 
 import { useMemo } from 'react';
-import { Server, Loader2, Moon, AlertCircle, MoreVertical } from 'lucide-react';
+import { Server, Moon, AlertCircle, MoreVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   ContextMenu,
@@ -17,6 +17,7 @@ import { exportSession } from '../../lib/session-io';
 import { saveSession, fetchSession } from '../../lib/api';
 import type { ServerWithState } from '../../lib/api';
 import { ACCENT_PRESETS } from '../../store/preferences-store';
+import { Spinner } from '@/components/ui/spinner';
 
 interface SessionTileProps {
   server: ServerWithState;
@@ -33,7 +34,7 @@ function statusFor(server: ServerWithState, lifecycle: string | null) {
   }
   const s = server.state?.status;
   if (s === 'connected') return { label: 'Connected', dot: 'bg-green-500', icon: null };
-  if (s === 'connecting') return { label: 'Connecting…', dot: 'bg-amber-500 animate-pulse', icon: Loader2 };
+  if (s === 'connecting') return { label: 'Connecting…', dot: 'bg-amber-500 animate-pulse', icon: Spinner };
   if (s === 'error') return { label: 'Failed', dot: 'bg-red-500', icon: AlertCircle };
   return { label: 'Disconnected', dot: 'bg-muted-foreground', icon: null };
 }

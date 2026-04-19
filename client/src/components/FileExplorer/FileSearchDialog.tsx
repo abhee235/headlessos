@@ -2,7 +2,7 @@
 // Uses `find` command via SSH with -iname glob matching
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Search, FileText, Folder, Loader2, AlertCircle, X } from 'lucide-react';
+import { Search, FileText, Folder, AlertCircle, X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -14,6 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { searchFiles, type FileSearchResult } from '../../lib/api';
 import { FileIcon, FolderSVG } from '../ui/FileIcon';
+import { Spinner } from '@/components/ui/spinner';
 
 interface FileSearchDialogProps {
   open: boolean;
@@ -151,7 +152,7 @@ export function FileSearchDialog({
         <div className="border-t border-border/30">
           {loading && (
             <div className="flex items-center justify-center py-8 gap-2 text-muted-foreground">
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Spinner className="w-4 h-4" />
               <span className="text-xs">Searching...</span>
             </div>
           )}
