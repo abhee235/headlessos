@@ -21,9 +21,9 @@ export function NetworkCard({ interfaces }: NetworkCardProps) {
   });
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
+    <div className="rounded-xl border border-border bg-card p-4">
       <div className="flex items-center gap-2 mb-3">
-        <Network className="w-4 h-4 text-cyan-400" />
+        <Network className="w-4 h-4 text-primary" />
         <h3 className="text-sm font-medium text-card-foreground">Network</h3>
         <span className="text-xs text-muted-foreground">
           {interfaces.filter(i => i.status === 'UP').length} up /{' '}
@@ -44,9 +44,9 @@ function InterfaceRow({ iface }: { iface: NetworkInterfaceData }) {
   const StatusIcon = iface.status === 'UP' ? Wifi : WifiOff;
   const statusColor =
     iface.status === 'UP'
-      ? 'text-green-400'
+      ? 'text-success'
       : iface.status === 'UNKNOWN'
-        ? 'text-yellow-400'
+        ? 'text-warning'
         : 'text-muted-foreground/50';
 
   return (

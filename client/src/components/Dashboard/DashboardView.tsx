@@ -3,6 +3,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { RefreshCw, Clock, Zap, AlertCircle } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
+import { LoadingView } from '@/components/ui/loading-view';
 import type { SystemDashboardData, SystemDashboardResponse } from '../../lib/api';
 import { fetchSystemDashboard } from '../../lib/api';
 import { usePreferencesStore } from '../../store/preferences-store';
@@ -62,11 +64,8 @@ export function DashboardView({ serverId }: DashboardViewProps) {
   // Loading state
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="flex items-center gap-3 text-muted-foreground">
-          <RefreshCw className="w-5 h-5 animate-spin" />
-          <span className="text-sm">Loading system data…</span>
-        </div>
+      <div className="h-64">
+        <LoadingView label="Loading system data…" />
       </div>
     );
   }
@@ -92,7 +91,7 @@ export function DashboardView({ serverId }: DashboardViewProps) {
           <p className="text-sm text-destructive mb-3">{error}</p>
           <button
             onClick={() => loadData()}
-            className="px-3 py-1.5 text-xs bg-secondary hover:bg-accent text-secondary-foreground rounded"
+            className="px-3 py-1.5 text-xs bg-secondary hover:bg-accent text-secondary-foreground rounded-lg"
           >
             Retry
           </button>
@@ -109,7 +108,7 @@ export function DashboardView({ serverId }: DashboardViewProps) {
           <p className="text-sm text-muted-foreground">No dashboard data available</p>
           <button
             onClick={() => loadData()}
-            className="mt-3 px-3 py-1.5 text-xs bg-secondary hover:bg-accent text-secondary-foreground rounded"
+            className="mt-3 px-3 py-1.5 text-xs bg-secondary hover:bg-accent text-secondary-foreground rounded-lg"
           >
             Refresh
           </button>

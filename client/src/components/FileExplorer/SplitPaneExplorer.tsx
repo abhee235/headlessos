@@ -3,6 +3,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { RefreshCw, AlertCircle, ArrowRight } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
 import type { FileEntryData } from '../../lib/api';
 import { fetchFiles } from '../../lib/api';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -49,7 +50,7 @@ function MiniFileList({
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <RefreshCw className="w-4 h-4 animate-spin text-muted-foreground" />
+        <Spinner size={16} className="text-muted-foreground" />
       </div>
     );
   }
@@ -94,7 +95,7 @@ function MiniFileList({
                 if (entry.type === 'directory') openEntry(entry);
               }}
             >
-              <span className={`text-xs shrink-0 ${entry.type === 'directory' ? 'text-blue-400' : 'text-muted-foreground'}`}>
+              <span className={`text-xs shrink-0 ${entry.type === 'directory' ? 'text-primary' : 'text-muted-foreground'}`}>
                 {entry.type === 'directory' ? '📁' : '📄'}
               </span>
               <span className="text-[13px] text-foreground truncate flex-1">{entry.name}</span>
@@ -168,8 +169,8 @@ export function SplitPaneExplorer({ serverId, initialPath }: SplitPaneExplorerPr
   }, [loadLeft, loadRight, initialPath]);
 
   return (
-    <ResizablePanelGroup direction="horizontal" className="h-full">
-      <ResizablePanel defaultSize={50} minSize={25}>
+    <ResizablePanelGroup orientation="horizontal" className="h-full">
+      <ResizablePanel defaultSize="50%" minSize="25%">
         <div className="flex flex-col h-full">
           {/* Left path bar */}
           <div className="flex items-center px-3 py-1.5 border-b border-border/30 bg-muted/30">
@@ -194,10 +195,9 @@ export function SplitPaneExplorer({ serverId, initialPath }: SplitPaneExplorerPr
 
       <ResizableHandle withHandle />
 
-      <ResizablePanel defaultSize={50} minSize={25}>
+      <ResizablePanel defaultSize="50%" minSize="25%">
         <div className="flex flex-col h-full">
-          {/* Right path bar */}
-          <div className="flex items-center px-3 py-1.5 border-b border-border/30 bg-muted/30">
+          {/* Right path bar */}          <div className="flex items-center px-3 py-1.5 border-b border-border/30 bg-muted/30">
             <span className="text-[11px] text-muted-foreground truncate font-mono">
               {rightPath}
             </span>

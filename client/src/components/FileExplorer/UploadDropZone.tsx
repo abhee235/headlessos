@@ -2,11 +2,12 @@
 // @see docs/PROGRESS.md
 
 import { useState, useCallback, useRef, type DragEvent } from 'react';
-import { Upload, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { Upload, CheckCircle, XCircle } from 'lucide-react';
 import { uploadFiles } from '../../lib/api';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
 import { notify } from '../../store/notification-store';
+import { Spinner } from '@/components/ui/spinner';
 
 interface UploadDropZoneProps {
   serverId: string;
@@ -142,7 +143,7 @@ export function UploadDropZone({
       {upload.uploading && (
         <div className="absolute bottom-4 right-4 z-50 w-64 p-3 rounded-lg bg-background/95 backdrop-blur-xl border border-border shadow-lg">
           <div className="flex items-center gap-2 mb-2">
-            <Loader2 className="w-4 h-4 text-primary animate-spin" />
+            <Spinner className="w-4 h-4 text-primary" />
             <span className="text-xs font-medium text-foreground truncate">
               Uploading {upload.fileName}…
             </span>

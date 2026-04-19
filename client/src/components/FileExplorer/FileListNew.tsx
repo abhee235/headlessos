@@ -20,9 +20,10 @@ import {
   Table2,
   Grid3x3,
   Info,
+  RotateCcw,
 } from 'lucide-react';
 import type { FileEntryData } from '../../lib/api';
-import { deleteFile, renameFile, createDirectory, writeFile, copyFile, moveFile } from '../../lib/api';
+import { deleteFile, renameFile, createDirectory, writeFile, copyFile, moveFile, trashFile } from '../../lib/api';
 import type { ViewMode } from './ExplorerToolbar';
 import { FileIcon, FolderSVG } from '../ui/FileIcon';
 import { usePreferencesStore, type IconSize } from '../../store/preferences-store';
@@ -56,6 +57,12 @@ interface FileListProps {
   onStartCreateRef?: React.MutableRefObject<((type: 'file' | 'folder') => void) | null>;
   /** Report selection count changes to parent */
   onSelectionChange?: (count: number) => void;
+  /** When true, show trash-specific context menus (Restore / Delete Permanently) */
+  trashMode?: boolean;
+  /** Called when user wants to restore a trash item */
+  onRestoreItem?: (entry: FileEntryData) => void;
+  /** Called when user wants to permanently delete a trash item */
+  onDeleteItem?: (entry: FileEntryData) => void;
 }
 
 export function FileList({
@@ -69,10 +76,14 @@ export function FileList({
   onViewModeChange,
   onStartCreateRef,
   onSelectionChange,
+  trashMode,
+  onRestoreItem,
+  onDeleteItem,
 }: FileListProps) {
   const [renamingEntry, setRenamingEntry] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<FileEntryData | null>(null);
+  const [permanentDelete, setPermanentDelete] = useState(false);
   const [propertiesTarget, setPropertiesTarget] = useState<FileEntryData | null>(null);
   const [creatingType, setCreatingType] = useState<'file' | 'folder' | null>(null);
   const [createName, setCreateName] = useState('');
@@ -189,14 +200,14 @@ export function FileList({
         return;
       }
 
-      // Delete/Backspace — Delete selected
+      // Delete/Backspace — Move to Trash (Shift+Delete for permanent)
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedCount > 0) {
         e.preventDefault();
         const items = getSelectedItems();
+        if (e.shiftKey) setPermanentDelete(true);
         if (items.length === 1) {
           setDeleteTarget(items[0]);
         } else if (items.length > 1) {
-          // For multi-delete, delete first item for now (could expand to batch)
           setDeleteTarget(items[0]);
         }
         return;
@@ -299,12 +310,19 @@ export function FileList({
     const fullPath =
       currentPath === '/' ? `/${deleteTarget.name}` : `${currentPath}/${deleteTarget.name}`;
     try {
-      await deleteFile(serverId, fullPath);
+      if (permanentDelete) {
+        await deleteFile(serverId, fullPath);
+        toast.success(`Permanently deleted "${deleteTarget.name}"`);
+      } else {
+        await trashFile(serverId, fullPath);
+        toast.success(`Moved "${deleteTarget.name}" to Recycle Bin`);
+      }
       onRefresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Delete failed');
     } finally {
       setDeleteTarget(null);
+      setPermanentDelete(false);
     }
   };
 
@@ -338,7 +356,26 @@ export function FileList({
   const canGoUp = currentPath !== '/';
 
   const fileContextMenu = useCallback(
-    (entry: FileEntryData) => (
+    (entry: FileEntryData) => trashMode ? (
+      <ContextMenuContent>
+        <ContextMenuItem onClick={() => onRestoreItem?.(entry)}>
+          <RotateCcw className="w-4 h-4 mr-2 opacity-60" />
+          Restore
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem danger onClick={() => onDeleteItem?.(entry)}>
+          <Trash2 className="w-4 h-4 mr-2 opacity-60" />
+          Delete Permanently
+          <ContextMenuShortcut>⇧⌫</ContextMenuShortcut>
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onClick={() => setPropertiesTarget(entry)}>
+          <Info className="w-4 h-4 mr-2 opacity-60" />
+          Properties
+          <ContextMenuShortcut>Alt+↩</ContextMenuShortcut>
+        </ContextMenuItem>
+      </ContextMenuContent>
+    ) : (
       <ContextMenuContent>
         <ContextMenuItem onClick={() => onOpen(entry)}>
           <FolderOpen className="w-4 h-4 mr-2 opacity-60" />
@@ -390,10 +427,15 @@ export function FileList({
           Rename
           <ContextMenuShortcut>F2</ContextMenuShortcut>
         </ContextMenuItem>
-        <ContextMenuItem danger onClick={() => setDeleteTarget(entry)}>
+        <ContextMenuItem onClick={() => { setPermanentDelete(false); setDeleteTarget(entry); }}>
           <Trash2 className="w-4 h-4 mr-2 opacity-60" />
-          Delete
+          Move to Trash
           <ContextMenuShortcut>⌫</ContextMenuShortcut>
+        </ContextMenuItem>
+        <ContextMenuItem danger onClick={() => { setPermanentDelete(true); setDeleteTarget(entry); }}>
+          <Trash2 className="w-4 h-4 mr-2 opacity-60" />
+          Delete Permanently
+          <ContextMenuShortcut>⇧⌫</ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem onClick={() => setPropertiesTarget(entry)}>
@@ -403,28 +445,32 @@ export function FileList({
         </ContextMenuItem>
       </ContextMenuContent>
     ),
-    [onOpen, startRename, serverId, currentPath, clipboardCopy, clipboardCut, isSelected, handleSelect],
+    [onOpen, startRename, serverId, currentPath, clipboardCopy, clipboardCut, isSelected, handleSelect, trashMode, onRestoreItem, onDeleteItem],
   );
 
   const emptyAreaContextMenu = useCallback(
     () => (
       <ContextMenuContent>
-        <ContextMenuItem onClick={() => startCreate('folder')}>
-          <Folder className="w-4 h-4 mr-2 opacity-60" />
-          New Folder
-          <ContextMenuShortcut>⇧⌘N</ContextMenuShortcut>
-        </ContextMenuItem>
-        <ContextMenuItem onClick={() => startCreate('file')}>
-          <File className="w-4 h-4 mr-2 opacity-60" />
-          New File
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem onClick={handlePaste} disabled={!hasClipboard}>
-          <ClipboardPaste className="w-4 h-4 mr-2 opacity-60" />
-          Paste {hasClipboard ? `(${clipboardEntries.length})` : ''}
-          <ContextMenuShortcut>⌘V</ContextMenuShortcut>
-        </ContextMenuItem>
-        <ContextMenuSeparator />
+        {!trashMode && (
+          <>
+            <ContextMenuItem onClick={() => startCreate('folder')}>
+              <Folder className="w-4 h-4 mr-2 opacity-60" />
+              New Folder
+              <ContextMenuShortcut>⇧⌘N</ContextMenuShortcut>
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => startCreate('file')}>
+              <File className="w-4 h-4 mr-2 opacity-60" />
+              New File
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem onClick={handlePaste} disabled={!hasClipboard}>
+              <ClipboardPaste className="w-4 h-4 mr-2 opacity-60" />
+              Paste {hasClipboard ? `(${clipboardEntries.length})` : ''}
+              <ContextMenuShortcut>⌘V</ContextMenuShortcut>
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+          </>
+        )}
         <ContextMenuSub>
           <ContextMenuSubTrigger>
             <LayoutGrid className="w-4 h-4 mr-2 opacity-60" />
@@ -485,7 +531,7 @@ export function FileList({
         </ContextMenuItem>
       </ContextMenuContent>
     ),
-    [onRefresh, startCreate, changeView, viewMode, sortBy, setSortBy, setSortAsc, handlePaste, hasClipboard, clipboardEntries],
+    [onRefresh, startCreate, changeView, viewMode, sortBy, setSortBy, setSortAsc, handlePaste, hasClipboard, clipboardEntries, trashMode],
   );
 
   const contextMenuProps = { fileContextMenu, emptyAreaContextMenu };
@@ -570,11 +616,15 @@ export function FileList({
       {/* Delete confirmation dialog */}
       <ConfirmDialog
         open={deleteTarget !== null}
-        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
-        title="Delete File"
-        description={deleteTarget ? `Are you sure you want to delete "${deleteTarget.name}"? This action cannot be undone.` : ''}
-        confirmLabel="Delete"
-        variant="destructive"
+        onOpenChange={(open) => { if (!open) { setDeleteTarget(null); setPermanentDelete(false); } }}
+        title={permanentDelete ? 'Delete Permanently' : 'Move to Trash'}
+        description={deleteTarget
+          ? permanentDelete
+            ? `Are you sure you want to permanently delete "${deleteTarget.name}"? This action cannot be undone.`
+            : `Move "${deleteTarget.name}" to the Recycle Bin? You can restore it later.`
+          : ''}
+        confirmLabel={permanentDelete ? 'Delete Permanently' : 'Move to Trash'}
+        variant={permanentDelete ? 'destructive' : 'default'}
         onConfirm={confirmDelete}
       />
 

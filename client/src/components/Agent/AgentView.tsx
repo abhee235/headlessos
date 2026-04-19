@@ -3,21 +3,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import {
-  Bot,
-  Send,
-  Square,
-  Terminal,
-  Brain,
-  CheckCircle2,
-  XCircle,
-  AlertTriangle,
-  Loader2,
-  Clock,
-  ChevronDown,
-  ChevronRight,
-  Copy,
-  Zap,
-} from 'lucide-react';
+  Bot, Send, Square, Terminal, Brain, CheckCircle2, XCircle, AlertTriangle, Clock, ChevronDown, ChevronRight, Copy, Zap } from 'lucide-react';
 import { startAgentInvestigation, type AgentResult, type AgentStep } from '../../lib/api';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -29,6 +15,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
+import { Spinner } from '@/components/ui/spinner';
 
 // ── Preset questions ────────────────────────────────────
 
@@ -47,10 +34,10 @@ function StepCard({ step }: { step: AgentStep }) {
   const [expanded, setExpanded] = useState(step.decision === 'answer');
 
   const statusIcon = step.decision === 'answer'
-    ? <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+    ? <CheckCircle2 className="w-4 h-4 text-success" />
     : step.decision === 'error'
       ? <XCircle className="w-4 h-4 text-destructive" />
-      : <Terminal className="w-4 h-4 text-blue-500" />;
+      : <Terminal className="w-4 h-4 text-primary" />;
 
   return (
     <div className="border border-border/40 rounded-lg overflow-hidden">
@@ -83,14 +70,14 @@ function StepCard({ step }: { step: AgentStep }) {
         <div className="px-3 pb-3 space-y-2 border-t border-border/20 pt-2">
           {/* Thought */}
           <div className="flex items-start gap-2">
-            <Brain className="w-3.5 h-3.5 text-purple-500 mt-0.5 shrink-0" />
+            <Brain className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
             <p className="text-xs text-foreground/70 leading-relaxed">{step.thought}</p>
           </div>
 
           {/* Command */}
           {step.command && (
             <div className="flex items-center gap-2">
-              <Terminal className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+              <Terminal className="w-3.5 h-3.5 text-primary shrink-0" />
               <code className="text-xs font-mono bg-muted/50 px-2 py-1 rounded flex-1">
                 $ {step.command}
               </code>
@@ -114,7 +101,7 @@ function StepCard({ step }: { step: AgentStep }) {
           {/* Output */}
           {step.output && (
             <div className="relative">
-              <pre className="text-[11px] font-mono bg-zinc-950 text-zinc-300 p-2 rounded-md overflow-x-auto max-h-48 overflow-y-auto whitespace-pre-wrap">
+              <pre className="text-[11px] font-mono bg-card text-foreground/80 p-2 rounded-md overflow-x-auto max-h-48 overflow-y-auto whitespace-pre-wrap">
                 {step.output}
               </pre>
             </div>
@@ -123,7 +110,7 @@ function StepCard({ step }: { step: AgentStep }) {
           {/* Observation */}
           {step.observation && (
             <div className="flex items-start gap-2">
-              <AlertTriangle className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
+              <AlertTriangle className="w-3.5 h-3.5 text-warning mt-0.5 shrink-0" />
               <p className="text-xs text-muted-foreground">{step.observation}</p>
             </div>
           )}
@@ -137,10 +124,10 @@ function StepCard({ step }: { step: AgentStep }) {
 
 function ResultSummary({ result }: { result: AgentResult }) {
   const statusStyles: Record<string, { icon: typeof CheckCircle2; color: string; label: string }> = {
-    completed: { icon: CheckCircle2, color: 'text-emerald-500', label: 'Completed' },
-    aborted: { icon: XCircle, color: 'text-amber-500', label: 'Aborted' },
+    completed: { icon: CheckCircle2, color: 'text-success', label: 'Completed' },
+    aborted: { icon: XCircle, color: 'text-warning', label: 'Aborted' },
     error: { icon: XCircle, color: 'text-destructive', label: 'Error' },
-    max_steps_reached: { icon: AlertTriangle, color: 'text-amber-500', label: 'Max Steps' },
+    max_steps_reached: { icon: AlertTriangle, color: 'text-warning', label: 'Max Steps' },
   };
 
   const s = statusStyles[result.status] ?? statusStyles.error!;
@@ -265,7 +252,7 @@ export function AgentView({ serverId }: AgentViewProps) {
           {/* Running indicator */}
           {running && !result && (
             <div className="flex items-center gap-3 py-8 justify-center">
-              <Loader2 className="w-5 h-5 animate-spin text-primary" />
+              <Spinner className="w-5 h-5 text-primary" />
               <span className="text-sm text-muted-foreground">Investigating…</span>
             </div>
           )}

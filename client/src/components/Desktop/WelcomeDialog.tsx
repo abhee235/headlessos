@@ -22,35 +22,35 @@ import { useAppStore } from '../../store/app-store';
 const STEPS = [
   {
     icon: Rocket,
-    iconBg: 'bg-blue-500',
+    iconBg: 'bg-primary',
     title: 'Welcome to HeadlessOS',
     description:
       'A desktop-style interface for managing your Linux servers. Connect via SSH and control everything from your browser — no agents installed on your servers.',
   },
   {
     icon: Server,
-    iconBg: 'bg-emerald-500',
+    iconBg: 'bg-success',
     title: 'Add Your First Server',
     description:
       'Click the "Add Server" button on the login screen to connect to your VPS. HeadlessOS uses SSH — just provide host, port, and credentials.',
   },
   {
     icon: MonitorSmartphone,
-    iconBg: 'bg-violet-500',
+    iconBg: 'bg-primary/80',
     title: 'Your Apps',
     description:
       'Dashboard, File Explorer, Terminal, Docker, Services, Task Manager, and Server Admin — all accessible from the Start Menu or Taskbar.',
   },
   {
     icon: Keyboard,
-    iconBg: 'bg-amber-500',
+    iconBg: 'bg-warning',
     title: 'Keyboard Shortcuts',
     description:
       'Ctrl+Space opens the Start Menu. Ctrl+K opens the Command Palette. Ctrl+Arrow snaps windows. Check Settings → Keyboard Shortcuts for the full list.',
   },
   {
     icon: Shield,
-    iconBg: 'bg-rose-500',
+    iconBg: 'bg-destructive',
     title: 'Security First',
     description:
       'HeadlessOS runs entirely on localhost. SSH credentials are stored locally. Nothing is installed on your servers — they remain untouched.',

@@ -1,9 +1,10 @@
-// M1.5: Terminal WebSocket Bridge
-// @see docs/phases/phase-1.md
+// M1.5 + EX1.11: Terminal WebSocket Bridge with Output Buffer
+// @see docs/phases/phase-1.md, docs/phases/phase-ex1.md
 
 import type { FastifyInstance } from 'fastify';
 import type { ConnectionManager } from '../ssh/connection-manager.js';
 import type { ClientChannel } from 'ssh2';
+import { TerminalBuffer } from '../terminal/buffer.js';
 
 export async function terminalRoutes(
   fastify: FastifyInstance,
@@ -14,6 +15,7 @@ export async function terminalRoutes(
   fastify.get('/ws/terminal/:serverId', { websocket: true }, (socket, req) => {
     const { serverId } = req.params as { serverId: string };
     let shell: ClientChannel | null = null;
+    const buffer = new TerminalBuffer();
 
     const setup = async () => {
       try {
@@ -23,10 +25,25 @@ export async function terminalRoutes(
           term: 'xterm-256color',
         });
 
-        // SSH → Browser
+        // SSH → Browser (with buffer capture)
         shell.on('data', (data: Buffer) => {
           if (socket.readyState === 1) { // OPEN
             socket.send(data);
+          }
+
+          // EX1.11: Capture output and detect patterns
+          const hint = buffer.append(data);
+          if (hint && socket.readyState === 1) {
+            // Send a hint to the client as a JSON control message
+            const snapshot = buffer.getLastCommandOutput();
+            socket.send(
+              JSON.stringify({
+                type: 'visualize-hint',
+                hint,
+                rawOutput: snapshot?.text ?? '',
+                lineCount: snapshot?.lineCount ?? 0,
+              }),
+            );
           }
         });
 
@@ -44,13 +61,27 @@ export async function terminalRoutes(
         socket.on('message', (data: Buffer | string) => {
           if (!shell) return;
 
-          // Handle resize messages
+          // Handle JSON control messages
           if (typeof data === 'string' || (data instanceof Buffer && data[0] === 0x01)) {
             try {
               const str = typeof data === 'string' ? data : data.toString();
-              const msg = JSON.parse(str) as { type: string; rows?: number; cols?: number };
+              const msg = JSON.parse(str) as { type: string; rows?: number; cols?: number; lastN?: number };
               if (msg.type === 'resize' && msg.rows && msg.cols) {
                 shell.setWindow(msg.rows, msg.cols, 0, 0);
+                return;
+              }
+              // EX1.11: Client requests the buffer snapshot
+              if (msg.type === 'get-buffer') {
+                const snapshot = buffer.getLastCommandOutput() ?? buffer.getSnapshot(msg.lastN ?? 100);
+                if (socket.readyState === 1) {
+                  socket.send(
+                    JSON.stringify({
+                      type: 'buffer-snapshot',
+                      text: snapshot.text,
+                      lineCount: snapshot.lineCount,
+                    }),
+                  );
+                }
                 return;
               }
             } catch {
@@ -66,6 +97,7 @@ export async function terminalRoutes(
             shell.end();
             shell = null;
           }
+          buffer.clear();
         });
 
         socket.on('error', () => {
@@ -73,6 +105,7 @@ export async function terminalRoutes(
             shell.end();
             shell = null;
           }
+          buffer.clear();
         });
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to open terminal';

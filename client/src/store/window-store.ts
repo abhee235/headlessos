@@ -27,6 +27,9 @@ export interface WindowState {
   maximized: boolean;
   focused: boolean;
   zIndex: number;
+
+  // Optional metadata for the app (e.g. initialPath for file explorer)
+  meta?: Record<string, string>;
 }
 
 interface DesktopState {
@@ -36,7 +39,7 @@ interface DesktopState {
   snapPreview: SnapZone;
 
   // Actions
-  openWindow: (appId: string, serverId: string, title: string, icon: string) => void;
+  openWindow: (appId: string, serverId: string, title: string, icon: string, meta?: Record<string, string>) => void;
   closeWindow: (id: string) => void;
   focusWindow: (id: string) => void;
   minimizeWindow: (id: string) => void;
@@ -49,6 +52,8 @@ interface DesktopState {
   toggleStartMenu: () => void;
   closeStartMenu: () => void;
   toggleShowDesktop: () => void;
+  /** EX6-A.7: Bump the internal window-counter past `n` to avoid ID collisions after restoring persisted windows. */
+  setCounterFloor: (n: number) => void;
 }
 
 let windowCounter = 0;
@@ -63,6 +68,8 @@ const APP_DEFAULTS: Record<string, { width: number; height: number }> = {
   docker: { width: 950, height: 600 },
   services: { width: 900, height: 600 },
   serveradmin: { width: 1000, height: 650 },
+  'dynamic-ui': { width: 900, height: 650 },
+  observatory: { width: 1100, height: 700 },
 };
 
 export const useDesktopStore = create<DesktopState>((set, get) => ({
@@ -71,16 +78,25 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
   startMenuOpen: false,
   snapPreview: null,
 
-  openWindow: (appId, serverId, title, icon) => {
+  openWindow: (appId, serverId, title, icon, meta) => {
     const state = get();
 
     // Single-instance apps: focus existing window
-    const singleInstance = ['dashboard', 'files', 'terminal', 'settings', 'taskmanager', 'docker', 'services', 'serveradmin'];
+    const singleInstance = ['dashboard', 'files', 'terminal', 'settings', 'taskmanager', 'docker', 'services', 'serveradmin', 'observatory'];
     if (singleInstance.includes(appId)) {
       const existing = state.windows.find(
         w => w.appId === appId && w.serverId === serverId,
       );
       if (existing) {
+        // If new meta is passed, update it so e.g. "Personalize" jumps to wallpaper
+        // page even when a Settings window is already open.
+        if (meta) {
+          set({
+            windows: state.windows.map(w =>
+              w.id === existing.id ? { ...w, meta: { ...(w.meta ?? {}), ...meta }, title } : w,
+            ),
+          });
+        }
         get().focusWindow(existing.id);
         if (existing.minimized) get().restoreWindow(existing.id);
         return;
@@ -116,6 +132,7 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
       maximized: false,
       focused: true,
       zIndex: newZ,
+      ...(meta ? { meta } : {}),
     };
 
     set({
@@ -327,5 +344,9 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
         };
       }
     });
+  },
+
+  setCounterFloor: (n) => {
+    if (n > windowCounter) windowCounter = n;
   },
 }));

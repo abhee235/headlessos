@@ -1,3 +1,7 @@
 {
-  "github.copilot.chat.codeGeneration.useInstructionFiles": true
+  "github.copilot.chat.codeGeneration.useInstructionFiles": true,
+  "chat.promptFiles": true,
+  "github.copilot.chat.codeGeneration.instructions": [
+    { "file": "AGENTS.md" }
+  ]
 }

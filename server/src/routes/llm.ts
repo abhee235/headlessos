@@ -22,7 +22,7 @@ export async function llmRoutes(app: FastifyInstance, opts: LLMRouteOpts): Promi
     const provider = (pipeline as unknown as { llmProvider?: { name: string; model?: string } }).llmProvider;
     const config: LLMConfig = {
       provider: provider ? (provider.name as 'openai') : 'none',
-      model: (provider as { model?: string } | undefined)?.model ?? 'gpt-4o-mini',
+      model: (provider as { model?: string } | undefined)?.model ?? 'gpt-4.1-mini',
       hasApiKey: !!provider,
     };
     return { success: true, data: config };
@@ -45,14 +45,14 @@ export async function llmRoutes(app: FastifyInstance, opts: LLMRouteOpts): Promi
           return { success: false, error: 'API key is required for OpenAI provider' };
         }
         const { OpenAIProvider } = await import('../llm/providers/openai.js');
-        const llmProvider = new OpenAIProvider(apiKey, model ?? 'gpt-4o-mini');
+        const llmProvider = new OpenAIProvider(apiKey, model ?? 'gpt-4.1-mini');
         pipeline.setLLMProvider(llmProvider);
-        console.log(`🤖 LLM provider updated: OpenAI (${model ?? 'gpt-4o-mini'})`);
+        console.log(`🤖 LLM provider updated: OpenAI (${model ?? 'gpt-4.1-mini'})`);
         return {
           success: true,
           data: {
             provider: 'openai',
-            model: model ?? 'gpt-4o-mini',
+            model: model ?? 'gpt-4.1-mini',
             hasApiKey: true,
           },
         };
@@ -68,10 +68,13 @@ export async function llmRoutes(app: FastifyInstance, opts: LLMRouteOpts): Promi
       success: true,
       data: {
         openai: [
-          { id: 'gpt-4o-mini', name: 'GPT-4o Mini', description: 'Fast, affordable — best for parsing', recommended: true },
-          { id: 'gpt-4o', name: 'GPT-4o', description: 'Most capable, higher cost' },
-          { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini', description: 'Latest mini model' },
-          { id: 'gpt-4.1-nano', name: 'GPT-4.1 Nano', description: 'Fastest, lowest cost' },
+          { id: 'gpt-4.1-nano', name: 'GPT-4.1 Nano', description: 'Fastest, lowest cost — classification & summaries' },
+          { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini', description: 'Fast, affordable — best for parsing', recommended: true },
+          { id: 'gpt-4.1', name: 'GPT-4.1', description: 'Structured output, schema generation' },
+          { id: 'gpt-4o', name: 'GPT-4o', description: 'Capable general-purpose model' },
+          { id: 'gpt-4o-mini', name: 'GPT-4o Mini', description: 'Legacy mini model' },
+          { id: 'o4-mini', name: 'o4-mini', description: 'Reasoning model' },
+          { id: 'gpt-5.4', name: 'GPT-5.4', description: 'Most capable, highest cost — planning & reflection' },
         ],
       },
     };

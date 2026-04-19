@@ -13,6 +13,8 @@ import {
   Tag,
   AlertCircle,
 } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
+import { LoadingView } from '@/components/ui/loading-view';
 import { fetchFleetOverview, type FleetOverview, type FleetServerSummary } from '../../lib/api';
 import { useAppStore } from '../../store/app-store';
 import { useDesktopStore } from '../../store/window-store';
@@ -33,7 +35,7 @@ import {
 
 // ── Server Card ─────────────────────────────────────────
 
-function ServerCard({ srv }: { srv: FleetServerSummary }) {
+function ServerCard({ srv, onActivate }: { srv: FleetServerSummary; onActivate?: (id: string) => void }) {
   const setActiveServer = useAppStore(s => s.setActiveServer);
   const connectServer = useAppStore(s => s.connectServer);
   const openWindow = useDesktopStore(s => s.openWindow);
@@ -45,6 +47,7 @@ function ServerCard({ srv }: { srv: FleetServerSummary }) {
       connectServer(srv.id);
     }
     openWindow('dashboard', srv.id, `Dashboard — ${srv.name}`, 'dashboard');
+    onActivate?.(srv.id);
   };
 
   return (
@@ -57,9 +60,9 @@ function ServerCard({ srv }: { srv: FleetServerSummary }) {
           <span
             className={`w-2.5 h-2.5 rounded-full shrink-0 ${
               isConnected
-                ? 'bg-emerald-500'
+                ? 'bg-success'
                 : srv.status === 'connecting'
-                  ? 'bg-amber-400 animate-pulse'
+                  ? 'bg-warning animate-pulse'
                   : 'bg-muted-foreground/30'
             }`}
           />
@@ -198,7 +201,7 @@ function TotalsBar({ totals }: { totals: FleetOverview['totals'] }) {
       </Card>
       <Card className="py-3 px-4">
         <div className="flex items-center gap-2">
-          <Wifi className="w-4 h-4 text-emerald-500" />
+          <Wifi className="w-4 h-4 text-success" />
           <div>
             <div className="text-lg font-bold">{totals.connected}</div>
             <div className="text-[11px] text-muted-foreground">Connected</div>
@@ -207,7 +210,7 @@ function TotalsBar({ totals }: { totals: FleetOverview['totals'] }) {
       </Card>
       <Card className="py-3 px-4">
         <div className="flex items-center gap-2">
-          <MemoryStick className="w-4 h-4 text-blue-500" />
+          <MemoryStick className="w-4 h-4 text-primary" />
           <div>
             <div className="text-lg font-bold">{memPercent}%</div>
             <div className="text-[11px] text-muted-foreground">
@@ -218,7 +221,7 @@ function TotalsBar({ totals }: { totals: FleetOverview['totals'] }) {
       </Card>
       <Card className="py-3 px-4">
         <div className="flex items-center gap-2">
-          <HardDrive className="w-4 h-4 text-amber-500" />
+          <HardDrive className="w-4 h-4 text-warning" />
           <div>
             <div className="text-lg font-bold">{diskPercent}%</div>
             <div className="text-[11px] text-muted-foreground">
@@ -233,7 +236,12 @@ function TotalsBar({ totals }: { totals: FleetOverview['totals'] }) {
 
 // ── Main View ───────────────────────────────────────────
 
-export function FleetDashboardView() {
+interface FleetDashboardViewProps {
+  /** Optional callback when a server card's Open Dashboard is clicked. */
+  onServerActivated?: (serverId: string) => void;
+}
+
+export function FleetDashboardView({ onServerActivated }: FleetDashboardViewProps = {}) {
   const [data, setData] = useState<FleetOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -273,11 +281,8 @@ export function FleetDashboardView() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="flex items-center gap-3 text-muted-foreground">
-          <RefreshCw className="w-5 h-5 animate-spin" />
-          <span className="text-sm">Loading fleet overview…</span>
-        </div>
+      <div className="h-64">
+        <LoadingView label="Loading fleet overview…" />
       </div>
     );
   }
@@ -325,7 +330,7 @@ export function FleetDashboardView() {
       {/* Server grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         {data.servers.map(srv => (
-          <ServerCard key={srv.id} srv={srv} />
+          <ServerCard key={srv.id} srv={srv} onActivate={onServerActivated} />
         ))}
       </div>
 

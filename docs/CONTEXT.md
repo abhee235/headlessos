@@ -26,6 +26,41 @@ The backend runs commands via SSH `exec()`, the output goes through a **Command 
 5. On command failure: try fallback commands (e.g., `ip` → `ifconfig`)
 6. Aggregate results → return typed JSON to frontend
 
+### Dynamic UI Engine (EX1 — Experimental)
+
+The **core differentiator**: an LLM analyzes terminal output and produces a **DynamicViewSchema** JSON that describes widgets (tables, charts, badges, stat cards, etc.). A generic React renderer turns that JSON into a live visual interface — **no hardcoded React components needed**.
+
+```
+Command Palette / Agent / Terminal → DynamicUIGenerator (streaming LLM)
+    → DynamicViewSchema JSON (incremental via WebSocket)
+    → DynamicViewRenderer (React) → live UI widgets build progressively
+```
+
+Key: The LLM generates JSON **incrementally** — widgets appear one-by-one as the stream arrives, creating a "magical" progressive-build effect. See [ADR-015](DECISIONS.md) and [phase-ex1.md](phases/phase-ex1.md).
+
+### Smart Layout Engine (EX3 — In Progress)
+
+**This is NOT a visualization tool.** Charts are supporting elements only. The focus is widget selection, smart placement, responsive layouts, and content classification.
+
+- **Two-pass design classifier** (ADR-017): fast classifier determines content type + layout pattern before the main generator runs
+- **10 layout patterns** (dashboard-metrics, tabbed-detail, single-table, config-viewer, etc.) constrain the generator to make good design decisions
+- **Responsive auto-fit grid**: CSS `repeat(auto-fit, minmax(Xpx, 1fr))` for stat-cards and summary widgets
+- **Progressive assembly**: skeleton first, widgets stream in one-by-one via `layout_update` events
+
+See [phase-ex3.md](phases/phase-ex3.md) for the full spec.
+
+### LLM Observatory (EX4 — Planned)
+
+Embedded, Phoenix-inspired **trace & span debugger** for all LLM calls. Zero external dependencies — everything is in-process, in-memory.
+
+- **Hierarchical tracing**: Every agent session creates a trace → spans → child spans tree (session → plan/execute/reflect → individual LLM calls → tool executions)
+- **Content-rich spans**: Each span stores its input (prompt/messages) and output (response/schema), not just tokens and timing
+- **In-memory ring buffer**: 200-trace cap with FIFO eviction, AsyncLocalStorage for automatic parent-child linking
+- **Live debugging**: WebSocket events stream span start/end in real-time — watch the agent's LLM calls happen live
+- **Interactive tree UI**: Phoenix-style trace tree with color-coded span kinds, timeline bars, and resizable detail panel
+
+See [ADR-018](DECISIONS.md) and [phase-ex4.md](phases/phase-ex4.md) for the full spec.
+
 ## Tech Stack
 
 - **Backend:** Node.js + Fastify + TypeScript
@@ -58,19 +93,23 @@ headlessOS/
 │   │   ├── deterministic/ # Regex parsers for known commands
 │   │   └── schemas/       # Zod schemas for parsed output
 │   ├── routes/            # API endpoints (servers, system, files, docker, etc.)
-│   └── config/            # Local config store (~/.headlessos/)
+│   ├── config/            # Local config store (~/.headlessos/)
+│   └── dynamic-ui/        # Dynamic UI Engine (EX1): generator, templates, cache
 ├── client/src/
 │   ├── App.tsx
 │   ├── components/        # Per-app UI components
 │   │   ├── Desktop/       # Desktop environment (icons, taskbar, window manager, settings)
 │   │   ├── Dashboard/     # System overview cards
+│   │   ├── DynamicUI/     # Dynamic UI Engine renderer, widgets, layouts, playground
 │   │   ├── FileExplorer/  # File browser
 │   │   ├── Docker/        # Container/image management
 │   │   ├── Services/      # Systemd service management
 │   │   ├── ServerAdmin/   # Server admin (network, firewall, security, packages, logs, etc.)
 │   │   ├── TaskManager/   # Process manager
 │   │   ├── Terminal/      # xterm.js wrapper
-│   │   ├── Login/         # Lock/login screen
+│   │   ├── Login/         # LockScreen + LoginScreen (LoginScreen used embedded in ControlCenter)
+│   │   ├── ControlCenter/ # EX6-C: pre-desktop landing — Sessions / Fleet / Global Settings tabs
+│   │   ├── Fleet/         # FleetDashboardView (now rendered inside ControlCenter, removed from in-desktop apps)
 │   │   └── ui/            # Reusable: Table, Card, TreeView, ContextMenu, etc.
 │   ├── hooks/             # React hooks
 │   └── store/             # Zustand state
@@ -105,6 +144,7 @@ ARCHITECTURE.md contains 5 reference patterns extracted from analyzing Puter (v2
 | 3. Process Tree Visualization | Process Manager — recursive `├── └──` tree | Phase 3 |
 | 4. Context Menus | All data views — right-click for contextual actions | Phase 2+ |
 | 5. Single-Instance Tabs | Terminal, Dashboard — focus existing tab, don't duplicate | Phase 2+ |
+| 6. Dynamic UI Engine | LLM → DynamicViewSchema JSON → DynamicViewRenderer → live widgets (streaming) | EX1 |
 
 ## Common Patterns
 
@@ -210,6 +250,9 @@ export function SomeView() {
 | Detailed task specs | [phases/phase-0.md](phases/phase-0.md) through [phase-7.md](phases/phase-7.md) |
 | Task → file → commit audit trail | [TRACEABILITY.md](TRACEABILITY.md) |
 | How apps work, app schema | [APP_REGISTRY.md](APP_REGISTRY.md) |
+| Dynamic UI Engine spec | [phases/phase-ex1.md](phases/phase-ex1.md) |
+| Smart Layout Engine spec | [phases/phase-ex3.md](phases/phase-ex3.md) |
+| LLM Observatory spec | [phases/phase-ex4.md](phases/phase-ex4.md) |
 | API endpoints (REST + WebSocket) | [API_SPEC.md](API_SPEC.md) |
 | LLM integration, parsing strategy | [LLM_STRATEGY.md](LLM_STRATEGY.md) |
 | Security rules, validation | [SECURITY.md](SECURITY.md) |

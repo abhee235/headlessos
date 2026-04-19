@@ -13,6 +13,8 @@ import {
   ServerAdminIcon,
   FleetIcon,
   AgentIcon,
+  UIAgentIcon,
+  RecycleBinIcon,
 } from '../ui/FileIcon';
 import {
   ContextMenu,
@@ -43,6 +45,7 @@ import {
   Check,
 } from 'lucide-react';
 import { Wallpaper } from './Wallpaper';
+
 import { createDirectory, writeFile } from '../../lib/api';
 import { toast } from 'sonner';
 
@@ -78,17 +81,24 @@ const DESKTOP_ICONS: DesktopIcon[] = [
     label: 'Server Admin',
     IconComponent: ServerAdminIcon,
   },
-  {
-    id: 'desktop-fleet',
-    appId: 'fleet',
-    label: 'Fleet Overview',
-    IconComponent: FleetIcon,
-  },
+  // EX6-C.3: Fleet moved to Control Center
   {
     id: 'desktop-agent',
     appId: 'agent',
     label: 'AI Agent',
     IconComponent: AgentIcon,
+  },
+  {
+    id: 'desktop-ui-agent',
+    appId: 'ui-agent',
+    label: 'UI Agent',
+    IconComponent: UIAgentIcon,
+  },
+  {
+    id: 'desktop-recycle-bin',
+    appId: 'recycle-bin',
+    label: 'Recycle Bin',
+    IconComponent: RecycleBinIcon,
   },
 ];
 
@@ -155,6 +165,11 @@ export function Desktop() {
 
   const handleDoubleClick = (icon: DesktopIcon) => {
     if (!activeServerId || !isConnected) return;
+    if (icon.appId === 'recycle-bin') {
+      // Open File Explorer navigated to the trash virtual folder
+      openWindow('files', activeServerId, 'Recycle Bin', 'files', { initialPath: '__trash__' });
+      return;
+    }
     openWindow(icon.appId, activeServerId, icon.label, icon.appId);
   };
 
@@ -352,7 +367,7 @@ export function Desktop() {
           Server Admin
         </ContextMenuItem>
 
-        <ContextMenuItem onClick={() => openWindow('settings', '', 'Settings', 'settings')}>
+        <ContextMenuItem onClick={() => openWindow('settings', '', 'Personalize', 'settings', { initialPage: 'wallpaper' })}>
           <Paintbrush className="w-4 h-4 mr-2 opacity-60" />
           Personalize
         </ContextMenuItem>
@@ -414,7 +429,7 @@ export function Desktop() {
     >
       <AppWindow.Body>
         <div className="flex flex-col items-center gap-4 py-4 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-lg shadow-primary/20">
             <Server className="w-8 h-8 text-white" />
           </div>
           <div>

@@ -73,7 +73,7 @@ const ALL_APPS: AppMeta[] = [
   { id: 'services', label: 'Services', IconComponent: ServicesIcon },
   { id: 'settings', label: 'Settings', IconComponent: SettingsIcon },
   { id: 'serveradmin', label: 'Server Admin', IconComponent: ThisPCIcon },
-  { id: 'fleet', label: 'Fleet Overview', IconComponent: FleetIcon },
+  // EX6-C.3: Fleet moved to Control Center
   { id: 'agent', label: 'AI Agent', IconComponent: AgentIcon },
 ];
 
@@ -188,7 +188,7 @@ function ServerSwitcher() {
           <PopoverTrigger asChild>
             <button className="flex items-center gap-1.5 h-9 px-2 rounded-md hover:bg-foreground/5 transition-colors cursor-default">
               {isConnected ? (
-                <Wifi className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <Wifi className="w-3.5 h-3.5 text-success shrink-0" />
               ) : (
                 <WifiOff className="w-3.5 h-3.5 text-foreground/40 shrink-0" />
               )}
@@ -241,9 +241,9 @@ function ServerSwitcher() {
                 <span
                   className={`w-2 h-2 rounded-full shrink-0 ${
                     srvConnected
-                      ? 'bg-emerald-500'
+                      ? 'bg-success'
                       : srvConnecting
-                        ? 'bg-amber-400 animate-pulse'
+                        ? 'bg-warning animate-pulse'
                         : 'bg-foreground/20'
                   }`}
                 />
@@ -399,13 +399,18 @@ export function Taskbar() {
 
   // Build set of pinned app IDs for quick lookup
   const pinnedIdSet = new Set(pinnedAppIds);
-  // Non-pinned open windows
-  const unpinnedWindows = windows.filter((w) => !pinnedIdSet.has(w.appId));
+  // EX6-D: Citrix-style session isolation — only show running windows
+  // that belong to the active session in the taskbar.
+  const sessionWindows = activeServerId
+    ? windows.filter((w) => w.serverId === activeServerId)
+    : [];
+  // Non-pinned open windows (scoped to active session)
+  const unpinnedWindows = sessionWindows.filter((w) => !pinnedIdSet.has(w.appId));
 
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
-        <div className="absolute bottom-0 left-0 right-0 h-13 z-9999 flex items-center justify-center bg-background/80 dark:bg-background/70 backdrop-blur-2xl backdrop-saturate-150 border-t border-foreground/6 shadow-[0_-2px_8px_0_rgba(0,0,0,0.06)]">
+        <div className="absolute bottom-0 left-0 right-0 h-13 z-9999 flex items-center justify-center bg-taskbar/80 dark:bg-taskbar/70 backdrop-blur-2xl backdrop-saturate-150 border-t border-foreground/[0.06] shadow-[0_-1px_12px_0_rgba(0,0,0,0.04)]">
           {/* ── Center: Start + Pinned Apps + Running extras ── */}
           <div className="flex items-center gap-2">
             {/* Start */}

@@ -2,11 +2,9 @@
 // @see docs/phases/phase-7.md, docs/phases/phase-8.md
 
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshCw, Loader2, AlertCircle, Lock, Users, LogIn, Key, ShieldCheck, Ban, ShieldOff, RotateCw, Plus, Trash2, KeyRound, UserPlus } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { RefreshCw, AlertCircle, Lock, Users, LogIn, Key, ShieldCheck, Ban, ShieldOff, RotateCw, Plus, Trash2, KeyRound, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -25,6 +23,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 import {
   fetchSecurityInfo,
   fetchFail2banJailDetail,
@@ -39,6 +38,8 @@ import {
 } from '@/lib/api';
 import type { SecurityInfo, Fail2banJailDetail } from '@/lib/api';
 import { toast } from 'sonner';
+import { Spinner } from '@/components/ui/spinner';
+import { LoadingView } from '@/components/ui/loading-view';
 
 export function SecuritySection({ serverId }: { serverId: string }) {
   const [data, setData] = useState<SecurityInfo | null>(null);
@@ -266,17 +267,12 @@ export function SecuritySection({ serverId }: { serverId: string }) {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground">
-        <Loader2 className="animate-spin mr-2" size={18} />
-        Loading security info…
-      </div>
-    );
+    return <LoadingView label="Loading security info…" fullHeight={false} />;
   }
 
   if (error || !data) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-3 text-muted-foreground">
+      <div className="flex flex-col items-center justify-center py-20 gap-3 text-foreground/40">
         <AlertCircle size={24} />
         <p className="text-sm">{error || 'No data'}</p>
         <Button variant="outline" size="sm" onClick={load}>Retry</Button>
@@ -289,56 +285,60 @@ export function SecuritySection({ serverId }: { serverId: string }) {
   const systemUsers = data.users.filter((u) => u.uid < 1000);
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="@container p-6 space-y-4">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Lock size={18} className="text-primary" />
-          <h2 className="text-lg font-semibold">Security</h2>
+        <div className="flex items-center gap-2.5">
+          <Lock size={22} className="text-primary" />
+          <h2 className="text-xl font-bold text-foreground">Security</h2>
         </div>
-        <Button variant="ghost" size="icon" onClick={load} title="Refresh">
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground/30 hover:text-foreground" onClick={load} title="Refresh">
           <RefreshCw size={16} />
         </Button>
       </div>
 
       <Tabs defaultValue="sessions">
-        <TabsList>
-          <TabsTrigger value="sessions">
-            <LogIn size={14} className="mr-1" />
-            Active Sessions <Badge variant="secondary" className="ml-1.5 text-xs">{data.sessions.length}</Badge>
+        <TabsList className="h-auto p-1 bg-muted rounded-lg gap-1 w-auto inline-flex">
+          <TabsTrigger value="sessions" className="rounded-md px-3 py-1.5 text-[13px] font-medium text-foreground/50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all hover:text-foreground/70">
+            <LogIn size={14} className="mr-1.5" />
+            Active Sessions
+            <span className="ml-1.5 text-[11px] tabular-nums opacity-50">{data.sessions.length}</span>
           </TabsTrigger>
-          <TabsTrigger value="users">
-            <Users size={14} className="mr-1" />
-            Users <Badge variant="secondary" className="ml-1.5 text-xs">{humanUsers.length}</Badge>
+          <TabsTrigger value="users" className="rounded-md px-3 py-1.5 text-[13px] font-medium text-foreground/50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all hover:text-foreground/70">
+            <Users size={14} className="mr-1.5" />
+            Users
+            <span className="ml-1.5 text-[11px] tabular-nums opacity-50">{humanUsers.length}</span>
           </TabsTrigger>
-          <TabsTrigger value="ssh">
-            <Key size={14} className="mr-1" />
+          <TabsTrigger value="ssh" className="rounded-md px-3 py-1.5 text-[13px] font-medium text-foreground/50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all hover:text-foreground/70">
+            <Key size={14} className="mr-1.5" />
             SSH Config
           </TabsTrigger>
-          <TabsTrigger value="history">Login History</TabsTrigger>
-          <TabsTrigger value="fail2ban">
-            <ShieldCheck size={14} className="mr-1" />
+          <TabsTrigger value="history" className="rounded-md px-3 py-1.5 text-[13px] font-medium text-foreground/50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all hover:text-foreground/70">
+            Login History
+          </TabsTrigger>
+          <TabsTrigger value="fail2ban" className="rounded-md px-3 py-1.5 text-[13px] font-medium text-foreground/50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all hover:text-foreground/70">
+            <ShieldCheck size={14} className="mr-1.5" />
             Fail2ban
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="sessions" className="mt-3">
+        <TabsContent value="sessions" className="mt-4">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Terminal</TableHead>
-                <TableHead>Login Time</TableHead>
-                <TableHead>Remote Host</TableHead>
-                <TableHead className="w-20 text-right">Actions</TableHead>
+              <TableRow className="hover:bg-transparent border-0">
+                <TableHead className="text-xs font-medium text-foreground/40 h-9">User</TableHead>
+                <TableHead className="text-xs font-medium text-foreground/40 h-9">Terminal</TableHead>
+                <TableHead className="text-xs font-medium text-foreground/40 h-9">Login Time</TableHead>
+                <TableHead className="text-xs font-medium text-foreground/40 h-9">Remote Host</TableHead>
+                <TableHead className="text-xs font-medium text-foreground/40 h-9 w-20 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {data.sessions.map((s, i) => (
-                <TableRow key={i}>
+                <TableRow key={i} className="border-0 hover:bg-muted/20 group">
                   <TableCell className="font-medium">{s.user}</TableCell>
-                  <TableCell className="font-mono text-xs">{s.terminal}</TableCell>
-                  <TableCell className="text-xs">{s.loginTime}</TableCell>
-                  <TableCell className="font-mono text-xs">{s.remoteHost || '-'}</TableCell>
+                  <TableCell className="font-mono text-xs text-foreground/60">{s.terminal}</TableCell>
+                  <TableCell className="text-xs text-foreground/60">{s.loginTime}</TableCell>
+                  <TableCell className="font-mono text-xs text-foreground/60">{s.remoteHost || '-'}</TableCell>
                   <TableCell className="text-right">
                     <Button
                       variant="ghost"
@@ -354,16 +354,18 @@ export function SecuritySection({ serverId }: { serverId: string }) {
                 </TableRow>
               ))}
               {data.sessions.length === 0 && (
-                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No active sessions</TableCell></TableRow>
+                <TableRow className="border-0">
+                  <TableCell colSpan={5} className="text-center text-foreground/30 py-12 text-sm">No active sessions</TableCell>
+                </TableRow>
               )}
             </TableBody>
           </Table>
         </TabsContent>
 
-        <TabsContent value="users" className="mt-3 space-y-4">
+        <TabsContent value="users" className="mt-4 space-y-4">
           {/* Add User button + form */}
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium">Human Users (UID &ge; 1000)</h3>
+            <h3 className="text-sm font-medium text-foreground/60">Human Users (UID &ge; 1000)</h3>
             <Button
               variant="outline"
               size="sm"
@@ -375,29 +377,29 @@ export function SecuritySection({ serverId }: { serverId: string }) {
           </div>
 
           {showAddUser && (
-            <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
+            <div className="bg-muted/20 rounded-lg p-4 space-y-3">
               <h4 className="font-medium text-sm">Create New User</h4>
               <div className="space-y-1">
-                <Label className="text-xs">Username</Label>
+                <label className="text-xs text-foreground/50">Username</label>
                 <Input
                   value={newUsername}
                   onChange={(e) => setNewUsername(e.target.value.toLowerCase())}
                   placeholder="newuser"
-                  className="max-w-xs text-sm"
+                  className="max-w-xs text-sm shadow-none h-8"
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Shell</Label>
+                <label className="text-xs text-foreground/50">Shell</label>
                 <Input
                   value={newUserShell}
                   onChange={(e) => setNewUserShell(e.target.value)}
                   placeholder="/bin/bash"
-                  className="max-w-xs font-mono text-sm"
+                  className="max-w-xs font-mono text-sm shadow-none h-8"
                 />
               </div>
               <div className="flex items-center gap-2 pt-1">
                 <Button size="sm" onClick={handleCreateUser} disabled={busy || !newUsername.trim()}>
-                  {busy && <Loader2 size={14} className="animate-spin mr-1" />}
+                  {busy && <Spinner size={14} className="mr-1" />}
                   Create
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => setShowAddUser(false)} disabled={busy}>
@@ -409,21 +411,21 @@ export function SecuritySection({ serverId }: { serverId: string }) {
 
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Username</TableHead>
-                <TableHead>UID</TableHead>
-                <TableHead>Home</TableHead>
-                <TableHead>Shell</TableHead>
-                <TableHead className="w-24 text-right">Actions</TableHead>
+              <TableRow className="hover:bg-transparent border-0">
+                <TableHead className="text-xs font-medium text-foreground/40 h-9">Username</TableHead>
+                <TableHead className="text-xs font-medium text-foreground/40 h-9">UID</TableHead>
+                <TableHead className="text-xs font-medium text-foreground/40 h-9">Home</TableHead>
+                <TableHead className="text-xs font-medium text-foreground/40 h-9">Shell</TableHead>
+                <TableHead className="text-xs font-medium text-foreground/40 h-9 w-24 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {humanUsers.map((u) => (
-                <TableRow key={u.uid}>
+                <TableRow key={u.uid} className="border-0 hover:bg-muted/20 group">
                   <TableCell className="font-medium">{u.username}</TableCell>
-                  <TableCell className="text-xs">{u.uid}</TableCell>
-                  <TableCell className="font-mono text-xs">{u.home}</TableCell>
-                  <TableCell className="font-mono text-xs">{u.shell}</TableCell>
+                  <TableCell className="text-xs text-foreground/60">{u.uid}</TableCell>
+                  <TableCell className="font-mono text-xs text-foreground/60">{u.home}</TableCell>
+                  <TableCell className="font-mono text-xs text-foreground/60">{u.shell}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-0.5">
                       <Tooltip>
@@ -485,20 +487,21 @@ export function SecuritySection({ serverId }: { serverId: string }) {
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-2 py-2">
-                <Label className="text-sm">New Password</Label>
+                <label className="text-xs text-foreground/50">New Password</label>
                 <Input
                   type="password"
                   value={passwordInput}
                   onChange={(e) => setPasswordInput(e.target.value)}
                   placeholder="Enter new password"
                   onKeyDown={(e) => e.key === 'Enter' && passwordInput && handleSetPassword()}
+                  className="shadow-none h-8 text-xs"
                   autoFocus
                 />
               </div>
               <DialogFooter>
                 <Button variant="ghost" onClick={() => setPasswordTarget(null)} disabled={busy}>Cancel</Button>
                 <Button onClick={handleSetPassword} disabled={busy || !passwordInput}>
-                  {busy && <Loader2 size={14} className="animate-spin mr-1" />}
+                  {busy && <Spinner size={14} className="mr-1" />}
                   Set Password
                 </Button>
               </DialogFooter>
@@ -517,19 +520,20 @@ export function SecuritySection({ serverId }: { serverId: string }) {
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-2 py-2">
-                <Label className="text-sm">Group Name</Label>
+                <label className="text-xs text-foreground/50">Group Name</label>
                 <Input
                   value={groupInput}
                   onChange={(e) => setGroupInput(e.target.value)}
                   placeholder="sudo, docker, www-data"
                   onKeyDown={(e) => e.key === 'Enter' && groupInput.trim() && handleAddToGroup()}
+                  className="shadow-none h-8 text-xs"
                   autoFocus
                 />
               </div>
               <DialogFooter>
                 <Button variant="ghost" onClick={() => setGroupTarget(null)} disabled={busy}>Cancel</Button>
                 <Button onClick={handleAddToGroup} disabled={busy || !groupInput.trim()}>
-                  {busy && <Loader2 size={14} className="animate-spin mr-1" />}
+                  {busy && <Spinner size={14} className="mr-1" />}
                   Add to Group
                 </Button>
               </DialogFooter>
@@ -538,24 +542,24 @@ export function SecuritySection({ serverId }: { serverId: string }) {
 
           {systemUsers.length > 0 && (
             <>
-              <h3 className="text-sm font-medium mt-4 mb-2">
+              <h3 className="text-sm font-medium text-foreground/60 mt-4 mb-2">
                 System Accounts
-                <Badge variant="secondary" className="ml-1.5 text-xs">{systemUsers.length}</Badge>
+                <span className={cn('ml-1.5 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium', 'bg-foreground/5 text-foreground/50')}>{systemUsers.length}</span>
               </h3>
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Username</TableHead>
-                    <TableHead>UID</TableHead>
-                    <TableHead>Shell</TableHead>
+                  <TableRow className="hover:bg-transparent border-0">
+                    <TableHead className="text-xs font-medium text-foreground/40 h-9">Username</TableHead>
+                    <TableHead className="text-xs font-medium text-foreground/40 h-9">UID</TableHead>
+                    <TableHead className="text-xs font-medium text-foreground/40 h-9">Shell</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {systemUsers.map((u) => (
-                    <TableRow key={u.uid}>
+                    <TableRow key={u.uid} className="border-0 hover:bg-muted/20 group">
                       <TableCell className="text-xs">{u.username}</TableCell>
-                      <TableCell className="text-xs">{u.uid}</TableCell>
-                      <TableCell className="font-mono text-xs">{u.shell}</TableCell>
+                      <TableCell className="text-xs text-foreground/60">{u.uid}</TableCell>
+                      <TableCell className="font-mono text-xs text-foreground/60">{u.shell}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -577,7 +581,7 @@ export function SecuritySection({ serverId }: { serverId: string }) {
               <DialogFooter>
                 <Button variant="ghost" onClick={() => setDeleteTarget(null)} disabled={busy}>Cancel</Button>
                 <Button variant="destructive" onClick={() => { void handleDeleteUser(); }} disabled={busy}>
-                  {busy && <Loader2 size={14} className="animate-spin mr-1" />}
+                  {busy && <Spinner size={14} className="mr-1" />}
                   Delete User
                 </Button>
               </DialogFooter>
@@ -585,70 +589,72 @@ export function SecuritySection({ serverId }: { serverId: string }) {
           </Dialog>
         </TabsContent>
 
-        <TabsContent value="ssh" className="mt-3">
+        <TabsContent value="ssh" className="mt-4">
           <div className="grid grid-cols-2 gap-3 max-w-lg">
             {Object.entries(data.sshConfig).map(([key, value]) => (
-              <div key={key} className="flex justify-between p-2 rounded-md border border-border">
-                <span className="text-xs text-muted-foreground capitalize">
+              <div key={key} className="flex justify-between items-center p-2 bg-muted/20 rounded-lg">
+                <span className="text-xs text-foreground/50 capitalize">
                   {key.replace(/([A-Z])/g, ' $1').trim()}
                 </span>
-                <Badge
-                  variant={
+                <span
+                  className={cn(
+                    'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium font-mono',
                     (key === 'passwordAuthentication' && value === 'no') ||
                     (key === 'permitRootLogin' && value === 'no')
-                      ? 'success'
+                      ? 'bg-emerald-500/10 text-emerald-600'
                       : (key === 'passwordAuthentication' && value === 'yes') ||
                         (key === 'permitRootLogin' && value === 'yes')
-                        ? 'warning'
-                        : 'secondary'
-                  }
-                  className="text-xs font-mono"
+                        ? 'bg-amber-500/10 text-amber-600'
+                        : 'bg-foreground/5 text-foreground/50',
+                  )}
                 >
                   {value}
-                </Badge>
+                </span>
               </div>
             ))}
           </div>
         </TabsContent>
 
-        <TabsContent value="history" className="mt-3">
+        <TabsContent value="history" className="mt-4">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Terminal</TableHead>
-                <TableHead>Remote Host</TableHead>
-                <TableHead>Login</TableHead>
-                <TableHead>Logout</TableHead>
-                <TableHead>Duration</TableHead>
+              <TableRow className="hover:bg-transparent border-0">
+                <TableHead className="text-xs font-medium text-foreground/40 h-9">User</TableHead>
+                <TableHead className="text-xs font-medium text-foreground/40 h-9">Terminal</TableHead>
+                <TableHead className="text-xs font-medium text-foreground/40 h-9">Remote Host</TableHead>
+                <TableHead className="text-xs font-medium text-foreground/40 h-9">Login</TableHead>
+                <TableHead className="text-xs font-medium text-foreground/40 h-9">Logout</TableHead>
+                <TableHead className="text-xs font-medium text-foreground/40 h-9">Duration</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {data.loginHistory.map((h, i) => (
-                <TableRow key={i}>
+                <TableRow key={i} className="border-0 hover:bg-muted/20 group">
                   <TableCell className="font-medium text-xs">{h.user}</TableCell>
-                  <TableCell className="font-mono text-xs">{h.terminal}</TableCell>
-                  <TableCell className="font-mono text-xs">{h.remoteHost}</TableCell>
-                  <TableCell className="text-xs">{h.loginTime}</TableCell>
-                  <TableCell className="text-xs">{h.logoutTime}</TableCell>
-                  <TableCell className="text-xs">{h.duration || '-'}</TableCell>
+                  <TableCell className="font-mono text-xs text-foreground/60">{h.terminal}</TableCell>
+                  <TableCell className="font-mono text-xs text-foreground/60">{h.remoteHost}</TableCell>
+                  <TableCell className="text-xs text-foreground/60">{h.loginTime}</TableCell>
+                  <TableCell className="text-xs text-foreground/60">{h.logoutTime}</TableCell>
+                  <TableCell className="text-xs text-foreground/60">{h.duration || '-'}</TableCell>
                 </TableRow>
               ))}
               {data.loginHistory.length === 0 && (
-                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">No login history</TableCell></TableRow>
+                <TableRow className="border-0">
+                  <TableCell colSpan={6} className="text-center text-foreground/30 py-12 text-sm">No login history</TableCell>
+                </TableRow>
               )}
             </TableBody>
           </Table>
         </TabsContent>
 
-        <TabsContent value="fail2ban" className="mt-3">
+        <TabsContent value="fail2ban" className="mt-4">
           {data.fail2ban.available ? (
             <div className="space-y-4">
               {/* Header with status and reload */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck size={16} className="text-success" />
-                  <span className="text-sm font-medium">Fail2ban is active</span>
+                  <ShieldCheck size={16} className="text-emerald-600" />
+                  <span className="text-sm font-medium text-foreground/60">Fail2ban is active</span>
                 </div>
                 <Button
                   variant="outline"
@@ -657,7 +663,7 @@ export function SecuritySection({ serverId }: { serverId: string }) {
                   disabled={actionLoading === 'reload'}
                 >
                   {actionLoading === 'reload' ? (
-                    <Loader2 size={14} className="animate-spin mr-1" />
+                    <Spinner size={14} className="mr-1" />
                   ) : (
                     <RotateCw size={14} className="mr-1" />
                   )}
@@ -677,40 +683,40 @@ export function SecuritySection({ serverId }: { serverId: string }) {
                     >
                       ← Back to Jails
                     </Button>
-                    <Badge variant="outline" className="text-sm font-mono">{selectedJail}</Badge>
+                    <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-sm font-medium font-mono', 'bg-foreground/5 text-foreground/60')}>{selectedJail}</span>
                   </div>
 
                   {jailLoading ? (
-                    <div className="flex items-center justify-center h-32 text-muted-foreground">
-                      <Loader2 className="animate-spin mr-2" size={16} />
+                    <div className="flex items-center justify-center py-12 text-foreground/40">
+                      <Spinner className="mr-2" size={16} />
                       Loading jail details…
                     </div>
                   ) : jailDetail ? (
                     <>
                       {/* Jail stats */}
                       <div className="grid grid-cols-3 gap-3">
-                        <div className="rounded-lg border border-border p-3 text-center">
+                        <div className="bg-muted/20 rounded-lg p-3 text-center">
                           <div className="text-2xl font-bold text-destructive">{jailDetail.currentlyBanned}</div>
-                          <div className="text-xs text-muted-foreground">Currently Banned</div>
+                          <div className="text-xs text-foreground/40">Currently Banned</div>
                         </div>
-                        <div className="rounded-lg border border-border p-3 text-center">
+                        <div className="bg-muted/20 rounded-lg p-3 text-center">
                           <div className="text-2xl font-bold">{jailDetail.totalBanned}</div>
-                          <div className="text-xs text-muted-foreground">Total Banned</div>
+                          <div className="text-xs text-foreground/40">Total Banned</div>
                         </div>
-                        <div className="rounded-lg border border-border p-3 text-center">
+                        <div className="bg-muted/20 rounded-lg p-3 text-center">
                           <div className="text-2xl font-bold">{jailDetail.totalFailed}</div>
-                          <div className="text-xs text-muted-foreground">Total Failed</div>
+                          <div className="text-xs text-foreground/40">Total Failed</div>
                         </div>
                       </div>
 
                       {/* Filter & File info */}
                       <div className="grid grid-cols-2 gap-3 text-xs">
-                        <div className="rounded-md border border-border p-2">
-                          <span className="text-muted-foreground">Filter: </span>
+                        <div className="bg-muted/20 rounded-lg p-2">
+                          <span className="text-foreground/40">Filter: </span>
                           <span className="font-mono">{jailDetail.filter || 'N/A'}</span>
                         </div>
-                        <div className="rounded-md border border-border p-2">
-                          <span className="text-muted-foreground">Log Files: </span>
+                        <div className="bg-muted/20 rounded-lg p-2">
+                          <span className="text-foreground/40">Log Files: </span>
                           <span className="font-mono">{jailDetail.fileList.length > 0 ? jailDetail.fileList.join(', ') : 'N/A'}</span>
                         </div>
                       </div>
@@ -722,7 +728,7 @@ export function SecuritySection({ serverId }: { serverId: string }) {
                           value={banIpInput}
                           onChange={(e) => setBanIpInput(e.target.value)}
                           onKeyDown={(e) => { if (e.key === 'Enter') handleBanIp(); }}
-                          className="max-w-xs font-mono text-sm"
+                          className="max-w-xs font-mono text-sm shadow-none h-8"
                         />
                         <Button
                           variant="destructive"
@@ -731,7 +737,7 @@ export function SecuritySection({ serverId }: { serverId: string }) {
                           disabled={!banIpInput.trim() || actionLoading === 'ban'}
                         >
                           {actionLoading === 'ban' ? (
-                            <Loader2 size={14} className="animate-spin mr-1" />
+                            <Spinner size={14} className="mr-1" />
                           ) : (
                             <Ban size={14} className="mr-1" />
                           )}
@@ -743,14 +749,14 @@ export function SecuritySection({ serverId }: { serverId: string }) {
                       {jailDetail.bannedIps.length > 0 ? (
                         <Table>
                           <TableHeader>
-                            <TableRow>
-                              <TableHead>Banned IP</TableHead>
-                              <TableHead className="w-24 text-right">Actions</TableHead>
+                            <TableRow className="hover:bg-transparent border-0">
+                              <TableHead className="text-xs font-medium text-foreground/40 h-9">Banned IP</TableHead>
+                              <TableHead className="text-xs font-medium text-foreground/40 h-9 w-24 text-right">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {jailDetail.bannedIps.map((ip) => (
-                              <TableRow key={ip}>
+                              <TableRow key={ip} className="border-0 hover:bg-muted/20 group">
                                 <TableCell className="font-mono text-sm">{ip}</TableCell>
                                 <TableCell className="text-right">
                                   <Button
@@ -761,7 +767,7 @@ export function SecuritySection({ serverId }: { serverId: string }) {
                                     className="text-destructive hover:text-destructive"
                                   >
                                     {actionLoading === `unban:${ip}` ? (
-                                      <Loader2 size={14} className="animate-spin mr-1" />
+                                      <Spinner size={14} className="mr-1" />
                                     ) : (
                                       <ShieldOff size={14} className="mr-1" />
                                     )}
@@ -773,7 +779,7 @@ export function SecuritySection({ serverId }: { serverId: string }) {
                           </TableBody>
                         </Table>
                       ) : (
-                        <div className="flex flex-col items-center justify-center h-20 text-muted-foreground">
+                        <div className="flex flex-col items-center justify-center py-8 text-foreground/30">
                           <ShieldCheck size={20} className="opacity-40 mb-1" />
                           <p className="text-xs">No banned IPs in this jail</p>
                         </div>
@@ -798,32 +804,34 @@ export function SecuritySection({ serverId }: { serverId: string }) {
                 /* Jail list — clickable badges */
                 data.fail2ban.jails && data.fail2ban.jails.length > 0 ? (
                   <div>
-                    <h3 className="text-sm font-medium mb-2">Active Jails</h3>
+                    <h3 className="text-sm font-medium text-foreground/60 mb-2">Active Jails</h3>
                     <div className="flex flex-wrap gap-2">
                       {data.fail2ban.jails.map((j) => (
-                        <Badge
+                        <span
                           key={j}
-                          variant="outline"
-                          className="cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors"
+                          className={cn(
+                            'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium cursor-pointer transition-colors',
+                            'bg-foreground/5 text-foreground/60 hover:bg-foreground/10 hover:text-foreground',
+                          )}
                           onClick={() => loadJailDetail(j)}
                         >
                           <ShieldCheck size={12} className="mr-1" />
                           {j}
-                        </Badge>
+                        </span>
                       ))}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-2">Click a jail to view details and manage banned IPs</p>
+                    <p className="text-xs text-foreground/40 mt-2">Click a jail to view details and manage banned IPs</p>
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No active jails found</p>
+                  <p className="text-sm text-foreground/40">No active jails found</p>
                 )
               )}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center h-32 gap-2 text-muted-foreground">
+            <div className="flex flex-col items-center justify-center py-12 gap-2 text-foreground/30">
               <ShieldCheck size={24} className="opacity-40" />
               <p className="text-sm">{data.fail2ban.message || 'Fail2ban is not installed'}</p>
-              <p className="text-xs">Install with: <code className="bg-muted px-1.5 py-0.5 rounded">sudo apt install fail2ban</code></p>
+              <p className="text-xs text-foreground/40">Install with: <code className="bg-muted/30 px-1.5 py-0.5 rounded">sudo apt install fail2ban</code></p>
             </div>
           )}
         </TabsContent>

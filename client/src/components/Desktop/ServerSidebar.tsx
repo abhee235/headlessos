@@ -4,15 +4,7 @@
 import { useAppStore } from '../../store/app-store';
 import { useDesktopStore } from '../../store/window-store';
 import {
-  Server,
-  Plus,
-  Wifi,
-  WifiOff,
-  Loader2,
-  X,
-  Power,
-  PowerOff,
-} from 'lucide-react';
+  Server, Plus, Wifi, WifiOff, X, Power, PowerOff } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -70,9 +62,9 @@ export function ServerSidebar() {
                         <span
                           className={`absolute top-0.5 right-0.5 w-2 h-2 rounded-full border border-background ${
                             isConnected
-                              ? 'bg-emerald-500'
+                              ? 'bg-success'
                               : isConnecting
-                                ? 'bg-amber-400 animate-pulse'
+                                ? 'bg-warning animate-pulse'
                                 : 'bg-muted-foreground/30'
                           }`}
                         />

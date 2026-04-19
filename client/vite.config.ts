@@ -15,6 +15,10 @@ export default defineConfig({
   build: {
     // M10.10: Performance — code splitting & chunk optimization
     rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+        playground: path.resolve(__dirname, 'playground.html'),
+      },
       output: {
         manualChunks: {
           'vendor-react': ['react', 'react-dom'],

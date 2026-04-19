@@ -3,6 +3,7 @@
 
 import { lazy, Suspense } from 'react';
 import { useDesktopStore } from '../../store/window-store';
+import { useAppStore } from '../../store/app-store';
 import { WindowFrame } from './Window';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -17,6 +18,9 @@ const ServicesView = lazy(() => import('../Services/ServicesView').then(m => ({ 
 const ServerAdminView = lazy(() => import('../ServerAdmin/ServerAdminView').then(m => ({ default: m.ServerAdminView })));
 const FleetDashboardView = lazy(() => import('../Fleet/FleetDashboardView').then(m => ({ default: m.FleetDashboardView })));
 const AgentView = lazy(() => import('../Agent/AgentView').then(m => ({ default: m.AgentView })));
+const DynamicUITabView = lazy(() => import('../DynamicUI/DynamicUITabView').then(m => ({ default: m.DynamicUITabView })));
+const UIAgentView = lazy(() => import('../Agent/UIAgentView').then(m => ({ default: m.UIAgentView })));
+const ObservatoryView = lazy(() => import('../Observatory/ObservatoryView').then(m => ({ default: m.ObservatoryView })));
 
 function LazyFallback() {
   return (
@@ -29,7 +33,7 @@ function LazyFallback() {
   );
 }
 
-function WindowContent({ appId, serverId }: { appId: string; serverId: string }) {
+function WindowContent({ appId, serverId, windowId, meta }: { appId: string; serverId: string; windowId: string; meta?: Record<string, string> }) {
   switch (appId) {
     case 'dashboard':
       return (
@@ -40,7 +44,7 @@ function WindowContent({ appId, serverId }: { appId: string; serverId: string })
     case 'files':
       return (
         <div className="h-full overflow-hidden">
-          <FileExplorerView serverId={serverId} />
+          <FileExplorerView serverId={serverId} initialPath={meta?.initialPath} />
         </div>
       );
     case 'terminal':
@@ -52,7 +56,7 @@ function WindowContent({ appId, serverId }: { appId: string; serverId: string })
     case 'settings':
       return (
         <div className="h-full overflow-hidden">
-          <SettingsView />
+          <SettingsView initialPage={meta?.initialPage as 'general' | 'appearance' | 'wallpaper' | 'terminal' | 'keyboard' | 'notifications' | 'ai' | 'plugins' | 'about' | undefined} />
         </div>
       );
     case 'taskmanager':
@@ -91,6 +95,24 @@ function WindowContent({ appId, serverId }: { appId: string; serverId: string })
           <AgentView serverId={serverId} />
         </div>
       );
+    case 'dynamic-ui':
+      return (
+        <div className="h-full overflow-hidden">
+          <DynamicUITabView serverId={serverId} windowId={windowId} />
+        </div>
+      );
+    case 'ui-agent':
+      return (
+        <div className="h-full overflow-hidden">
+          <UIAgentView serverId={serverId} />
+        </div>
+      );
+    case 'observatory':
+      return (
+        <div className="h-full overflow-hidden">
+          <ObservatoryView />
+        </div>
+      );
     default:
       return (
         <div className="flex items-center justify-center h-full text-white/30 text-sm">
@@ -102,13 +124,22 @@ function WindowContent({ appId, serverId }: { appId: string; serverId: string })
 
 export function WindowManager() {
   const windows = useDesktopStore(s => s.windows);
+  const activeServerId = useAppStore(s => s.activeServerId);
+
+  // EX6-D: Citrix-style session isolation — only render windows belonging
+  // to the active session. Other live sessions keep their windows in the
+  // store but are visually hidden until the user switches to them.
+  // Global apps (empty serverId, e.g. Settings/Personalize) are always visible.
+  const visible = windows.filter(
+    w => w.serverId === '' || (activeServerId !== null && w.serverId === activeServerId),
+  );
 
   return (
     <>
-      {windows.map(win => (
+      {visible.map(win => (
         <WindowFrame key={win.id} win={win}>
           <Suspense fallback={<LazyFallback />}>
-            <WindowContent appId={win.appId} serverId={win.serverId} />
+            <WindowContent appId={win.appId} serverId={win.serverId} windowId={win.id} meta={win.meta} />
           </Suspense>
         </WindowFrame>
       ))}

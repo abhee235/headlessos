@@ -605,7 +605,7 @@ describe('validatePath', () => {
 | `docs/CONTEXT.md` | 2-min AI briefing |
 | `docs/ARCHITECTURE.md` | System design, data flow, patterns |
 | `docs/IMPLEMENTATION_INDEX.md` | Phase overview + task ID system |
-| `docs/phases/phase-{0-5}.md` | Detailed per-phase task specs |
+| `docs/phases/phase-{0-8,ex1-ex6}.md` | Detailed per-phase task specs |
 | `docs/TRACEABILITY.md` | Task → files → commits audit trail |
 | `docs/PROGRESS.md` | Live task tracker (update after every task!) |
 | `docs/DECISIONS.md` | Architecture Decision Records (ADR-001 to ADR-014) |
@@ -815,6 +815,31 @@ Files: `dev/headlessos-dev.yaml` (Lima VM), `dev/vm.sh` (VM script), `dev/docker
 | Track what files a task created | `docs/TRACEABILITY.md` |
 | Cursor IDE rules | `.cursor/rules/` |
 | Copilot IDE rules | `.github/copilot/` |
+| Reusable prompts | `.github/prompts/` |
+
+### Reusable Prompt Files (`.github/prompts/`)
+
+Invoke these from Copilot Chat with `/new-feature`, `/new-parser`, etc.:
+
+| Prompt | Use case |
+|--------|----------|
+| `new-feature.prompt.md` | Full DDD workflow for any new feature |
+| `new-parser.prompt.md` | Create a deterministic parser for a Linux command |
+| `new-api-route.prompt.md` | Add a Fastify API endpoint |
+| `new-component.prompt.md` | Create a React component following project patterns |
+| `new-schema.prompt.md` | Create a Zod schema (dual-purpose: validation + LLM) |
+| `fix-bug.prompt.md` | Diagnose and fix a bug with regression tests |
+| `review-code.prompt.md` | Security-focused code review against threat model |
+
+### Git Hooks (`.githooks/`)
+
+The project uses a custom hooks directory (configured via `git config core.hooksPath .githooks`):
+
+| Hook | Purpose |
+|------|---------|
+| `commit-msg` | Enforces `{type}({TaskID}): {description}` format on all commits |
+
+New clones must run `git config core.hooksPath .githooks` to activate hooks.
 
 ---
 

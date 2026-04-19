@@ -2,6 +2,10 @@
 // @see docs/phases/phase-1.md
 
 import type { ServerConfig, ConnectionState, ApiResponse } from 'headlessos-shared';
+import type {
+  SessionState,
+  SessionSummary,
+} from 'headlessos-shared/schemas/session';
 
 // In Electron production mode (file:// protocol), there's no Vite proxy —
 // API calls must go directly to the backend server.
@@ -20,14 +24,22 @@ export function resolveServerUrl(path: string): string {
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  // Only set Content-Type when there's a body — Fastify rejects empty
+  // bodies if Content-Type: application/json is declared.
+  const headers: Record<string, string> = {};
+  if (options?.body !== undefined && options.body !== null) {
+    headers['Content-Type'] = 'application/json';
+  }
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
     ...options,
+    headers: { ...headers, ...(options?.headers as Record<string, string> | undefined) },
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(body.message ?? body.error ?? `Request failed: ${res.status}`);
   }
+  // 204 No Content has no body
+  if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
 
@@ -256,6 +268,76 @@ export async function moveFile(serverId: string, sourcePath: string, destPath: s
   });
 }
 
+// ── File Search ────────────────────────────────────────
+
+export interface FileSearchResult {
+  name: string;
+  path: string;
+  type: 'file' | 'directory' | 'other';
+}
+
+export interface FileSearchResponse {
+  results: FileSearchResult[];
+  basePath: string;
+  query: string;
+  truncated: boolean;
+}
+
+export async function searchFiles(
+  serverId: string,
+  basePath: string,
+  query: string,
+  maxDepth = 5,
+): Promise<FileSearchResponse> {
+  const params = new URLSearchParams({
+    path: basePath,
+    query,
+    maxDepth: String(maxDepth),
+  });
+  return request<FileSearchResponse>(`/servers/${serverId}/files/search?${params}`);
+}
+
+// ── Trash / Recycle Bin ────────────────────────────────
+
+export interface TrashItem {
+  name: string;
+  originalName: string;
+  trashedAt: string;
+  path: string;
+  size?: number;
+  isDirectory?: boolean;
+}
+
+export async function trashFile(serverId: string, path: string): Promise<{ success: boolean; trashPath: string; originalPath: string }> {
+  return request<{ success: boolean; trashPath: string; originalPath: string }>(`/servers/${serverId}/files/trash`, {
+    method: 'POST',
+    body: JSON.stringify({ path }),
+  });
+}
+
+export async function listTrash(serverId: string): Promise<TrashItem[]> {
+  return request<TrashItem[]>(`/servers/${serverId}/files/trash`);
+}
+
+export async function restoreFromTrash(serverId: string, trashName: string, restorePath: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/servers/${serverId}/files/trash/restore`, {
+    method: 'POST',
+    body: JSON.stringify({ trashName, restorePath }),
+  });
+}
+
+export async function deleteFromTrash(serverId: string, name: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/servers/${serverId}/files/trash?name=${encodeURIComponent(name)}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function emptyTrash(serverId: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/servers/${serverId}/files/trash`, {
+    method: 'DELETE',
+  });
+}
+
 // ── File Upload (M10.3) ────────────────────────────────
 
 export interface UploadResult {
@@ -429,6 +511,19 @@ export interface DockerImagesResponse {
 
 export async function fetchDockerContainers(serverId: string): Promise<DockerContainersResponse> {
   return request<DockerContainersResponse>(`/servers/${serverId}/docker/containers`);
+}
+
+/**
+ * EX5-B.4: Lightweight Docker availability check.
+ * Uses the containers endpoint — dockerAvailable is returned in the response.
+ */
+export async function checkDockerAvailable(serverId: string): Promise<boolean> {
+  try {
+    const res = await fetchDockerContainers(serverId);
+    return res.dockerAvailable !== false;
+  } catch {
+    return false;
+  }
 }
 
 export async function fetchDockerImages(serverId: string): Promise<DockerImagesResponse> {
@@ -1093,6 +1188,227 @@ export async function abortAgentInvestigation(
   sessionId: string,
 ): Promise<{ success: boolean }> {
   return request(`/servers/${serverId}/agent/${sessionId}/abort`, {
+    method: 'POST',
+  });
+}
+
+// ── Dynamic UI ──────────────────────────────────────────
+
+export interface TemplateSummary {
+  id: string;
+  name: string;
+  description: string;
+  tags: string[];
+}
+
+export interface TemplateSearchResult {
+  templateId: string;
+  name: string;
+  matchedPattern: string;
+  confidence: number;
+}
+
+export interface GenerateDynamicUIResult {
+  view: Record<string, unknown>;
+  source: 'cache' | 'llm';
+  templateId?: string;
+  llmStats?: {
+    model: string;
+    inputTokens: number;
+    outputTokens: number;
+    latencyMs: number;
+  };
+}
+
+export async function fetchDynamicUITemplates(): Promise<TemplateSummary[]> {
+  const res = await request<{ success: boolean; data: TemplateSummary[] }>(
+    '/dynamic-ui/templates',
+  );
+  return res.data;
+}
+
+export async function searchDynamicUITemplates(
+  query: string,
+): Promise<TemplateSummary[]> {
+  const res = await request<{ success: boolean; data: TemplateSummary[] }>(
+    `/dynamic-ui/templates/search?q=${encodeURIComponent(query)}`,
+  );
+  return res.data;
+}
+
+export async function generateDynamicUI(
+  serverId: string,
+  tool: string,
+  command: string,
+  rawOutput: string,
+): Promise<GenerateDynamicUIResult> {
+  const res = await request<{ success: boolean; data: GenerateDynamicUIResult }>(
+    `/servers/${serverId}/dynamic-ui/generate`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ tool, command, rawOutput }),
+    },
+  );
+  return res.data;
+}
+
+export interface RefreshResult {
+  success: boolean;
+  data: unknown;
+  rawOutput: string;
+}
+
+export async function refreshWidgetData(
+  serverId: string,
+  command: string,
+  parseMode: 'json' | 'text' = 'text',
+): Promise<RefreshResult> {
+  return request<RefreshResult>(
+    `/servers/${serverId}/dynamic-ui/refresh`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ command, parseMode }),
+    },
+  );
+}
+
+// EX1.14: Execute a widget action on a server
+export interface ActionResult {
+  success: boolean;
+  output?: string;
+  command?: string;
+  risk?: string;
+  error?: string;
+}
+
+export async function executeWidgetAction(
+  serverId: string,
+  command: string,
+  params?: Record<string, string>,
+): Promise<ActionResult> {
+  return request<ActionResult>(
+    `/servers/${serverId}/dynamic-ui/execute-action`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ command, params }),
+    },
+  );
+}
+
+// ── Saved Apps (EX5-C.2) ───────────────────────────────
+
+export interface SavedApp {
+  id: string;
+  name: string;
+  icon: string;
+  cliTool: string;
+  description: string;
+  tags: string[];
+  view: Record<string, unknown>;
+  commandPatterns: string[];
+  createdAt: string;
+  updatedAt: string;
+  serverId?: string;
+}
+
+export interface CreateAppInput {
+  name: string;
+  icon: string;
+  cliTool: string;
+  description?: string;
+  tags?: string[];
+  view: Record<string, unknown>;
+  commandPatterns?: string[];
+  serverId?: string;
+}
+
+export interface UpdateAppInput {
+  name?: string;
+  icon?: string;
+  description?: string;
+  tags?: string[];
+  commandPatterns?: string[];
+}
+
+export async function fetchSavedApps(): Promise<SavedApp[]> {
+  const res = await request<{ apps: SavedApp[] }>('/dynamic-ui/apps');
+  return res.apps;
+}
+
+export async function fetchSavedApp(id: string): Promise<SavedApp> {
+  const res = await request<{ app: SavedApp }>(`/dynamic-ui/apps/${id}`);
+  return res.app;
+}
+
+export async function createSavedApp(input: CreateAppInput): Promise<SavedApp> {
+  const res = await request<{ app: SavedApp }>('/dynamic-ui/apps', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+  return res.app;
+}
+
+export async function updateSavedApp(
+  id: string,
+  input: UpdateAppInput,
+): Promise<SavedApp> {
+  const res = await request<{ app: SavedApp }>(`/dynamic-ui/apps/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
+  return res.app;
+}
+
+export async function deleteSavedApp(id: string): Promise<void> {
+  await request<void>(`/dynamic-ui/apps/${id}`, { method: 'DELETE' });
+}
+
+// ── Sessions (EX6-A.5) ──────────────────────────────────
+// @see docs/phases/phase-ex6.md
+
+export async function fetchSessions(): Promise<SessionSummary[]> {
+  return request<SessionSummary[]>('/sessions');
+}
+
+export async function fetchSession(serverId: string): Promise<SessionState | null> {
+  const res = await fetch(`${BASE}/sessions/${encodeURIComponent(serverId)}`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Failed to load session: ${res.status}`);
+  return res.json() as Promise<SessionState>;
+}
+
+export async function saveSession(state: SessionState): Promise<void> {
+  await request<void>(`/sessions/${encodeURIComponent(state.serverId)}`, {
+    method: 'PUT',
+    body: JSON.stringify(state),
+  });
+}
+
+/**
+ * Fire-and-forget save via sendBeacon — survives `beforeunload`.
+ * Use for warm-tier flush on tab close.
+ */
+export function saveSessionBeacon(state: SessionState): boolean {
+  if (typeof navigator === 'undefined' || !navigator.sendBeacon) return false;
+  const blob = new Blob([JSON.stringify(state)], { type: 'application/json' });
+  // sendBeacon only supports POST, so we use a dedicated POST alias on the
+  // server. For now fall back to fetch with keepalive (Chrome/Safari/FF).
+  return fetch(`${BASE}/sessions/${encodeURIComponent(state.serverId)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: blob,
+    keepalive: true,
+  }).then(() => true).catch(() => false) as unknown as boolean;
+}
+
+export async function deleteSession(serverId: string): Promise<void> {
+  await request<void>(`/sessions/${encodeURIComponent(serverId)}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function hibernateSession(serverId: string): Promise<void> {
+  await request<void>(`/sessions/${encodeURIComponent(serverId)}/hibernate`, {
     method: 'POST',
   });
 }

@@ -72,15 +72,7 @@ export const APPS: AppDefinition[] = [
     requiredTools: [],
     singleInstance: true,
   },
-  {
-    id: 'fleet',
-    name: 'Fleet Overview',
-    icon: 'Globe',
-    description: 'Aggregate dashboard across all connected servers',
-    requiredTools: [],
-    singleInstance: true,
-    refreshInterval: 30_000,
-  },
+  // EX6-C.3: Fleet Overview removed from in-desktop registry — now lives in Control Center
   {
     id: 'agent',
     name: 'AI Agent',
@@ -88,6 +80,30 @@ export const APPS: AppDefinition[] = [
     description: 'AI-powered server investigation and diagnostics',
     requiredTools: [],
     singleInstance: false,
+  },
+  {
+    id: 'dynamic-ui',
+    name: 'Dynamic View',
+    icon: 'Sparkles',
+    description: 'AI-generated dynamic UI view',
+    requiredTools: [],
+    singleInstance: false,
+  },
+  {
+    id: 'ui-agent',
+    name: 'UI Agent',
+    icon: 'Wand2',
+    description: 'AI-powered dynamic UI generation via conversational agent',
+    requiredTools: [],
+    singleInstance: false,
+  },
+  {
+    id: 'observatory',
+    name: 'LLM Observatory',
+    icon: 'Telescope',
+    description: 'Trace viewer for LLM calls, agent runs, and dynamic UI generation',
+    requiredTools: [],
+    singleInstance: true,
   },
 ];
 
