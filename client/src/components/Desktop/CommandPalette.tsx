@@ -253,11 +253,11 @@ export function CommandPalette() {
 
               <CommandItem
                 value="action-theme-system"
-                onSelect={() => runAction(() => setTheme('system'))}
+                onSelect={() => runAction(() => setTheme('auto'))}
               >
                 <Monitor size={16} />
                 <span>Switch to System Theme</span>
-                {theme === 'system' && <CommandShortcut>Active</CommandShortcut>}
+                {theme === 'auto' && <CommandShortcut>Active</CommandShortcut>}
               </CommandItem>
             </CommandGroup>
 
