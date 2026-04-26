@@ -1,0 +1,182 @@
+# Release Desktop App
+#
+# Triggers when a version tag (e.g. v1.2.3) is pushed.
+# Builds macOS (universal: arm64 + x64) and Windows (x64) binaries,
+# then creates a draft GitHub Release with all artifacts attached.
+#
+# Usage:
+#   git tag v1.2.3
+#   git push origin v1.2.3
+#
+# Optional code signing (set in repo Settings → Secrets):
+#   macOS:   APPLE_CSC_LINK, APPLE_CSC_KEY_PASSWORD, APPLE_ID,
+#            APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID
+#   Windows: WIN_CSC_LINK, WIN_CSC_KEY_PASSWORD
+
+name: Release Desktop App
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: write   # required to create a GitHub Release
+
+jobs:
+  # ── macOS ──────────────────────────────────────────────────────────────────
+  build-mac:
+    name: Build macOS (universal)
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # Install root workspaces (shared, server, client) + their deps
+      - name: Install root dependencies
+        run: npm ci
+
+      # shared must be compiled before client's tsc project references resolve
+      - name: Build shared workspace
+        run: npm run build --workspace=shared
+
+      # Vite build → client/dist/  (picked up by electron extraResources)
+      - name: Build client (React + Vite)
+        run: npm run build --workspace=client
+
+      # electron workspace has its own esbuild + electron-builder devDeps
+      - name: Install electron workspace dependencies
+        working-directory: electron
+        run: npm ci
+
+      # esbuild → electron/server.mjs  (single-file ESM bundle, no native addons)
+      - name: Bundle server
+        working-directory: electron
+        run: npm run build:server
+
+      # electron-builder downloads both arm64 and x64 Electron and lipo-merges them
+      # into a single universal .dmg that runs on both Apple Silicon and Intel Macs.
+      - name: Package macOS app (universal .dmg + .zip)
+        working-directory: electron
+        run: npx electron-builder --mac --universal
+        env:
+          # Code signing is optional — if secrets are absent, app ships unsigned.
+          # Unsigned apps require right-click → Open on first launch (Gatekeeper).
+          CSC_LINK: ${{ secrets.APPLE_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.APPLE_CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-dist
+          path: |
+            electron/dist/*.dmg
+            electron/dist/*.zip
+          if-no-files-found: error
+          retention-days: 1
+
+  # ── Windows ────────────────────────────────────────────────────────────────
+  build-windows:
+    name: Build Windows (x64)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Build shared workspace
+        run: npm run build --workspace=shared
+
+      - name: Build client (React + Vite)
+        run: npm run build --workspace=client
+
+      - name: Install electron workspace dependencies
+        working-directory: electron
+        run: npm ci
+
+      - name: Bundle server
+        working-directory: electron
+        run: npm run build:server
+
+      # Produces: NSIS installer (.exe) + portable (.exe) in electron/dist/
+      - name: Package Windows app (NSIS installer + portable)
+        working-directory: electron
+        run: npx electron-builder --win --x64
+        env:
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: win-dist
+          path: electron/dist/*.exe
+          if-no-files-found: error
+          retention-days: 1
+
+  # ── GitHub Release ─────────────────────────────────────────────────────────
+  release:
+    name: Create GitHub Release
+    needs: [build-mac, build-windows]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: mac-dist
+          path: release-assets/
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: win-dist
+          path: release-assets/
+
+      - name: List release assets
+        run: ls -lh release-assets/
+
+      # Creates a DRAFT release — review and publish manually in GitHub UI.
+      # generate_release_notes auto-writes a changelog from merged PRs / commits.
+      - name: Create draft GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          generate_release_notes: true
+          files: release-assets/*
+          body: |
+            ## HeadlessOS ${{ github.ref_name }}
+
+            ### Download
+
+            | Platform | File | Notes |
+            |----------|------|-------|
+            | macOS (Apple Silicon + Intel) | `HeadlessOS-*-universal.dmg` | Universal binary — works on both M-series and Intel Macs |
+            | macOS (zip) | `HeadlessOS-*-universal-mac.zip` | For manual installation |
+            | Windows (installer) | `HeadlessOS Setup *.exe` | Recommended — installs to Program Files |
+            | Windows (portable) | `HeadlessOS *.exe` | No installation needed |
+
+            > **macOS note:** If the app is not signed, macOS will show a security warning on first launch.
+            > Right-click the `.dmg` → Open, or go to **System Settings → Privacy & Security** and click **Open Anyway**.
