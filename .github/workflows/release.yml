@@ -18,10 +18,10 @@ name: Release Desktop App
 on:
   push:
     tags:
-      - 'v[0-9]*.[0-9]*.[0-9]*'
+      - "v[0-9]*.[0-9]*.[0-9]*"
 
 permissions:
-  contents: write   # required to create a GitHub Release
+  contents: write # required to create a GitHub Release
 
 jobs:
   # ── macOS ──────────────────────────────────────────────────────────────────
@@ -67,8 +67,10 @@ jobs:
         working-directory: electron
         run: npx electron-builder --mac --universal
         env:
-          # Code signing is optional — if secrets are absent, app ships unsigned.
-          # Unsigned apps require right-click → Open on first launch (Gatekeeper).
+          # Disable cert auto-discovery so electron-builder skips signing when
+          # secrets are absent (avoids 'not a file' keychain lookup error).
+          # Set APPLE_CSC_LINK + friends in repo secrets to enable notarised builds.
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
           CSC_LINK: ${{ secrets.APPLE_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.APPLE_CSC_KEY_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -122,6 +124,7 @@ jobs:
         working-directory: electron
         run: npx electron-builder --win --x64
         env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
           WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
           WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
 
