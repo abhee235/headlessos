@@ -65,11 +65,13 @@ jobs:
       # into a single universal .dmg that runs on both Apple Silicon and Intel Macs.
       - name: Package macOS app (universal .dmg + .zip)
         working-directory: electron
-        run: npx electron-builder --mac --universal
+        # Unset CSC_LINK when the secret is absent: GitHub sets it to "" which
+        # electron-builder resolves as a path (cwd = electron/) → "not a file" crash.
+        # With no CSC_LINK and CSC_IDENTITY_AUTO_DISCOVERY=false the build is unsigned.
+        run: |
+          [ -z "$CSC_LINK" ] && unset CSC_LINK || true
+          npx electron-builder --mac --universal
         env:
-          # Disable cert auto-discovery so electron-builder skips signing when
-          # secrets are absent (avoids 'not a file' keychain lookup error).
-          # Set APPLE_CSC_LINK + friends in repo secrets to enable notarised builds.
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
           CSC_LINK: ${{ secrets.APPLE_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.APPLE_CSC_KEY_PASSWORD }}
@@ -122,7 +124,10 @@ jobs:
       # Produces: NSIS installer (.exe) + portable (.exe) in electron/dist/
       - name: Package Windows app (NSIS installer + portable)
         working-directory: electron
-        run: npx electron-builder --win --x64
+        run: |
+          if ([string]::IsNullOrEmpty($env:WIN_CSC_LINK)) { Remove-Item Env:WIN_CSC_LINK -ErrorAction SilentlyContinue }
+          npx electron-builder --win --x64
+        shell: pwsh
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
           WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
