@@ -16,6 +16,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   /** App version from package.json */
   version: require('./package.json').version,
 
+  /**
+   * Backend server port (dynamically assigned at startup via PORT=0).
+   * Read synchronously from the main process before page scripts run,
+   * so api.ts can use it at module load time.
+   */
+  serverPort: ipcRenderer.sendSync('get-server-port'),
+
   /** Listen for messages from the main process */
   onMessage: (channel, callback) => {
     const validChannels = ['open-settings'];

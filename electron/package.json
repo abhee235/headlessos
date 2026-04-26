@@ -8,6 +8,8 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
+    "test:prod": "npm run build:server && electron .",
+    "build:server": "esbuild ../server/src/index.ts --bundle --platform=node --target=node20 --format=esm --outfile=server.mjs --external:cpu-features --external:koffi --loader:.node=copy \"--banner:js=import { createRequire as _cr } from 'module'; import { fileURLToPath as _fup } from 'url'; import { dirname as _dn } from 'path'; const require = _cr(import.meta.url); const __filename = _fup(import.meta.url); const __dirname = _dn(__filename);\"",
     "build:mac": "electron-builder --mac",
     "build:win": "electron-builder --win",
     "build:linux": "electron-builder --linux"
@@ -36,10 +38,21 @@
       "main.js",
       "preload.js",
       "icons/**"
+    ],
+    "extraResources": [
+      {
+        "from": "server.mjs",
+        "to": "server.mjs"
+      },
+      {
+        "from": "../client/dist",
+        "to": "client/dist"
+      }
     ]
   },
   "devDependencies": {
     "electron": "^33.0.0",
-    "electron-builder": "^25.0.0"
+    "electron-builder": "^25.0.0",
+    "esbuild": "^0.25.0"
   }
 }

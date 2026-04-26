@@ -13,7 +13,9 @@ import type {
   TraceTrigger,
 } from 'headlessos-shared/schemas/observatory';
 
-const API_BASE = 'http://localhost:3001';
+import { BACKEND_ORIGIN } from '../lib/api';
+
+const API_BASE = BACKEND_ORIGIN;
 
 interface ObservatoryFilters {
   trigger?: TraceTrigger;
