@@ -68,6 +68,19 @@ After completing a task, add an entry here:
 
 _No tasks completed yet._
 
+## M11.8: Electron Dynamic Port Signal (PORT=0 fix)
+
+- **Status:** ✅ Complete
+- **Date:** 2026-04-26
+- **Phase Doc:** M11.2 (Electron Desktop Wrapper)
+- **Files Modified:**
+  - `server/src/index.ts` — fixed `PORT=0` guard (`!= null` instead of `||`); emits `HEADLESSOS_PORT:<actualPort>` to stdout after bind so the Electron `utilityProcess` parent can read the OS-assigned port
+- **Tests:** Existing server suite unaffected
+- **Commits:**
+  - `fix(M11.8): emit HEADLESSOS_PORT signal and fix PORT=0 fallback`
+- **Verification:** `electron/main.js` `stdout` handler already parses `HEADLESSOS_PORT:<n>`; server now emits the signal ✅
+- **Notes:** `Number('0') || 3001` evaluated to 3001 (0 is falsy), causing PORT=0 to be silently ignored. Fixed with explicit null check.
+
 ## EX6-C.8: Branded Loading Spinner Rollout
 
 - **Status:** ✅ Complete
