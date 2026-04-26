@@ -30,7 +30,7 @@
 | M8: Server Admin CRUD | Week 9-10 | ✅ | 8/8 tasks | [phase-8](phases/phase-8.md) |
 | M9: Desktop Polish & Core UX | Week 11 | ✅ | 12/12 tasks | — |
 | M10: Advanced Features | Week 12-14 | ✅ | 10/10 tasks | — |
-| M11: Fleet, Agent & Platform | Week 15-16 | ✅ | 7/7 tasks | — |
+| M11: Fleet, Agent & Platform | Week 15-16 | ✅ | 8/8 tasks | — |
 | **EX1: Dynamic UI Engine** | **Experimental** | **✅** | **15/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
 | **EX2: UI Generation Agent** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
 | **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **✅** | **26/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
@@ -283,6 +283,7 @@ Example:
 | M11.5 | ReAct Investigation Agent | ✅ | InvestigationAgent class (50+ allowlist, 15 blocked, ReAct loop), agent routes, AgentView frontend, 73 tests |
 | M11.6 | Agent Progress Streaming | ✅ | WebSocket /ws/agent/:id/:sessionId, real-time step display, abort support |
 | M11.7 | Bug Fixes & Type Safety | ✅ | Fixed pinnedAppIds type, fleet.ts mountPoint/getServers, SettingsView LLM config type |
+| M11.8 | Electron Dynamic Port Signal (PORT=0 fix) | ✅ | `server/src/index.ts` emits `HEADLESSOS_PORT:<n>` on stdout; `PORT=0` now resolves to actual OS-assigned port instead of falling back to 3001 |
 
 ---
 
