@@ -5,14 +5,98 @@
 // In dev mode, connects to localhost:3000 (Vite dev server).
 // In production, loads the built client from ../client/dist/.
 
-const { app, BrowserWindow, Menu, shell, dialog } = require('electron');
+const { app, BrowserWindow, Menu, shell, dialog, ipcMain, utilityProcess } = require('electron');
 const path = require('path');
 
 const IS_DEV = process.argv.includes('--dev') || process.env.NODE_ENV === 'development';
 const DEV_URL = 'http://localhost:3000';
-const PROD_PATH = path.join(__dirname, '..', 'client', 'dist', 'index.html');
+// In packaged app, client/dist lands in Resources/ via extraResources.
+// In unpackaged (npx electron .), it's at ../client/dist relative to electron/.
+const PROD_PATH = app.isPackaged
+  ? path.join(process.resourcesPath, 'client', 'dist', 'index.html')
+  : path.join(__dirname, '..', 'client', 'dist', 'index.html');
 
 let mainWindow = null;
+
+// ── Backend Server Management ───────────────────────────
+
+let serverProcess = null;
+let serverPort = IS_DEV ? 3001 : null; // dev mode: developer runs server separately
+
+/**
+ * Resolve path to the bundled server.cjs.
+ * - Packaged app: process.resourcesPath (outside asar)
+ * - Unpackaged production: __dirname/server.cjs
+ */
+function getServerPath() {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, 'server.mjs');
+  }
+  return path.join(__dirname, 'server.mjs');
+}
+
+/**
+ * Spawn the bundled Fastify backend with PORT=0 so the OS picks a free port.
+ * Resolves with the actual port once the server writes HEADLESSOS_PORT:<n> to stdout.
+ */
+function startServer() {
+  return new Promise((resolve, reject) => {
+    if (IS_DEV) {
+      resolve(3001); // developer starts server manually via `npm run dev`
+      return;
+    }
+
+    const serverPath = getServerPath();
+
+    serverProcess = utilityProcess.fork(serverPath, [], {
+      env: {
+        ...process.env,
+        PORT: '0',           // OS assigns a free port — no conflicts
+        NODE_ENV: 'production',
+      },
+      stdio: 'pipe',
+    });
+
+    const timeout = setTimeout(() => {
+      reject(new Error('Server failed to start within 20 seconds'));
+    }, 20000);
+
+    serverProcess.stdout.on('data', (data) => {
+      const text = data.toString();
+      const match = text.match(/HEADLESSOS_PORT:(\d+)/);
+      if (match) {
+        clearTimeout(timeout);
+        serverPort = parseInt(match[1], 10);
+        resolve(serverPort);
+      }
+    });
+
+    serverProcess.stderr.on('data', (data) => {
+      console.error('[server stderr]', data.toString().trim());
+    });
+
+    serverProcess.on('exit', (code) => {
+      clearTimeout(timeout);
+      if (code !== 0 && code !== null) {
+        console.error(`[server] exited unexpectedly with code ${code}`);
+      }
+      serverProcess = null;
+    });
+  });
+}
+
+function stopServer() {
+  if (serverProcess) {
+    serverProcess.kill();
+    serverProcess = null;
+  }
+}
+
+// Synchronous IPC: renderer preload calls ipcRenderer.sendSync('get-server-port')
+// and we return the port before the page scripts run.
+ipcMain.on('get-server-port', (event) => {
+  event.returnValue = serverPort ?? 3001;
+});
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -48,6 +132,15 @@ function createWindow() {
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
     mainWindow.focus();
+  });
+
+  // Show a readable error instead of a silent black screen if the file fails to load
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+    console.error(`[renderer] did-fail-load: ${errorCode} ${errorDescription} url=${validatedURL}`);
+    dialog.showErrorBox(
+      'HeadlessOS — Failed to Load',
+      `The app UI could not be loaded.\n\nURL: ${validatedURL}\nError: ${errorDescription} (${errorCode})\n\nPlease reinstall the application.`,
+    );
   });
 
   // Open external links in the default browser
@@ -144,8 +237,22 @@ function createMenu() {
 
 // ── App Lifecycle ───────────────────────────────────────
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   createMenu();
+
+  // Start the backend server and wait for it to signal its port.
+  // In dev mode this resolves immediately with port 3001.
+  try {
+    await startServer();
+  } catch (err) {
+    dialog.showErrorBox(
+      'HeadlessOS — Server Error',
+      `The backend server could not start:\n\n${err.message}\n\nThe application will now quit.`,
+    );
+    app.quit();
+    return;
+  }
+
   createWindow();
 
   // macOS: Re-create window when dock icon is clicked
@@ -159,8 +266,14 @@ app.whenReady().then(() => {
 // Quit when all windows are closed (except macOS)
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
+    stopServer();
     app.quit();
   }
+});
+
+// Ensure the server is stopped when the app quits (macOS quit from Dock etc.)
+app.on('before-quit', () => {
+  stopServer();
 });
 
 // Security: prevent new windows from being created

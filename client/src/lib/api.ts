@@ -11,7 +11,13 @@ import type {
 // API calls must go directly to the backend server.
 export const isElectronProd = typeof window !== 'undefined' &&
   window.location.protocol === 'file:';
-const BACKEND_ORIGIN = 'http://localhost:3001';
+// Dynamic port: read from Electron preload (set synchronously before page scripts run)
+// Falls back to 3001 for browser dev mode.
+const _electronPort = typeof window !== 'undefined'
+  ? ((window as unknown as { electronAPI?: { serverPort?: number } }).electronAPI?.serverPort)
+  : undefined;
+export const BACKEND_PORT = _electronPort ?? 3001;
+export const BACKEND_ORIGIN = `http://localhost:${BACKEND_PORT}`;
 export const API_BASE = isElectronProd ? `${BACKEND_ORIGIN}/api` : '/api';
 const BASE = API_BASE;
 
@@ -106,7 +112,7 @@ export async function getServerStatus(id: string): Promise<ConnectionState> {
 
 export function terminalWsUrl(serverId: string): string {
   if (isElectronProd) {
-    return `ws://localhost:3001/ws/terminal/${serverId}`;
+    return `ws://localhost:${BACKEND_PORT}/ws/terminal/${serverId}`;
   }
   const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
   return `${proto}://${window.location.host}/ws/terminal/${serverId}`;
@@ -114,7 +120,7 @@ export function terminalWsUrl(serverId: string): string {
 
 export function dockerInstallWsUrl(serverId: string): string {
   if (isElectronProd) {
-    return `ws://localhost:3001/ws/docker-install/${serverId}`;
+    return `ws://localhost:${BACKEND_PORT}/ws/docker-install/${serverId}`;
   }
   const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
   return `${proto}://${window.location.host}/ws/docker-install/${serverId}`;

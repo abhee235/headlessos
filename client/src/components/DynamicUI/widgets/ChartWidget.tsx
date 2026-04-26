@@ -108,7 +108,7 @@ export function ChartWidget({ widget }: { widget: ChartWidgetData }) {
       <ChartTooltip
         content={
           <ChartTooltipContent
-            formatter={unit ? (value) => formatUnit(Number(value), unit as Parameters<typeof formatUnit>[1], unitCustom) : undefined}
+            formatter={unit ? (value: number | string) => formatUnit(Number(value), unit as Parameters<typeof formatUnit>[1], unitCustom) : undefined}
           />
         }
       />
