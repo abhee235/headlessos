@@ -8,6 +8,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useAgentStore, type AgentSessionStatus } from '../store/agent-store';
 import type { AgentEventType, AgentMetaType } from '../components/Agent/AgentPanel';
+import { isElectronProd, BACKEND_PORT } from '../lib/api';
 
 // ── Types ──
 
@@ -57,6 +58,10 @@ interface ServerMessage {
   compactedTokens?: number;
   meta?: AgentMetaType;
   error?: string;
+  // EX3-C.2: layout_update fields
+  phase?: string;
+  widgetId?: string;
+  progress?: number;
 }
 
 // ── Hook ──
@@ -74,10 +79,11 @@ export function useUIAgent(serverId: string | null): UseUIAgentReturn {
 
   // ── WebSocket URL builder ──
   const getWsUrl = useCallback((sId: string) => {
+    if (isElectronProd) {
+      return `ws://localhost:${BACKEND_PORT}/ws/ui-agent/${sId}`;
+    }
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.hostname;
-    const port = '3001'; // Backend port
-    return `${protocol}//${host}:${port}/ws/ui-agent/${sId}`;
+    return `${protocol}//${window.location.host}/ws/ui-agent/${sId}`;
   }, []);
 
   // ── Parse server messages into AgentEventType ──
@@ -133,10 +139,10 @@ export function useUIAgent(serverId: string | null): UseUIAgentReturn {
       case 'layout_update':
         return {
           type: 'layout_update',
-          phase: (msg as Record<string, unknown>).phase as string,
+          phase: msg.phase as string,
           view: msg.view,
-          widgetId: (msg as Record<string, unknown>).widgetId as string | undefined,
-          progress: (msg as Record<string, unknown>).progress as number | undefined,
+          widgetId: msg.widgetId,
+          progress: msg.progress,
         } as AgentEventType;
       case 'error':
         return { type: 'error', message: msg.message ?? msg.error ?? 'Unknown error' };

@@ -3,8 +3,9 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useObservatoryStore } from '../store/observatory-store';
+import { BACKEND_ORIGIN } from '../lib/api';
 
-const WS_URL = 'ws://localhost:3001/ws/observatory';
+const WS_URL = `${BACKEND_ORIGIN.replace('http://', 'ws://')}/ws/observatory`;
 
 export type SocketStatus = 'connecting' | 'connected' | 'disconnected';
 

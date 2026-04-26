@@ -48,7 +48,7 @@ import { initObservatory } from './observatory/context.js';
 import { AppStore } from './dynamic-ui/app-store.js';
 import { appStoreRoutes } from './routes/app-store.js';
 
-const PORT = Number(process.env.PORT) || 3001;
+const PORT = process.env.PORT != null ? Number(process.env.PORT) : 3001;
 
 async function main(): Promise<void> {
   // -- Service Container --
@@ -255,7 +255,10 @@ async function main(): Promise<void> {
   // -- Start --
   try {
     await app.listen({ port: PORT, host: '127.0.0.1' });
-    console.log(`🚀 HeadlessOS server running on http://localhost:${PORT}`);
+    const actualPort = (app.server.address() as import('net').AddressInfo).port;
+    console.log(`🚀 HeadlessOS server running on http://localhost:${actualPort}`);
+    // Signal the actual port to the Electron parent process (PORT=0 gets OS-assigned)
+    process.stdout.write(`HEADLESSOS_PORT:${actualPort}\n`);
   } catch (err) {
     app.log.error(err);
     process.exit(1);

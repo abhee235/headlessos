@@ -135,6 +135,8 @@ export const EXAMPLE_VIEWS: PlaygroundExample[] = [
         main: {
           layout: 'grid',
           columns: 3,
+          autoFit: null,
+          minChildWidth: null,
           children: [
             { type: 'stat-card', title: 'CPU', value: '45', unit: '%', trend: 'up', description: '+3% from last hour' },
             { type: 'stat-card', title: 'Memory', value: '6.2', unit: 'GB', trend: 'neutral' },
@@ -853,6 +855,8 @@ export const EXAMPLE_VIEWS: PlaygroundExample[] = [
         packages: {
           layout: 'grid',
           columns: 3,
+          autoFit: null,
+          minChildWidth: null,
           children: [
             { type: 'stat-card', title: 'Installed', value: '530', icon: 'Package' },
             { type: 'stat-card', title: 'Upgradable', value: '12', icon: 'ArrowUpCircle', trend: 'up' },
