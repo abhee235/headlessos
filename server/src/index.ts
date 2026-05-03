@@ -14,6 +14,7 @@ import websocket from "@fastify/websocket";
 import multipart from "@fastify/multipart";
 import { ServiceContainer } from "./services/container.js";
 import { ConnectionManager } from "./ssh/connection-manager.js";
+import { CommandPolicy } from "./services/policy/command-policy.js";
 import { ConfigStore } from "./config/store.js";
 import { SessionStore } from "./config/session-store.js";
 import { ParsingPipeline } from "./parsers/pipeline.js";
@@ -47,6 +48,22 @@ import { TracePersistence } from "./observatory/trace-persistence.js";
 import { initObservatory } from "./observatory/context.js";
 import { AppStore } from "./dynamic-ui/app-store.js";
 import { appStoreRoutes } from "./routes/app-store.js";
+import { DockerService } from "./services/domain/docker-service.js";
+import { SystemService } from "./services/domain/system-service.js";
+import { SystemdService } from "./services/domain/systemd-service.js";
+import { TaskManagerService } from "./services/domain/taskmanager-service.js";
+import { FleetService } from "./services/domain/fleet-service.js";
+import { FilesService } from "./services/domain/files-service.js";
+import {
+  NetworkAdminService,
+  FirewallAdminService,
+  SecurityAdminService,
+  WebServerAdminService,
+  PackagesAdminService,
+  CronAdminService,
+  LogsAdminService,
+  StorageAdminService,
+} from "./services/domain/admin/index.js";
 
 const PORT = process.env.PORT != null ? Number(process.env.PORT) : 3001;
 
@@ -56,6 +73,7 @@ async function main(): Promise<void> {
 
   const configStore = new ConfigStore("config");
   const sessionStore = new SessionStore("session-store");
+  const commandPolicy = new CommandPolicy("command-policy");
   const connectionManager = new ConnectionManager("ssh");
   const pipeline = new ParsingPipeline("parser");
   const orchestrator = new CommandOrchestrator("orchestrator");
@@ -80,10 +98,43 @@ async function main(): Promise<void> {
 
   container.register("config", configStore);
   container.register("session-store", sessionStore);
+  // M12.1: Register CommandPolicy BEFORE ssh so ConnectionManager._init() can wire it.
+  container.register("command-policy", commandPolicy);
   container.register("ssh", connectionManager);
   container.register("parser", pipeline);
   container.register("orchestrator", orchestrator);
   container.register("trace-persistence", tracePersistence);
+
+  // M12.2 + M12.4 + M12.8: Domain services — thin layer over orchestrator/pipeline,
+  // enforced by CommandPolicy at ConnectionManager.exec().
+  const dockerService = new DockerService("docker");
+  const systemService = new SystemService("system");
+  const systemdService = new SystemdService("systemd");
+  const taskManagerService = new TaskManagerService("taskmanager");
+  const fleetService = new FleetService("fleet");
+  const filesService = new FilesService("files");
+  const networkAdmin = new NetworkAdminService("network-admin");
+  const firewallAdmin = new FirewallAdminService("firewall-admin");
+  const securityAdmin = new SecurityAdminService("security-admin");
+  const webServerAdmin = new WebServerAdminService("webserver-admin");
+  const packagesAdmin = new PackagesAdminService("packages-admin");
+  const cronAdmin = new CronAdminService("cron-admin");
+  const logsAdmin = new LogsAdminService("logs-admin");
+  const storageAdmin = new StorageAdminService("storage-admin");
+  container.register("docker", dockerService);
+  container.register("system", systemService);
+  container.register("systemd", systemdService);
+  container.register("taskmanager", taskManagerService);
+  container.register("fleet", fleetService);
+  container.register("files", filesService);
+  container.register("network-admin", networkAdmin);
+  container.register("firewall-admin", firewallAdmin);
+  container.register("security-admin", securityAdmin);
+  container.register("webserver-admin", webServerAdmin);
+  container.register("packages-admin", packagesAdmin);
+  container.register("cron-admin", cronAdmin);
+  container.register("logs-admin", logsAdmin);
+  container.register("storage-admin", storageAdmin);
 
   // LLM provider is optional — configured if OPENAI_API_KEY is set
   let modelRouter: ModelRouter | null = null;
@@ -275,20 +326,25 @@ async function main(): Promise<void> {
     configStore,
   });
   await app.register(terminalRoutes, { connectionManager });
-  await app.register(systemRoutes, { orchestrator, connectionManager });
-  await app.register(fileRoutes, { connectionManager });
+  await app.register(systemRoutes, { systemService });
+  await app.register(fileRoutes, { filesService });
   await app.register(wallpaperRoutes);
-  await app.register(taskManagerRoutes, { orchestrator, connectionManager });
-  await app.register(dockerRoutes, { connectionManager });
-  await app.register(servicesRoutes, { connectionManager });
-  await app.register(serverAdminRoutes, { connectionManager });
+  await app.register(taskManagerRoutes, { taskManagerService });
+  await app.register(dockerRoutes, { connectionManager, dockerService });
+  await app.register(servicesRoutes, { systemdService });
+  await app.register(serverAdminRoutes, {
+    network: networkAdmin,
+    firewall: firewallAdmin,
+    security: securityAdmin,
+    webServer: webServerAdmin,
+    packages: packagesAdmin,
+    cron: cronAdmin,
+    logs: logsAdmin,
+    storage: storageAdmin,
+  });
   await app.register(statsRoutes, { usageTracker, outputCache });
   await app.register(llmRoutes, { pipeline });
-  await app.register(fleetRoutes, {
-    orchestrator,
-    connectionManager,
-    configStore,
-  });
+  await app.register(fleetRoutes, { fleetService });
   await app.register(sessionRoutes, { sessionStore, connectionManager });
   await app.register(agentRoutes, {
     connectionManager,
