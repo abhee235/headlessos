@@ -54,6 +54,7 @@ import { SystemdService } from "./services/domain/systemd-service.js";
 import { TaskManagerService } from "./services/domain/taskmanager-service.js";
 import { FleetService } from "./services/domain/fleet-service.js";
 import { FilesService } from "./services/domain/files-service.js";
+import { TerminalService } from "./services/domain/terminal-service.js";
 import {
   NetworkAdminService,
   FirewallAdminService,
@@ -113,6 +114,7 @@ async function main(): Promise<void> {
   const taskManagerService = new TaskManagerService("taskmanager");
   const fleetService = new FleetService("fleet");
   const filesService = new FilesService("files");
+  const terminalService = new TerminalService("terminal");
   const networkAdmin = new NetworkAdminService("network-admin");
   const firewallAdmin = new FirewallAdminService("firewall-admin");
   const securityAdmin = new SecurityAdminService("security-admin");
@@ -127,6 +129,7 @@ async function main(): Promise<void> {
   container.register("taskmanager", taskManagerService);
   container.register("fleet", fleetService);
   container.register("files", filesService);
+  container.register("terminal", terminalService);
   container.register("network-admin", networkAdmin);
   container.register("firewall-admin", firewallAdmin);
   container.register("security-admin", securityAdmin);
@@ -325,7 +328,7 @@ async function main(): Promise<void> {
     connectionManager: agentConnectionManager as ConnectionManager,
     configStore,
   });
-  await app.register(terminalRoutes, { connectionManager });
+  await app.register(terminalRoutes, { terminalService });
   await app.register(systemRoutes, { systemService });
   await app.register(fileRoutes, { filesService });
   await app.register(wallpaperRoutes);
