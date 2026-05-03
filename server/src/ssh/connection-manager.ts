@@ -4,6 +4,7 @@
 import { Client, type ClientChannel, type SFTPWrapper } from 'ssh2';
 import { EventEmitter } from 'events';
 import { BaseService } from '../services/base-service.js';
+import type { CommandPolicy } from '../services/policy/command-policy.js';
 import type { ServerConfig, ConnectionState, ConnectionStatus } from 'headlessos-shared';
 
 export interface ExecResult {
@@ -32,9 +33,28 @@ const RETRY_DELAYS = [1000, 2000, 4000];
 export class ConnectionManager extends BaseService {
   private connections = new Map<string, ServerConnection>();
   private emitter = new EventEmitter();
+  private policy: CommandPolicy | null = null;
 
   protected async _construct(): Promise<void> {
     // Nothing to construct internally
+  }
+
+  protected async _init(): Promise<void> {
+    // M12.1: Wire CommandPolicy if registered. Optional so existing tests that
+    // bypass the container (mocking exec) continue to work.
+    try {
+      this.policy = this.services.get<CommandPolicy>('command-policy');
+    } catch {
+      this.policy = null;
+    }
+  }
+
+  /**
+   * M12.1: Manually attach a policy. Used by tests that don't go through
+   * ServiceContainer.boot() but still want enforcement.
+   */
+  setCommandPolicy(policy: CommandPolicy | null): void {
+    this.policy = policy;
   }
 
   protected async _destroy(): Promise<void> {
@@ -135,6 +155,13 @@ export class ConnectionManager extends BaseService {
   // ── Command execution ─────────────────────────────────
 
   async exec(serverId: string, command: string, timeout = DEFAULT_EXEC_TIMEOUT): Promise<ExecResult> {
+    // M12.1: Central policy chokepoint — every command crossing SSH passes here.
+    // Throws SecurityError if the command is blocked or (in enforce mode) not
+    // in the allowlist. No-op when no policy is wired (test mocks, etc.).
+    if (this.policy) {
+      this.policy.assertAllowed(command, serverId);
+    }
+
     const conn = this.requireConnection(serverId);
     const start = Date.now();
 
