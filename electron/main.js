@@ -7,6 +7,8 @@
 
 const { app, BrowserWindow, Menu, shell, dialog, ipcMain, utilityProcess } = require('electron');
 const path = require('path');
+const fs = require('fs');
+const os = require('os');
 
 const IS_DEV = process.argv.includes('--dev') || process.env.NODE_ENV === 'development';
 const DEV_URL = 'http://localhost:3000';
@@ -22,6 +24,7 @@ let mainWindow = null;
 
 let serverProcess = null;
 let serverPort = IS_DEV ? 3001 : null; // dev mode: developer runs server separately
+let serverToken = null; // C3: API auth token, read from the server's stdout in prod
 
 /**
  * Resolve path to the bundled server.cjs.
@@ -63,6 +66,10 @@ function startServer() {
 
     serverProcess.stdout.on('data', (data) => {
       const text = data.toString();
+      const tokenMatch = text.match(/HEADLESSOS_TOKEN:([a-f0-9]+)/);
+      if (tokenMatch) {
+        serverToken = tokenMatch[1];
+      }
       const match = text.match(/HEADLESSOS_PORT:(\d+)/);
       if (match) {
         clearTimeout(timeout);
@@ -96,6 +103,24 @@ function stopServer() {
 // and we return the port before the page scripts run.
 ipcMain.on('get-server-port', (event) => {
   event.returnValue = serverPort ?? 3001;
+});
+
+// C3: renderer reads the API token (prod only; in dev the Vite proxy injects it).
+// Prefer the token captured from stdout, but fall back to reading the token file
+// directly — this is race-free because the server writes ~/.headlessos/api-token
+// at startup, before it ever prints the port line we wait on.
+ipcMain.on('get-auth-token', (event) => {
+  if (serverToken) {
+    event.returnValue = serverToken;
+    return;
+  }
+  try {
+    const tokenPath = path.join(os.homedir(), '.headlessos', 'api-token');
+    serverToken = fs.readFileSync(tokenPath, 'utf8').trim();
+    event.returnValue = serverToken;
+  } catch {
+    event.returnValue = '';
+  }
 });
 
 function createWindow() {

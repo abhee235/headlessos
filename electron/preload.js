@@ -23,6 +23,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
    */
   serverPort: ipcRenderer.sendSync('get-server-port'),
 
+  /**
+   * API auth token (C3). Read synchronously before page scripts run so api.ts
+   * can attach it to every backend request. Empty in dev (Vite proxy injects it).
+   */
+  authToken: ipcRenderer.sendSync('get-auth-token'),
+
   /** Listen for messages from the main process */
   onMessage: (channel, callback) => {
     const validChannels = ['open-settings'];

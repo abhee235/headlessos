@@ -2,7 +2,10 @@
 // @see docs/phases/phase-0.md, docs/phases/phase-1.md
 
 import 'dotenv/config';
-import { resolve } from 'node:path';
+import { resolve, join } from 'node:path';
+import { homedir } from 'node:os';
+import { randomBytes } from 'node:crypto';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, chmodSync } from 'node:fs';
 import { config as dotenvConfig } from 'dotenv';
 
 // Load .env from project root (one level up from server/)
@@ -34,6 +37,7 @@ import { sessionRoutes } from './routes/sessions.js';
 import { agentRoutes } from './routes/agent.js';
 import { agentUIRoutes } from './routes/agent-ui.js';
 import { dynamicUIRoutes } from './routes/dynamic-ui.js';
+import { containerFileRoutes } from './routes/container-files.js';
 import { allParsers } from './parsers/deterministic/index.js';
 import { OutputCache } from './cache/output-cache.js';
 import { LLMUsageTracker } from './llm/usage-tracker.js';
@@ -50,7 +54,38 @@ import { appStoreRoutes } from './routes/app-store.js';
 
 const PORT = process.env.PORT != null ? Number(process.env.PORT) : 3001;
 
+// ── API auth token (C3) ─────────────────────────────────
+// A per-install secret required on every API/WS request. Without it, the
+// localhost API has no authentication, so any web page the user visits (via a
+// sandboxed iframe sending `Origin: null`) could drive SSH actions on connected
+// servers. The token is persisted 0600 so the Electron shell and the Vite dev
+// proxy can read it and attach it; a cross-origin page cannot read the file.
+const CONFIG_DIR = join(homedir(), '.headlessos');
+const TOKEN_FILE = join(CONFIG_DIR, 'api-token');
+
+function getOrCreateApiToken(): string {
+  try {
+    if (existsSync(TOKEN_FILE)) {
+      const existing = readFileSync(TOKEN_FILE, 'utf8').trim();
+      if (existing.length >= 32) return existing;
+    }
+  } catch { /* fall through to regenerate */ }
+  const token = randomBytes(32).toString('hex');
+  try {
+    if (!existsSync(CONFIG_DIR)) mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
+    writeFileSync(TOKEN_FILE, token, { mode: 0o600 });
+    chmodSync(TOKEN_FILE, 0o600);
+  } catch (err) {
+    console.warn('[auth] could not persist api token:', (err as Error).message);
+  }
+  return token;
+}
+
 async function main(): Promise<void> {
+  // API auth token (C3) — created/loaded before anything else so it can be
+  // printed for the Electron shell and enforced on every request.
+  const apiToken = getOrCreateApiToken();
+
   // -- Service Container --
   const container = new ServiceContainer();
 
@@ -164,6 +199,52 @@ async function main(): Promise<void> {
   // -- Fastify --
   const app = Fastify({ logger: true });
 
+  // ── Anti-DNS-rebinding: Host-header allowlist ───────────
+  // The server binds 127.0.0.1, but that alone does not stop DNS rebinding: an
+  // attacker page on evil.com (rebound to 127.0.0.1) would reach us with
+  // `Host: evil.com`. Legit clients (Electron → localhost:<port>, Vite dev proxy
+  // with changeOrigin) always send a loopback Host. Reject anything else, and do
+  // the same on the WebSocket upgrade (CORS does not apply to WS handshakes).
+  const isLoopbackHost = (hostHeader: string | undefined): boolean => {
+    if (!hostHeader) return false;
+    // Strip port; handle IPv6 "[::1]:3001" and "host:port".
+    const host = hostHeader.startsWith('[')
+      ? hostHeader.slice(1, hostHeader.indexOf(']'))
+      : hostHeader.split(':')[0];
+    return host === 'localhost' || host === '127.0.0.1' || host === '::1';
+  };
+
+  app.addHook('onRequest', async (req, reply) => {
+    // Anti-DNS-rebinding: only accept loopback Host headers.
+    if (!isLoopbackHost(req.headers.host)) {
+      return reply.code(403).send({ error: 'Forbidden: invalid Host header' });
+    }
+
+    // CORS does not apply to WS handshakes — enforce origin here.
+    if ((req.headers.upgrade ?? '').toLowerCase() === 'websocket') {
+      const origin = req.headers.origin;
+      const okOrigin = !origin || origin === 'null' || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+      if (!okOrigin) {
+        return reply.code(403).send({ error: 'Forbidden: invalid WebSocket origin' });
+      }
+    }
+
+    // /health is the only unauthenticated endpoint (liveness probe).
+    if (req.url === '/health' || req.url.startsWith('/health?')) return;
+
+    // Require the API token via header OR ?token= query. The query form is needed
+    // for <img> and WebSocket, which cannot set headers in the browser. In dev the
+    // Vite proxy injects the header; in Electron the client attaches it.
+    const headerToken = req.headers['x-headlessos-token'];
+    const queryToken = (req.query as { token?: string } | undefined)?.token;
+    const provided = typeof headerToken === 'string' ? headerToken
+      : typeof queryToken === 'string' ? queryToken
+      : undefined;
+    if (provided !== apiToken) {
+      return reply.code(401).send({ error: 'Unauthorized: missing or invalid API token' });
+    }
+  });
+
   await app.register(cors, {
     // Allow Vite dev server and Electron production mode (file:// sends origin: null)
     origin: (origin, cb) => {
@@ -231,6 +312,7 @@ async function main(): Promise<void> {
   await app.register(wallpaperRoutes);
   await app.register(taskManagerRoutes, { orchestrator, connectionManager });
   await app.register(dockerRoutes, { connectionManager });
+  await app.register(containerFileRoutes, { connectionManager });
   await app.register(servicesRoutes, { connectionManager });
   await app.register(serverAdminRoutes, { connectionManager });
   await app.register(statsRoutes, { usageTracker, outputCache });
@@ -259,6 +341,8 @@ async function main(): Promise<void> {
     console.log(`🚀 HeadlessOS server running on http://localhost:${actualPort}`);
     // Signal the actual port to the Electron parent process (PORT=0 gets OS-assigned)
     process.stdout.write(`HEADLESSOS_PORT:${actualPort}\n`);
+    // Signal the API token so the Electron shell can attach it to API/WS calls.
+    process.stdout.write(`HEADLESSOS_TOKEN:${apiToken}\n`);
   } catch (err) {
     app.log.error(err);
     process.exit(1);

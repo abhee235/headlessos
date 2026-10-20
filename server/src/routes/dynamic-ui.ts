@@ -92,6 +92,10 @@ export async function dynamicUIRoutes(
     requireConnected(serverId);
 
     try {
+      // SECURITY: widget refresh must only run allowlisted (read-only) commands.
+      // Without this, the raw body `command` was passed straight to exec() — RCE.
+      validateCommand(command);
+
       const result = await connectionManager.exec(serverId, command, 10000);
       const rawOutput = result.stdout || result.stderr;
 
@@ -110,7 +114,7 @@ export async function dynamicUIRoutes(
       return reply.send({ success: true, data, rawOutput });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to run refresh command';
-      return reply.status(500).send({ success: false, error: message });
+      return reply.status(err instanceof SecurityError ? 403 : 500).send({ success: false, error: message });
     }
   });
 

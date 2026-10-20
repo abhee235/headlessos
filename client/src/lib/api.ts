@@ -21,10 +21,42 @@ export const BACKEND_ORIGIN = `http://localhost:${BACKEND_PORT}`;
 export const API_BASE = isElectronProd ? `${BACKEND_ORIGIN}/api` : '/api';
 const BASE = API_BASE;
 
+// ── C3: API auth token ──────────────────────────────────
+// The backend requires a token on every request. In dev the Vite proxy injects
+// it; in Electron prod (file://, no proxy) the client attaches it. Empty otherwise.
+const _electronAuthToken = typeof window !== 'undefined'
+  ? ((window as unknown as { electronAPI?: { authToken?: string } }).electronAPI?.authToken)
+  : undefined;
+export const AUTH_TOKEN = _electronAuthToken ?? '';
+
+/** Append the token as a query param — for URLs that cannot send a header (<img>, WebSocket). */
+export function withToken(url: string): string {
+  if (!AUTH_TOKEN) return url;
+  return url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(AUTH_TOKEN);
+}
+
+// In Electron prod there is no proxy, so patch fetch once to attach the token to
+// backend requests — this covers both request() and the direct fetch() callers.
+if (isElectronProd && AUTH_TOKEN && typeof window !== 'undefined'
+    && !(window as unknown as { __hoFetchPatched?: boolean }).__hoFetchPatched) {
+  const origFetch = window.fetch.bind(window);
+  window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+    if (url && url.startsWith(BACKEND_ORIGIN)) {
+      const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
+      if (!headers.has('x-headlessos-token')) headers.set('x-headlessos-token', AUTH_TOKEN);
+      return origFetch(input, { ...init, headers });
+    }
+    return origFetch(input, init);
+  };
+  (window as unknown as { __hoFetchPatched?: boolean }).__hoFetchPatched = true;
+}
+
 /** Resolve a server-relative URL (e.g. /api/wallpapers/...) to an absolute URL in Electron */
 export function resolveServerUrl(path: string): string {
   if (isElectronProd && path.startsWith('/')) {
-    return `${BACKEND_ORIGIN}${path}`;
+    // <img>/download URLs can't send a header, so carry the token as a query param.
+    return withToken(`${BACKEND_ORIGIN}${path}`);
   }
   return path;
 }
@@ -110,17 +142,18 @@ export async function getServerStatus(id: string): Promise<ConnectionState> {
 
 // ── WebSocket URL ───────────────────────────────────────
 
-export function terminalWsUrl(serverId: string): string {
+export function terminalWsUrl(serverId: string, containerId?: string): string {
+  const q = containerId ? `?container=${encodeURIComponent(containerId)}` : '';
   if (isElectronProd) {
-    return `ws://localhost:${BACKEND_PORT}/ws/terminal/${serverId}`;
+    return withToken(`ws://localhost:${BACKEND_PORT}/ws/terminal/${serverId}${q}`);
   }
   const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-  return `${proto}://${window.location.host}/ws/terminal/${serverId}`;
+  return `${proto}://${window.location.host}/ws/terminal/${serverId}${q}`;
 }
 
 export function dockerInstallWsUrl(serverId: string): string {
   if (isElectronProd) {
-    return `ws://localhost:${BACKEND_PORT}/ws/docker-install/${serverId}`;
+    return withToken(`ws://localhost:${BACKEND_PORT}/ws/docker-install/${serverId}`);
   }
   const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
   return `${proto}://${window.location.host}/ws/docker-install/${serverId}`;
@@ -342,6 +375,75 @@ export async function emptyTrash(serverId: string): Promise<{ success: boolean }
   return request<{ success: boolean }>(`/servers/${serverId}/files/trash`, {
     method: 'DELETE',
   });
+}
+
+// ── EX7: Container Target — files inside a Docker container (via docker exec) ──
+
+export interface ContainerFileEntry {
+  name: string;
+  type: 'file' | 'directory' | 'symlink' | 'other';
+  permissions: string;
+  owner: string;
+  group: string;
+  size: number;
+  modified: string;
+  symlinkTarget?: string;
+}
+
+function cfsBase(serverId: string, containerId: string): string {
+  return `/servers/${serverId}/docker/containers/${containerId}/fs`;
+}
+
+export async function listContainerFiles(serverId: string, containerId: string, path: string): Promise<ContainerFileEntry[]> {
+  const res = await request<{ success: boolean; entries: ContainerFileEntry[] }>(
+    `${cfsBase(serverId, containerId)}/list?path=${encodeURIComponent(path)}`,
+  );
+  return res.entries ?? [];
+}
+
+export async function readContainerFile(serverId: string, containerId: string, path: string): Promise<{ content: string; size: number }> {
+  return request<{ content: string; size: number }>(
+    `${cfsBase(serverId, containerId)}/read?path=${encodeURIComponent(path)}`,
+  );
+}
+
+export async function writeContainerFile(serverId: string, containerId: string, path: string, content: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`${cfsBase(serverId, containerId)}/write`, {
+    method: 'POST',
+    body: JSON.stringify({ path, content }),
+  });
+}
+
+export async function mkdirContainer(serverId: string, containerId: string, path: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`${cfsBase(serverId, containerId)}/mkdir`, {
+    method: 'POST',
+    body: JSON.stringify({ path }),
+  });
+}
+
+export async function renameContainerFile(serverId: string, containerId: string, oldPath: string, newPath: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`${cfsBase(serverId, containerId)}/rename`, {
+    method: 'POST',
+    body: JSON.stringify({ oldPath, newPath }),
+  });
+}
+
+export async function deleteContainerFile(serverId: string, containerId: string, path: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`${cfsBase(serverId, containerId)}?path=${encodeURIComponent(path)}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function uploadContainerFile(serverId: string, containerId: string, path: string, contentBase64: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`${cfsBase(serverId, containerId)}/upload`, {
+    method: 'POST',
+    body: JSON.stringify({ path, contentBase64 }),
+  });
+}
+
+/** Download URL for a container file (carries the token in Electron prod; via proxy in dev). */
+export function containerDownloadUrl(serverId: string, containerId: string, path: string): string {
+  return resolveServerUrl(`/api${cfsBase(serverId, containerId)}/download?path=${encodeURIComponent(path)}`);
 }
 
 // ── File Upload (M10.3) ────────────────────────────────
