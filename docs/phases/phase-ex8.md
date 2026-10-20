@@ -276,7 +276,7 @@ from the server; the music card stays a sample for now).
 |------|----------|
 | Greeting | "Good morning/afternoon/evening, <local user>!" (`GET /api/host`: `os.userInfo().username`, hostname). Headline: "All calm on / <server>", "<n> things need / attention", "Not connected to / <server>", "No server / connected yet" |
 | Members → Users | accounts on the selected server with a session or processes (`GET taskmanager/users`), initials on the design's gradient discs; ＋ opens Server Admin → Security |
-| Room bar → Servers | saved servers (selected shows its name); picking one re-points the hub; ＋ goes to the Control Center to add one |
+| Room bar → Servers | saved servers, each with its name (the selected one has the pressed background); picking one re-points the hub; ＋ goes to the Control Center to add one |
 | Camera → Photo frame | images in a folder on the server (default `~/Pictures`, fallback: HeadlessOS wallpapers) via `files/download`; chip = folder, "Live" → "Slideshow", buttons prev / play-pause / full screen / open in Files; 8 s per photo |
 | Weather | `GET /api/weather?lat&lon&units` → Open-Meteo forecast (current temperature, humidity, wind, 4 next days), cached 30 min; city via `GET /api/weather/geocode?q`; °C/°F toggles units. The card shows the condition only — the city stays in Settings (privacy). No city → "Set a city" prompt |
 | Air conditioner → Server health | arc = Memory % by default (Task Manager poll, 2 s); Fan/Timer/Mode → CPU / Memory / Disk; LED green < 75 %, amber < 90 %, red above |

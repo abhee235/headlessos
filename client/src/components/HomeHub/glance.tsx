@@ -655,10 +655,11 @@ export function ServerBar({ servers, selected, onSelect, onAdd, pressed }: {
             aria-label={s.name}
             aria-current={on ? 'page' : undefined}
             onClick={() => onSelect(s.id)}
-            style={{ ...pressed(on), height: 60, flex: 'none', padding: `0 ${on ? 24 : 18}px`, display: 'flex', alignItems: 'center', gap: 10, borderRadius: 30, border: 'none', cursor: 'pointer', color: '#fff', font: 'inherit', fontSize: 18, fontWeight: 500, transition: 'all .2s' }}
+            // Every server shows its name; the selected one only gets the pressed background
+            style={{ ...pressed(on), height: 60, flex: 'none', padding: '0 24px', display: 'flex', alignItems: 'center', gap: 10, borderRadius: 30, border: 'none', cursor: 'pointer', color: '#fff', font: 'inherit', fontSize: 18, fontWeight: 500, transition: 'all .2s' }}
           >
             <Server aria-hidden style={{ width: 24, height: 24, flex: 'none' }} strokeWidth={1.75} />
-            {on && <span style={{ whiteSpace: 'nowrap', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.name}</span>}
+            <span style={{ whiteSpace: 'nowrap', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.name}</span>
           </button>
         );
       })}
