@@ -41,7 +41,7 @@ export function CommandPalette() {
   const [dynamicUILoading, setDynamicUILoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const openTab = useAppStore(s => s.openTab);
+  const openWindow = useDesktopStore(s => s.openWindow);
   const activeServerId = useAppStore(s => s.activeServerId);
   const servers = useAppStore(s => s.servers);
   const theme = useThemeStore(s => s.theme);
@@ -89,14 +89,16 @@ export function CommandPalette() {
     };
   }, []);
 
-  const launchApp = useCallback((appId: string) => {
+  // Opens a desktop window. (It used to call the legacy tab store's openTab,
+  // which windows replaced, so picking an app did nothing.)
+  const launchApp = useCallback((appId: string, meta?: Record<string, string>) => {
     if (!activeServerId) return;
     const app = APPS.find(a => a.id === appId);
     if (app) {
-      openTab(app, activeServerId);
+      openWindow(app.id, activeServerId, app.name, app.id, meta);
     }
     setOpen(false);
-  }, [activeServerId, openTab]);
+  }, [activeServerId, openWindow]);
 
   const runAction = useCallback((action: () => void) => {
     action();
@@ -276,7 +278,7 @@ export function CommandPalette() {
                     key={item.page}
                     value={`settings-${item.page}-${item.label}`}
                     onSelect={() => {
-                      launchApp('settings');
+                      launchApp('settings', { initialPage: item.page });
                     }}
                   >
                     {item.icon}

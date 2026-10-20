@@ -36,9 +36,9 @@ export function DisconnectedState({ serverId, onReconnected, message }: Disconne
   };
 
   return (
-    <div className="flex items-center justify-center h-full bg-background">
+    <div className="flex items-center justify-center h-full">
       <div className="text-center max-w-sm">
-        <WifiOff className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-50" />
+        <WifiOff className="w-10 h-10 text-label-3 mx-auto mb-3" strokeWidth={1.75} />
         <p className="text-sm font-medium text-foreground mb-1">
           Server disconnected
         </p>
@@ -59,7 +59,7 @@ export function DisconnectedState({ serverId, onReconnected, message }: Disconne
 
         <button
           onClick={() => signOut()}
-          className="text-[11px] text-muted-foreground/60 hover:text-muted-foreground mt-4 underline cursor-pointer"
+          className="text-xs text-label-3 hover:text-label-2 mt-4 underline cursor-pointer"
         >
           Back to login
         </button>

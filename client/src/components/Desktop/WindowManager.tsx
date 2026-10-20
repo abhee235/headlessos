@@ -37,8 +37,9 @@ function LazyFallback() {
 function WindowContent({ appId, serverId, windowId, meta }: { appId: string; serverId: string; windowId: string; meta?: Record<string, string> }) {
   switch (appId) {
     case 'dashboard':
+      // EX8.3: no top padding — WindowFrame already leaves 12px under the title bar
       return (
-        <div className="p-4 h-full overflow-auto">
+        <div className="px-4 pb-4 h-full overflow-auto">
           <DashboardView serverId={serverId} />
         </div>
       );

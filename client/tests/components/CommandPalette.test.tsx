@@ -2,8 +2,9 @@
 // @see docs/phases/phase-ex1.md
 
 import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { CommandPalette } from '../../src/components/Desktop/CommandPalette';
+import { eventBus } from '../../src/lib/event-bus';
 
 // Polyfill ResizeObserver + scrollIntoView for jsdom (needed by cmdk/Radix)
 beforeAll(() => {
@@ -21,23 +22,23 @@ beforeAll(() => {
 
 // ── Mocks ───────────────────────────────────────────────
 
-const mockOpenTab = vi.fn();
 let mockActiveServerId: string | null = 'server-1';
 let mockServers: Array<{ id: string }> = [{ id: 'server-1' }];
 
 vi.mock('../../src/store/app-store', () => ({
   useAppStore: (selector: (state: unknown) => unknown) =>
     selector({
-      openTab: mockOpenTab,
       activeServerId: mockActiveServerId,
       servers: mockServers,
     }),
 }));
 
+const mockOpenWindow = vi.fn();
 vi.mock('../../src/store/window-store', () => ({
   useDesktopStore: (selector: (state: unknown) => unknown) =>
     selector({
       toggleStartMenu: vi.fn(),
+      openWindow: mockOpenWindow,
     }),
 }));
 
@@ -115,6 +116,23 @@ describe('CommandPalette', () => {
       render(<CommandPalette />);
       openPalette();
       expect(screen.getByPlaceholderText(/search apps/i)).toBeInTheDocument();
+    });
+
+    // EX8.4: the dock's Search button emits palette:toggle
+    it('opens on the palette:toggle event', async () => {
+      render(<CommandPalette />);
+      act(() => {
+        eventBus.emit('palette:toggle', {});
+      });
+      expect(screen.getByPlaceholderText(/search apps/i)).toBeInTheDocument();
+    });
+
+    // EX8.4: apps open as desktop windows (the legacy openTab did nothing)
+    it('opens a desktop window when an app is selected', async () => {
+      render(<CommandPalette />);
+      openPalette();
+      fireEvent.click(screen.getByText('Task Manager'));
+      expect(mockOpenWindow).toHaveBeenCalledWith('taskmanager', 'server-1', 'Task Manager', 'taskmanager', undefined);
     });
 
     it('shows search input with updated placeholder', async () => {
