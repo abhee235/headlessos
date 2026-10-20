@@ -26,7 +26,7 @@ function TreeNodeItem({ node, depth, defaultExpanded = true }: TreeNodeItemProps
     <div>
       <div
         className={cn(
-          'flex h-7 items-center gap-1 rounded-[8px] px-1 text-[13px] transition-colors duration-150 hover:bg-fill',
+          'flex h-7 items-center gap-1 rounded-sm px-1 text-[13px] transition-colors duration-150 hover:bg-fill',
           'cursor-default select-none',
         )}
         style={{ paddingLeft: `${depth * 16 + 4}px` }}

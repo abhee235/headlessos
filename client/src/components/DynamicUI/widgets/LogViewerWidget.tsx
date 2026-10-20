@@ -39,7 +39,7 @@ export function LogViewerWidget({ widget }: { widget: LogViewerWidgetData }) {
                 <div
                   key={i}
                   className={cn(
-                    'flex gap-2.5 rounded-[8px] px-1.5 py-1 transition-colors duration-150 hover:bg-fill',
+                    'flex gap-2.5 rounded-sm px-1.5 py-1 transition-colors duration-150 hover:bg-fill',
                     line.level && LEVEL_STYLES[line.level],
                   )}
                 >

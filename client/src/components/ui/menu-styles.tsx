@@ -15,12 +15,13 @@ export const menuSubContentClass =
   "glass-heavy z-[9999] min-w-[200px] overflow-hidden rounded-[18px] p-1.5 animate-contextMenuIn";
 
 /**
- * Item row: 30px, padding 0 10px, gap 10px, radius 4px, 13px text.
+ * Item row: 30px, padding 0 10px, gap 10px, 13px text. Radius is `rounded-sm`
+ * (10px, --radius-sm) like sidebar and palette rows, not the handoff's 4px.
  * Leading Lucide icons are normalised to 17px at 80% opacity, overriding the
  * `w-4 h-4 mr-2 opacity-60` classes call sites still pass.
  */
 export const menuItemBase =
-  "relative flex h-[30px] cursor-default select-none items-center gap-2.5 rounded-[4px] px-2.5 text-[13px] outline-none transition-colors " +
+  "relative flex h-[30px] cursor-default select-none items-center gap-2.5 rounded-sm px-2.5 text-[13px] outline-none transition-colors " +
   "[&>svg]:size-[17px] [&>svg]:shrink-0 [&>svg]:mr-0 [&>svg]:opacity-80 " +
   // Our image icons (FileIcon, AppIcon) sit in the same 17px slot, full colour
   "[&>img]:size-[17px] [&>img]:shrink-0 [&>img]:mr-0 " +

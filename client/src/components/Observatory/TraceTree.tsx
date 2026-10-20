@@ -124,7 +124,7 @@ function SpanRow({ node, depth, isLast, parentLines, selectedSpanId, onSelect, t
             {hasChildren ? (
               <button
                 onClick={handleToggle}
-                className="flex h-5 w-5 items-center justify-center rounded-[6px] bg-fill text-foreground transition-[transform,background-color] duration-200 hover:bg-fill-2"
+                className="flex h-5 w-5 items-center justify-center rounded-full bg-fill text-foreground transition-[transform,background-color] duration-200 hover:bg-fill-2"
                 style={{ transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)' }}
               >
                 <ChevronDown className="w-3.5 h-3.5" />

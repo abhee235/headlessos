@@ -35,7 +35,7 @@ export function PaneSidebar({ children, footer, header, width = 220, className, 
       aria-label={rest['aria-label']}
     >
       {header}
-      <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">{children}</div>
+      <div className="scrollbar-on-hover flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">{children}</div>
       {footer && <div className="shrink-0 border-t border-border px-1.5 pt-2.5 mt-2">{footer}</div>}
     </nav>
   );
@@ -97,7 +97,8 @@ export function PaneSidebarItem({
     const Icon = icon as LucideIcon;
     iconNode = (
       <Icon
-        className={cn('h-[18px] w-[18px] shrink-0', active ? 'text-accent-solid' : 'text-label-2')}
+        // Every glyph carries the accent (LumenOS sidebars), stronger when active
+        className={cn('h-[18px] w-[18px] shrink-0', active ? 'text-accent-solid' : 'text-accent-text')}
         strokeWidth={1.75}
       />
     );

@@ -598,3 +598,23 @@ textarea::placeholder {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(var(--lumen-ink), .24);
 }
+
+/* Scrollbar shows only while the pointer is over the area (or focus is in it) —
+   sidebars use it so an idle nav list has no bar down its edge. Chromium does not
+   repaint ::-webkit-scrollbar-thumb on the scroller's :hover, but it does when an
+   inherited colour changes: the thumb paints the scroller's border-color as a wide
+   inset border (the scroller has no border of its own, so nothing else shows). */
+.scrollbar-on-hover {
+  border-color: transparent;
+  transition: border-color .2s ease;
+}
+.scrollbar-on-hover:hover,
+.scrollbar-on-hover:focus-within {
+  border-color: var(--lumen-fill2);
+}
+.scrollbar-on-hover::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-color: inherit;
+  border-right-style: inset;
+  border-right-width: calc(100vw + 100vh);
+}

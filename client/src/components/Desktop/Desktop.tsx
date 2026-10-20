@@ -211,7 +211,7 @@ export function Desktop() {
             key={icon.id}
             className={`
               group flex flex-col items-center gap-1 px-1 pt-1.5 pb-1
-              ${iconStyle.box} rounded-[6px]
+              ${iconStyle.box} rounded-sm
               transition-colors duration-150
               hover:bg-dock-hover active:bg-accent-soft
               focus-visible:outline-none focus-visible:bg-accent-soft focus-visible:ring-1 focus-visible:ring-accent-glow
@@ -233,7 +233,7 @@ export function Desktop() {
         {/* "This PC" when no server connected */}
         {!isConnected && (
           <button
-            className="group flex w-20 flex-col items-center gap-1 rounded-[6px] px-1 pt-1.5 pb-1 transition-colors duration-150 hover:bg-dock-hover"
+            className="group flex w-20 flex-col items-center gap-1 rounded-sm px-1 pt-1.5 pb-1 transition-colors duration-150 hover:bg-dock-hover"
             onDoubleClick={() => {
               const { startMenuOpen, toggleStartMenu } = useDesktopStore.getState();
               if (!startMenuOpen) toggleStartMenu();
