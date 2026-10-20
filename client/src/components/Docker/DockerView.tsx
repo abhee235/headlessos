@@ -5,6 +5,7 @@
 import { isValidElement, useCallback, useEffect, useRef, useState } from 'react';
 import { usePreferencesStore } from '../../store/preferences-store';
 import {
+  Box,
   Image,
   Play,
   Square,
@@ -84,8 +85,7 @@ interface SidebarEntry {
 }
 
 const TABS: SidebarEntry[] = [
-  // Containers are Docker's own thing: use the Docker app icon
-  { id: 'containers', label: 'Containers', icon: <AppIcon appId="docker" size={18} /> },
+  { id: 'containers', label: 'Containers', icon: Box },
   { id: 'images', label: 'Images', icon: Image },
 ];
 
@@ -453,7 +453,7 @@ function ContainersTab({
   return (
     <div className="flex h-full flex-col">
       <SectionHeader
-        icon={<AppIcon appId="docker" size={24} />}
+        icon={Box}
         title="Containers"
         subtitle={`${containers.length} ${containers.length === 1 ? 'container' : 'containers'} · ${running} running`}
         search={search}

@@ -135,7 +135,7 @@ function DockTile({
             <span
               aria-hidden
               className={cn(
-                'absolute left-[3px] top-[3px] size-2 rounded-full bg-accent-solid shadow-[0_0_0_1.5px_rgba(0,0,0,.28)] transition-[opacity,box-shadow] duration-200',
+                'absolute left-[5px] top-[5px] size-[7px] rounded-full bg-accent-solid shadow-[0_0_0_1.5px_rgba(0,0,0,.28)] transition-[opacity,box-shadow] duration-200',
                 focused
                   ? 'shadow-[0_0_0_1.5px_rgba(0,0,0,.28),0_0_8px_var(--lumen-accent-glow)]'
                   : 'opacity-55',
@@ -330,7 +330,7 @@ export function Taskbar() {
             </div>
 
             {/* ── Pinned apps + running extras ── */}
-            <div className="flex h-[72px] min-w-0 items-end gap-2 overflow-x-auto overflow-y-hidden px-0.5 pb-2.5 [scrollbar-width:none]">
+            <div className="flex h-[72px] min-w-0 items-center gap-2 overflow-x-auto overflow-y-hidden px-0.5 [scrollbar-width:none]">
               {pinnedApps.map((appId) => {
                 const label = APP_LABELS[appId] ?? appId;
                 const win = windows.find((w) => w.appId === appId && w.serverId === activeServerId);
@@ -340,7 +340,8 @@ export function Taskbar() {
                 return (
                   <ContextMenu key={appId}>
                     <ContextMenuTrigger asChild>
-                      <div>
+                      {/* flex: a block wrapper adds baseline space under the tile */}
+                      <div className="flex">
                         <DockTile
                           label={label}
                           focused={isFocused}
@@ -385,7 +386,8 @@ export function Taskbar() {
                 return (
                   <ContextMenu key={win.id}>
                     <ContextMenuTrigger asChild>
-                      <div>
+                      {/* flex: a block wrapper adds baseline space under the tile */}
+                      <div className="flex">
                         <DockTile
                           label={win.title}
                           focused={isFocused}

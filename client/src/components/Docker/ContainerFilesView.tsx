@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  ArrowUp, Upload, RotateCw, Save, X, Trash2, Download, Pencil, ChevronRight, FolderOpen,
+  ArrowUp, Upload, RotateCw, Save, X, Trash2, Download, Pencil, ChevronRight, FolderOpen, Box,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { LoadingView } from '@/components/ui/loading-view';
-import { AppIcon, FileIcon } from '@/components/ui/FileIcon';
+import { FileIcon } from '@/components/ui/FileIcon';
 import { CodeEditor } from '@/components/ui/code-editor';
 import { Badge } from '@/components/ui/badge';
 import { fileLanguageLabel } from '@/lib/code-language';
@@ -188,7 +188,7 @@ export function ContainerFilesView({ serverId, containerId, containerName }: Pro
         {/* Breadcrumb */}
         <div className="mx-1 flex h-9 min-w-0 flex-1 items-center gap-0.5 overflow-x-auto rounded-full border border-edge bg-field px-1.5 [scrollbar-width:none]">
           <span className="flex shrink-0 items-center gap-1.5 px-1.5 text-label-3" title={containerId}>
-            <AppIcon appId="docker" size={16} />
+            <Box className="size-4" strokeWidth={1.75} />
             <span className="max-w-[160px] truncate text-[12px]">{containerName ? `${containerName}` : containerId.slice(0, 12)}</span>
           </span>
           <ChevronRight className="size-3.5 shrink-0 text-label-3" strokeWidth={1.75} />

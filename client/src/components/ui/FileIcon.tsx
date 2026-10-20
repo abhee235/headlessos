@@ -205,8 +205,18 @@ export function ThisPCIcon({ size = 48 }: { size?: number }) {
   return <FluentIcon name="desktop" size={size} />;
 }
 
+/** The real Docker whale (public/icons/brands/docker.svg, see LICENSE.txt there) */
 export function DockerIcon({ size = 48 }: { size?: number }) {
-  return <FluentIcon name="package" size={size} />;
+  return (
+    <img
+      src="icons/brands/docker.svg"
+      width={size}
+      height={size}
+      alt=""
+      draggable={false}
+      style={{ flexShrink: 0, objectFit: 'contain' }}
+    />
+  );
 }
 
 export function TaskManagerIcon({ size = 48 }: { size?: number }) {
