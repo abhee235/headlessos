@@ -1,6 +1,7 @@
 // WallpaperPicker — personalization window using AppWindow compound component
 // Accessible from Desktop context menu → "Personalize"
 // Layout: Sidebar (category nav) | Body (wallpaper grid) + Toolbar (upload) + Footer (hint)
+// EX8.6: LumenOS v3 thumbnails — 16:10, radius 12px, name underneath, 3px accent ring when selected
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePreferencesStore } from '../../store/preferences-store';
@@ -11,7 +12,7 @@ import { AppWindow } from '@/components/ui/app-window';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
-  Check, Paintbrush, Upload, Trash2, ImageIcon, Palette, Monitor, User } from 'lucide-react';
+  Paintbrush, Upload, Trash2, ImageIcon, Palette, Monitor, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { Spinner } from '@/components/ui/spinner';
 
@@ -119,7 +120,7 @@ export function WallpaperPicker({ open, onOpenChange }: WallpaperPickerProps) {
       height={520}
     >
       {/* ── Sidebar: category navigation ── */}
-      <AppWindow.Sidebar width={180}>
+      <AppWindow.Sidebar width={208}>
         <AppWindow.SidebarGroup label="Categories">
           {categories.map((cat) => (
             <AppWindow.SidebarItem
@@ -136,18 +137,17 @@ export function WallpaperPicker({ open, onOpenChange }: WallpaperPickerProps) {
       </AppWindow.Sidebar>
 
       {/* ── Toolbar: upload action ── */}
-      <AppWindow.Toolbar>
+      <AppWindow.Toolbar className="px-4">
         <Button
           size="sm"
-          variant="outline"
+          variant="secondary"
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
-          className="gap-1.5 text-xs"
         >
           {uploading ? (
-            <Spinner className="w-3.5 h-3.5" />
+            <Spinner className="h-4 w-4" />
           ) : (
-            <Upload className="w-3.5 h-3.5" />
+            <Upload strokeWidth={1.75} />
           )}
           Upload
         </Button>
@@ -159,70 +159,63 @@ export function WallpaperPicker({ open, onOpenChange }: WallpaperPickerProps) {
           onChange={handleUpload}
         />
         <div className="flex-1" />
-        <span className="text-[11px] text-muted-foreground">
+        <span className="text-[12px] text-label-3 tabular-nums">
           {currentWallpapers.length} wallpaper{currentWallpapers.length !== 1 ? 's' : ''}
         </span>
       </AppWindow.Toolbar>
 
       {/* ── Body: wallpaper grid ── */}
-      <AppWindow.Body>
+      <AppWindow.Body className="px-4 pt-2 pb-4">
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Spinner className="w-6 h-6 text-muted-foreground" />
+            <Spinner className="h-6 w-6 text-label-3" />
           </div>
         ) : currentWallpapers.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 gap-2 text-muted-foreground">
-            <ImageIcon className="w-10 h-10 opacity-40" />
-            <p className="text-sm">
+          <div className="flex flex-col items-center justify-center gap-2 py-12 text-center text-label-2">
+            <ImageIcon className="h-10 w-10 text-label-3" strokeWidth={1.5} />
+            <p className="max-w-sm text-[13px]">
               {activeCategory === 'user'
                 ? 'No user wallpapers yet — upload an image or drop files into ~/.headlessos/wallpapers/'
                 : 'No wallpapers available in this category'}
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-3 pb-2">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-3.5 p-1">
             {currentWallpapers.map((wp) => {
               const isActive = wp.id === wallpaperId;
               const isUserImage = wp.type === 'image' && wp.category === 'user';
 
               return (
-                <div key={wp.id} className="relative group">
+                <div key={wp.id} className="group relative min-w-0">
                   <button
-                    className={cn(
-                      'relative w-full rounded-xl overflow-hidden cursor-pointer transition-all duration-200',
-                      'ring-2 ring-offset-2 ring-offset-background',
-                      'hover:ring-primary/50 hover:scale-[1.02]',
-                      'active:scale-[0.98]',
-                      'focus-visible:outline-none focus-visible:ring-ring',
-                      isActive ? 'ring-primary' : 'ring-transparent',
-                    )}
+                    type="button"
+                    className="flex w-full flex-col gap-2 rounded-xl text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-solid"
                     onClick={() => setWallpaperId(wp.id)}
                     title={wp.name}
+                    aria-pressed={isActive}
                   >
-                    <WallpaperPreview wallpaper={wp} className="w-full aspect-video" />
-
-                    {isActive && (
-                      <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center shadow-lg">
-                        <Check className="w-3 h-3 text-primary-foreground" />
-                      </div>
-                    )}
-
-                    <div className={cn(
-                      'absolute bottom-0 inset-x-0 px-2 py-1.5',
-                      'bg-gradient-to-t from-black/70 to-transparent',
-                      'text-[11px] font-medium text-white/90 text-left',
-                    )}>
+                    <WallpaperPreview
+                      wallpaper={wp}
+                      className={cn(
+                        'aspect-[16/10] w-full rounded-xl transition-shadow duration-150',
+                        isActive
+                          ? 'ring-[3px] ring-accent-solid shadow-[0_8px_18px_-8px_rgba(0,0,0,.4)]'
+                          : 'ring-1 ring-edge shadow-[0_8px_18px_-10px_rgba(0,0,0,.35)] group-hover:ring-edge-2',
+                      )}
+                    />
+                    <span className={cn('truncate text-[14px] text-foreground', isActive && 'font-semibold')}>
                       {wp.name}
-                    </div>
+                    </span>
                   </button>
 
                   {isUserImage && (
                     <button
+                      type="button"
                       className={cn(
-                        'absolute top-1.5 left-1.5 w-6 h-6 rounded-full',
-                        'bg-black/60 hover:bg-destructive transition-colors',
-                        'flex items-center justify-center',
-                        'opacity-0 group-hover:opacity-100',
+                        'absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full',
+                        'bg-mat-thick text-danger shadow-[var(--lumen-spec)] backdrop-blur-md',
+                        'opacity-0 transition-[opacity,background] duration-150 hover:bg-fill-2',
+                        'focus-visible:opacity-100 group-hover:opacity-100',
                       )}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -230,7 +223,7 @@ export function WallpaperPicker({ open, onOpenChange }: WallpaperPickerProps) {
                       }}
                       title={`Delete ${wp.name}`}
                     >
-                      <Trash2 className="w-3 h-3 text-white" />
+                      <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
                     </button>
                   )}
                 </div>
@@ -243,7 +236,7 @@ export function WallpaperPicker({ open, onOpenChange }: WallpaperPickerProps) {
       {/* ── Footer: hint ── */}
       <AppWindow.Footer>
         Drop images into{' '}
-        <code className="px-1 py-0.5 rounded bg-muted text-[10px]">
+        <code className="rounded-md bg-fill px-1.5 py-0.5 font-mono text-[11px] text-label-2">
           ~/.headlessos/wallpapers/
         </code>{' '}
         to add user wallpapers automatically

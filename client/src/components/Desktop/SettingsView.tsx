@@ -1,10 +1,14 @@
-// M7.4-M7.6: Settings — macOS System Settings–style settings window
-// Sidebar navigation, wallpaper picker, appearance, general, terminal, notifications, about
+// M7.4-M7.6: Settings — LumenOS v3 settings window (EX8.6 restyle)
+// PaneSidebar navigation with an account/host card, 30px page title,
+// .lumen-section cards with 60px rows, segmented pills and Switch controls.
 // @see docs/phases/phase-7.md
+// @see docs/phases/phase-ex8.md
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Children, Fragment, isValidElement, useCallback, useEffect, useRef, useState } from 'react';
+import type { LucideIcon } from 'lucide-react';
 import {
-  Image,
+  Image as ImageIcon,
+  ImagePlus,
   Paintbrush,
   Info,
   ChevronRight,
@@ -18,11 +22,15 @@ import {
   Keyboard,
   Brain,
   Puzzle,
+  Sun,
+  Moon,
+  SunMoon,
 } from 'lucide-react';
 import { SHORTCUT_REFERENCE } from '../../hooks/useKeyboardShortcuts';
-import { LUMEN_ACCENTS, GLASS_STRENGTHS } from '../../lib/lumen-theme';
+import { LUMEN_ACCENTS, GLASS_STRENGTHS, resolveAccent } from '../../lib/lumen-theme';
 import { usePreferencesStore, type CursorStyle, type DateFormat, type ToastPosition } from '../../store/preferences-store';
 import { useSessionsStore } from '../../store/sessions-store';
+import { useAppStore } from '../../store/app-store';
 import { useEffectivePref, setPreferenceOverride, clearPreferenceOverride } from '../../store/effective-preferences';
 import { useThemeStore, type Theme } from '../../store/theme-store';
 import {
@@ -37,6 +45,13 @@ import {
 import { WallpaperPreview } from './Wallpaper';
 import { cn } from '../../lib/utils';
 import { ConfirmDialog } from '../ui/confirm-dialog';
+import { PaneSidebar, PaneSidebarItem } from '../ui/pane-sidebar';
+import { Switch } from '../ui/switch';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Badge } from '../ui/badge';
+import { Slider } from '../ui/slider';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { toast } from 'sonner';
 import { fetchLLMConfig, updateLLMConfig, fetchLLMModels, type LLMConfig, type LLMModelInfo } from '../../lib/api';
 
@@ -47,141 +62,250 @@ type PageId = 'general' | 'appearance' | 'wallpaper' | 'terminal' | 'keyboard' |
 interface SidebarEntry {
   id: PageId;
   label: string;
-  icon: React.ReactNode;
-  iconBg: string;
+  icon: LucideIcon;
 }
 
 const SIDEBAR: SidebarEntry[] = [
-  {
-    id: 'general',
-    label: 'General',
-    icon: <Settings2 size={14} className="text-white" />,
-    iconBg: 'bg-muted-foreground',
-  },
-  {
-    id: 'appearance',
-    label: 'Appearance',
-    icon: <Paintbrush size={14} className="text-white" />,
-    iconBg: 'bg-primary',
-  },
-  {
-    id: 'wallpaper',
-    label: 'Wallpaper',
-    icon: <Image size={14} className="text-white" />,
-    iconBg: 'bg-primary/80',
-  },
-  {
-    id: 'terminal',
-    label: 'Terminal',
-    icon: <TerminalSquare size={14} className="text-white" />,
-    iconBg: 'bg-muted-foreground/80',
-  },
-  {
-    id: 'keyboard',
-    label: 'Keyboard Shortcuts',
-    icon: <Keyboard size={14} className="text-white" />,
-    iconBg: 'bg-warning',
-  },
-  {
-    id: 'notifications',
-    label: 'Notifications',
-    icon: <Bell size={14} className="text-white" />,
-    iconBg: 'bg-destructive',
-  },
-  {
-    id: 'ai',
-    label: 'AI / LLM',
-    icon: <Brain size={14} className="text-white" />,
-    iconBg: 'bg-primary/70',
-  },
-  {
-    id: 'plugins',
-    label: 'Plugins',
-    icon: <Puzzle size={14} className="text-white" />,
-    iconBg: 'bg-success',
-  },
-  {
-    id: 'about',
-    label: 'About',
-    icon: <Info size={14} className="text-white" />,
-    iconBg: 'bg-muted-foreground',
-  },
+  { id: 'general', label: 'General', icon: Settings2 },
+  { id: 'appearance', label: 'Appearance', icon: Paintbrush },
+  { id: 'wallpaper', label: 'Wallpaper', icon: ImageIcon },
+  { id: 'terminal', label: 'Terminal', icon: TerminalSquare },
+  { id: 'keyboard', label: 'Keyboard Shortcuts', icon: Keyboard },
+  { id: 'notifications', label: 'Notifications', icon: Bell },
+  { id: 'ai', label: 'AI / LLM', icon: Brain },
+  { id: 'plugins', label: 'Plugins', icon: Puzzle },
+  { id: 'about', label: 'About', icon: Info },
 ];
 
 // ─── Shared Primitives ───────────────────────────────────────────────────────
 
-function GroupedCard({ children, className }: { children: React.ReactNode; className?: string }) {
+/** Content section: .lumen-section card, padding 22px 24px, 16px gap (wallpaper grids, previews, forms). */
+function Section({
+  title,
+  aside,
+  children,
+  className,
+}: {
+  title?: React.ReactNode;
+  aside?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <div
+    <section className={cn('lumen-section flex flex-col gap-4 rounded-[20px] px-6 py-[22px]', className)}>
+      {title && (
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-[15px] font-semibold text-foreground">{title}</h2>
+          {aside}
+        </div>
+      )}
+      {children}
+    </section>
+  );
+}
+
+/**
+ * Row-list section: .lumen-section card, padding 6px 24px, rows separated by
+ * 1px hairlines. A title (like "Keyboard shortcuts" in LumenOS) sits inside
+ * the card above the first hairline.
+ */
+function RowSection({
+  title,
+  footer,
+  children,
+}: {
+  title?: React.ReactNode;
+  footer?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const rows = Children.toArray(children);
+  return (
+    <section
       className={cn(
-        'rounded-lg border border-border bg-card overflow-hidden',
-        className,
+        'lumen-section flex flex-col rounded-[20px] px-6',
+        title ? 'pt-5 pb-1.5' : 'py-1.5',
       )}
     >
-      {children}
+      {title && <h2 className="pb-2.5 text-[15px] font-semibold text-foreground">{title}</h2>}
+      {rows.map((row, i) => (
+        <Fragment key={i}>
+          {(i > 0 || title) && <div className="h-px shrink-0 bg-border" />}
+          {row}
+        </Fragment>
+      ))}
+      {footer && <p className="pt-1 pb-3.5 text-[13px] text-label-3">{footer}</p>}
+    </section>
+  );
+}
+
+/** One settings row: min 60px, 15px label with a 14px label-2 description, control on the right. */
+function Row({
+  label,
+  description,
+  icon: Icon,
+  children,
+  onClick,
+  danger,
+  className,
+}: {
+  label: React.ReactNode;
+  description?: React.ReactNode;
+  icon?: LucideIcon;
+  children?: React.ReactNode;
+  onClick?: () => void;
+  danger?: boolean;
+  className?: string;
+}) {
+  const cls = cn(
+    'flex min-h-[60px] items-center gap-4 py-2.5 text-left',
+    onClick &&
+      '-mx-3 w-[calc(100%+1.5rem)] cursor-pointer rounded-[12px] px-3 transition-colors duration-150 hover:bg-fill active:bg-fill-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+    className,
+  );
+  const content = (
+    <>
+      {Icon && <Icon className="h-5 w-5 shrink-0 text-label-2" strokeWidth={1.75} />}
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className={cn('text-[15px]', danger ? 'text-danger' : 'text-foreground')}>{label}</span>
+        {description && <span className="text-[14px] text-label-2">{description}</span>}
+      </div>
+      {children !== undefined && children !== null && (
+        <div className="flex shrink-0 items-center gap-2">{children}</div>
+      )}
+    </>
+  );
+  return onClick ? (
+    <button type="button" onClick={onClick} className={cls}>
+      {content}
+    </button>
+  ) : (
+    <div className={cls}>{content}</div>
+  );
+}
+
+/** Secondary value on the right of a row. */
+function RowValue({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <span className={cn('text-[15px] text-label-2 tabular-nums', className)}>{children}</span>;
+}
+
+/** Segmented pill: bg-fill well (3px), 32px rounded-full options, selected on bg-mat-thick. */
+function Segmented<T extends string | number>({
+  value,
+  onChange,
+  options,
+}: {
+  value: T;
+  onChange: (value: T) => void;
+  options: ReadonlyArray<{
+    value: T;
+    label: string;
+    icon?: LucideIcon | React.ReactElement;
+    testId?: string;
+  }>;
+}) {
+  return (
+    <div className="inline-flex shrink-0 rounded-full bg-fill p-[3px]">
+      {options.map((opt) => {
+        const selected = opt.value === value;
+        let iconNode: React.ReactNode = null;
+        if (isValidElement(opt.icon)) {
+          iconNode = opt.icon;
+        } else if (opt.icon) {
+          const Icon = opt.icon as LucideIcon;
+          iconNode = <Icon className="h-[17px] w-[17px] shrink-0" strokeWidth={1.75} />;
+        }
+        return (
+          <button
+            key={String(opt.value)}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            aria-pressed={selected}
+            data-testid={opt.testId}
+            className={cn(
+              'flex h-8 items-center gap-2 whitespace-nowrap rounded-full px-4 text-[14px] transition-[background,color,box-shadow] duration-150',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              selected
+                ? 'bg-mat-thick text-foreground shadow-[0_1px_3px_rgba(0,0,0,.18),var(--lumen-spec)]'
+                : 'text-label-2 hover:text-foreground',
+            )}
+          >
+            {iconNode}
+            {opt.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
 
-function GroupedRow({
-  label,
+/** Pill dropdown on the Select primitive, for numeric or string preference values. */
+function SelectPill<T extends string | number>({
   value,
-  chevron,
-  onClick,
-  last,
+  onChange,
+  options,
+  testId,
+  className,
 }: {
-  label: string;
-  value?: React.ReactNode;
-  chevron?: boolean;
-  onClick?: () => void;
-  last?: boolean;
+  value: T;
+  onChange: (value: T) => void;
+  options: ReadonlyArray<{ value: T; label: string }>;
+  testId?: string;
+  className?: string;
 }) {
-  const Tag = onClick ? 'button' : 'div';
   return (
-    <Tag
-      onClick={onClick}
-      className={cn(
-        'flex items-center justify-between w-full px-3 py-2 text-[13px]',
-        !last && 'border-b border-border',
-        onClick && 'hover:bg-accent cursor-pointer',
-      )}
+    <Select
+      value={String(value)}
+      onValueChange={(v) => {
+        const opt = options.find((o) => String(o.value) === v);
+        if (opt) onChange(opt.value);
+      }}
     >
-      <span className="text-foreground">{label}</span>
-      <span className="flex items-center gap-1 text-muted-foreground">
-        {value}
-        {chevron && <ChevronRight size={14} />}
-      </span>
-    </Tag>
+      <SelectTrigger className={cn('w-auto min-w-[150px]', className)} data-testid={testId}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((o) => (
+          <SelectItem key={String(o.value)} value={String(o.value)}>
+            {o.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
-function SectionHeader({
-  title,
-  count,
-  showAll,
-  onShowAll,
-}: {
-  title: string;
-  count?: number;
-  showAll?: boolean;
-  onShowAll?: () => void;
-}) {
+// ─── Account / host card (sidebar header) ───────────────────────────────────
+
+function AccountCard() {
+  const activeServer = useAppStore((s) => s.servers.find((srv) => srv.id === s.activeServerId));
+  const name = activeServer?.name ?? 'HeadlessOS';
+  const initial = (name.trim()[0] ?? 'H').toUpperCase();
+
   return (
-    <div className="flex items-center justify-between mb-2">
-      <h3 className="text-[13px] font-semibold text-foreground">{title}</h3>
-      {showAll && count !== undefined && (
-        <button
-          onClick={onShowAll}
-          className="text-[12px] text-primary hover:underline"
-        >
-          Show All ({count})
-        </button>
-      )}
+    <div className="flex items-center gap-3 px-2.5 pt-1.5 pb-3.5">
+      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[linear-gradient(180deg,var(--lumen-accent-hi),var(--lumen-accent))] text-[16px] font-semibold text-on-accent">
+        {initial}
+      </div>
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <span className="truncate text-[15px] font-semibold text-foreground">{name}</span>
+        {activeServer ? (
+          <span className="truncate font-mono text-[12px] text-label-2" title={`${activeServer.username}@${activeServer.host}`}>
+            {activeServer.username}@{activeServer.host}
+          </span>
+        ) : (
+          <span className="truncate text-[13px] text-label-2">Local settings</span>
+        )}
+      </div>
     </div>
   );
 }
 
 // ─── Wallpaper Thumbnail ─────────────────────────────────────────────────────
+
+const WALLPAPER_GRID = 'grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-3.5';
+const THUMB = 'aspect-[16/10] w-full rounded-xl transition-shadow duration-150';
+const THUMB_SELECTED = 'ring-[3px] ring-accent-solid shadow-[0_8px_18px_-8px_rgba(0,0,0,.4)]';
+const THUMB_IDLE = 'ring-1 ring-edge shadow-[0_8px_18px_-10px_rgba(0,0,0,.35)] group-hover:ring-edge-2';
 
 function WallpaperThumb({
   wp,
@@ -195,56 +319,33 @@ function WallpaperThumb({
   onDelete?: () => void;
 }) {
   return (
-    <button
-      onClick={onSelect}
-      className="group flex flex-col items-center shrink-0 gap-1.5"
-    >
-      <div
-        className={cn(
-          'relative w-30 h-19 rounded-lg overflow-hidden border-2 transition-all',
-          selected
-            ? 'border-primary shadow-[0_0_0_1px_var(--primary)]'
-            : 'border-transparent hover:border-muted-foreground/30',
-        )}
+    <div className="group relative min-w-0">
+      <button
+        type="button"
+        onClick={onSelect}
+        title={wp.name}
+        aria-pressed={selected}
+        className="flex w-full flex-col gap-2 rounded-xl text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-solid"
       >
-        <WallpaperPreview wallpaper={wp} className="w-full h-full" />
-        {/* Selected check */}
-        {selected && (
-          <div className="absolute bottom-1 right-1 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-            <Check size={12} className="text-white" />
-          </div>
-        )}
-        {/* Delete on hover (user wallpapers only) */}
-        {onDelete && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
-            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive"
-          >
-            <Trash2 size={10} className="text-white" />
-          </button>
-        )}
-      </div>
-      <span className="text-[11px] text-muted-foreground max-w-30 truncate">
-        {wp.name}
-      </span>
-    </button>
-  );
-}
-
-// ─── Horizontal scroll row ──────────────────────────────────────────────────
-
-function ScrollRow({ children }: { children: React.ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  return (
-    <div
-      ref={ref}
-      className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin"
-      style={{ scrollbarWidth: 'thin' }}
-    >
-      {children}
+        <WallpaperPreview wallpaper={wp} className={cn(THUMB, selected ? THUMB_SELECTED : THUMB_IDLE)} />
+        <span className={cn('truncate text-[14px] text-foreground', selected && 'font-semibold')}>
+          {wp.name}
+        </span>
+      </button>
+      {/* Delete on hover (user wallpapers only) */}
+      {onDelete && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          title={`Delete ${wp.name}`}
+          className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-mat-thick text-danger opacity-0 shadow-[var(--lumen-spec)] backdrop-blur-md transition-[opacity,background] duration-150 hover:bg-fill-2 focus-visible:opacity-100 group-hover:opacity-100"
+        >
+          <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+        </button>
+      )}
     </div>
   );
 }
@@ -254,7 +355,7 @@ function ScrollRow({ children }: { children: React.ReactNode }) {
 function AddPhotoCard({ onUpload }: { onUpload: (file: File) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   return (
-    <>
+    <div className="min-w-0">
       <input
         ref={inputRef}
         type="file"
@@ -267,17 +368,19 @@ function AddPhotoCard({ onUpload }: { onUpload: (file: File) => void }) {
         }}
       />
       <button
+        type="button"
         onClick={() => inputRef.current?.click()}
-        className="flex flex-col items-center shrink-0 gap-1.5"
+        className="flex aspect-[16/10] w-full flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-edge-2 text-label-2 transition-colors duration-150 hover:border-accent-solid/50 hover:bg-fill hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <div className="w-30 h-19 rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center gap-1 hover:border-primary hover:bg-accent transition-colors cursor-pointer">
-          <Plus size={18} className="text-muted-foreground" />
-          <span className="text-[10px] text-muted-foreground">Add Photo</span>
-        </div>
-        <span className="text-[11px] text-transparent">_</span>
+        <Plus className="h-[18px] w-[18px]" strokeWidth={1.75} />
+        <span className="text-[13px]">Add Photo</span>
       </button>
-    </>
+    </div>
   );
+}
+
+function CountLabel({ count }: { count: number }) {
+  return <span className="text-[13px] text-label-3 tabular-nums">{count}</span>;
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -362,87 +465,77 @@ function WallpaperPage() {
     <div className="space-y-5">
       {/* ── EX6-D.3: Per-session vs global scope toggle ── */}
       {activeServerId && (
-        <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/30">
-          <div className="flex-1 min-w-0">
-            <div className="text-[13px] font-medium text-foreground">Apply wallpaper to</div>
-            <div className="text-[11px] text-muted-foreground">
-              {scope === 'session'
+        <RowSection>
+          <Row
+            label="Apply wallpaper to"
+            description={
+              scope === 'session'
                 ? 'Only this server session (overrides global)'
-                : 'All sessions (global default)'}
-            </div>
-          </div>
-          <div className="inline-flex rounded-md border border-border overflow-hidden text-[12px]">
-            <button
-              type="button"
-              onClick={() => setScope('session')}
-              className={cn(
-                'px-3 py-1.5 transition-colors',
-                scope === 'session' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
-              )}
-              data-testid="wp-scope-session"
-            >
-              This session
-            </button>
-            <button
-              type="button"
-              onClick={() => setScope('global')}
-              className={cn(
-                'px-3 py-1.5 transition-colors border-l border-border',
-                scope === 'global' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
-              )}
-              data-testid="wp-scope-global"
-            >
-              All sessions
-            </button>
-          </div>
-          {sessionOverride !== undefined && (
-            <button
-              type="button"
-              onClick={() => clearPreferenceOverride('wallpaperId')}
-              className="px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground rounded"
-              title={`Reset to global (${globalWallpaperId})`}
-              data-testid="wp-reset-override"
-            >
-              Reset
-            </button>
-          )}
-        </div>
+                : 'All sessions (global default)'
+            }
+          >
+            <Segmented
+              value={scope}
+              onChange={setScope}
+              options={[
+                { value: 'session', label: 'This session', testId: 'wp-scope-session' },
+                { value: 'global', label: 'All sessions', testId: 'wp-scope-global' },
+              ]}
+            />
+            {sessionOverride !== undefined && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => clearPreferenceOverride('wallpaperId')}
+                title={`Reset to global (${globalWallpaperId})`}
+                data-testid="wp-reset-override"
+              >
+                Reset
+              </Button>
+            )}
+          </Row>
+        </RowSection>
       )}
 
       {/* ── Current Wallpaper ─────────────────────── */}
-      <div className="flex items-start gap-4">
-        <div className="w-45 h-28 rounded-lg overflow-hidden border border-border shrink-0">
-          <WallpaperPreview wallpaper={currentWp} className="w-full h-full" />
+      <Section>
+        <div className="flex items-center gap-5">
+          <WallpaperPreview
+            wallpaper={currentWp}
+            className="aspect-[16/10] w-[200px] shrink-0 rounded-xl ring-1 ring-edge shadow-[0_8px_18px_-10px_rgba(0,0,0,.35)]"
+          />
+          <div className="flex min-w-0 flex-col items-start gap-1">
+            <span className="truncate text-[17px] font-semibold text-foreground">{currentWp.name}</span>
+            <span className="text-[14px] text-label-2">
+              {currentWp.type === 'gradient' ? 'Built-in Gradient' : currentWp.category === 'system' ? 'System' : 'Your Photo'}
+            </span>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="mt-2"
+              onClick={() => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.onchange = () => {
+                  const f = input.files?.[0];
+                  if (f) handleUpload(f);
+                };
+                input.click();
+              }}
+            >
+              <ImagePlus strokeWidth={1.75} />
+              Add Photo…
+            </Button>
+          </div>
         </div>
-        <div className="flex flex-col gap-1.5 pt-1">
-          <span className="text-[15px] font-medium text-foreground">
-            {currentWp.name}
-          </span>
-          <span className="text-[12px] text-muted-foreground">
-            {currentWp.type === 'gradient' ? 'Built-in Gradient' : currentWp.category === 'system' ? 'System' : 'Your Photo'}
-          </span>
-          <button
-            onClick={() => {
-              const input = document.createElement('input');
-              input.type = 'file';
-              input.accept = 'image/*';
-              input.onchange = () => {
-                const f = input.files?.[0];
-                if (f) handleUpload(f);
-              };
-              input.click();
-            }}
-            className="mt-2 text-[12px] text-primary hover:underline text-left"
-          >
-            Add Photo…
-          </button>
-        </div>
-      </div>
+      </Section>
 
       {/* ── Built-in ─────────────────────────────── */}
-      <div>
-        <SectionHeader title="Built-in" count={BUILTIN_WALLPAPERS.length} showAll onShowAll={() => {}} />
-        <ScrollRow>
+      <Section title="Built-in" aside={<CountLabel count={BUILTIN_WALLPAPERS.length} />}>
+        <div className={WALLPAPER_GRID}>
           {BUILTIN_WALLPAPERS.map((wp) => (
             <WallpaperThumb
               key={wp.id}
@@ -451,13 +544,12 @@ function WallpaperPage() {
               onSelect={() => setWallpaperId(wp.id)}
             />
           ))}
-        </ScrollRow>
-      </div>
+        </div>
+      </Section>
 
       {/* ── Your Photos ──────────────────────────── */}
-      <div>
-        <SectionHeader title="Your Photos" count={userWps.length} showAll={userWps.length > 0} onShowAll={() => {}} />
-        <ScrollRow>
+      <Section title="Your Photos" aside={userWps.length > 0 ? <CountLabel count={userWps.length} /> : undefined}>
+        <div className={WALLPAPER_GRID}>
           <AddPhotoCard onUpload={handleUpload} />
           {userWps.map((wp) => (
             <WallpaperThumb
@@ -468,14 +560,13 @@ function WallpaperPage() {
               onDelete={() => handleDelete(wp)}
             />
           ))}
-        </ScrollRow>
-      </div>
+        </div>
+      </Section>
 
       {/* ── System ───────────────────────────────── */}
       {systemWps.length > 0 && (
-        <div>
-          <SectionHeader title="System" count={systemWps.length} showAll onShowAll={() => {}} />
-          <ScrollRow>
+        <Section title="System" aside={<CountLabel count={systemWps.length} />}>
+          <div className={WALLPAPER_GRID}>
             {systemWps.map((wp) => (
               <WallpaperThumb
                 key={wp.id}
@@ -484,12 +575,12 @@ function WallpaperPage() {
                 onSelect={() => setWallpaperId(wp.id)}
               />
             ))}
-          </ScrollRow>
-        </div>
+          </div>
+        </Section>
       )}
 
       {loading && allWallpapers.length <= BUILTIN_WALLPAPERS.length && (
-        <p className="text-[12px] text-muted-foreground">Loading wallpapers…</p>
+        <p className="px-1 text-[13px] text-label-3">Loading wallpapers…</p>
       )}
     </div>
   );
@@ -497,51 +588,11 @@ function WallpaperPage() {
 
 // ─── Appearance Page ────────────────────────────────────────────────────────
 
-function ThemeMiniPreview({ mode }: { mode: 'light' | 'dark' | 'auto' }) {
-  const isDark = mode === 'dark';
-  const bg = isDark ? '#1c1c1e' : '#f5f5f5';
-  const barBg = isDark ? '#2c2c2e' : '#e5e5e5';
-  const fg = isDark ? '#fff' : '#333';
-
-  if (mode === 'auto') {
-    // Split half light / half dark
-    return (
-      <div className="w-full h-full rounded overflow-hidden flex">
-        <div className="w-1/2 bg-[#f5f5f5] flex flex-col items-center justify-center gap-1 p-1">
-          <div className="w-full h-1.5 rounded-full bg-[#e5e5e5]" />
-          <div className="w-3/4 h-1.5 rounded-full bg-[#e5e5e5]" />
-        </div>
-        <div className="w-1/2 bg-[#1c1c1e] flex flex-col items-center justify-center gap-1 p-1">
-          <div className="w-full h-1.5 rounded-full bg-[#2c2c2e]" />
-          <div className="w-3/4 h-1.5 rounded-full bg-[#2c2c2e]" />
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="w-full h-full rounded flex flex-col p-1.5 gap-1" style={{ background: bg }}>
-      {/* Mini title bar */}
-      <div className="flex items-center gap-0.5">
-        <div className="w-1 h-1 rounded-full bg-destructive" />
-        <div className="w-1 h-1 rounded-full bg-warning" />
-        <div className="w-1 h-1 rounded-full bg-success" />
-      </div>
-      {/* Mini content bars */}
-      <div className="flex-1 flex flex-col gap-0.5 pt-0.5">
-        <div className="h-1 rounded-full w-full" style={{ background: barBg }} />
-        <div className="h-1 rounded-full w-3/4" style={{ background: barBg }} />
-        <div className="h-1 rounded-full w-1/2" style={{ background: barBg }} />
-      </div>
-      {/* Mini dock */}
-      <div className="flex justify-center gap-0.5 pt-0.5">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="w-1.5 h-1.5 rounded-sm" style={{ background: barBg }} />
-        ))}
-      </div>
-    </div>
-  );
-}
+const THEME_OPTIONS: ReadonlyArray<{ value: Theme; label: string; icon: LucideIcon }> = [
+  { value: 'light', label: 'Light', icon: Sun },
+  { value: 'dark', label: 'Dark', icon: Moon },
+  { value: 'auto', label: 'Auto', icon: SunMoon },
+];
 
 function AppearancePage() {
   const { theme, setTheme } = useThemeStore();
@@ -553,112 +604,69 @@ function AppearancePage() {
   const setTransparency = usePreferencesStore((s) => s.setTransparency);
   const desktopIconSize = usePreferencesStore((s) => s.desktopIconSize);
   const setDesktopIconSize = usePreferencesStore((s) => s.setDesktopIconSize);
+  const wallpaperId = useEffectivePref('wallpaperId');
+
+  // EX8.1: index 0 (and any legacy out-of-range index) = match wallpaper
+  const accentChoice = LUMEN_ACCENTS[accentIdx] ? accentIdx : 0;
+  const resolvedAccent = resolveAccent(accentIdx, wallpaperId);
+  const accentName = LUMEN_ACCENTS.find((a) => a.id === resolvedAccent)?.name ?? resolvedAccent;
+  const accentDescription = accentChoice === 0 ? `${accentName} · matched to wallpaper` : accentName;
 
   return (
-    <div className="space-y-6">
-      {/* ── Theme ───────────────────────────────── */}
-      <div>
-        <SectionHeader title="Appearance" />
-        <div className="flex gap-4">
-          {(['light', 'dark', 'auto'] as const).map((mode) => (
-            <button
-              key={mode}
-              onClick={() => setTheme(mode)}
-              className="flex flex-col items-center gap-2"
-            >
-              <div
+    <div className="space-y-5">
+      <RowSection>
+        {/* ── Theme ───────────────────────────────── */}
+        <Row label="Theme" description="Applies to windows, menus and the taskbar">
+          <Segmented value={theme} onChange={setTheme} options={THEME_OPTIONS} />
+        </Row>
+
+        {/* ── Accent colour (EX8.1: index 0 = match wallpaper) ── */}
+        <Row label="Accent colour" description={accentDescription}>
+          <div className="flex items-center gap-3">
+            {LUMEN_ACCENTS.map((preset, idx) => (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => setAccentIdx(idx)}
                 className={cn(
-                  'w-22.5 h-15.5 rounded-lg border-2 overflow-hidden transition-all',
-                  theme === mode
-                    ? 'border-primary shadow-[0_0_0_1px_var(--primary)]'
-                    : 'border-border hover:border-muted-foreground/40',
+                  'h-7 w-7 shrink-0 rounded-full transition-[box-shadow,transform] duration-150 hover:scale-105',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  accentChoice === idx
+                    ? 'ring-2 ring-accent-solid ring-offset-2 ring-offset-mat-thick'
+                    : 'shadow-[inset_0_1px_0_rgba(255,255,255,.35)]',
                 )}
-              >
-                <ThemeMiniPreview mode={mode} />
-              </div>
-              <span className="text-[12px] text-foreground capitalize">{mode}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Accent Color (EX8.1: index 0 = match wallpaper) ── */}
-      <div>
-        <SectionHeader title="Accent Color" />
-        <div className="flex gap-2 flex-wrap">
-          {LUMEN_ACCENTS.map((preset, idx) => (
-            <button
-              key={preset.id}
-              onClick={() => setAccentIdx(idx)}
-              className={cn(
-                'w-7 h-7 rounded-full flex items-center justify-center transition-transform',
-                accentIdx === idx && 'ring-2 ring-offset-2 ring-offset-background ring-primary scale-110',
-              )}
-              style={{ background: preset.swatch }}
-              title={preset.name}
-              aria-label={preset.name}
-            >
-              {accentIdx === idx && <Check size={13} className="text-white drop-shadow" />}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Glass (EX8.1) ─────────────────────── */}
-      <div>
-        <SectionHeader title="Glass" />
-        <GroupedCard>
-          <div className="flex items-center justify-between px-3 py-2.5">
-            <span className="text-[13px] text-foreground">Glass strength</span>
-            <div className="flex gap-1">
-              {GLASS_STRENGTHS.map((g) => (
-                <button
-                  key={g.id}
-                  onClick={() => setGlassStrength(g.id)}
-                  className={cn(
-                    'px-2.5 py-1 rounded-md text-[12px] transition-colors',
-                    glassStrength === g.id
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                  )}
-                >
-                  {g.name}
-                </button>
-              ))}
-            </div>
+                style={{ background: preset.swatch }}
+                title={preset.name}
+                aria-label={preset.name}
+                aria-pressed={accentChoice === idx}
+              />
+            ))}
           </div>
-          <div className="flex items-center justify-between px-3 py-2.5">
-            <span className="text-[13px] text-foreground">Transparency effects</span>
-            <ToggleSwitch checked={transparency} onChange={setTransparency} />
-          </div>
-        </GroupedCard>
-      </div>
+        </Row>
+
+        {/* ── Glass (EX8.1) ─────────────────────── */}
+        <Row label="Glass strength" description="How much of the wallpaper shows through windows">
+          <Segmented value={glassStrength} onChange={setGlassStrength} options={GLASS_STRENGTHS.map((g) => ({ value: g.id, label: g.name }))} />
+        </Row>
+        <Row label="Transparency effects" description="Frosted glass behind windows and panels">
+          <Switch checked={transparency} onCheckedChange={setTransparency} />
+        </Row>
+      </RowSection>
 
       {/* ── Desktop Icon Size ─────────────────── */}
-      <div>
-        <SectionHeader title="Desktop" />
-        <GroupedCard>
-          <div className="flex items-center justify-between px-3 py-2.5">
-            <span className="text-[13px] text-foreground">Desktop Icon Size</span>
-            <div className="flex gap-1">
-              {(['small', 'medium', 'large'] as const).map((size) => (
-                <button
-                  key={size}
-                  onClick={() => setDesktopIconSize(size)}
-                  className={cn(
-                    'px-2.5 py-1 rounded-md text-[12px] capitalize transition-colors',
-                    desktopIconSize === size
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                  )}
-                >
-                  {size}
-                </button>
-              ))}
-            </div>
-          </div>
-        </GroupedCard>
-      </div>
+      <RowSection>
+        <Row label="Desktop Icon Size">
+          <Segmented
+            value={desktopIconSize}
+            onChange={setDesktopIconSize}
+            options={[
+              { value: 'small', label: 'Small' },
+              { value: 'medium', label: 'Medium' },
+              { value: 'large', label: 'Large' },
+            ]}
+          />
+        </Row>
+      </RowSection>
     </div>
   );
 }
@@ -681,28 +689,29 @@ const SCROLLBACK_OPTIONS = [
   { label: 'Unlimited', value: -1 },
 ] as const;
 
-const CURSOR_STYLES: { label: string; value: CursorStyle; preview: React.ReactNode }[] = [
+// Cursor glyphs use currentColor so they follow the segmented option's text colour
+const CURSOR_STYLES: { label: string; value: CursorStyle; preview: React.ReactElement }[] = [
   {
     label: 'Block',
     value: 'block',
-    preview: <div className="w-2 h-3.5 bg-primary rounded-[1px]" />,
+    preview: <span className="block h-3.5 w-2 rounded-[1px] bg-current" />,
   },
   {
     label: 'Underline',
     value: 'underline',
     preview: (
-      <div className="relative w-2 h-3.5">
-        <div className="absolute bottom-0 left-0 w-full h-0.5 bg-primary rounded-full" />
-      </div>
+      <span className="relative block h-3.5 w-2">
+        <span className="absolute bottom-0 left-0 h-0.5 w-full rounded-full bg-current" />
+      </span>
     ),
   },
   {
     label: 'Bar',
     value: 'bar',
     preview: (
-      <div className="relative w-2 h-3.5">
-        <div className="absolute top-0 left-0 w-0.5 h-full bg-primary rounded-full" />
-      </div>
+      <span className="relative block h-3.5 w-2">
+        <span className="absolute left-0 top-0 h-full w-0.5 rounded-full bg-current" />
+      </span>
     ),
   },
 ];
@@ -722,168 +731,73 @@ function TerminalPage() {
   const currentFontLabel = FONT_FAMILIES.find((f) => f.value === fontFamily)?.label ?? 'Custom';
   const currentScrollLabel = SCROLLBACK_OPTIONS.find((o) => o.value === scrollback)?.label ?? `${scrollback} lines`;
 
+  // Keep a value that isn't in the preset list selectable/visible
+  const fontOptions: ReadonlyArray<{ value: string; label: string }> = FONT_FAMILIES.some((f) => f.value === fontFamily)
+    ? FONT_FAMILIES
+    : [...FONT_FAMILIES, { value: fontFamily, label: currentFontLabel }];
+  const scrollbackOptions: ReadonlyArray<{ value: number; label: string }> = SCROLLBACK_OPTIONS.some((o) => o.value === scrollback)
+    ? SCROLLBACK_OPTIONS
+    : [...SCROLLBACK_OPTIONS, { value: scrollback, label: currentScrollLabel }];
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* ── Font ──────────────────────────────── */}
-      <div>
-        <SectionHeader title="Font" />
-        <GroupedCard>
-          {/* Font Size */}
-          <div className="flex items-center justify-between px-3 py-2.5 border-b border-border">
-            <span className="text-[13px] text-foreground">Font Size</span>
-            <div className="flex items-center gap-3">
-              <input
-                type="range"
-                min={10}
-                max={24}
-                step={1}
-                value={fontSize}
-                onChange={(e) => setFontSize(Number(e.target.value))}
-                className="w-28 h-1 accent-primary cursor-pointer"
-              />
-              <span className="text-[13px] text-muted-foreground tabular-nums w-6 text-right">
-                {fontSize}
-              </span>
-            </div>
-          </div>
-          {/* Font Family */}
-          <div className="flex items-center justify-between px-3 py-2.5">
-            <span className="text-[13px] text-foreground">Font Family</span>
-            <select
-              value={fontFamily}
-              onChange={(e) => setFontFamily(e.target.value)}
-              className="bg-transparent text-[13px] text-muted-foreground text-right cursor-pointer outline-none appearance-none pr-1 hover:text-foreground transition-colors"
-            >
-              {FONT_FAMILIES.map((f) => (
-                <option key={f.value} value={f.value}>
-                  {f.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </GroupedCard>
-      </div>
+      <RowSection title="Font">
+        <Row label="Font Size">
+          <Slider
+            className="w-40"
+            min={10}
+            max={24}
+            step={1}
+            value={[fontSize]}
+            onValueChange={([v]) => setFontSize(v)}
+          />
+          <RowValue className="w-7 text-right">{fontSize}</RowValue>
+        </Row>
+        <Row label="Font Family">
+          <SelectPill value={fontFamily} onChange={setFontFamily} options={fontOptions} className="min-w-[180px]" />
+        </Row>
+      </RowSection>
 
       {/* ── Preview ──────────────────────────── */}
-      <div>
-        <SectionHeader title="Preview" />
+      <Section title="Preview">
         <div
-          className="rounded-lg border border-border bg-[#09090b] p-3 h-18 overflow-hidden"
+          className="h-18 overflow-hidden rounded-[14px] border border-edge bg-paper px-4 py-3.5 font-mono"
           style={{ fontFamily, fontSize: `${fontSize}px` }}
         >
           <span className="text-success">user@server</span>
-          <span className="text-muted-foreground">:</span>
-          <span className="text-primary">~</span>
-          <span className="text-muted-foreground">$ </span>
-          <span className="text-foreground/80">ls -la</span>
+          <span className="text-label-3">:</span>
+          <span className="text-accent-text">~</span>
+          <span className="text-label-3">$ </span>
+          <span className="text-foreground">ls -la</span>
           <span
             className={cn(
-              'inline-block ml-px animate-pulse',
-              cursorStyle === 'block' && 'w-[0.6em] h-[1em] bg-primary align-text-bottom',
-              cursorStyle === 'underline' && 'w-[0.6em] h-0.5 bg-primary align-baseline -mb-px',
-              cursorStyle === 'bar' && 'w-0.5 h-[1em] bg-primary align-text-bottom',
+              'ml-px inline-block animate-pulse',
+              cursorStyle === 'block' && 'h-[1em] w-[0.6em] bg-accent-solid align-text-bottom',
+              cursorStyle === 'underline' && '-mb-px h-0.5 w-[0.6em] bg-accent-solid align-baseline',
+              cursorStyle === 'bar' && 'h-[1em] w-0.5 bg-accent-solid align-text-bottom',
             )}
           />
         </div>
-      </div>
+      </Section>
 
-      {/* ── Cursor ────────────────────────────── */}
-      <div>
-        <SectionHeader title="Cursor" />
-        <GroupedCard>
-          <div className="flex items-center justify-between px-3 py-2.5">
-            <span className="text-[13px] text-foreground">Cursor Style</span>
-            <div className="flex gap-1">
-              {CURSOR_STYLES.map((cs) => (
-                <button
-                  key={cs.value}
-                  onClick={() => setCursorStyle(cs.value)}
-                  className={cn(
-                    'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] transition-colors',
-                    cursorStyle === cs.value
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                  )}
-                >
-                  {cs.preview}
-                  <span>{cs.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </GroupedCard>
-      </div>
-
-      {/* ── Scrollback & Behavior ─────────────── */}
-      <div>
-        <SectionHeader title="Behavior" />
-        <GroupedCard>
-          {/* Scrollback */}
-          <div className="flex items-center justify-between px-3 py-2.5 border-b border-border">
-            <span className="text-[13px] text-foreground">Scrollback Buffer</span>
-            <select
-              value={scrollback}
-              onChange={(e) => setScrollback(Number(e.target.value))}
-              className="bg-transparent text-[13px] text-muted-foreground text-right cursor-pointer outline-none appearance-none pr-1 hover:text-foreground transition-colors"
-            >
-              {SCROLLBACK_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          {/* Copy on Select */}
-          <div className="flex items-center justify-between px-3 py-2.5">
-            <div>
-              <span className="text-[13px] text-foreground">Copy on Select</span>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                Automatically copy selected text to clipboard
-              </p>
-            </div>
-            <button
-              role="switch"
-              aria-checked={copyOnSelect}
-              onClick={() => setCopyOnSelect(!copyOnSelect)}
-              className={cn(
-                'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors',
-                copyOnSelect ? 'bg-primary' : 'bg-muted',
-              )}
-            >
-              <span
-                className={cn(
-                  'pointer-events-none block h-4 w-4 rounded-full bg-white shadow-sm transition-transform',
-                  copyOnSelect ? 'translate-x-4' : 'translate-x-0',
-                )}
-              />
-            </button>
-          </div>
-        </GroupedCard>
-      </div>
+      {/* ── Cursor, Scrollback & Behavior ─────── */}
+      <RowSection title="Behavior">
+        <Row label="Cursor Style">
+          <Segmented
+            value={cursorStyle}
+            onChange={setCursorStyle}
+            options={CURSOR_STYLES.map((cs) => ({ value: cs.value, label: cs.label, icon: cs.preview }))}
+          />
+        </Row>
+        <Row label="Scrollback Buffer">
+          <SelectPill value={scrollback} onChange={setScrollback} options={scrollbackOptions} />
+        </Row>
+        <Row label="Copy on Select" description="Automatically copy selected text to clipboard">
+          <Switch checked={copyOnSelect} onCheckedChange={setCopyOnSelect} />
+        </Row>
+      </RowSection>
     </div>
-  );
-}
-
-// ─── Toggle Switch Primitive ────────────────────────────────────────────────
-
-function ToggleSwitch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className={cn(
-        'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors',
-        checked ? 'bg-primary' : 'bg-muted',
-      )}
-    >
-      <span
-        className={cn(
-          'pointer-events-none block h-4 w-4 rounded-full bg-white shadow-sm transition-transform',
-          checked ? 'translate-x-4' : 'translate-x-0',
-        )}
-      />
-    </button>
   );
 }
 
@@ -897,6 +811,15 @@ const AUTO_REFRESH_OPTIONS = [
   { label: '120 seconds', value: 120 },
 ] as const;
 
+const AUTO_HIBERNATE_OPTIONS = [
+  { label: 'Off', value: 0 },
+  { label: '5 minutes', value: 5 },
+  { label: '15 minutes', value: 15 },
+  { label: '30 minutes', value: 30 },
+  { label: '1 hour', value: 60 },
+  { label: '3 hours', value: 180 },
+] as const;
+
 function GeneralPage() {
   const autoRefreshInterval = usePreferencesStore((s) => s.autoRefreshInterval);
   const setAutoRefreshInterval = usePreferencesStore((s) => s.setAutoRefreshInterval);
@@ -907,110 +830,54 @@ function GeneralPage() {
   const setAutoHibernateMinutes = usePreferencesStore((s) => s.setAutoHibernateMinutes);
 
   return (
-    <div className="space-y-6">
-      {/* ── Display ──────────────────────────── */}
-      <div>
-        <SectionHeader title="Display" />
-        <GroupedCard>
-          <div className="flex items-center justify-between px-3 py-2.5">
-            <div>
-              <span className="text-[13px] text-foreground">Clock Format</span>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Affects taskbar clock display</p>
-            </div>
-            <div className="flex gap-1">
-              {([{ label: '12-hour', value: '12h' as DateFormat }, { label: '24-hour', value: '24h' as DateFormat }]).map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => setDateFormat(opt.value)}
-                  className={cn(
-                    'px-2.5 py-1 rounded-md text-[12px] transition-colors',
-                    dateFormat === opt.value
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                  )}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </GroupedCard>
-      </div>
-
-      {/* ── Data Refresh ─────────────────────── */}
-      <div>
-        <SectionHeader title="Data Refresh" />
-        <GroupedCard>
-          <div className="flex items-center justify-between px-3 py-2.5">
-            <div>
-              <span className="text-[13px] text-foreground">Auto-Refresh Interval</span>
-              <p className="text-[11px] text-muted-foreground mt-0.5">How often dashboard & file explorer refresh data</p>
-            </div>
-            <select
-              value={autoRefreshInterval}
-              onChange={(e) => setAutoRefreshInterval(Number(e.target.value))}
-              className="bg-transparent text-[13px] text-muted-foreground text-right cursor-pointer outline-none appearance-none pr-1 hover:text-foreground transition-colors"
-            >
-              {AUTO_REFRESH_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </GroupedCard>
-      </div>
-
-      {/* ── Info ──────────────────────────────── */}
-      <div>
-        <SectionHeader title="Connection" />
-        <GroupedCard>
-          <GroupedRow
-            label="Default Shell"
-            value="/bin/bash"
+    <div className="space-y-5">
+      {/* ── Display & Data Refresh ─────────────── */}
+      <RowSection>
+        <Row label="Clock Format" description="Affects taskbar clock display">
+          <Segmented
+            value={dateFormat}
+            onChange={setDateFormat}
+            options={[
+              { label: '12-hour', value: '12h' as DateFormat },
+              { label: '24-hour', value: '24h' as DateFormat },
+            ]}
           />
-          <GroupedRow
-            label="Auto-Reconnect"
-            value="On"
-          />
-          <GroupedRow
-            label="Session Timeout"
-            value="Never"
-            last
-          />
-        </GroupedCard>
-        <p className="text-[11px] text-muted-foreground mt-2">
-          Server-side connection settings will be configurable after LLM backend integration (M7.3).
-        </p>
-      </div>
+        </Row>
+        <Row label="Auto-Refresh Interval" description="How often dashboard & file explorer refresh data">
+          <SelectPill value={autoRefreshInterval} onChange={setAutoRefreshInterval} options={AUTO_REFRESH_OPTIONS} />
+        </Row>
+      </RowSection>
 
       {/* ── EX6-D.5: Sessions ───────────────── */}
-      <div>
-        <SectionHeader title="Sessions" />
-        <GroupedCard>
-          <div className="flex items-center justify-between px-3 py-2.5">
-            <div>
-              <span className="text-[13px] text-foreground">Auto-Hibernate Inactive Sessions</span>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                Disconnect background sessions that have been idle for this long. The active session is never auto-hibernated.
-              </p>
-            </div>
-            <select
-              value={autoHibernateMinutes}
-              onChange={(e) => setAutoHibernateMinutes(Number(e.target.value))}
-              className="bg-transparent text-[13px] text-muted-foreground text-right cursor-pointer outline-none appearance-none pr-1 hover:text-foreground transition-colors"
-              data-testid="auto-hibernate-select"
-            >
-              <option value={0}>Off</option>
-              <option value={5}>5 minutes</option>
-              <option value={15}>15 minutes</option>
-              <option value={30}>30 minutes</option>
-              <option value={60}>1 hour</option>
-              <option value={180}>3 hours</option>
-            </select>
-          </div>
-        </GroupedCard>
-      </div>
+      <RowSection title="Sessions">
+        <Row
+          label="Auto-Hibernate Inactive Sessions"
+          description="Disconnect background sessions that have been idle for this long. The active session is never auto-hibernated."
+        >
+          <SelectPill
+            value={autoHibernateMinutes}
+            onChange={setAutoHibernateMinutes}
+            options={AUTO_HIBERNATE_OPTIONS}
+            testId="auto-hibernate-select"
+          />
+        </Row>
+      </RowSection>
+
+      {/* ── Info ──────────────────────────────── */}
+      <RowSection
+        title="Connection"
+        footer="Server-side connection settings will be configurable after LLM backend integration (M7.3)."
+      >
+        <Row label="Default Shell" className="min-h-[52px]">
+          <RowValue className="font-mono text-[14px]">/bin/bash</RowValue>
+        </Row>
+        <Row label="Auto-Reconnect" className="min-h-[52px]">
+          <RowValue>On</RowValue>
+        </Row>
+        <Row label="Session Timeout" className="min-h-[52px]">
+          <RowValue>Never</RowValue>
+        </Row>
+      </RowSection>
     </div>
   );
 }
@@ -1068,77 +935,40 @@ function NotificationsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* ── Notifications ─────────────────────── */}
-      <div>
-        <SectionHeader title="Toast Notifications" />
-        <GroupedCard>
-          <div className="flex items-center justify-between px-3 py-2.5 border-b border-border">
-            <div>
-              <span className="text-[13px] text-foreground">Show Notifications</span>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                Toast popups for actions like copy, delete, connect
-              </p>
-            </div>
-            <ToggleSwitch checked={showToasts} onChange={setShowToasts} />
-          </div>
-          <div className="flex items-center justify-between px-3 py-2.5">
-            <span className="text-[13px] text-foreground">Position</span>
-            <div className="flex gap-1">
-              {([{ label: 'Bottom Right', value: 'bottom-right' as ToastPosition }, { label: 'Top Right', value: 'top-right' as ToastPosition }]).map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => setToastPosition(opt.value)}
-                  className={cn(
-                    'px-2.5 py-1 rounded-md text-[12px] transition-colors',
-                    toastPosition === opt.value
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                  )}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </GroupedCard>
-      </div>
+      <RowSection title="Toast Notifications">
+        <Row label="Show Notifications" description="Toast popups for actions like copy, delete, connect">
+          <Switch checked={showToasts} onCheckedChange={setShowToasts} />
+        </Row>
+        <Row label="Position">
+          <Segmented
+            value={toastPosition}
+            onChange={setToastPosition}
+            options={[
+              { label: 'Bottom Right', value: 'bottom-right' as ToastPosition },
+              { label: 'Top Right', value: 'top-right' as ToastPosition },
+            ]}
+          />
+        </Row>
+      </RowSection>
 
       {/* ── Data ──────────────────────────────── */}
-      <div>
-        <SectionHeader title="Data & Storage" />
-        <GroupedCard>
-          <GroupedRow label="Local Storage Used" value={storageSize} />
-          <div className="flex items-center justify-between px-3 py-2.5 border-b border-border">
-            <div>
-              <span className="text-[13px] text-foreground">Clear Cached Data</span>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                Remove all HeadlessOS data from browser storage
-              </p>
-            </div>
-            <button
-              onClick={handleClearCache}
-              className="px-3 py-1 rounded-md text-[12px] bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-            >
-              Clear
-            </button>
-          </div>
-          <div className="flex items-center justify-between px-3 py-2.5">
-            <div>
-              <span className="text-[13px] text-destructive">Reset All Settings</span>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                Restore all preferences to their default values
-              </p>
-            </div>
-            <button
-              onClick={() => setShowResetConfirm(true)}
-              className="px-3 py-1 rounded-md text-[12px] bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
-            >
-              Reset
-            </button>
-          </div>
-        </GroupedCard>
-      </div>
+      <RowSection title="Data & Storage">
+        <Row label="Local Storage Used" className="min-h-[52px]">
+          <RowValue>{storageSize}</RowValue>
+        </Row>
+        <Row label="Clear Cached Data" description="Remove all HeadlessOS data from browser storage">
+          <Button type="button" variant="secondary" onClick={handleClearCache}>
+            Clear
+          </Button>
+        </Row>
+        <Row label="Reset All Settings" description="Restore all preferences to their default values" danger>
+          <Button type="button" variant="destructive" onClick={() => setShowResetConfirm(true)}>
+            Reset
+          </Button>
+        </Row>
+      </RowSection>
 
       <ConfirmDialog
         open={showResetConfirm}
@@ -1153,7 +983,7 @@ function NotificationsPage() {
   );
 }
 
-// ─── About Page ─────────────────────────────────────────────────────────────
+// ─── Keyboard Shortcuts Page ────────────────────────────────────────────────
 
 function KeyboardShortcutsPage() {
   const sections = [
@@ -1162,42 +992,32 @@ function KeyboardShortcutsPage() {
   ];
 
   return (
-    <div className="space-y-5 max-w-lg">
+    <div className="space-y-5">
       {sections.map((section) => (
-        <div key={section.title}>
-          <SectionHeader title={section.title} />
-          <GroupedCard>
-            {section.shortcuts.map((s, i) => (
-              <div
-                key={s.keys}
-                className={cn(
-                  'flex items-center justify-between px-3 py-2.5 text-[13px]',
-                  i < section.shortcuts.length - 1 && 'border-b border-border',
-                )}
-              >
-                <span className="text-foreground">{s.description}</span>
-                <kbd className="inline-flex items-center gap-0.5">
-                  {s.keys.split('+').map((key, ki) => (
-                    <span key={ki} className="flex items-center gap-0.5">
-                      {ki > 0 && (
-                        <span className="text-muted-foreground text-[10px] mx-0.5">+</span>
-                      )}
-                      <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[11px] font-mono border border-border shadow-sm">
-                        {key}
-                      </span>
-                    </span>
-                  ))}
-                </kbd>
-              </div>
-            ))}
-          </GroupedCard>
-        </div>
+        <RowSection key={section.title} title={section.title}>
+          {section.shortcuts.map((s) => (
+            <Row key={s.keys} label={s.description} className="min-h-[46px] py-1.5">
+              <kbd className="inline-flex items-center gap-1 rounded-lg bg-fill px-2.5 py-1 font-mono text-[13px] font-medium text-foreground">
+                {s.keys.split('+').map((key, ki) => (
+                  <Fragment key={ki}>
+                    {ki > 0 && <span className="text-label-3">+</span>}
+                    <span>{key}</span>
+                  </Fragment>
+                ))}
+              </kbd>
+            </Row>
+          ))}
+        </RowSection>
       ))}
     </div>
   );
 }
 
 // ─── AI / LLM Page (M10.7) ──────────────────────────────────────────────────
+
+function SelectedCheck() {
+  return <Check className="h-[18px] w-[18px] text-accent-text" strokeWidth={2} />;
+}
 
 function AIPage() {
   const [config, setConfig] = useState<LLMConfig | null>(null);
@@ -1250,7 +1070,7 @@ function AIPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <span className="text-sm text-muted-foreground">Loading LLM configuration…</span>
+        <span className="text-[14px] text-label-2">Loading LLM configuration…</span>
       </div>
     );
   }
@@ -1260,126 +1080,118 @@ function AIPage() {
   return (
     <div className="space-y-5">
       {/* Status */}
-      <GroupedCard>
-        <GroupedRow
-          label="Status"
-          value={
-            <span className={config?.hasApiKey ? 'text-success' : 'text-muted-foreground'}>
-              {config?.hasApiKey ? '● Active' : '○ Disabled'}
-            </span>
-          }
-        />
-        <GroupedRow label="Provider" value={config?.provider === 'none' ? 'None' : 'OpenAI'} />
-        <GroupedRow label="Model" value={config?.model || '—'} last />
-      </GroupedCard>
+      <RowSection>
+        <Row label="Status" className="min-h-[52px]">
+          <RowValue className={config?.hasApiKey ? 'text-success' : undefined}>
+            {config?.hasApiKey ? '● Active' : '○ Disabled'}
+          </RowValue>
+        </Row>
+        <Row label="Provider" className="min-h-[52px]">
+          <RowValue>{config?.provider === 'none' ? 'None' : 'OpenAI'}</RowValue>
+        </Row>
+        <Row label="Model" className="min-h-[52px]">
+          <RowValue className="font-mono text-[14px]">{config?.model || '—'}</RowValue>
+        </Row>
+      </RowSection>
 
       {/* Provider Selection */}
-      <SectionHeader title="Provider" />
-      <GroupedCard>
-        <GroupedRow
-          label="None (deterministic only)"
-          value={provider === 'none' ? <Check size={16} className="text-primary" /> : null}
-          onClick={() => setProvider('none')}
-        />
-        <GroupedRow
-          label="OpenAI"
-          value={provider === 'openai' ? <Check size={16} className="text-primary" /> : null}
-          onClick={() => setProvider('openai')}
-          last
-        />
-      </GroupedCard>
+      <RowSection title="Provider">
+        <Row label="None (deterministic only)" onClick={() => setProvider('none')} className="min-h-[52px]">
+          {provider === 'none' ? <SelectedCheck /> : null}
+        </Row>
+        <Row label="OpenAI" onClick={() => setProvider('openai')} className="min-h-[52px]">
+          {provider === 'openai' ? <SelectedCheck /> : null}
+        </Row>
+      </RowSection>
 
       {/* API Key (only for OpenAI) */}
       {provider === 'openai' && (
-        <>
-          <SectionHeader title="API Key" />
-          <GroupedCard>
-            <div className="px-3 py-2">
-              <input
-                type="password"
-                placeholder={config?.hasApiKey ? '••••••••••••••••  (key set)' : 'sk-...'}
-                value={apiKey}
-                onChange={e => setApiKey(e.target.value)}
-                className="w-full bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground/50"
-              />
-            </div>
-          </GroupedCard>
-          <p className="text-[11px] text-muted-foreground">
+        <Section title="API Key">
+          <Input
+            type="password"
+            placeholder={config?.hasApiKey ? '••••••••••••••••  (key set)' : 'sk-...'}
+            value={apiKey}
+            onChange={e => setApiKey(e.target.value)}
+            className="font-mono"
+          />
+          <p className="text-[13px] text-label-2">
             {config?.hasApiKey
               ? 'API key is configured. Enter a new key to change it.'
               : 'Enter your OpenAI API key. It is stored in server memory only (not saved to disk).'}
           </p>
-        </>
+        </Section>
       )}
 
       {/* Model Selection */}
       {provider !== 'none' && providerModels.length > 0 && (
-        <>
-          <SectionHeader title="Model" />
-          <GroupedCard>
-            {providerModels.map((m, i) => (
-              <GroupedRow
-                key={m.id}
-                label={`${m.name}${m.recommended ? ' ★' : ''}`}
-                value={
-                  model === m.id ? <Check size={16} className="text-primary" /> : (
-                    <span className="text-[11px] text-muted-foreground">{m.description}</span>
-                  )
-                }
-                onClick={() => setModel(m.id)}
-                last={i === providerModels.length - 1}
-              />
-            ))}
-          </GroupedCard>
-        </>
+        <RowSection title="Model">
+          {providerModels.map((m) => (
+            <Row
+              key={m.id}
+              label={`${m.name}${m.recommended ? ' ★' : ''}`}
+              description={m.description}
+              onClick={() => setModel(m.id)}
+            >
+              {model === m.id ? <SelectedCheck /> : null}
+            </Row>
+          ))}
+        </RowSection>
       )}
 
       {/* Save */}
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        className="px-4 py-2 bg-primary text-primary-foreground text-[13px] font-medium rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors"
-      >
-        {saving ? 'Saving…' : 'Save Configuration'}
-      </button>
+      <div className="flex flex-col items-start gap-3">
+        <Button type="button" variant="primary" onClick={handleSave} disabled={saving}>
+          {saving ? 'Saving…' : 'Save Configuration'}
+        </Button>
 
-      {/* Info */}
-      <p className="text-[11px] text-muted-foreground pt-2">
-        LLM parsing is used as a fallback when deterministic parsers cannot handle command output.
-        Deterministic parsers are always tried first and are free.
-      </p>
+        {/* Info */}
+        <p className="px-1 text-[13px] text-label-3">
+          LLM parsing is used as a fallback when deterministic parsers cannot handle command output.
+          Deterministic parsers are always tried first and are free.
+        </p>
+      </div>
     </div>
   );
 }
+
+// ─── About Page ─────────────────────────────────────────────────────────────
 
 function AboutPage() {
   return (
     <div className="space-y-5">
       {/* Logo + Version */}
-      <div className="flex items-center gap-3 mb-2">
-        <div className="w-14 h-14 rounded-2xl bg-linear-to-br from-primary to-primary/60 flex items-center justify-center shrink-0 shadow-md">
-          <Monitor size={28} className="text-white" />
+      <Section>
+        <div className="flex items-center gap-4">
+          <div className="lumen-lit grid h-14 w-14 shrink-0 place-items-center rounded-[18px]">
+            <Monitor className="h-7 w-7" strokeWidth={1.75} />
+          </div>
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <h2 className="text-[17px] font-semibold text-foreground">HeadlessOS</h2>
+            <p className="text-[14px] text-label-2">Version 0.1.0 (Alpha)</p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-[16px] font-semibold text-foreground">HeadlessOS</h2>
-          <p className="text-[12px] text-muted-foreground">Version 0.1.0 (Alpha)</p>
-        </div>
-      </div>
+      </Section>
 
       {/* Info */}
-      <GroupedCard>
-        <GroupedRow label="Platform" value="Web Desktop" />
-        <GroupedRow label="Engine" value="React 19 + Vite" />
-        <GroupedRow label="Backend" value="Fastify + SSH" />
-        <GroupedRow label="UI Framework" value="TailwindCSS 4" last />
-      </GroupedCard>
+      <RowSection>
+        <Row label="Platform" className="min-h-[52px]"><RowValue>Web Desktop</RowValue></Row>
+        <Row label="Engine" className="min-h-[52px]"><RowValue>React 19 + Vite</RowValue></Row>
+        <Row label="Backend" className="min-h-[52px]"><RowValue>Fastify + SSH</RowValue></Row>
+        <Row label="UI Framework" className="min-h-[52px]"><RowValue>TailwindCSS 4</RowValue></Row>
+      </RowSection>
 
-      <GroupedCard>
-        <GroupedRow label="License" value="MIT" chevron />
-        <GroupedRow label="GitHub" value="headlessOS" chevron last />
-      </GroupedCard>
+      <RowSection>
+        <Row label="License" className="min-h-[52px]">
+          <RowValue>MIT</RowValue>
+          <ChevronRight className="h-4 w-4 text-label-3" strokeWidth={1.75} />
+        </Row>
+        <Row label="GitHub" className="min-h-[52px]">
+          <RowValue>headlessOS</RowValue>
+          <ChevronRight className="h-4 w-4 text-label-3" strokeWidth={1.75} />
+        </Row>
+      </RowSection>
 
-      <p className="text-[11px] text-muted-foreground pt-1">
+      <p className="px-1 text-[13px] text-label-3">
         A localhost web app that connects to Linux VPS servers via SSH. Nothing is installed on the server.
       </p>
     </div>
@@ -1484,134 +1296,103 @@ function PluginsPage() {
   };
 
   return (
-    <div className="max-w-xl space-y-5">
+    <div className="space-y-5">
       {/* Install from URL */}
-      <GroupedCard>
-        <div className="px-4 py-3 space-y-2">
-          <p className="text-[12px] font-medium text-foreground">Install plugin from URL</p>
-          <p className="text-[11px] text-muted-foreground">
-            Enter a URL to a plugin manifest JSON file to install a community plugin.
-          </p>
-          <div className="flex items-center gap-2 pt-1">
-            <input
-              type="text"
-              value={installUrl}
-              onChange={(e) => setInstallUrl(e.target.value)}
-              placeholder="https://example.com/plugin-manifest.json"
-              className="flex-1 px-3 py-1.5 text-[12px] bg-background border border-input rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
-              onKeyDown={(e) => e.key === 'Enter' && handleInstallFromUrl()}
-            />
-            <button
-              onClick={handleInstallFromUrl}
-              disabled={installing || !installUrl.trim()}
-              className="px-3 py-1.5 text-[12px] font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 transition-colors"
-            >
-              {installing ? 'Installing…' : 'Install'}
-            </button>
-          </div>
+      <Section title="Install plugin from URL">
+        <p className="-mt-2 text-[14px] text-label-2">
+          Enter a URL to a plugin manifest JSON file to install a community plugin.
+        </p>
+        <div className="flex items-center gap-2">
+          <Input
+            type="text"
+            value={installUrl}
+            onChange={(e) => setInstallUrl(e.target.value)}
+            placeholder="https://example.com/plugin-manifest.json"
+            className="flex-1 font-mono"
+            onKeyDown={(e) => e.key === 'Enter' && handleInstallFromUrl()}
+          />
+          <Button
+            type="button"
+            variant="primary"
+            onClick={handleInstallFromUrl}
+            disabled={installing || !installUrl.trim()}
+          >
+            {installing ? 'Installing…' : 'Install'}
+          </Button>
         </div>
-      </GroupedCard>
+      </Section>
 
       {/* Installed plugins list */}
-      <GroupedCard>
-        <div className="px-4 py-3">
-          <p className="text-[12px] font-medium text-foreground mb-3">
-            Installed Plugins ({plugins.length})
+      <RowSection title={`Installed Plugins (${plugins.length})`}>
+        {plugins.length === 0 ? (
+          <p className="py-6 text-center text-[14px] text-label-2">
+            No plugins installed. Install a plugin from a URL above.
           </p>
-          {plugins.length === 0 ? (
-            <p className="text-[11px] text-muted-foreground py-4 text-center">
-              No plugins installed. Install a plugin from a URL above.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {plugins.map((plugin) => (
-                <div
-                  key={plugin.id}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-border/40 hover:bg-muted/20 transition-colors"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center shrink-0">
-                    <Puzzle size={16} className="text-success" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[12px] font-medium text-foreground truncate">
-                        {plugin.name}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground font-mono">
-                        v{plugin.version}
-                      </span>
-                      <span
-                        className={cn(
-                          'text-[9px] px-1.5 py-0.5 rounded-full font-medium',
-                          plugin.state === 'active'
-                            ? 'bg-success/10 text-success'
-                            : plugin.state === 'error'
-                              ? 'bg-destructive/10 text-destructive'
-                              : 'bg-muted text-muted-foreground',
-                        )}
-                      >
-                        {plugin.state}
-                      </span>
-                    </div>
-                    {plugin.description && (
-                      <p className="text-[11px] text-muted-foreground truncate">{plugin.description}</p>
-                    )}
-                    {plugin.error && (
-                      <p className="text-[10px] text-destructive mt-0.5">{plugin.error}</p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    {plugin.state === 'active' ? (
-                      <button
-                        onClick={() => handleDeactivate(plugin.id)}
-                        className="text-[11px] px-2 py-1 rounded-md bg-muted hover:bg-muted/80 text-muted-foreground transition-colors"
-                      >
-                        Deactivate
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleActivate(plugin.id)}
-                        className="text-[11px] px-2 py-1 rounded-md bg-primary/10 hover:bg-primary/20 text-primary transition-colors"
-                      >
-                        Activate
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleUninstall(plugin.id)}
-                      className="text-[11px] px-2 py-1 rounded-md bg-destructive/10 hover:bg-destructive/20 text-destructive transition-colors"
-                    >
-                      Remove
-                    </button>
-                  </div>
+        ) : (
+          plugins.map((plugin) => (
+            <div key={plugin.id} className="flex min-h-[60px] items-center gap-3 py-2.5">
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-success/14 text-success">
+                <Puzzle className="h-[18px] w-[18px]" strokeWidth={1.75} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-[15px] font-semibold text-foreground">
+                    {plugin.name}
+                  </span>
+                  <span className="font-mono text-[12px] text-label-3">
+                    v{plugin.version}
+                  </span>
+                  <Badge
+                    variant={plugin.state === 'active' ? 'success' : plugin.state === 'error' ? 'destructive' : 'secondary'}
+                  >
+                    {plugin.state}
+                  </Badge>
                 </div>
-              ))}
+                {plugin.description && (
+                  <p className="truncate text-[14px] text-label-2">{plugin.description}</p>
+                )}
+                {plugin.error && (
+                  <p className="mt-0.5 text-[13px] text-danger">{plugin.error}</p>
+                )}
+              </div>
+              <div className="flex shrink-0 items-center gap-1.5">
+                {plugin.state === 'active' ? (
+                  <Button type="button" variant="secondary" size="sm" onClick={() => handleDeactivate(plugin.id)}>
+                    Deactivate
+                  </Button>
+                ) : (
+                  <Button type="button" variant="primary" size="sm" onClick={() => handleActivate(plugin.id)}>
+                    Activate
+                  </Button>
+                )}
+                <Button type="button" variant="destructive" size="sm" onClick={() => handleUninstall(plugin.id)}>
+                  Remove
+                </Button>
+              </div>
             </div>
-          )}
-        </div>
-      </GroupedCard>
+          ))
+        )}
+      </RowSection>
 
       {/* Plugin development info */}
-      <GroupedCard>
-        <div className="px-4 py-3 space-y-1.5">
-          <p className="text-[12px] font-medium text-foreground">Creating Plugins</p>
-          <p className="text-[11px] text-muted-foreground leading-relaxed">
-            Plugins are JSON manifest files that define apps, permissions, and lifecycle hooks.
-            A plugin can contribute new apps to the launcher, toolbar items, and settings pages.
-            See the Plugin API documentation for the full schema reference.
-          </p>
-          <div className="flex flex-wrap gap-1.5 pt-1">
-            {['fs:read', 'docker:read', 'terminal:access', 'ui:panel', 'llm:invoke'].map((perm) => (
-              <span
-                key={perm}
-                className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
-              >
-                {perm}
-              </span>
-            ))}
-            <span className="text-[10px] text-muted-foreground">+18 more permissions</span>
-          </div>
+      <Section title="Creating Plugins">
+        <p className="-mt-2 text-[14px] leading-relaxed text-label-2">
+          Plugins are JSON manifest files that define apps, permissions, and lifecycle hooks.
+          A plugin can contribute new apps to the launcher, toolbar items, and settings pages.
+          See the Plugin API documentation for the full schema reference.
+        </p>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {['fs:read', 'docker:read', 'terminal:access', 'ui:panel', 'llm:invoke'].map((perm) => (
+            <span
+              key={perm}
+              className="rounded-md bg-fill px-2 py-0.5 font-mono text-[12px] text-label-2"
+            >
+              {perm}
+            </span>
+          ))}
+          <span className="text-[12px] text-label-3">+18 more permissions</span>
         </div>
-      </GroupedCard>
+      </Section>
     </div>
   );
 }
@@ -1628,49 +1409,38 @@ export function SettingsView({ initialPage }: SettingsViewProps = {}) {
   const [page, setPage] = useState<PageId>(initialPage ?? 'general');
 
   return (
-    <div className="flex h-full bg-background">
+    <div className="flex h-full min-h-0">
       {/* ── Sidebar ── */}
-      <aside className="w-52 shrink-0 border-r border-border bg-sidebar px-2 py-3 flex flex-col gap-0.5 overflow-y-auto">
+      <PaneSidebar width={232} className="py-2.5" header={<AccountCard />} aria-label="Settings">
         {SIDEBAR.map((entry) => (
-          <button
+          <PaneSidebarItem
             key={entry.id}
+            icon={entry.icon}
+            label={entry.label}
+            active={page === entry.id}
             onClick={() => setPage(entry.id)}
-            className={cn(
-              'flex items-center gap-2.5 w-full px-2 py-1.5 rounded-md text-[13px] transition-colors text-left',
-              page === entry.id
-                ? 'bg-primary text-primary-foreground'
-                : 'text-sidebar-foreground hover:bg-sidebar-accent',
-            )}
-          >
-            <div
-              className={cn(
-                'w-5.5 h-5.5 rounded-md flex items-center justify-center shrink-0',
-                page === entry.id ? 'bg-white/20' : entry.iconBg,
-              )}
-            >
-              {entry.icon}
-            </div>
-            <span className="truncate">{entry.label}</span>
-          </button>
+          />
         ))}
-      </aside>
+      </PaneSidebar>
 
       {/* ── Content ── */}
-      <main className="flex-1 overflow-y-auto px-6 py-5">
-        {/* Page title — simple left-aligned, like macOS */}
-        <h1 className="text-[22px] font-bold text-foreground mb-5">
-          {SIDEBAR.find((s) => s.id === page)?.label}
-        </h1>
+      <main className="min-w-0 flex-1 overflow-y-auto px-7 pt-1 pb-7">
+        {/* Cap the column so a maximized window doesn't stretch rows edge to edge */}
+        <div className="max-w-[980px] space-y-5">
+          <h1 className="text-[30px] font-semibold leading-9 tracking-[-0.022em] text-foreground">
+            {SIDEBAR.find((s) => s.id === page)?.label}
+          </h1>
 
-        {page === 'general' && <GeneralPage />}
-        {page === 'wallpaper' && <WallpaperPage />}
-        {page === 'appearance' && <AppearancePage />}
-        {page === 'terminal' && <TerminalPage />}
-        {page === 'keyboard' && <KeyboardShortcutsPage />}
-        {page === 'notifications' && <NotificationsPage />}
-        {page === 'ai' && <AIPage />}
-        {page === 'plugins' && <PluginsPage />}
-        {page === 'about' && <AboutPage />}
+          {page === 'general' && <GeneralPage />}
+          {page === 'wallpaper' && <WallpaperPage />}
+          {page === 'appearance' && <AppearancePage />}
+          {page === 'terminal' && <TerminalPage />}
+          {page === 'keyboard' && <KeyboardShortcutsPage />}
+          {page === 'notifications' && <NotificationsPage />}
+          {page === 'ai' && <AIPage />}
+          {page === 'plugins' && <PluginsPage />}
+          {page === 'about' && <AboutPage />}
+        </div>
       </main>
     </div>
   );
