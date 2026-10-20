@@ -792,6 +792,17 @@ const AUTO_REFRESH_OPTIONS = [
   { label: '120 seconds', value: 120 },
 ] as const;
 
+/** EX8.17: Home hub as the idle privacy screen */
+const IDLE_GLANCE_OPTIONS = [
+  { label: 'Off', value: 0 },
+  { label: '1 minute', value: 1 },
+  { label: '2 minutes', value: 2 },
+  { label: '5 minutes', value: 5 },
+  { label: '10 minutes', value: 10 },
+  { label: '15 minutes', value: 15 },
+  { label: '30 minutes', value: 30 },
+] as const;
+
 const AUTO_HIBERNATE_OPTIONS = [
   { label: 'Off', value: 0 },
   { label: '5 minutes', value: 5 },
@@ -811,6 +822,8 @@ function GeneralPage() {
   // EX6-D.5: Auto-hibernation
   const autoHibernateMinutes = usePreferencesStore((s) => s.autoHibernateMinutes);
   const setAutoHibernateMinutes = usePreferencesStore((s) => s.setAutoHibernateMinutes);
+  const idleGlanceMinutes = usePreferencesStore((s) => s.idleGlanceMinutes);
+  const setIdleGlanceMinutes = usePreferencesStore((s) => s.setIdleGlanceMinutes);
 
   return (
     <div className="space-y-5">
@@ -844,6 +857,17 @@ function GeneralPage() {
               { value: 'celsius', label: '°C' },
               { value: 'fahrenheit', label: '°F' },
             ]}
+        <Row
+          label="Privacy Screen"
+          description="Show the Home hub over the desktop after this long without input. Any key brings your windows back. It hides the screen; it is not a lock."
+        >
+          <SelectPill
+            value={idleGlanceMinutes}
+            onChange={setIdleGlanceMinutes}
+            options={IDLE_GLANCE_OPTIONS}
+            testId="idle-glance-select"
+          />
+        </Row>
           />
         </Row>
       </RowSection>

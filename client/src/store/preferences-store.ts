@@ -163,8 +163,8 @@ const DEFAULTS: UserPreferences = {
   weatherUnits: 'celsius',
   displayLevel: 50,
   nightLight: false,
-  // 1 minute while the idle glance is being tried out; a Settings timer follows
-  idleGlanceMinutes: 1,
+  // Settings → General → Sessions → Privacy Screen
+  idleGlanceMinutes: 5,
   // EX8.6: LumenOS terminal type — Geist Mono 13px (bundled via @fontsource)
   terminalFontSize: 13,
   terminalFontFamily: "'Geist Mono Variable', 'Geist Mono', ui-monospace, monospace",
