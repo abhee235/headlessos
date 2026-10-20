@@ -950,27 +950,23 @@ All files are in `client/src/components/ui/`. Import pattern: `import { Componen
 
 ### CSS Variable Design Tokens
 
-Defined in `client/src/styles.css`. All components reference these — NEVER hardcode colors.
+Defined in `client/src/styles.css` (LumenOS v3 glass design, EX8). All components reference these — NEVER hardcode colors. Full reference: `docs/UI_DESIGN.md` §6.
 
 ```
---background / --foreground       Main app background and text
---card / --card-foreground        Card surfaces
---chrome / --chrome-foreground    Window chrome (title bars)
---popover / --popover-foreground  Menus, dropdowns, tooltips
---primary / --primary-foreground  Primary actions (buttons, links)
---secondary / --secondary-foreground  Secondary actions
---muted / --muted-foreground      Muted/disabled text, subtle backgrounds
---accent / --accent-foreground    Accent highlights
---destructive / --destructive-foreground  Destructive actions (delete, error)
---success / --success-foreground  Success states
---warning / --warning-foreground  Warning states
---border                          Borders
---input                           Input field borders
---ring                            Focus rings
---radius                          Border radius (default 0.5rem)
---taskbar / --taskbar-foreground  Taskbar
---sidebar / --sidebar-foreground  Sidebar panels
+--lumen-*                         Raw glass layer: label/label2/label3, fill/fill2, chip,
+                                  mat-thin/mat/mat-thick, field, paper, edge/edge2,
+                                  accent/accent-hi/accent-text/accent-soft/accent-glow, lit, danger
+--background / --foreground       Main app background and text (foreground = lumen label)
+--card / --popover / --chrome     Surfaces (mapped onto the glass layer)
+--primary / --primary-foreground  Accent (follows data-accent on <html>)
+--accent / --accent-foreground    Accent-soft tint + accent text (hover/selected)
+--muted-foreground                Secondary text
+--destructive / --success / --warning   Semantic states
+--border / --input / --ring       Hairlines, field background, focus glow
+--radius                          14px (sm 10 · md 14 · lg 18 · xl 22 · 2xl 24 · 3xl 30)
 ```
+
+Surface classes: `.glass`, `.glass-subtle`, `.glass-heavy`, `.lumen-card`, `.lumen-section`, `.lumen-well`, `.lumen-lit`, `.lumen-plate`. Accent / glass / transparency presets are `<html>` attributes set by `useLumenAppearance`.
 
 ### Adding a New Component
 

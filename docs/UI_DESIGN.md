@@ -186,82 +186,116 @@ Task Manager               → xl   → No            → Yes
 
 ## 5. Icon Guidelines
 
+> EX8 (LumenOS v3). Spec: `docs/phases/phase-ex8.md`.
+
 ### Where Icons Come From
-- **Lucide React** for all UI icons (buttons, menus, sidebar, toolbar)
-- **Custom SVG components** in `client/src/components/ui/FileIcon.tsx` for:
-  - Desktop shortcut icons (DashboardIcon, FileExplorerIcon, TerminalIcon, ThisPCIcon)
-  - File/folder icons in File Explorer (FileIcon, FolderSVG, SymlinkSVG)
+- **Fluent SVGs** in `client/public/icons/fluent/` (see `LICENSE.txt` there — the
+  vinceliuice theme is GPL-3.0, the Microsoft Fluent System icons are MIT) for app
+  icons, folders and common file types. Render them with `AppIcon` (by app id),
+  `FluentIcon` (by icon name), `FolderSVG` or `FileIcon` from
+  `client/src/components/ui/FileIcon.tsx`.
+- **Lucide React** for every UI glyph (buttons, menus, sidebar, toolbar), at
+  17–18px with `strokeWidth={1.75}`.
 
 ### Icon Sizing Convention
 
-| Context | Size | Class |
-|---------|------|-------|
-| Sidebar nav item | 16px | `w-4 h-4` |
-| Toolbar button icon | 14px | `w-3.5 h-3.5` |
-| Title bar icon | 20px | `w-5 h-5` |
-| Context menu item | 16px | `w-4 h-4 mr-2 opacity-60` |
-| Empty state | 40px | `w-10 h-10 opacity-40` |
-| Desktop shortcut | 42px | Pass via `size={42}` |
-
-### Icon Opacity
-- Title bar icon: `opacity-80` on primary color
-- Context menu icon: `opacity-60`
-- Sidebar active item icon: `opacity-70`
-- Empty state: `opacity-40`
+| Context | Size |
+|---------|------|
+| Title bar app icon | 20px (`AppIcon size={20}`) |
+| Sidebar item | 18px Lucide |
+| Menu item | 17px at 80% opacity (normalised by `ui/menu-styles`) |
+| Dock tile | 32px icon on a 50px `.lumen-plate` |
+| Launcher tile | 32px icon on a 52px `.lumen-plate` |
+| Desktop icon | 44px (32 / 44 / 52 for small / medium / large) |
 
 ---
 
 ## 6. Color System (CSS Variables)
 
-All colors are defined as space-separated RGB values in `client/src/styles.css`.
-Use them via Tailwind: `text-[rgb(var(--foreground))]`, `bg-[rgb(var(--background))]`.
+Defined in `client/src/styles.css` as two layers: the raw `--lumen-*` glass layer,
+and the shadcn semantic tokens mapped onto it. Both are registered with Tailwind, so
+use utilities (`bg-fill`, `text-label-2`, `border-edge`, `bg-accent-soft`…), never
+`rgb(var(--x))` (the variables hold full colours, not RGB triplets).
 
-**NEVER hardcode color values** — always use CSS variables.
+**NEVER hardcode color values** — always use tokens.
 
-### Core Palette
+### Presets (attributes on `<html>`, written by `useLumenAppearance`)
 
-| Token | Light | Dark | Usage |
-|-------|-------|------|-------|
-| `--background` | white | zinc-950 | Page/window background |
-| `--foreground` | near-black | zinc-100 | Primary text |
-| `--card` | white | zinc-900 | Card/panel surfaces |
-| `--chrome` | gray-100 | zinc-800 | Window title bars |
-| `--primary` | blue-500 | blue-400 | Active/primary actions |
-| `--muted-foreground` | gray-500 | zinc-400 | Secondary/disabled text |
-| `--border` | gray-200 | zinc-600 | Borders & dividers |
-| `--destructive` | red-500 | red-400 | Delete/error actions |
-| `--success` | green-500 | green-400 | Success states |
-| `--sidebar` | off-white | zinc-950 | Sidebar backgrounds |
+| Attribute | Values | Source |
+|-----------|--------|--------|
+| class `dark` | — | theme store |
+| `data-accent` | `iris` (default), `teal`, `blue`, `moss` | `accentColorIndex` → `LUMEN_ACCENTS` (0 = follow wallpaper) |
+| `data-glass` | `heavy` (default), `balanced`, `subtle` | `glassStrength` pref |
+| `data-transparency="off"` | — | `transparency` pref |
+| `data-wall-tone="dark"` | — | dark wallpaper in light mode (+.2 glass opacity) |
+
+### Token cheat sheet
+
+| Purpose | Utilities |
+|---------|-----------|
+| Text | `text-foreground`, `text-label-2` / `text-muted-foreground`, `text-label-3` |
+| Accent | `text-accent-text`, `bg-accent-soft`, `bg-accent-solid`, `ring-accent-glow` |
+| Fills | `bg-fill` (hover), `bg-fill-2` (pressed), `bg-chip` (recessed track) |
+| Glass mats | `bg-mat-thin`, `bg-mat`, `bg-mat-thick`, `bg-field`, `bg-paper` |
+| Edges | `border-edge`, `border-edge-2`, `border-border` (hairline) |
+| Semantic | `success`, `warning`, `danger` (tint at /14, border at /30) |
+
+### Surfaces (in `@layer components`, so utilities can still override them)
+
+| Class | Use |
+|-------|-----|
+| `.glass` | Window body |
+| `.glass-subtle` | Inset pane in a window (sidebars) |
+| `.glass-heavy` | Floating shell panel: dock, launcher, quick settings, menus, toasts |
+| `.lumen-card` | Card in a panel or dashboard (radius 20–22px) |
+| `.lumen-section` | Settings-style section in a window (radius 20px, padding 22px 24px) |
+| `.lumen-well` | Recessed group / segmented control well |
+| `.lumen-lit` | On-state tile, primary pill, active bar fill |
+| `.lumen-plate` | App icon plate |
+
+A backdrop-filter stops blurring inside an element whose ancestor animates
+opacity/transform, so put entrance animations on the glass element itself.
 
 ---
 
 ## 7. Text Sizing Convention
 
-| Context | Size | Class |
-|---------|------|-------|
-| Window title | 14px | `text-sm font-semibold` |
-| Window description | 11px | `text-[11px]` |
-| Sidebar nav label | 13px | `text-[13px]` |
-| Sidebar group header | 10px | `text-[10px] font-semibold uppercase tracking-wider` |
-| Toolbar text | 11px | `text-[11px]` |
-| Body heading | 14px | `text-sm font-semibold` |
-| Body text | 13px | `text-[13px]` |
-| Footer/status | 11px | `text-[11px]` |
-| Badge count | 10px | `text-[10px]` |
-| Context menu item | 13px | Default Radix size |
+Manrope for UI (bundled via `@fontsource-variable/manrope`), Geist Mono (`font-mono`)
+for code, paths, PIDs, IPs and the terminal.
+
+| Context | Size |
+|---------|------|
+| Menus, title bars, list rows | 13px |
+| Body text, settings rows | 14px (settings row labels 15px) |
+| Captions, footers | 12px |
+| Group labels | 11px, weight 700, uppercase, `tracking-[.06em]`, `text-label-3` |
+| Section headings | 15–17px, weight 700 |
+| Page titles | 30px, weight 600, `tracking-[-0.022em]` |
+| Big numbers | 28–40px, weight 700, `tracking-[-0.02em]` |
 
 ---
 
-## 8. Spacing Convention
+## 8. Spacing & Radius Convention
 
-| Zone | Padding | Class |
-|------|---------|-------|
-| Title bar | 16px horizontal, 12px vertical | `px-4 py-3` |
-| Sidebar | 8px all sides | `px-2 py-2` |
-| Toolbar | 12px horizontal, 6px vertical | `px-3 py-1.5` |
-| Body (with padding) | 16px all | `p-4` |
-| Footer | 12px horizontal, 6px vertical | `px-3 py-1.5` |
-| Gap between toolbar items | 6px | `gap-1.5` |
+| Zone | Value |
+|------|-------|
+| Title bar | 44px tall, padding `0 8px 0 14px`, 28px round controls with a 6px gap |
+| Below title bar | 12px (`pt-3`, applied by the frame — apps add none) |
+| Sidebar (`PaneSidebar`) | `.glass-subtle`, margin `0 0 8px 8px`, padding 8px, radius 14px |
+| Sidebar item | 34px tall, radius 10px, padding `0 10px`, gap 10px |
+| Toolbar | transparent, 40px, pill buttons |
+
+| Radius | Use |
+|--------|-----|
+| 4px | Menu items |
+| 6px | Inline inputs, rename fields, badges |
+| 10px | Chips, sidebar items |
+| 14px | Panes |
+| 18px | Menus, app tiles |
+| 20–22px | Cards |
+| 24px | Windows (`rounded-2xl`) |
+| 28–30px | Dock, launcher, quick settings, toasts (`rounded-3xl` = 30px) |
+| 999px | Buttons, search fields, title-bar controls |
 
 ---
 

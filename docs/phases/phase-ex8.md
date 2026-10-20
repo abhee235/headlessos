@@ -69,14 +69,54 @@ The design handoff lives outside the repo tree in `Custom OS UI Design/handoff/`
 | EX8.3 | Window chrome: `Desktop/Window.tsx` (WindowFrame) and `ui/app-window.tsx` — 24px glass frame, 44px title bar, 28px round controls, 12px body top padding | ✅ |
 | EX8.4 | Shell: floating dock + tray pill (`Taskbar`), launcher (`StartMenu`), `QuickSettings`, `NotificationCenter`, `CommandPalette`, desktop icons, `Wallpaper` | ✅ |
 | EX8.5 | Login + lock: `LockScreen`, `LoginScreen`, `ControlCenter` screen | ✅ |
-| EX8.6 | Apps: FileExplorer, SettingsView, TaskManager, Dashboard, Terminal, Docker, Services, ServerAdmin, DynamicUI widgets — fix what steps 1–4 didn't cover | ⬜ |
-| EX8.7 | Verify (light/dark, 4 accents, 3 glass levels, transparency off, 1440×900 + 1024×768), tests, docs | ⬜ |
+| EX8.6 | Apps: FileExplorer, SettingsView, TaskManager, Dashboard, Terminal, Docker, Services, ServerAdmin, DynamicUI widgets — fix what steps 1–4 didn't cover | ✅ |
+| EX8.7 | Verify (light/dark, 4 accents, 3 glass levels, transparency off, 1440×900 + 1024×768), tests, docs | ✅ |
 
-## Verification plan
+## Additions beyond the handoff
 
-- Screenshot each screen at 1440×900 and 1024×768 next to the prototype.
-- Light and dark, all four accents, all three glass levels, transparency on and off.
-- `npx tsc --noEmit -p client` and `npm run test:client` pass; snapshot changes reviewed.
+Found or asked for during the work; each has tests.
+
+- **Task Manager process detail card** (requested): clicking a process opens a
+  card above the table — name + status, PID · user, command, Suspend/Resume and
+  End task, "CPU · last 60 s" sparkline, Memory (RSS) / Threads / Started /
+  Priority — plus an All / Running / Idle / My processes filter. Backend:
+  `GET /api/servers/:id/taskmanager/process/:pid` (`ps -o nlwp=,ni=,lstart= -p PID`,
+  exact allowlist pattern) and SIGSTOP (19) / SIGCONT (18) in `killProcess`.
+- **System dashboard** shows Processor (arc gauge + per-core tiles) and live
+  network throughput by reusing the existing `fetchTaskManager` call, on the
+  dashboard's own refresh timer plus two early seed samples.
+- **Bug fixes:** the command palette never opened apps (legacy `openTab`);
+  terminal resize frames were typed into the shell (`ws` delivers Buffers —
+  `terminal/control.ts`); lock / Control Center ignored the saved theme; surface
+  recipes beat Tailwind utilities (now `@layer components`); toasts were opaque.
+- **Terminal default font** is Geist Mono 13px; only the exact old default is
+  upgraded for existing users.
+
+## Deviations from the handoff text (prototype wins where they differ)
+
+- **Button:** `default`/`primary` stay the lit call-to-action (84 call sites rely on
+  it); `secondary`/`outline` are the neutral glass pill.
+- **Dock tiles** use the prototype's 50px plates / 32px icons / 5px hover lift.
+- **Launcher search** is the prototype's recessed 46px well; server chip instead of
+  the weather chip.
+- **Maximized windows:** radius 0, no border, ending `DOCK_RESERVE` (98px) above the
+  bottom, as the handoff says.
+- **Terminal pane** is always dark (`--lumen-term-bg`), as in the prototype, not
+  `bg-paper`.
+- **Tray pill** is glyph-only (server name in its tooltip) so a wide dock never
+  collides with it.
+
+## Verification
+
+- `npx tsc --noEmit` clean for client and server.
+- Client 564 tests, server 2010 tests (+1 skipped) passing.
+- Playwright side-by-side: 13 screens × dark/light, Claude Design prototype vs
+  localhost at 1440×900 (lock, sign-in, desktop, launcher, quick settings,
+  notifications, context menu, Files, Settings, Terminal, System, Activity,
+  Server Admin), plus 1024×768 for desktop / launcher / quick settings / Files.
+- Known gaps (no data in HeadlessOS): firewall warning dot in the Server Admin
+  sidebar, OS/uptime on its host card, storage usage bars, per-core lines in the
+  Performance chart are neutral.
 
 ## Not in scope
 

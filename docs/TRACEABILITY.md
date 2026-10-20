@@ -958,6 +958,35 @@ None (all changes to existing files).
 
 ---
 
+## EX8: LumenOS v3 Design System
+
+> Glass redesign from the Claude Design handoff (`Custom OS UI Design/handoff/`). Spec: [phase-ex8.md](phases/phase-ex8.md).
+
+### EX8.1: Tokens + appearance plumbing
+- **Status:** ✅ Complete
+- **Files created:** `client/src/lib/lumen-theme.ts`, `client/src/hooks/useLumenAppearance.ts`, `client/tests/lib/lumen-theme.test.ts`, `client/public/icons/fluent/*` (+ LICENSE.txt), six wallpapers in `server/assets/wallpapers/system/`
+- **Files modified:** `client/src/styles.css` (Lumen layer, presets, surfaces in `@layer components`), `store/preferences-store.ts` (`glassStrength`, `transparency`; `accentColorIndex` → `LUMEN_ACCENTS`), `store/theme-store.ts`, `App.tsx`, `Desktop/Wallpaper.tsx`, `Desktop/wallpapers.ts` (default Dusk), `client/package.json` (@fontsource)
+
+### EX8.2–EX8.3: Primitives + window chrome
+- **Status:** ✅ Complete
+- **Files created:** `ui/menu-styles.tsx`, `ui/pane-sidebar.tsx`, `lib/format-shortcut.ts` (+ test)
+- **Files modified:** all styled `ui/` primitives, `ui/FileIcon.tsx` (Fluent icons, `AppIcon`), `ui/app-window.tsx`, `Desktop/Window.tsx`, `store/window-store.ts` (`DOCK_RESERVE`), `Desktop/DesktopLayout.tsx`
+
+### EX8.4–EX8.5: Shell, lock and sign-in
+- **Status:** ✅ Complete
+- **Files created:** `Desktop/QuickSettings.tsx`
+- **Files modified:** `Desktop/{Taskbar,StartMenu,NotificationCenter,CommandPalette,Desktop,SessionSwitcher,SessionTile,WindowManager}.tsx`, `ui/sonner.tsx`, `lib/event-bus.ts` (`palette:toggle`), `Login/*`, `ControlCenter/*`; test `tests/components/CommandPalette.test.tsx` (+2)
+
+### EX8.6: Apps
+- **Status:** ✅ Complete
+- **Files created:** `TaskManager/{parts,ProcessDetailCard}.tsx`, `Dashboard/{parts,ProcessorCard}.tsx`, `ServerAdmin/admin-ui.tsx`, `DynamicUI/widgets/widget-card.tsx`, `Agent/agent-ui.tsx`, `Terminal/lumen-terminal.ts`, `server/src/terminal/control.ts`; tests `client/tests/components/{process-detail,lumen-terminal}.test.tsx`, `server/tests/terminal/control.test.ts`
+- **Files modified:** every app folder (FileExplorer, Settings, TaskManager, Dashboard, Terminal, Docker, Services, ServerAdmin, DynamicUI, Agent, Observatory, Fleet); `server/src/routes/{taskmanager,terminal}.ts`, `server/src/services/domain/taskmanager-service.ts`, `server/src/security/validators.ts`, `server/tests/services/domain/taskmanager-service.test.ts`
+
+### EX8.7: Verification
+- **Status:** ✅ Complete
+- **Verification:** client 564 / server 2010 tests passing, both typechecks clean; Playwright side-by-side vs the prototype (13 screens × 2 themes at 1440×900, plus 1024×768); docs: `UI_DESIGN.md` §5–8, AGENTS.md §19 tokens
+- **Commits:** branch `feat/lumen-v3-design` (`feat|fix(EX8.n): …`)
+
 ## How to Use This File
 
 ### After completing a task:
