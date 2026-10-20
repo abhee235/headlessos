@@ -1,15 +1,18 @@
 // M7.1: Processes Tab — sortable process table with search + kill
 // EX8.6: LumenOS v3 restyle — pill search with count, table in a .lumen-card with a
 // fixed 11px uppercase header, 56px rows (name + mono command), slim CPU/memory bars.
+// Clicking a row opens ProcessDetailCard above the table; All / Running / Idle /
+// My processes filter the list client-side.
 // @see docs/phases/phase-7.md, docs/phases/phase-ex8.md
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Search, X, ArrowUpDown, ArrowUp, ArrowDown, Skull, Square, ClipboardCopy } from 'lucide-react';
-import type { ProcessData } from '../../lib/api';
+import type { ProcessData, ProcessSignal } from '../../lib/api';
 import { killProcess } from '../../lib/api';
+import { useAppStore } from '../../store/app-store';
+import { ProcessDetailCard, formatKb, shortProcessName, type CpuSample } from './ProcessDetailCard';
 import { cn } from '../../lib/utils';
 import { Badge } from '../ui/badge';
-import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { toast } from 'sonner';
 import {
@@ -34,12 +37,6 @@ interface ProcessesTabProps {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function formatKb(kb: number): string {
-  if (kb < 1024) return `${kb} KB`;
-  if (kb < 1024 * 1024) return `${(kb / 1024).toFixed(1)} MB`;
-  return `${(kb / 1024 / 1024).toFixed(1)} GB`;
-}
 
 function getStatBadge(stat: string): { variant: 'default' | 'success' | 'warning' | 'destructive' | 'secondary' | 'outline'; label: string } {
   const c = stat.charAt(0);
@@ -66,6 +63,24 @@ const COLS =
   'grid grid-cols-[52px_minmax(140px,1fr)_84px_86px_minmax(96px,170px)_minmax(96px,170px)_68px] items-center gap-x-3 px-4';
 const TABLE_MIN = 'min-w-[720px]';
 
+type StateFilter = 'all' | 'running' | 'idle' | 'mine';
+const STATE_FILTERS: Array<{ id: StateFilter; label: string }> = [
+  { id: 'all', label: 'All' },
+  { id: 'running', label: 'Running' },
+  { id: 'idle', label: 'Idle' },
+  { id: 'mine', label: 'My processes' },
+];
+
+/** CPU history window for the detail card */
+const HISTORY_MS = 60_000;
+
+const SIGNAL_DONE: Record<ProcessSignal, string> = {
+  15: 'ended',
+  9: 'killed',
+  19: 'suspended',
+  18: 'resumed',
+};
+
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export function ProcessesTab({ processes, serverId, onRefresh, refreshing, onContextMenuOpenChange }: ProcessesTabProps) {
@@ -74,11 +89,37 @@ export function ProcessesTab({ processes, serverId, onRefresh, refreshing, onCon
   const [sortAsc, setSortAsc] = useState(false);
   const [selectedPid, setSelectedPid] = useState<number | null>(null);
   const [killing, setKilling] = useState(false);
+  const [stateFilter, setStateFilter] = useState<StateFilter>('all');
+  const [cpuHistory, setCpuHistory] = useState<Map<number, CpuSample[]>>(() => new Map());
+  const username = useAppStore((s) => s.servers.find((srv) => srv.id === serverId)?.username);
+
+  // One CPU sample per PID per refresh; keep the last 60 s, drop exited PIDs.
+  useEffect(() => {
+    const now = Date.now();
+    setCpuHistory((prev) => {
+      const next = new Map<number, CpuSample[]>();
+      for (const p of processes) {
+        const kept = (prev.get(p.pid) ?? []).filter((s) => now - s.t <= HISTORY_MS);
+        next.set(p.pid, [...kept, { t: now, cpu: p.cpu }]);
+      }
+      return next;
+    });
+  }, [processes]);
+
+  const selectedProcess = selectedPid !== null ? processes.find((p) => p.pid === selectedPid) : undefined;
+
+  // Close the card when the selected process exits
+  useEffect(() => {
+    if (selectedPid !== null && !processes.some((p) => p.pid === selectedPid)) setSelectedPid(null);
+  }, [processes, selectedPid]);
 
   // Filter + sort
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     let list = processes;
+    if (stateFilter === 'running') list = list.filter((p) => p.stat.startsWith('R'));
+    else if (stateFilter === 'idle') list = list.filter((p) => /^[SI]/.test(p.stat));
+    else if (stateFilter === 'mine' && username) list = list.filter((p) => p.user === username);
     if (q) {
       list = list.filter(
         (p) =>
@@ -112,7 +153,7 @@ export function ProcessesTab({ processes, serverId, onRefresh, refreshing, onCon
       return sortAsc ? cmp : -cmp;
     });
     return list;
-  }, [processes, search, sortField, sortAsc]);
+  }, [processes, search, sortField, sortAsc, stateFilter, username]);
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) {
@@ -123,21 +164,22 @@ export function ProcessesTab({ processes, serverId, onRefresh, refreshing, onCon
     }
   };
 
-  const handleKill = async (signal: 9 | 15, targetPid?: number) => {
+  const handleKill = async (signal: ProcessSignal, targetPid?: number) => {
     const pid = targetPid ?? selectedPid;
     if (!pid) return;
     setKilling(true);
     try {
       const res = await killProcess(serverId, pid, signal);
       if (res.success) {
-        toast.success(`Process ${pid} killed`);
-        setSelectedPid(null);
+        toast.success(`Process ${pid} ${SIGNAL_DONE[signal]}`);
+        // Suspend / resume keep the card open; ending the process closes it
+        if (signal === 15 || signal === 9) setSelectedPid(null);
         onRefresh();
       } else {
-        toast.error(res.error ?? 'Failed to kill process');
+        toast.error(res.error ?? 'Failed to signal process');
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Kill failed');
+      toast.error(err instanceof Error ? err.message : 'Signal failed');
     } finally {
       setKilling(false);
     }
@@ -197,19 +239,39 @@ export function ProcessesTab({ processes, serverId, onRefresh, refreshing, onCon
           </div>
         </div>
 
-        {/* Kill buttons */}
-        {selectedPid && (
-          <div className="flex shrink-0 items-center gap-1.5">
-            <Button variant="secondary" size="sm" onClick={() => handleKill(15)} disabled={killing}>
-              End Task
-            </Button>
-            <Button variant="destructive" size="sm" onClick={() => handleKill(9)} disabled={killing}>
-              <Skull />
-              Force Kill
-            </Button>
-          </div>
-        )}
+        {/* State filter (segmented) */}
+        <div className="flex shrink-0 rounded-full bg-fill p-[3px]" role="radiogroup" aria-label="Filter processes">
+          {STATE_FILTERS.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              role="radio"
+              aria-checked={stateFilter === f.id}
+              onClick={() => setStateFilter(f.id)}
+              disabled={f.id === 'mine' && !username}
+              className={cn(
+                'h-8 rounded-full px-3.5 text-[13px] font-semibold transition-colors duration-150 disabled:opacity-40',
+                stateFilter === f.id ? 'lumen-lit' : 'text-label-2 hover:text-foreground',
+              )}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
       </div>
+
+      {/* ── Detail card for the selected process ── */}
+      {selectedProcess && (
+        <ProcessDetailCard
+          process={selectedProcess}
+          serverId={serverId}
+          cpuHistory={cpuHistory.get(selectedProcess.pid) ?? []}
+          status={getStatBadge(selectedProcess.stat)}
+          busy={killing}
+          onSignal={(sig) => handleKill(sig, selectedProcess.pid)}
+          onClose={() => setSelectedPid(null)}
+        />
+      )}
 
       {/* ── Table ── */}
       <div role="table" aria-label="Processes" className="lumen-card flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px]">
@@ -235,8 +297,7 @@ export function ProcessesTab({ processes, serverId, onRefresh, refreshing, onCon
               )}
               {filtered.map((p) => {
                 const statBadge = getStatBadge(p.stat);
-                // Extract short name from command
-                const shortName = p.command.split('/').pop()?.split(' ')[0] ?? p.command;
+                const shortName = shortProcessName(p.command);
                 const selected = selectedPid === p.pid;
                 return (
                   <ContextMenu key={p.pid} onOpenChange={onContextMenuOpenChange}>

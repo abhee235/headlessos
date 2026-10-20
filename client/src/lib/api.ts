@@ -569,10 +569,13 @@ export async function fetchTaskManager(serverId: string): Promise<TaskManagerRes
   return request<TaskManagerResponse>(`/servers/${serverId}/taskmanager`);
 }
 
+/** 15 SIGTERM · 9 SIGKILL · 19 SIGSTOP (suspend) · 18 SIGCONT (resume) */
+export type ProcessSignal = 9 | 15 | 18 | 19;
+
 export async function killProcess(
   serverId: string,
   pid: number,
-  signal: 9 | 15 = 15,
+  signal: ProcessSignal = 15,
 ): Promise<{ success: boolean; error?: string }> {
   return request<{ success: boolean; error?: string }>(
     `/servers/${serverId}/taskmanager/kill`,
@@ -580,6 +583,25 @@ export async function killProcess(
       method: 'POST',
       body: JSON.stringify({ pid, signal }),
     },
+  );
+}
+
+// EX8.6: extra fields for the Task Manager process detail card
+export interface ProcessDetailData {
+  pid: number;
+  threads: number | null;
+  /** nice value, -20 (highest priority) … 19 (lowest) */
+  nice: number | null;
+  /** start timestamp as printed by `ps -o lstart`, e.g. "Tue Oct 20 16:28:01 2026" */
+  startedAt: string | null;
+}
+
+export async function fetchProcessDetail(
+  serverId: string,
+  pid: number,
+): Promise<{ success: boolean; data?: ProcessDetailData; error?: string }> {
+  return request<{ success: boolean; data?: ProcessDetailData; error?: string }>(
+    `/servers/${serverId}/taskmanager/process/${pid}`,
   );
 }
 

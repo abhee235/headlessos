@@ -30,6 +30,42 @@ export interface TaskManagerSnapshot {
   diskIo: DiskIoParsed;
 }
 
+/** EX8.6: extra fields for the Task Manager process detail card */
+export interface ProcessDetail {
+  pid: number;
+  threads: number | null;
+  /** nice value, -20 (highest priority) … 19 (lowest) */
+  nice: number | null;
+  /** full start timestamp as printed by `ps -o lstart` */
+  startedAt: string | null;
+}
+
+/**
+ * Signals the Task Manager may send. Numbers are the Linux x86/ARM values,
+ * which the `kill -N pid` allowlist pattern requires.
+ */
+export const ALLOWED_SIGNALS: Record<number, string> = {
+  9: 'SIGKILL',
+  15: 'SIGTERM',
+  18: 'SIGCONT', // resume a suspended process
+  19: 'SIGSTOP', // suspend
+};
+
+/** Parse `ps -o nlwp=,ni=,lstart= -p PID` → "  2  10 Tue Oct 20 16:28:01 2026" */
+export function parseProcessDetail(pid: number, stdout: string): ProcessDetail | null {
+  const line = stdout.trim().split('\n')[0]?.trim();
+  if (!line) return null;
+  const [nlwp, ni, ...rest] = line.split(/\s+/);
+  const threads = Number.parseInt(nlwp ?? '', 10);
+  const nice = Number.parseInt(ni ?? '', 10); // "-" for some kernel threads
+  return {
+    pid,
+    threads: Number.isFinite(threads) ? threads : null,
+    nice: Number.isFinite(nice) ? nice : null,
+    startedAt: rest.length > 0 ? rest.join(' ') : null,
+  };
+}
+
 export interface TaskManagerResult {
   data: TaskManagerSnapshot;
   steps: StepMeta[];
@@ -115,9 +151,9 @@ export class TaskManagerService extends DomainService {
     if (isNaN(pidNum) || pidNum <= 0 || !Number.isInteger(pidNum)) {
       return fail('Invalid PID', 400);
     }
-    // Restrict to SIGTERM (15) and SIGKILL (9) for safety
-    if (signal !== 9 && signal !== 15) {
-      return fail('Signal must be 9 (SIGKILL) or 15 (SIGTERM)', 400);
+    // Restricted for safety: terminate, kill, suspend, resume
+    if (!(signal in ALLOWED_SIGNALS)) {
+      return fail('Signal must be 9 (SIGKILL), 15 (SIGTERM), 19 (SIGSTOP) or 18 (SIGCONT)', 400);
     }
 
     const result = await this.exec(serverId, `kill -${signal} ${pidNum}`, 5_000);
@@ -128,5 +164,27 @@ export class TaskManagerService extends DomainService {
       );
     }
     return ok(undefined);
+  }
+
+  // ── Process detail (EX8.6) ───────────────────────────
+
+  async getProcessDetail(serverId: string, pid: string | number): Promise<ServiceResult<ProcessDetail>> {
+    try {
+      this.requireConnected(serverId);
+    } catch (err) {
+      const e = err as Error & { statusCode?: number };
+      return fail(e.message ?? 'Not connected', e.statusCode ?? 500);
+    }
+
+    const pidNum = parseInt(String(pid), 10);
+    if (isNaN(pidNum) || pidNum <= 0 || !Number.isInteger(pidNum) || String(pidNum) !== String(pid).trim()) {
+      return fail('Invalid PID', 400);
+    }
+
+    const result = await this.exec(serverId, `ps -o nlwp=,ni=,lstart= -p ${pidNum}`, 5_000);
+    // ps exits 1 when the PID no longer exists
+    const detail = result.exitCode === 0 ? parseProcessDetail(pidNum, result.stdout) : null;
+    if (!detail) return fail(`Process ${pidNum} not found`, 404);
+    return ok(detail);
   }
 }

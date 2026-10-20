@@ -35,6 +35,8 @@ export const ALLOWED_COMMANDS = new Map<string, CommandRule>([
   ['ip', { pattern: /^ip\s+(-brief\s+)?addr/, risk: 'none' }],
   ['ip route', { pattern: /^ip\s+route(\s+show)?$/, risk: 'none' }],
   ['ps', { pattern: /^ps\s+(aux|ef)/, risk: 'none' }],
+  // EX8.6: Task Manager process detail (threads, nice, start time) for one PID
+  ['ps -o', { pattern: /^ps\s+-o\s+nlwp=,ni=,lstart=\s+-p\s+\d{1,7}$/, risk: 'none' }],
   ['cat /proc/cpuinfo', { pattern: /^cat\s+\/proc\/cpuinfo$/, risk: 'none' }],
   ['cat /proc/meminfo', { pattern: /^cat\s+\/proc\/meminfo$/, risk: 'none' }],
   ['cat /etc/os-release', { pattern: /^cat\s+\/etc\/os-release$/, risk: 'none' }],

@@ -25,6 +25,17 @@ export async function taskManagerRoutes(
     },
   );
 
+  // ── GET /api/servers/:id/taskmanager/process/:pid — detail card (EX8.6) ──
+
+  fastify.get<{ Params: { id: string; pid: string } }>(
+    '/api/servers/:id/taskmanager/process/:pid',
+    async (req, reply) => {
+      const r = await taskManagerService.getProcessDetail(req.params.id, req.params.pid);
+      if (!r.ok) { reply.code(r.statusCode ?? 500); return { success: false, error: r.error }; }
+      return { success: true, data: r.data };
+    },
+  );
+
   // ── POST /api/servers/:id/taskmanager/kill ─────────────
 
   fastify.post<{ Params: { id: string }; Body: { pid: number; signal?: number } }>(

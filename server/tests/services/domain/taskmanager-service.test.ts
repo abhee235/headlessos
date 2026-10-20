@@ -3,7 +3,8 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ServiceContainer } from '../../../src/services/container.js';
-import { TaskManagerService } from '../../../src/services/domain/taskmanager-service.js';
+import { TaskManagerService, parseProcessDetail } from '../../../src/services/domain/taskmanager-service.js';
+import { validateCommand } from '../../../src/security/validators.js';
 import { BaseService } from '../../../src/services/base-service.js';
 import type { ExecResult } from '../../../src/ssh/connection-manager.js';
 
@@ -131,5 +132,63 @@ describe('TaskManagerService', () => {
       expect(r.ok).toBe(false);
       expect(r.error).toContain('Operation not permitted');
     });
+  });
+
+  // ── EX8.6: suspend / resume + process detail ──
+  describe('killProcess suspend/resume (EX8.6)', () => {
+    it('sends SIGSTOP (19) and SIGCONT (18)', async () => {
+      ssh.exec.mockResolvedValue(execOk('', 0));
+      expect((await svc.killProcess('s1', '42', 19)).ok).toBe(true);
+      expect(ssh.exec).toHaveBeenLastCalledWith('s1', 'kill -19 42', expect.any(Number));
+      expect((await svc.killProcess('s1', '42', 18)).ok).toBe(true);
+      expect(ssh.exec).toHaveBeenLastCalledWith('s1', 'kill -18 42', expect.any(Number));
+    });
+
+    it('still rejects other signals', async () => {
+      for (const sig of [1, 2, 17, 20]) {
+        const r = await svc.killProcess('s1', '42', sig);
+        expect(r.ok).toBe(false);
+        expect(r.statusCode).toBe(400);
+      }
+    });
+  });
+
+  describe('getProcessDetail (EX8.6)', () => {
+    it('runs the allowlisted ps query and parses threads, nice and start time', async () => {
+      ssh.exec.mockResolvedValue(execOk('    2  10 Tue Oct 20 16:28:01 2026\n'));
+      const r = await svc.getProcessDetail('s1', '4205');
+      expect(ssh.exec).toHaveBeenCalledWith('s1', 'ps -o nlwp=,ni=,lstart= -p 4205', expect.any(Number));
+      expect(r.ok).toBe(true);
+      if (r.ok) expect(r.data).toEqual({ pid: 4205, threads: 2, nice: 10, startedAt: 'Tue Oct 20 16:28:01 2026' });
+      expect(() => validateCommand('ps -o nlwp=,ni=,lstart= -p 4205')).not.toThrow();
+    });
+
+    it('returns 404 when the process is gone (ps exits 1)', async () => {
+      ssh.exec.mockResolvedValue(execOk('', 1));
+      const r = await svc.getProcessDetail('s1', '999');
+      expect(r.ok).toBe(false);
+      expect(r.statusCode).toBe(404);
+    });
+
+    it('rejects non-numeric or injected PIDs without running anything', async () => {
+      for (const pid of ['abc', '0', '-1', '12;id', '12 13']) {
+        const r = await svc.getProcessDetail('s1', pid);
+        expect(r.ok).toBe(false);
+        expect(r.statusCode).toBe(400);
+      }
+      expect(ssh.exec).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('parseProcessDetail', () => {
+    it('handles "-" nice for kernel threads and empty output', () => {
+      expect(parseProcessDetail(2, '   1   - Mon Oct 19 01:00:00 2026')).toEqual({ pid: 2, threads: 1, nice: null, startedAt: 'Mon Oct 19 01:00:00 2026' });
+      expect(parseProcessDetail(3, '')).toBeNull();
+    });
+  });
+
+  it('allowlist only accepts the exact detail query', () => {
+    expect(() => validateCommand('ps -o nlwp=,ni=,lstart= -p 12 | sh')).toThrow();
+    expect(() => validateCommand('ps -o comm= -p 12')).toThrow();
   });
 });
