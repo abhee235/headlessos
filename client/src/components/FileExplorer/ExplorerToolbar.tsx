@@ -18,6 +18,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FileIcon } from '@/components/ui/FileIcon';
+import { SEGMENT_WELL, segmentItemClass } from '@/components/ui/segmented';
 
 export type ViewMode = 'details' | 'list' | 'small-icons' | 'large-icons';
 
@@ -138,19 +139,13 @@ export function ExplorerToolbar({
       )}
 
       {/* View mode switcher — round buttons in a fill capsule */}
-      <div className="ml-1 flex shrink-0 items-center gap-0.5 rounded-full bg-fill p-[3px]">
+      <div className={cn(SEGMENT_WELL, 'ml-1')}>
         {VIEW_MODES.map(({ mode, icon: Icon, label }) => (
           <button
             type="button"
             key={mode}
             onClick={() => onViewModeChange(mode)}
-            className={cn(
-              'grid h-7 w-7 place-items-center rounded-full transition-colors duration-150',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              viewMode === mode
-                ? 'bg-accent-soft text-accent-text'
-                : 'text-label-2 hover:bg-fill-2 hover:text-foreground',
-            )}
+            className={segmentItemClass(viewMode === mode, 'w-8 px-0')}
             title={label}
             aria-pressed={viewMode === mode}
           >

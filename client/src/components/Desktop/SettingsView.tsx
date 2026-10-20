@@ -46,6 +46,7 @@ import { WallpaperPreview } from './Wallpaper';
 import { cn } from '../../lib/utils';
 import { ConfirmDialog } from '../ui/confirm-dialog';
 import { PaneSidebar, PaneSidebarItem } from '../ui/pane-sidebar';
+import { Segmented } from '../ui/segmented';
 import { Switch } from '../ui/switch';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -188,55 +189,7 @@ function RowValue({ children, className }: { children: React.ReactNode; classNam
   return <span className={cn('text-[15px] text-label-2 tabular-nums', className)}>{children}</span>;
 }
 
-/** Segmented pill: bg-fill well (3px), 32px rounded-full options, selected on bg-mat-thick. */
-function Segmented<T extends string | number>({
-  value,
-  onChange,
-  options,
-}: {
-  value: T;
-  onChange: (value: T) => void;
-  options: ReadonlyArray<{
-    value: T;
-    label: string;
-    icon?: LucideIcon | React.ReactElement;
-    testId?: string;
-  }>;
-}) {
-  return (
-    <div className="inline-flex shrink-0 rounded-full bg-fill p-[3px]">
-      {options.map((opt) => {
-        const selected = opt.value === value;
-        let iconNode: React.ReactNode = null;
-        if (isValidElement(opt.icon)) {
-          iconNode = opt.icon;
-        } else if (opt.icon) {
-          const Icon = opt.icon as LucideIcon;
-          iconNode = <Icon className="h-[17px] w-[17px] shrink-0" strokeWidth={1.75} />;
-        }
-        return (
-          <button
-            key={String(opt.value)}
-            type="button"
-            onClick={() => onChange(opt.value)}
-            aria-pressed={selected}
-            data-testid={opt.testId}
-            className={cn(
-              'flex h-8 items-center gap-2 whitespace-nowrap rounded-full px-4 text-[14px] transition-[background,color,box-shadow] duration-150',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              selected
-                ? 'bg-mat-thick text-foreground shadow-[0_1px_3px_rgba(0,0,0,.18),var(--lumen-spec)]'
-                : 'text-label-2 hover:text-foreground',
-            )}
-          >
-            {iconNode}
-            {opt.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
+// EX8.14: Segmented now lives in ui/segmented.tsx (shared by every tab/filter control)
 
 /** Pill dropdown on the Select primitive, for numeric or string preference values. */
 function SelectPill<T extends string | number>({

@@ -22,6 +22,7 @@ import { FleetDashboardView } from '../Fleet/FleetDashboardView';
 import { GlobalSettingsSection } from './GlobalSettingsSection';
 import { WakeConfirmDialog } from '../Desktop/WakeConfirmDialog';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { segmentItemClass } from '@/components/ui/segmented';
 
 type Section = 'sessions' | 'fleet' | 'settings';
 
@@ -54,7 +55,7 @@ export function ControlCenter() {
           <nav
             role="tablist"
             aria-label="Control Center sections"
-            className="glass-heavy flex items-center gap-0.5 rounded-full p-1"
+            className="glass-heavy flex items-center rounded-full p-[2px]"
           >
             {SECTIONS.map(({ id, label, Icon }) => {
               const active = section === id;
@@ -65,12 +66,7 @@ export function ControlCenter() {
                   aria-selected={active}
                   aria-controls={`cc-panel-${id}`}
                   onClick={() => setSection(id)}
-                  className={cn(
-                    'flex h-8 items-center gap-2 rounded-full px-4 text-[13px] font-semibold transition-[background,color,box-shadow] duration-150',
-                    active
-                      ? 'bg-mat-thick text-foreground shadow-[0_1px_3px_rgba(0,0,0,.18),var(--lumen-spec)]'
-                      : 'text-label-2 hover:text-foreground',
-                  )}
+                  className={segmentItemClass(active)}
                   data-testid={`cc-tab-${id}`}
                 >
                   <Icon className="h-4 w-4" strokeWidth={1.75} />

@@ -23,6 +23,7 @@ import {
   ContextMenuTrigger,
 } from '../ui/context-menu';
 import { Meter, SERIES } from './parts';
+import { SEGMENT_WELL, segmentItemClass } from '@/components/ui/segmented';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -262,7 +263,7 @@ export function ProcessesTab({ processes, serverId, onRefresh, refreshing, onCon
         </div>
 
         {/* State filter (segmented) */}
-        <div className="flex shrink-0 rounded-full bg-fill p-[3px]" role="radiogroup" aria-label="Filter processes">
+        <div className={SEGMENT_WELL} role="radiogroup" aria-label="Filter processes">
           {STATE_FILTERS.map((f) => (
             <button
               key={f.id}
@@ -271,10 +272,7 @@ export function ProcessesTab({ processes, serverId, onRefresh, refreshing, onCon
               aria-checked={stateFilter === f.id}
               onClick={() => setStateFilter(f.id)}
               disabled={f.id === 'mine' && !username}
-              className={cn(
-                'h-8 rounded-full px-3.5 text-[13px] font-semibold transition-colors duration-150 disabled:opacity-40',
-                stateFilter === f.id ? 'lumen-lit' : 'text-label-2 hover:text-foreground',
-              )}
+              className={segmentItemClass(stateFilter === f.id)}
             >
               {f.label}
             </button>

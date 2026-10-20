@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TableHead, TableRow, TableCell } from '@/components/ui/table';
+import { SEGMENT_WELL, SegmentCount, segmentItemClass } from '@/components/ui/segmented';
 
 // ── Section header ───────────────────────────────────────────────
 // 40px icon tile · 24px bold title + status badge · 13px host line · actions on the right
@@ -76,7 +77,7 @@ export function SectionBody({ className, children }: { className?: string; child
 }
 
 // ── Segmented sub-tabs (Radix Tabs) ──────────────────────────────
-// Pill well; the active pill is .lumen-lit with a translucent count chip.
+// EX8.14: the Settings segmented look (ui/segmented.tsx) — raised theme pill, not the accent.
 
 export interface SegmentItem<T extends string = string> {
   value: T;
@@ -85,21 +86,8 @@ export interface SegmentItem<T extends string = string> {
 }
 
 export function CountChip({ children, lit = false, className }: { children: React.ReactNode; lit?: boolean; className?: string }) {
-  return (
-    <span
-      className={cn(
-        'inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-semibold leading-none tabular-nums',
-        lit ? 'bg-current/20' : 'bg-fill text-label-2',
-        className,
-      )}
-    >
-      {children}
-    </span>
-  );
+  return <SegmentCount selected={lit} className={className}>{children}</SegmentCount>;
 }
-
-const SEGMENT_WELL = 'h-10 border border-edge p-1';
-const SEGMENT_ITEM = 'h-8 gap-2 px-4 text-[13px] font-semibold text-label-2 hover:text-foreground';
 
 /** Render inside a controlled `<Tabs value=…>` — `value` must match it so the active pill can be lit. */
 export function SegmentTabs<T extends string>({
@@ -112,11 +100,11 @@ export function SegmentTabs<T extends string>({
   className?: string;
 }) {
   return (
-    <TabsList className={cn(SEGMENT_WELL, className)}>
+    <TabsList className={className}>
       {items.map((item) => {
         const active = item.value === value;
         return (
-          <TabsTrigger key={item.value} value={item.value} className={cn(SEGMENT_ITEM, active && 'lumen-lit')}>
+          <TabsTrigger key={item.value} value={item.value}>
             {item.label}
             {item.count !== undefined && <CountChip lit={active}>{item.count}</CountChip>}
           </TabsTrigger>
@@ -139,7 +127,7 @@ export function SegmentButtons<T extends string>({
   className?: string;
 }) {
   return (
-    <div className={cn('inline-flex items-center gap-0.5 rounded-full bg-fill', SEGMENT_WELL, className)}>
+    <div className={cn(SEGMENT_WELL, className)}>
       {items.map((item) => {
         const active = item.value === value;
         return (
@@ -147,11 +135,8 @@ export function SegmentButtons<T extends string>({
             key={item.value}
             type="button"
             onClick={() => onChange(item.value)}
-            className={cn(
-              'inline-flex items-center justify-center whitespace-nowrap rounded-full transition-[background,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              SEGMENT_ITEM,
-              active && 'lumen-lit',
-            )}
+            aria-pressed={active}
+            className={segmentItemClass(active)}
           >
             {item.label}
             {item.count !== undefined && <CountChip lit={active}>{item.count}</CountChip>}

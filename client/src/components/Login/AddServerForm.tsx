@@ -9,6 +9,7 @@ import {
   Server, KeyRound, Upload, FileText, ChevronDown, Check, FolderOpen } from 'lucide-react';
 import { fetchSSHKeys, fetchSSHKeyContent, type SSHKeyInfo } from '../../lib/api';
 import { Spinner } from '@/components/ui/spinner';
+import { SEGMENT_WELL, segmentItemClass } from '@/components/ui/segmented';
 
 type AuthMethod = 'password' | 'privateKey' | 'agent';
 type KeySource = 'detect' | 'upload' | 'paste';
@@ -218,18 +219,13 @@ export function AddServerForm({ onSubmit, onCancel }: AddServerFormProps) {
         {/* Auth Method */}
         <div>
           <label className={labelClass}>Authentication</label>
-          <div className="flex gap-0.5 rounded-full bg-fill p-[3px]">
+          <div className={`${SEGMENT_WELL} flex w-full`}>
             {(['password', 'privateKey', 'agent'] as AuthMethod[]).map(method => (
               <button
                 key={method}
                 type="button"
-                className={`
-                  flex-1 h-8 rounded-full text-xs font-semibold transition-all
-                  ${authMethod === method
-                    ? 'bg-mat-thick text-foreground shadow-[0_1px_3px_rgba(0,0,0,.18),var(--lumen-spec)]'
-                    : 'text-label-2 hover:text-foreground'
-                  }
-                `}
+                aria-pressed={authMethod === method}
+                className={segmentItemClass(authMethod === method, 'flex-1 px-2')}
                 onClick={() => {
                   setAuthMethod(method);
                   setError(null);

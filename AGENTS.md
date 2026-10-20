@@ -859,7 +859,7 @@ All UI primitives live in `client/src/components/ui/`. They use the CSS variable
 - **Need a side panel/drawer?** → `Sheet` (sliding from any edge) or `Drawer` (bottom sheet mobile-style)
 - **Need a toast notification?** → `Toaster` from `sonner.tsx` + `toast()` from `sonner`
 - **Need a command palette?** → `Command` (cmdk-powered, searchable list)
-- **Need tabs?** → `Tabs` / `TabsList` / `TabsTrigger` / `TabsContent`
+- **Need tabs?** → `Tabs` / `TabsList` / `TabsTrigger` / `TabsContent` (tab panels) or `Segmented` from `segmented.tsx` (button groups, filters, options). Both share one look — never hand-roll a pill group or light the selected pill with the accent; use `SEGMENT_WELL` + `segmentItemClass(selected)` for custom ones
 - **Need a form?** → `Form` (react-hook-form + Zod integration) with `Input`, `Textarea`, `Select`, `Checkbox`, `Switch`, `RadioGroup`
 - **Need a data table?** → `Table` (styled HTML table) — for advanced features, compose with sorting/filtering
 - **Need charts?** → `ChartContainer` + recharts components (BarChart, LineChart, etc.) with theme-aware tooltips
@@ -947,6 +947,7 @@ All files are in `client/src/components/ui/`. Import pattern: `import { Componen
 | Component | File | Base | Key Exports |
 |-----------|------|------|-------------|
 | AppWindow | `app-window.tsx` | Radix Dialog + compound | `AppWindow`, `AppWindow.Sidebar`, `AppWindow.SidebarGroup`, `AppWindow.SidebarItem`, `AppWindow.Toolbar`, `AppWindow.Body`, `AppWindow.Footer` — **standard for all overlay dialogs** |
+| Segmented | `segmented.tsx` | Custom | `Segmented`, `SEGMENT_WELL`, `SEGMENT_ITEM`, `SEGMENT_ON`, `SEGMENT_OFF`, `segmentItemClass`, `SegmentCount` — the one tab/filter look (38px well, 32px 14px options, selected on `bg-mat-thick`) |
 | CodeEditor | `code-editor.tsx` | Monaco (lazy chunk) | `CodeEditor` (`value`, `onChange`, `path` → language, `onSave` on Ctrl/⌘+S, `readOnly`) — use for any code/config file editing; never import `code-editor-impl` directly |
 | FileIcon | `FileIcon.tsx` | Custom SVG | `FileIcon`, `DashboardIcon`, `FileExplorerIcon`, `TerminalIcon`, `ThisPCIcon`, `FolderSVG`, `SymlinkSVG`, `FileSVG`, `getFileCategory`, `FILE_COLORS` |
 | Visually Hidden | `visually-hidden.tsx` | Radix | `VisuallyHidden` (accessibility: hidden but screen-reader visible) |

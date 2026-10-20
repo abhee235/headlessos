@@ -79,6 +79,7 @@ The design handoff lives outside the repo tree in `Custom OS UI Design/handoff/`
 | EX8.11 | Top menu bar (updated design): the bottom-right tray pill moves to a 28px strip; Quick Settings and notifications hang from the top-right | ✅ |
 | EX8.12 | Dock position setting (requested): bottom-centre (default) or right-middle; only the dock moves | ✅ |
 | EX8.13 | Task Manager process detail card re-ported from `Activity.dc.html`: same flex-wrap reflow at every width | ✅ |
+| EX8.14 | One segmented/tab look everywhere (requested): the Settings control | ✅ |
 
 ## Additions beyond the handoff
 
@@ -248,6 +249,20 @@ sizes in border-box terms. Measured at card widths 1180, 740 and 500px against t
 prototype: every column's x, y, width and height match, including the wrap at
 500px (details on top, chart + facts below). The toolbar → card → table gaps are
 14px, as in the prototype.
+
+## EX8.14 — One segmented / tab control
+
+The user preferred Settings' segmented control: a `bg-fill` well with 3px padding,
+32px rounded-full options in 14px regular text, and the selected option raised on
+`bg-mat-thick` (the theme surface). Other tab groups differed: Server Admin's lit
+accent pills in a 40px bordered well, Task Manager's lit filters, Files' accent-tinted
+view-mode circles, and 12–13px semibold pills elsewhere. `ui/segmented.tsx` now
+holds the classes and a `Segmented` component; `ui/tabs.tsx`, Settings, Server Admin
+(`SegmentTabs`, `SegmentButtons`), Task Manager (processes, services), Files view
+mode, Quick Settings glass strength, Observatory filters, Control Center sections
+and the Add server auth switch use it. Measured live: every one has a 38px well,
+32px options, 14px / 400 text and the same selected background and colours as
+Settings.
 
 ## Deviations from the handoff text (prototype wins where they differ)
 

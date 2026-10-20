@@ -18,6 +18,7 @@ import { RotateCw, Trash2 } from 'lucide-react';
 import { SpanStatusIcon } from './SpanKindIcon';
 import { formatTokens, formatCost, formatLatency, getStatusColor } from './constants';
 import type { TraceTrigger, SpanStatus } from 'headlessos-shared/schemas/observatory';
+import { SEGMENT_WELL, segmentItemClass } from '@/components/ui/segmented';
 
 // ── Helpers ──
 
@@ -43,8 +44,8 @@ const TRIGGER_VARIANTS: Record<string, 'default' | 'secondary' | 'outline'> = {
 const TRIGGER_LABELS: string[] = ['ui-agent', 'dynamic-ui', 'investigation-agent', 'api', 'manual'];
 
 /** Segmented filter well + its pill segments */
-const FILTER_WELL_CLASS = 'flex items-center gap-0.5 rounded-full bg-fill p-[3px]';
-const FILTER_PILL_CLASS = 'h-7 rounded-full px-3 text-xs';
+// EX8.14: filters use the shared segmented look (ui/segmented.tsx)
+const FILTER_WELL_CLASS = SEGMENT_WELL;
 /** List-view header / cell recipes */
 const HEAD_CLASS = 'sticky top-0 z-[1] h-[34px] bg-mat-thick px-3 text-[11px] font-bold uppercase tracking-[.06em] text-label-3 first:pl-4 last:pr-4';
 const CELL_CLASS = 'h-[34px] px-3 py-1.5 first:pl-4 last:pr-4';
@@ -73,42 +74,42 @@ export function TraceListView() {
 
         {/* Trigger filter */}
         <div className={FILTER_WELL_CLASS}>
-          <Button
-            size="sm"
-            variant={filters.trigger ? 'ghost' : 'secondary'}
-            className={FILTER_PILL_CLASS}
+          <button
+            type="button"
+            aria-pressed={!filters.trigger}
+            className={segmentItemClass(!filters.trigger)}
             onClick={() => setFilter({ trigger: undefined })}
           >
             All
-          </Button>
+          </button>
           {TRIGGER_LABELS.map((t) => (
-            <Button
+            <button
               key={t}
-              size="sm"
-              variant={filters.trigger === t ? 'secondary' : 'ghost'}
-              className={FILTER_PILL_CLASS}
+              type="button"
+              aria-pressed={filters.trigger === t}
+              className={segmentItemClass(filters.trigger === t)}
               onClick={() => setFilter({ trigger: t as TraceTrigger })}
             >
               {t}
-            </Button>
+            </button>
           ))}
         </div>
 
         {/* Status filter — with SpanStatusIcon */}
         <div className={FILTER_WELL_CLASS}>
           {STATUS_LABELS.map((s) => (
-            <Button
+            <button
               key={s}
-              size="sm"
-              variant={filters.status === s ? 'secondary' : 'ghost'}
-              className={cn(FILTER_PILL_CLASS, 'gap-1.5')}
+              type="button"
+              aria-pressed={filters.status === s}
+              className={segmentItemClass(filters.status === s, 'gap-1.5')}
               onClick={() =>
                 setFilter({ status: filters.status === s ? undefined : s })
               }
             >
               <SpanStatusIcon status={s} size={12} />
               <span>{s}</span>
-            </Button>
+            </button>
           ))}
         </div>
 

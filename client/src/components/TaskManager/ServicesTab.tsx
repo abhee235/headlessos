@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { fetchServices, serviceAction, type ServiceData, type ServicesResponse } from '../../lib/api';
 import { EmptyRows, PageState, ROW, TableCard, usePolled } from './kit';
+import { SEGMENT_WELL, segmentItemClass } from '@/components/ui/segmented';
 
 type Filter = 'all' | 'running' | 'stopped';
 
@@ -118,7 +119,7 @@ export function ServicesTab({ serverId }: { serverId: string }) {
             </span>
           </div>
         </div>
-        <div className="flex shrink-0 rounded-full bg-fill p-[3px]" role="radiogroup" aria-label="Filter services">
+        <div className={SEGMENT_WELL} role="radiogroup" aria-label="Filter services">
           {FILTERS.map((f) => (
             <button
               key={f.id}
@@ -126,10 +127,7 @@ export function ServicesTab({ serverId }: { serverId: string }) {
               role="radio"
               aria-checked={filter === f.id}
               onClick={() => setFilter(f.id)}
-              className={cn(
-                'h-8 rounded-full px-3.5 text-[13px] font-semibold transition-colors duration-150',
-                filter === f.id ? 'lumen-lit' : 'text-label-2 hover:text-foreground',
-              )}
+              className={segmentItemClass(filter === f.id)}
             >
               {f.label}
             </button>

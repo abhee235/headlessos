@@ -1,7 +1,9 @@
 // shadcn/ui: Tabs — LumenOS v3 segmented control (EX8.2): pill well, raised mat-thick thumb
+// EX8.14: classes shared with ui/segmented.tsx (the Settings look: 14px, 32px pills)
 import * as React from "react";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { cn } from "@/lib/utils";
+import { SEGMENT_ITEM, SEGMENT_WELL } from "./segmented";
 
 const Tabs = TabsPrimitive.Root;
 
@@ -12,7 +14,8 @@ const TabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      "inline-flex h-[38px] items-center justify-center gap-0.5 rounded-full bg-fill p-[3px] text-label-2",
+      SEGMENT_WELL,
+      "justify-center text-label-2",
       className
     )}
     {...props}
@@ -27,7 +30,8 @@ const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      "inline-flex h-8 items-center justify-center gap-2 whitespace-nowrap rounded-full px-4 text-[13px] font-semibold transition-[background,color,box-shadow] duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-mat-thick data-[state=active]:text-foreground data-[state=active]:shadow-[0_1px_3px_rgba(0,0,0,.18),var(--lumen-spec)] [&_svg]:size-4",
+      SEGMENT_ITEM,
+      "text-label-2 hover:text-foreground data-[state=active]:bg-mat-thick data-[state=active]:text-foreground data-[state=active]:shadow-[0_1px_3px_rgba(0,0,0,.18),var(--lumen-spec)] [&_svg]:size-4",
       className
     )}
     {...props}

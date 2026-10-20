@@ -29,6 +29,7 @@ import { useNotificationStore } from '../../store/notification-store';
 import { useEffectivePref } from '../../store/effective-preferences';
 import { GLASS_STRENGTHS, LUMEN_ACCENTS } from '../../lib/lumen-theme';
 import { cn } from '@/lib/utils';
+import { SEGMENT_WELL, segmentItemClass } from '@/components/ui/segmented';
 
 // ── Building blocks ─────────────────────────────────────
 
@@ -242,19 +243,14 @@ export function QuickSettings({ open, onClose }: { open: boolean; onClose: () =>
       <div className="lumen-card flex flex-col gap-3 rounded-[22px] px-[18px] py-3.5">
         <div className="flex items-center gap-3">
           <span className="w-14 text-[13px] text-label-2">Glass</span>
-          <div className="flex flex-1 rounded-full bg-fill p-[3px]" role="radiogroup" aria-label="Glass strength">
+          <div className={cn(SEGMENT_WELL, 'flex-1')} role="radiogroup" aria-label="Glass strength">
             {GLASS_STRENGTHS.map((g) => (
               <button
                 key={g.id}
                 role="radio"
                 aria-checked={glassStrength === g.id}
                 disabled={!transparency}
-                className={cn(
-                  'h-7 flex-1 rounded-full text-xs font-semibold transition-colors disabled:opacity-40',
-                  glassStrength === g.id
-                    ? 'bg-mat-thick text-foreground shadow-[0_1px_3px_rgba(0,0,0,.18),var(--lumen-spec)]'
-                    : 'text-label-2 hover:text-foreground',
-                )}
+                className={segmentItemClass(glassStrength === g.id, 'flex-1 px-2')}
                 onClick={() => setGlassStrength(g.id)}
               >
                 {g.name}
