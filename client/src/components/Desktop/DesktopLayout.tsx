@@ -3,7 +3,7 @@
 
 import { useEffect } from 'react';
 import { useAppStore } from '../../store/app-store';
-import { useDesktopStore, DOCK_RESERVE, TOP_RESERVE, type SnapZone } from '../../store/window-store';
+import { useDesktopStore, TOP_RESERVE, useDockInsets, type SnapZone } from '../../store/window-store';
 import { initWindowSessionSync } from '../../store/window-session-sync';
 import { initAppSessionBridge } from '../../store/app-session-bridge';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
@@ -26,27 +26,28 @@ import { Toaster } from '@/components/ui/sonner';
 // ── Snap Preview Overlay ────────────────────────────────
 
 function SnapPreview({ zone }: { zone: SnapZone }) {
+  const { bottom: taskbarH, right } = useDockInsets();
   if (!zone) return null;
 
-  const taskbarH = DOCK_RESERVE;
   const top = TOP_RESERVE;
   const half = `calc(50% - ${(taskbarH + top) / 2}px)`;
+  const halfW = `calc(50% - ${right / 2}px)`;
   const style: React.CSSProperties = (() => {
     switch (zone) {
       case 'maximize':
-        return { top, left: 0, right: 0, bottom: taskbarH };
+        return { top, left: 0, right, bottom: taskbarH };
       case 'left':
-        return { top, left: 0, width: '50%', bottom: taskbarH };
+        return { top, left: 0, width: halfW, bottom: taskbarH };
       case 'right':
-        return { top, right: 0, width: '50%', bottom: taskbarH };
+        return { top, right, width: halfW, bottom: taskbarH };
       case 'top-left':
-        return { top, left: 0, width: '50%', height: half };
+        return { top, left: 0, width: halfW, height: half };
       case 'top-right':
-        return { top, right: 0, width: '50%', height: half };
+        return { top, right, width: halfW, height: half };
       case 'bottom-left':
-        return { bottom: taskbarH, left: 0, width: '50%', height: half };
+        return { bottom: taskbarH, left: 0, width: halfW, height: half };
       case 'bottom-right':
-        return { bottom: taskbarH, right: 0, width: '50%', height: half };
+        return { bottom: taskbarH, right, width: halfW, height: half };
       default:
         return {};
     }

@@ -9,6 +9,8 @@ import { LUMEN_ACCENTS, type GlassStrength } from '../lib/lumen-theme';
 export type IconSize = 'medium' | 'large';
 export type DesktopIconSize = 'small' | 'medium' | 'large';
 export type DesktopSortBy = 'name' | 'type' | 'date';
+/** EX8.12: where the dock sits — centred along the bottom, or centred on the right edge */
+export type DockPosition = 'bottom' | 'right';
 export type CursorStyle = 'block' | 'underline' | 'bar';
 export type DateFormat = '12h' | '24h';
 export type ToastPosition = 'bottom-right' | 'top-right';
@@ -44,6 +46,8 @@ interface UserPreferences {
   desktopIconSize: DesktopIconSize;
   /** Desktop sort field */
   desktopSortBy: DesktopSortBy;
+  /** EX8.12: dock placement (only the dock moves; its panels open where they always do) */
+  dockPosition: DockPosition;
 
   // ── Terminal Settings ──────────────────────────────────────────────────────
   /** Terminal font size in px */
@@ -105,6 +109,7 @@ interface PreferencesState extends UserPreferences {
   setTerminalCopyOnSelect: (enabled: boolean) => void;
   setDesktopIconSize: (size: DesktopIconSize) => void;
   setDesktopSortBy: (field: DesktopSortBy) => void;
+  setDockPosition: (position: DockPosition) => void;
   setAccentColorIndex: (index: number) => void;
   setGlassStrength: (strength: GlassStrength) => void;
   setTransparency: (enabled: boolean) => void;
@@ -132,6 +137,7 @@ const DEFAULTS: UserPreferences = {
   wallpaperId: DEFAULT_WALLPAPER_ID,
   desktopIconSize: 'large',
   desktopSortBy: 'name',
+  dockPosition: 'bottom',
   // EX8.6: LumenOS terminal type — Geist Mono 13px (bundled via @fontsource)
   terminalFontSize: 13,
   terminalFontFamily: "'Geist Mono Variable', 'Geist Mono', ui-monospace, monospace",
@@ -235,6 +241,11 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => {
       savePreferences({ ...get(), desktopIconSize: size });
     },
 
+    setDockPosition: (position) => {
+      set({ dockPosition: position });
+      savePreferences({ ...get(), dockPosition: position });
+    },
+
     setDesktopSortBy: (field) => {
       set({ desktopSortBy: field });
       savePreferences({ ...get(), desktopSortBy: field });
@@ -332,6 +343,7 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => {
         terminalCopyOnSelect: updated.terminalCopyOnSelect,
         desktopIconSize: updated.desktopIconSize,
         desktopSortBy: updated.desktopSortBy,
+        dockPosition: updated.dockPosition,
         accentColorIndex: updated.accentColorIndex,
         glassStrength: updated.glassStrength,
         transparency: updated.transparency,

@@ -604,6 +604,8 @@ function AppearancePage() {
   const setTransparency = usePreferencesStore((s) => s.setTransparency);
   const desktopIconSize = usePreferencesStore((s) => s.desktopIconSize);
   const setDesktopIconSize = usePreferencesStore((s) => s.setDesktopIconSize);
+  const dockPosition = usePreferencesStore((s) => s.dockPosition);
+  const setDockPosition = usePreferencesStore((s) => s.setDockPosition);
   const wallpaperId = useEffectivePref('wallpaperId');
 
   // EX8.1: index 0 (and any legacy out-of-range index) = match wallpaper
@@ -653,8 +655,19 @@ function AppearancePage() {
         </Row>
       </RowSection>
 
-      {/* ── Desktop Icon Size ─────────────────── */}
+      {/* ── Dock position + desktop icon size ─── */}
       <RowSection>
+        {/* EX8.12: only the dock moves; Launcher, Home hub and Search open where they always do */}
+        <Row label="Dock Position" description="Centred along the bottom, or centred on the right edge">
+          <Segmented
+            value={dockPosition}
+            onChange={setDockPosition}
+            options={[
+              { value: 'bottom', label: 'Bottom' },
+              { value: 'right', label: 'Right' },
+            ]}
+          />
+        </Row>
         <Row label="Desktop Icon Size">
           <Segmented
             value={desktopIconSize}

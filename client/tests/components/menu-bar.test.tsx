@@ -11,7 +11,8 @@ vi.hoisted(() => {
 });
 import { act } from '@testing-library/react';
 import { menuBarDate } from '../../src/components/Desktop/MenuBar';
-import { useDesktopStore, TOP_RESERVE, DOCK_RESERVE } from '../../src/store/window-store';
+import { useDesktopStore, TOP_RESERVE, DOCK_RESERVE, dockInsets } from '../../src/store/window-store';
+import { usePreferencesStore } from '../../src/store/preferences-store';
 
 describe('menuBarDate', () => {
   it('reads like the design: weekday, month, day, no comma', () => {
@@ -34,5 +35,30 @@ describe('windows stay below the menu bar', () => {
     const w = useDesktopStore.getState().windows[0];
     expect(w.y).toBe(TOP_RESERVE);
     expect(w.height).toBe(window.innerHeight - DOCK_RESERVE - TOP_RESERVE);
+  });
+});
+
+describe('dock position (EX8.12)', () => {
+  beforeEach(() => act(() => {
+    usePreferencesStore.getState().setDockPosition('bottom');
+    useDesktopStore.setState({ windows: [], nextZIndex: 100 });
+  }));
+
+  it('defaults to the bottom and reserves space on the dock side only', () => {
+    expect(usePreferencesStore.getState().dockPosition).toBe('bottom');
+    expect(dockInsets('bottom')).toEqual({ bottom: DOCK_RESERVE, right: 0 });
+    expect(dockInsets('right')).toEqual({ bottom: 0, right: DOCK_RESERVE });
+  });
+
+  it('snaps beside a right-hand dock and keeps the full height', () => {
+    act(() => usePreferencesStore.getState().setDockPosition('right'));
+    act(() => useDesktopStore.getState().openWindow('files', 's1', 'Files', 'files'));
+    const id = useDesktopStore.getState().windows[0].id;
+    act(() => useDesktopStore.getState().snapWindow(id, 'right'));
+    const w = useDesktopStore.getState().windows[0];
+    const usableW = window.innerWidth - DOCK_RESERVE;
+    expect(w.x).toBe(Math.round(usableW / 2));
+    expect(w.x + w.width).toBeLessThanOrEqual(usableW + 1);
+    expect(w.height).toBe(window.innerHeight - TOP_RESERVE);
   });
 });

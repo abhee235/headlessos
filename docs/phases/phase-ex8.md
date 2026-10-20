@@ -77,6 +77,7 @@ The design handoff lives outside the repo tree in `Custom OS UI Design/handoff/`
 | EX8.9 | Task Manager: App history, Startup apps, Users, Services pages (prototype `Activity`) | ✅ |
 | EX8.10 | HomeHub (requested): the prototype's smart-home overlay as React, opened from the dock's Home button; 9-dot Launcher glyph | ✅ |
 | EX8.11 | Top menu bar (updated design): the bottom-right tray pill moves to a 28px strip; Quick Settings and notifications hang from the top-right | ✅ |
+| EX8.12 | Dock position setting (requested): bottom-centre (default) or right-middle; only the dock moves | ✅ |
 
 ## Additions beyond the handoff
 
@@ -220,6 +221,17 @@ DPR to compare position for position.
 - Measured against the design: strip height, label start, glyph pitch, pill width,
   pill-to-dot gap, date start, time end and the panel's edges all within 1px (the
   clock's width varies with the time shown).
+
+## EX8.12 — Dock position
+
+`dockPosition: 'bottom' | 'right'` (global preference, default `bottom`), set in
+Settings → Appearance → Dock Position. Only the dock moves: on the right it is a
+72px-wide vertical dock, 14px from the edge and centred in the space below the menu
+bar; the utility well stacks vertically, tooltips open to the left and tiles lift
+leftwards. The Launcher, Home hub, Search, Quick Settings and notifications open
+where they always do. `dockInsets()` / `useDockInsets()` in `window-store` give the
+space windows keep clear (`{ bottom: 98, right: 0 }` or `{ bottom: 0, right: 98 }`),
+used by new/moved/restored/snapped windows, maximized windows and the snap preview.
 
 ## Deviations from the handoff text (prototype wins where they differ)
 

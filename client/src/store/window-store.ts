@@ -2,7 +2,7 @@
 // @see docs/phases/phase-2.md
 
 import { create } from 'zustand';
-import { usePreferencesStore } from './preferences-store';
+import { usePreferencesStore, type DockPosition } from './preferences-store';
 
 export type SnapZone = 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'maximize' | null;
 
@@ -77,6 +77,18 @@ export const DOCK_RESERVE = 98;
  */
 export const TOP_RESERVE = 29;
 
+/** EX8.12: space windows keep clear for the dock at its current placement */
+export interface DockInsets { bottom: number; right: number }
+
+export function dockInsets(position: DockPosition = usePreferencesStore.getState().dockPosition): DockInsets {
+  return position === 'right' ? { bottom: 0, right: DOCK_RESERVE } : { bottom: DOCK_RESERVE, right: 0 };
+}
+
+/** Reactive dockInsets() for components (maximized windows, snap preview) */
+export function useDockInsets(): DockInsets {
+  return dockInsets(usePreferencesStore((s) => s.dockPosition));
+}
+
 const APP_DEFAULTS: Record<string, { width: number; height: number }> = {
   dashboard: { width: 900, height: 650 },
   files: { width: 850, height: 600 },
@@ -129,8 +141,8 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
     const newZ = state.nextZIndex;
 
     // Clamp initial position & size to viewport
-    const taskbarH = DOCK_RESERVE;
-    const screenW = window.innerWidth;
+    const { bottom: taskbarH, right: dockRight } = dockInsets();
+    const screenW = window.innerWidth - dockRight;
     const screenH = window.innerHeight - taskbarH;
     const winW = Math.min(defaults.width, screenW - 40);
     const winH = Math.min(defaults.height, screenH - 40);
@@ -223,8 +235,8 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
   restoreWindow: (id) => {
     set(s => {
       const newZ = s.nextZIndex;
-      const taskbarH = DOCK_RESERVE;
-      const screenW = window.innerWidth;
+      const { bottom: taskbarH, right: dockRight } = dockInsets();
+      const screenW = window.innerWidth - dockRight;
       const screenH = window.innerHeight - taskbarH;
       const TITLE_BAR_H = 40;
       const MIN_VISIBLE_X = 100;
@@ -262,8 +274,8 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
 
   moveWindow: (id, x, y) => {
     // Clamp position so the window title bar is always reachable
-    const taskbarH = DOCK_RESERVE;
-    const screenW = window.innerWidth;
+    const { bottom: taskbarH, right: dockRight } = dockInsets();
+    const screenW = window.innerWidth - dockRight;
     const screenH = window.innerHeight - taskbarH;
     const TITLE_BAR_H = 40;
     const MIN_VISIBLE_X = 100; // at least 100px visible horizontally
@@ -287,8 +299,8 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
   },
 
   resizeWindow: (id, width, height) => {
-    const taskbarH = DOCK_RESERVE;
-    const screenW = window.innerWidth;
+    const { bottom: taskbarH, right: dockRight } = dockInsets();
+    const screenW = window.innerWidth - dockRight;
     const screenH = window.innerHeight - taskbarH;
     set(s => ({
       windows: s.windows.map(w => {
@@ -303,8 +315,8 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
 
   snapWindow: (id, zone) => {
     if (!zone) return;
-    const taskbarH = DOCK_RESERVE;
-    const screenW = window.innerWidth;
+    const { bottom: taskbarH, right: dockRight } = dockInsets();
+    const screenW = window.innerWidth - dockRight;
     const screenH = window.innerHeight - taskbarH;
 
     set(s => ({

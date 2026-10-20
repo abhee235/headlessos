@@ -17,7 +17,7 @@ import {
   Pin,
   PinOff,
 } from 'lucide-react';
-import { useCallback } from 'react';
+import { createContext, useCallback, useContext } from 'react';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -25,7 +25,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
-import { usePreferencesStore } from '../../store/preferences-store';
+import { usePreferencesStore, type DockPosition } from '../../store/preferences-store';
 import {
   Tooltip,
   TooltipContent,
@@ -57,6 +57,9 @@ function openCommandPalette() {
 
 // ─── Dock pieces ─────────────────────────────────────────────────────────────
 
+/** EX8.12: which edge the dock sits on — tooltips and hover lift point away from it */
+const DockSideContext = createContext<DockPosition>('bottom');
+
 /** 42px round button inside the recessed utility well. */
 function WellButton({
   label,
@@ -69,6 +72,7 @@ function WellButton({
   onClick: (e: React.MouseEvent) => void;
   children: React.ReactNode;
 }) {
+  const side = useContext(DockSideContext);
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -84,7 +88,7 @@ function WellButton({
           {children}
         </button>
       </TooltipTrigger>
-      <TooltipContent side="top" sideOffset={14}>{label}</TooltipContent>
+      <TooltipContent side={side === 'right' ? 'left' : 'top'} sideOffset={14}>{label}</TooltipContent>
     </Tooltip>
   );
 }
@@ -105,6 +109,7 @@ function DockTile({
   onClick: () => void;
   children: React.ReactNode;
 }) {
+  const side = useContext(DockSideContext);
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -112,7 +117,7 @@ function DockTile({
           aria-label={label}
           className={cn(
             'group relative h-[50px] w-[50px] shrink-0 rounded-[16px] transition-transform duration-[180ms] ease-out',
-            'hover:-translate-y-[5px] hover:scale-[1.07]',
+            side === 'right' ? 'hover:-translate-x-[5px] hover:scale-[1.07]' : 'hover:-translate-y-[5px] hover:scale-[1.07]',
             // No ring on click; keyboard focus still gets one
             'outline-none focus-visible:ring-2 focus-visible:ring-ring',
             dimmed && 'opacity-40',
@@ -136,7 +141,7 @@ function DockTile({
           )}
         </button>
       </TooltipTrigger>
-      <TooltipContent side="top" sideOffset={16}>{label}</TooltipContent>
+      <TooltipContent side={side === 'right' ? 'left' : 'top'} sideOffset={16}>{label}</TooltipContent>
     </Tooltip>
   );
 }
@@ -157,6 +162,9 @@ export function Taskbar() {
     startMenuOpen,
   } = useDesktopStore();
   const { activeServerId } = useAppStore();
+  // EX8.12: bottom-centre (default) or right-middle; only the dock moves
+  const dockPosition = usePreferencesStore((s) => s.dockPosition);
+  const vertical = dockPosition === 'right';
   const isConnected = useAppStore(
     (s) => s.servers.find((srv) => srv.id === s.activeServerId)?.state?.status === 'connected',
   );
@@ -204,16 +212,27 @@ export function Taskbar() {
   const unpinnedWindows = sessionWindows.filter((w) => !pinnedIdSet.has(w.appId));
 
   return (
-    <>
+    <DockSideContext.Provider value={dockPosition}>
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
-            className="glass-heavy shadow-dock absolute bottom-[14px] left-1/2 z-[9999] flex h-[72px] max-w-[calc(100vw-28px)] -translate-x-1/2 items-center gap-2.5 rounded-[30px] pl-2.5 pr-3"
+            className={cn(
+              'glass-heavy shadow-dock absolute z-[9999] flex items-center gap-2.5 rounded-[30px]',
+              vertical
+                ? 'right-[14px] top-[calc(50%+14px)] max-h-[calc(100vh-57px)] w-[72px] -translate-y-1/2 flex-col pb-3 pt-2.5'
+                : 'bottom-[14px] left-1/2 h-[72px] max-w-[calc(100vw-28px)] -translate-x-1/2 pl-2.5 pr-3',
+            )}
+            aria-orientation={vertical ? 'vertical' : 'horizontal'}
             role="toolbar"
             aria-label="Dock"
           >
             {/* ── Utility well: Launcher · Home hub · Search (prototype order) ── */}
-            <div className="lumen-well flex h-[52px] shrink-0 items-center gap-0.5 rounded-[26px] px-[5px]">
+            <div
+              className={cn(
+                'lumen-well flex shrink-0 items-center gap-0.5 rounded-[26px]',
+                vertical ? 'w-[52px] flex-col py-[5px]' : 'h-[52px] px-[5px]',
+              )}
+            >
               <WellButton
                 label="Launcher"
                 active={startMenuOpen}
@@ -240,7 +259,14 @@ export function Taskbar() {
             </div>
 
             {/* ── Pinned apps + running extras ── */}
-            <div className="flex h-[72px] min-w-0 items-center gap-2 overflow-x-auto overflow-y-hidden px-0.5 [scrollbar-width:none]">
+            <div
+              className={cn(
+                'flex items-center gap-2 [scrollbar-width:none]',
+                vertical
+                  ? 'min-h-0 w-[72px] flex-col overflow-y-auto overflow-x-hidden py-0.5'
+                  : 'h-[72px] min-w-0 overflow-x-auto overflow-y-hidden px-0.5',
+              )}
+            >
               {pinnedApps.map((appId) => {
                 const label = APP_LABELS[appId] ?? appId;
                 const win = windows.find((w) => w.appId === appId && w.serverId === activeServerId);
@@ -288,7 +314,7 @@ export function Taskbar() {
               })}
 
               {unpinnedWindows.length > 0 && pinnedApps.length > 0 && (
-                <span className="mx-0.5 mb-2.5 h-7 w-px shrink-0 self-end bg-border" />
+                <span className={cn('shrink-0 bg-border', vertical ? 'my-0.5 h-px w-7' : 'mx-0.5 h-7 w-px')} />
               )}
 
               {unpinnedWindows.map((win) => {
@@ -336,7 +362,7 @@ export function Taskbar() {
             </div>
 
             {/* ── Divider, then Recycle Bin ── */}
-            <span className="mx-0.5 h-9 w-px shrink-0 bg-border" />
+            <span className={cn('shrink-0 bg-border', vertical ? 'my-0.5 h-px w-9' : 'mx-0.5 h-9 w-px')} />
             <DockTile label="Recycle Bin" dimmed={!isConnected} onClick={handleOpenBin}>
               <RecycleBinIcon size={32} />
             </DockTile>
@@ -370,6 +396,6 @@ export function Taskbar() {
       </ContextMenu>
 
       {/* EX8.11: the tray moved to the top menu bar (MenuBar.tsx) */}
-    </>
+    </DockSideContext.Provider>
   );
 }
