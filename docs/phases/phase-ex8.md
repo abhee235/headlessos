@@ -68,7 +68,7 @@ The design handoff lives outside the repo tree in `Custom OS UI Design/handoff/`
 | EX8.2 | `ui/` primitives: button, input, select, badge, card, separator, progress/slider/switch, tabs, scroll-area, tooltip, context/dropdown menus (+ `formatShortcut`), dialogs, command, FileIcon; new `pane-sidebar` | ✅ |
 | EX8.3 | Window chrome: `Desktop/Window.tsx` (WindowFrame) and `ui/app-window.tsx` — 24px glass frame, 44px title bar, 28px round controls, 12px body top padding | ✅ |
 | EX8.4 | Shell: floating dock + tray pill (`Taskbar`), launcher (`StartMenu`), `QuickSettings`, `NotificationCenter`, `CommandPalette`, desktop icons, `Wallpaper` | ✅ |
-| EX8.5 | Login + lock: `LockScreen`, `LoginScreen`, `ControlCenter` screen | ⬜ |
+| EX8.5 | Login + lock: `LockScreen`, `LoginScreen`, `ControlCenter` screen | ✅ |
 | EX8.6 | Apps: FileExplorer, SettingsView, TaskManager, Dashboard, Terminal, Docker, Services, ServerAdmin, DynamicUI widgets — fix what steps 1–4 didn't cover | ⬜ |
 | EX8.7 | Verify (light/dark, 4 accents, 3 glass levels, transparency off, 1440×900 + 1024×768), tests, docs | ⬜ |
 

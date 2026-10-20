@@ -39,7 +39,7 @@
 | **EX5: CLI App Generation + Sandbox** | **Experimental** | **✅** | **10/10 tasks** | [phase-ex5](phases/phase-ex5.md) |
 | **EX6: Multi-Session Desktop & Hibernation** | **Experimental** | **✅** | **34/34 tasks** | [phase-ex6](phases/phase-ex6.md) |
 | **EX7: Container Target Mode** | **Experimental** | **✅** | **9/9 tasks** | [phase-ex7](phases/phase-ex7.md) |
-| **EX8: LumenOS v3 Design System** | **Experimental** | **🔨** | **4/7 tasks** | [phase-ex8](phases/phase-ex8.md) |
+| **EX8: LumenOS v3 Design System** | **Experimental** | **🔨** | **5/7 tasks** | [phase-ex8](phases/phase-ex8.md) |
 
 ---
 

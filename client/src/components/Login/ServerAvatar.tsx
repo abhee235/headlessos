@@ -81,7 +81,7 @@ export function ServerAvatar({ id, name, host, port, status, onClick }: ServerAv
                 role="button"
                 tabIndex={-1}
                 aria-label={`Remove ${name}`}
-                className="absolute -top-1 -right-1 z-10 hidden group-hover:flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-white shadow-md ring-2 ring-black/40 hover:scale-110 transition-transform"
+                className="absolute -top-1 -right-1 z-10 hidden h-6 w-6 items-center justify-center rounded-full bg-[#D2483F] text-white shadow-md ring-2 ring-white/30 transition-transform hover:scale-110 group-hover:flex"
                 onClick={(e) => {
                   e.stopPropagation();
                   setConfirmOpen(true);
@@ -94,25 +94,25 @@ export function ServerAvatar({ id, name, host, port, status, onClick }: ServerAv
 
             <div className="relative">
               <div
-                className={`w-20 h-20 rounded-full bg-linear-to-br ${gradient} flex items-center justify-center shadow-lg group-hover:scale-105 group-hover:shadow-xl transition-all duration-200 ${isConnecting ? 'animate-pulse' : ''}`}
+                className={`flex h-20 w-20 items-center justify-center rounded-full border-2 border-edge-2 bg-linear-to-br ${gradient} shadow-[0_14px_32px_-12px_rgba(0,0,0,.55)] transition-transform duration-200 group-hover:scale-105 ${isConnecting ? 'animate-pulse' : ''}`}
               >
                 {initials ? (
                   <span className="text-white text-xl font-bold">{initials}</span>
                 ) : (
-                  <Server className="w-8 h-8 text-white" />
+                  <Server className="h-8 w-8 text-white" strokeWidth={1.75} />
                 )}
               </div>
 
               <div
-                className={`absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full border-2 border-black/50 ${isConnected ? 'bg-success' : isConnecting ? 'bg-warning animate-pulse' : 'bg-muted-foreground'}`}
+                className={`absolute bottom-0.5 right-0.5 h-4 w-4 rounded-full border-2 border-white/80 ${isConnected ? 'bg-success' : isConnecting ? 'bg-warning animate-pulse' : 'bg-label-3'}`}
               />
             </div>
 
             <div className="text-center max-w-24">
-              <p className="text-white/90 text-xs font-medium truncate group-hover:text-white transition-colors">
+              <p className="truncate text-[13px] font-semibold text-white [text-shadow:0_1px_6px_rgba(0,0,0,.45)]">
                 {name}
               </p>
-              <p className="text-white/30 text-[10px] truncate">
+              <p className="truncate font-mono text-[11px] text-white/65 [text-shadow:0_1px_6px_rgba(0,0,0,.45)]">
                 {host}:{port}
               </p>
             </div>
@@ -122,7 +122,7 @@ export function ServerAvatar({ id, name, host, port, status, onClick }: ServerAv
         {canDelete && (
           <ContextMenuContent className="w-44">
             <ContextMenuItem
-              className="text-destructive focus:text-destructive focus:bg-destructive/10"
+              danger
               onSelect={() => setConfirmOpen(true)}
               data-testid={`server-avatar-context-remove-${id}`}
             >

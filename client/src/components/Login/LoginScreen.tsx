@@ -1,4 +1,7 @@
 // M6.11: Login Screen — Windows 11-style server selection + credential entry
+// EX8.5: LumenOS v3 sign-in — blurred wallpaper, 96px avatar ring, 52px raised
+// pill password field with the 40px round submit inside it; shake + danger hint.
+// @see docs/phases/phase-ex8.md
 // @see docs/phases/phase-6.md
 
 import { useState, useEffect, useRef } from 'react';
@@ -6,7 +9,7 @@ import { useAppStore } from '../../store/app-store';
 import { Wallpaper } from '../Desktop/Wallpaper';
 import { ServerAvatar } from './ServerAvatar';
 import { AddServerForm } from './AddServerForm';
-import { Server, Plus, ArrowLeft, Eye, EyeOff, KeyRound, AlertCircle } from 'lucide-react';
+import { Server, Plus, ArrowLeft, ArrowRight, Eye, EyeOff, KeyRound, AlertCircle } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
 
 type LoginView = 'select' | 'credentials' | 'add-server';
@@ -140,7 +143,7 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
       {!embedded && <Wallpaper />}
 
       {/* Subtle overlay for contrast */}
-      {!embedded && <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" />}
+      {!embedded && <div className="absolute inset-0 backdrop-blur-[44px] backdrop-saturate-150" />}
 
       {/* Content */}
       <div className="absolute inset-0 flex items-center justify-center">
@@ -149,10 +152,10 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
           <div className="flex flex-col items-center gap-8 animate-fadeIn">
             {/* Title */}
             <div className="text-center">
-              <h1 className="text-white text-2xl font-semibold tracking-tight mb-1 drop-shadow-md">
+              <h1 className="mb-1 text-[28px] font-bold tracking-[-0.02em] text-white [text-shadow:0_2px_16px_rgba(0,0,0,.3)]">
                 HeadlessOS
               </h1>
-              <p className="text-white/60 text-sm drop-shadow-sm">
+              <p className="text-sm text-white/75 [text-shadow:0_1px_8px_rgba(0,0,0,.35)]">
                 Select a server to connect
               </p>
             </div>
@@ -160,9 +163,9 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
             {/* Server avatars */}
             <div className="flex flex-wrap justify-center gap-6 max-w-lg">
               {loadingServers && servers.length === 0 && (
-                <div className="flex items-center gap-2 text-white/50">
+                <div className="glass-heavy flex items-center gap-2 rounded-full px-4 py-2">
                   <Spinner className="w-5 h-5" />
-                  <span className="text-sm">Loading servers…</span>
+                  <span className="text-sm text-label-2">Loading servers…</span>
                 </div>
               )}
               {servers.map(srv => (
@@ -182,10 +185,10 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
                 className="flex flex-col items-center gap-2 group cursor-pointer"
                 onClick={() => { setView('add-server'); setLoginError(null); }}
               >
-                <div className="w-20 h-20 rounded-full bg-white/8 border-2 border-dashed border-white/15 flex items-center justify-center group-hover:bg-white/12 group-hover:border-white/25 transition-all duration-300">
-                  <Plus className="w-7 h-7 text-white/40 group-hover:text-white/70 transition-colors duration-300" />
+                <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-dashed border-edge-2 bg-mat-thin backdrop-blur-xl transition-all duration-200 group-hover:scale-105 group-hover:bg-mat">
+                  <Plus className="h-7 w-7 text-label-2 transition-colors group-hover:text-foreground" strokeWidth={1.75} />
                 </div>
-                <span className="text-white/50 text-xs font-medium group-hover:text-white/80 transition-colors duration-300">
+                <span className="text-[13px] font-semibold text-white/80 [text-shadow:0_1px_6px_rgba(0,0,0,.4)] transition-colors group-hover:text-white">
                   Add Server
                 </span>
               </button>
@@ -193,7 +196,7 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
 
             {/* Empty state */}
             {servers.length === 0 && !loadingServers && (
-              <p className="text-white/40 text-sm">
+              <p className="glass-heavy rounded-full px-4 py-2 text-[13px] text-label-2">
                 No servers configured yet. Click "Add Server" to get started.
               </p>
             )}
@@ -208,29 +211,29 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
           >
             {/* Back button */}
             <button
-              className="absolute top-8 left-8 flex items-center gap-2 text-white/60 hover:text-white transition-colors duration-200"
+              className="glass-heavy absolute top-6 left-6 flex h-9 items-center gap-1.5 rounded-full pl-3 pr-4 text-[13px] font-semibold transition-colors hover:bg-mat-thick"
               onClick={handleBack}
             >
-              <ArrowLeft className="w-4 h-4" />
-              <span className="text-sm">Back</span>
+              <ArrowLeft className="h-4 w-4" strokeWidth={1.75} />
+              <span>Back</span>
             </button>
 
             {/* Server avatar (large) */}
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-2xl shadow-primary/25 ring-2 ring-white/10">
-              <Server className="w-10 h-10 text-white" />
+            <div className="flex h-24 w-24 items-center justify-center rounded-full border-2 border-edge-2 bg-[linear-gradient(160deg,var(--lumen-accent-hi),var(--lumen-accent))] shadow-[0_18px_40px_-14px_rgba(0,0,0,.55)]">
+              <Server className="h-10 w-10 text-white" strokeWidth={1.75} />
             </div>
 
             {/* Server name */}
             <div className="text-center">
-              <h2 className="text-white text-xl font-semibold drop-shadow-md">{selectedServer.name}</h2>
-              <p className="text-white/50 text-sm mt-1 font-mono text-xs">
+              <h2 className="text-xl font-bold text-white [text-shadow:0_2px_12px_rgba(0,0,0,.35)]">{selectedServer.name}</h2>
+              <p className="mt-1 font-mono text-xs text-white/70 [text-shadow:0_1px_6px_rgba(0,0,0,.4)]">
                 {selectedServer.username}@{selectedServer.host}:{selectedServer.port}
               </p>
             </div>
 
             {/* Auth method indicator */}
-            <div className="flex items-center gap-2 text-white/40 text-xs">
-              <KeyRound className="w-3.5 h-3.5" />
+            <div className="flex items-center gap-2 text-xs text-white/70 [text-shadow:0_1px_6px_rgba(0,0,0,.4)]">
+              <KeyRound className="h-3.5 w-3.5" strokeWidth={1.75} />
               <span>
                 {selectedServer.authMethod === 'password'
                   ? 'Password authentication'
@@ -242,34 +245,35 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
 
             {/* Password field (for password auth) */}
             {selectedServer.authMethod === 'password' && (
-              <div className="w-72">
+              <div className="w-[320px]">
                 <div className="relative">
                   <input
                     ref={passwordRef}
                     type={showPassword ? 'text' : 'password'}
                     placeholder="Password"
-                    className="w-full px-4 py-3 rounded-xl bg-white/8 border border-white/10 text-white placeholder-white/30 text-sm outline-none focus:border-primary/60 focus:bg-white/12 focus:ring-2 focus:ring-primary/20 transition-all duration-200 backdrop-blur-sm"
+                    className="lumen-field-raised h-[52px] w-full rounded-full pl-5 pr-[92px] text-[15px] text-foreground outline-none backdrop-blur-xl transition-shadow placeholder:text-label-3 focus:ring-[3px] focus:ring-accent-soft"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     disabled={connecting}
                   />
                   <button
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors duration-200"
+                    className="absolute right-[54px] top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-label-3 transition-colors hover:bg-fill hover:text-foreground"
                     onClick={() => setShowPassword(!showPassword)}
                     type="button"
                     tabIndex={-1}
                   >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showPassword ? <EyeOff className="h-4 w-4" strokeWidth={1.75} /> : <Eye className="h-4 w-4" strokeWidth={1.75} />}
                   </button>
+                  <SubmitButton connecting={connecting} onClick={handleConnect} />
                 </div>
               </div>
             )}
 
             {/* SSH Key auth — passphrase field (optional) */}
             {selectedServer.authMethod === 'privateKey' && (
-              <div className="w-72 space-y-3">
-                <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-success/10 border border-success/20 text-success text-xs backdrop-blur-sm">
-                  <KeyRound className="w-3.5 h-3.5" />
+              <div className="w-[320px] space-y-3">
+                <div className="glass-heavy flex items-center justify-center gap-2 rounded-full px-4 py-2 text-xs font-semibold text-success">
+                  <KeyRound className="h-3.5 w-3.5" strokeWidth={1.75} />
                   SSH key configured
                 </div>
                 <div className="relative">
@@ -277,46 +281,49 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
                     ref={passwordRef}
                     type={showPassword ? 'text' : 'password'}
                     placeholder="Key passphrase (if encrypted)"
-                    className="w-full px-4 py-3 rounded-xl bg-white/8 border border-white/10 text-white placeholder-white/30 text-sm outline-none focus:border-primary/60 focus:bg-white/12 focus:ring-2 focus:ring-primary/20 transition-all duration-200 backdrop-blur-sm"
+                    className="lumen-field-raised h-[52px] w-full rounded-full pl-5 pr-[92px] text-[15px] text-foreground outline-none backdrop-blur-xl transition-shadow placeholder:text-label-3 focus:ring-[3px] focus:ring-accent-soft"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     disabled={connecting}
                   />
                   <button
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors duration-200"
+                    className="absolute right-[54px] top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-label-3 transition-colors hover:bg-fill hover:text-foreground"
                     onClick={() => setShowPassword(!showPassword)}
                     type="button"
                     tabIndex={-1}
                   >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showPassword ? <EyeOff className="h-4 w-4" strokeWidth={1.75} /> : <Eye className="h-4 w-4" strokeWidth={1.75} />}
                   </button>
+                  <SubmitButton connecting={connecting} onClick={handleConnect} />
                 </div>
               </div>
             )}
 
             {/* Error message */}
             {loginError && (
-              <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 px-4 py-2.5 rounded-xl border border-destructive/15 backdrop-blur-sm">
-                <AlertCircle className="w-4 h-4 shrink-0" />
+              <div className="glass-heavy flex max-w-[360px] items-center gap-2 rounded-full px-4 py-2 text-[13px] font-medium text-danger">
+                <AlertCircle className="h-4 w-4 shrink-0" strokeWidth={1.75} />
                 <span>{loginError}</span>
               </div>
             )}
 
-            {/* Connect button */}
-            <button
-              className="w-72 py-3 rounded-xl bg-primary hover:bg-primary/90 disabled:bg-primary/40 text-primary-foreground font-medium text-sm transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25 active:scale-[0.98]"
-              onClick={handleConnect}
-              disabled={connecting}
-            >
-              {connecting ? (
-                <>
-                  <Spinner className="w-4 h-4" />
-                  Connecting...
-                </>
-              ) : (
-                'Sign in'
-              )}
-            </button>
+            {/* SSH agent auth has no field, so it gets a standalone lit pill */}
+            {selectedServer.authMethod !== 'password' && selectedServer.authMethod !== 'privateKey' && (
+              <button
+                className="lumen-lit flex h-11 w-[240px] items-center justify-center gap-2 rounded-full text-sm font-semibold transition-transform active:scale-[0.98] disabled:opacity-60"
+                onClick={handleConnect}
+                disabled={connecting}
+              >
+                {connecting ? (
+                  <>
+                    <Spinner className="w-4 h-4" />
+                    Connecting...
+                  </>
+                ) : (
+                  'Sign in'
+                )}
+              </button>
+            )}
           </div>
         )}
 
@@ -325,11 +332,11 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
           <div className="animate-fadeIn">
             {/* Back button */}
             <button
-              className="absolute top-8 left-8 flex items-center gap-2 text-white/60 hover:text-white transition-colors duration-200"
+              className="glass-heavy absolute top-6 left-6 flex h-9 items-center gap-1.5 rounded-full pl-3 pr-4 text-[13px] font-semibold transition-colors hover:bg-mat-thick"
               onClick={handleBack}
             >
-              <ArrowLeft className="w-4 h-4" />
-              <span className="text-sm">Back</span>
+              <ArrowLeft className="h-4 w-4" strokeWidth={1.75} />
+              <span>Back</span>
             </button>
 
             <AddServerForm
@@ -340,5 +347,21 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
         )}
       </div>
     </div>
+  );
+}
+
+/** 40px round lit submit button that sits inside the password pill. */
+function SubmitButton({ connecting, onClick }: { connecting: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      className="lumen-lit absolute right-1.5 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full transition-transform active:scale-95 disabled:opacity-70"
+      onClick={onClick}
+      disabled={connecting}
+      aria-label={connecting ? 'Connecting' : 'Sign in'}
+      title="Sign in"
+    >
+      {connecting ? <Spinner className="h-4 w-4" /> : <ArrowRight className="h-[18px] w-[18px]" strokeWidth={2} />}
+    </button>
   );
 }
