@@ -278,10 +278,10 @@ from the server; the music card stays a sample for now).
 | Members → Users | accounts on the selected server with a session or processes (`GET taskmanager/users`), initials on the design's gradient discs; ＋ opens Server Admin → Security |
 | Room bar → Servers | saved servers (selected shows its name); picking one re-points the hub; ＋ goes to the Control Center to add one |
 | Camera → Photo frame | images in a folder on the server (default `~/Pictures`, fallback: HeadlessOS wallpapers) via `files/download`; chip = folder, "Live" → "Slideshow", buttons prev / play-pause / full screen / open in Files; 8 s per photo |
-| Weather | `GET /api/weather?lat&lon&units` → Open-Meteo forecast (current temperature, humidity, wind, 4 next days), cached 30 min; city via `GET /api/weather/geocode?q`; °C/°F toggles units. No city → "Set a city" prompt |
-| Air conditioner → Server health | arc = CPU % (Task Manager poll, 2 s); Fan/Timer/Mode → CPU / Memory / Disk; LED green < 75 %, amber < 90 %, red above |
+| Weather | `GET /api/weather?lat&lon&units` → Open-Meteo forecast (current temperature, humidity, wind, 4 next days), cached 30 min; city via `GET /api/weather/geocode?q`; °C/°F toggles units. The card shows the condition only — the city stays in Settings (privacy). No city → "Set a city" prompt |
+| Air conditioner → Server health | arc = Memory % by default (Task Manager poll, 2 s); Fan/Timer/Mode → CPU / Memory / Disk; LED green < 75 %, amber < 90 %, red above |
 | TV → Recent apps | last 4 distinct apps (`recentApps`) on dark tiles; ＋ opens the Launcher; power → show desktop |
-| Ambient LED → Display | brightness slider 40–100 % (a dimming layer over the whole desktop, `displayBrightness`); LED + power = Night light (warm tint, `nightLight`) |
+| Ambient LED → Display | `displayLevel` 0–100 with **50 = the normal look**: below dims (to 0.4 at 0), above brightens (to 1.35 at 100) through one full-screen `backdrop-filter: brightness()` layer that exists only off 50 (`lib/display-level.ts`); the bar is the design's colour ramp without its cyan/blue stops; LED + power = Night light (warm tint, `nightLight`) |
 | Alexa → Assistant | opens the AI agent; LED/power reflect whether an LLM provider is configured (power opens Settings → AI / LLM when not) |
 | WiFi → Connection | selected server's connection; power connects / disconnects; command latency underneath |
 | Music player | unchanged sample (decided later) |
@@ -289,6 +289,9 @@ from the server; the music card stays a sample for now).
 
 Outbound calls: only the weather routes, server-side, to `geocoding-api.open-meteo.com`
 and `api.open-meteo.com` (no key; only the chosen city's coordinates leave the machine).
+
+The dock's Recycle Bin shows the full bin (`trashfull`) while the active server's
+trash has items (`useTrashHasItems`: every 15 s and on window focus).
 
 Built as `routes/glance.ts` (host + weather, 30-minute cache, stale fallback),
 `HomeHub/glance.tsx` (the re-bound cards, `useServerPulse`, `useServerUsers`),

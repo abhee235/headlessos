@@ -366,8 +366,9 @@ export function WeatherGlanceCard({ onSetCity }: { onSetCity: () => void }) {
           <span style={{ opacity: units === 'celsius' ? 1 : 0.55 }}>°C</span> |<span style={{ opacity: units === 'fahrenheit' ? 1 : 0.55 }}>°F</span>
         </button>
       </div>
-      <div style={{ position: 'absolute', left: 96, top: 68, maxWidth: 190, fontSize: 19, lineHeight: '24px', color: 'rgba(255,255,255,.82)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={location.name}>
-        {sky.label} · {location.name}
+      {/* Condition only: the city lives in Settings, not on the glance (privacy) */}
+      <div style={{ position: 'absolute', left: 96, top: 68, maxWidth: 190, fontSize: 19, lineHeight: '24px', color: 'rgba(255,255,255,.82)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        {sky.label}
       </div>
       <div style={{ position: 'absolute', right: 22, top: 28, fontSize: 31, lineHeight: '38px', fontWeight: 400 }}>{weekday}</div>
       <div style={{ position: 'absolute', right: 22, top: 76, fontSize: 19, lineHeight: '24px', color: 'rgba(255,255,255,.88)' }}>{dateLine}</div>
@@ -423,7 +424,7 @@ const METRICS = [
 export function HealthDialCard({ serverName, connected, pulse, onOpen }: {
   serverName: string | null; connected: boolean; pulse: ServerPulse; onOpen: () => void;
 }) {
-  const [metric, setMetric] = useState<(typeof METRICS)[number]['id']>('cpu');
+  const [metric, setMetric] = useState<(typeof METRICS)[number]['id']>('mem');
   const raw = metric === 'cpu' ? pulse.cpu : metric === 'mem' ? pulse.memPct : pulse.diskPct;
   const value = raw === null ? null : Math.max(0, Math.min(100, raw));
   const ka = A0 + (A1 - A0) * ((value ?? 0) / 100);
@@ -530,12 +531,28 @@ export function RecentAppsCard({ serverName, canLaunch, onLaunch, onMore, onShow
 
 // ─── Display (the design's ambient LED) ──────────────────────────────────────
 
+/** The design's colour bar without its cyan / blue stops */
+export const DISPLAY_STOPS: Array<[string, number]> = [
+  ['#FF2A2A', 0], ['#FF8A1F', 17], ['#F5E625', 34], ['#39D63B', 52], ['#8B4BFF', 72], ['#D93BF2', 86], ['#FF2A7A', 100],
+];
+
+/** Colour of the bar at `pct` (0–100), for the knob's dot */
+export function barColour(pct: number): string {
+  const hex = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const i = Math.max(1, DISPLAY_STOPS.findIndex(([, at]) => at >= pct));
+  const [c0, p0] = DISPLAY_STOPS[i - 1];
+  const [c1, p1] = DISPLAY_STOPS[Math.min(i, DISPLAY_STOPS.length - 1)];
+  const t = p1 === p0 ? 0 : (pct - p0) / (p1 - p0);
+  const [a, b] = [hex(c0), hex(c1)];
+  return `rgb(${a.map((v, k) => Math.round(v + (b[k] - v) * t)).join(',')})`;
+}
+
 export function DisplayCard() {
-  const brightness = usePreferencesStore((s) => s.displayBrightness);
-  const setBrightness = usePreferencesStore((s) => s.setDisplayBrightness);
+  const level = usePreferencesStore((s) => s.displayLevel);
+  const setLevel = usePreferencesStore((s) => s.setDisplayLevel);
   const night = usePreferencesStore((s) => s.nightLight);
   const setNight = usePreferencesStore((s) => s.setNightLight);
-  const pos = ((brightness - 40) / 60) * 100;
+  const pos = level;
   return (
     <HubCard label="Display" left={427} top={781} width={445} height={172} tint="rgba(96,82,72,.24)">
       <Led on={night} tone="warm" left={24} top={30} />
@@ -543,20 +560,20 @@ export function DisplayCard() {
       <PowerButton on={night} onToggle={() => setNight(!night)} right={22} top={32} label="Night light" />
       <div style={{ position: 'absolute', left: 24, right: 24, top: 98, display: 'flex', justifyContent: 'space-between', fontSize: 17, lineHeight: '20px', color: 'rgba(255,255,255,.9)' }}>
         <span>Brightness</span>
-        <span style={{ fontVariantNumeric: 'tabular-nums' }}>{brightness}%</span>
+        <span style={{ fontVariantNumeric: 'tabular-nums' }} title="50% is the normal look">{level}%</span>
       </div>
       <div style={{ position: 'absolute', left: 24, right: 24, top: 134, height: 16, display: 'flex', alignItems: 'center' }}>
-        <div style={{ position: 'absolute', left: 0, right: 0, height: 12, borderRadius: 6, background: 'linear-gradient(90deg, #17181C, #5C5F66 45%, #F4F0E6)' }} />
+        <div style={{ position: 'absolute', left: 0, right: 0, height: 12, borderRadius: 6, background: `linear-gradient(90deg, ${DISPLAY_STOPS.map(([c, at]) => `${c} ${at}%`).join(', ')})` }} />
         <div style={{ position: 'absolute', left: `calc(${pos}% - 13px)`, width: 26, height: 26, borderRadius: 999, background: '#fff', display: 'grid', placeItems: 'center', boxShadow: '0 2px 8px rgba(0,0,0,.45)', pointerEvents: 'none' }}>
-          <div style={{ width: 12, height: 12, borderRadius: 999, background: `hsl(40 30% ${20 + (brightness - 40) * 1.1}%)` }} />
+          <div style={{ width: 12, height: 12, borderRadius: 999, background: barColour(pos) }} />
         </div>
         <input
           type="range"
-          min={40}
+          min={0}
           max={100}
-          value={brightness}
+          value={level}
           aria-label="Display brightness"
-          onChange={(e) => setBrightness(+e.target.value)}
+          onChange={(e) => setLevel(+e.target.value)}
           style={{ position: 'absolute', left: 0, right: 0, top: -8, width: '100%', height: 32, margin: 0, opacity: 0, cursor: 'pointer' }}
         />
       </div>

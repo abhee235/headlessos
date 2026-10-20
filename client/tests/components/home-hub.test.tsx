@@ -30,7 +30,8 @@ vi.mock('../../src/components/Desktop/wallpapers', async (orig) => {
 
 import { HomeHub, hubScale } from '../../src/components/HomeHub/HomeHub';
 import { arcPath, formatTrackTime } from '../../src/components/HomeHub/cards';
-import { glanceHeadline, greetingFor, levelTone, recentAppIds, skyFor } from '../../src/components/HomeHub/glance';
+import { barColour, glanceHeadline, greetingFor, levelTone, recentAppIds, skyFor } from '../../src/components/HomeHub/glance';
+import { displayBrightness } from '../../src/lib/display-level';
 import { useDesktopStore } from '../../src/store/window-store';
 import { useAppStore } from '../../src/store/app-store';
 
@@ -89,6 +90,23 @@ describe('glance bindings', () => {
   });
 });
 
+describe('display level', () => {
+  it('treats 50 as normal, dims below and brightens above (capped)', () => {
+    expect(displayBrightness(50)).toBe(1);
+    expect(displayBrightness(0)).toBeCloseTo(0.4);
+    expect(displayBrightness(25)).toBeCloseTo(0.7);
+    expect(displayBrightness(100)).toBeCloseTo(1.35);
+    expect(displayBrightness(150)).toBeCloseTo(1.35);
+  });
+  it('colours the bar without blue', () => {
+    expect(barColour(0)).toBe('rgb(255,42,42)');
+    expect(barColour(52)).toBe('rgb(57,214,59)');
+    // between green and violet the blue channel never dominates both others by much
+    const [r, g, b] = barColour(62).match(/\d+/g)!.map(Number);
+    expect(b).toBeLessThan(Math.max(r, g) + 160);
+  });
+});
+
 describe('HomeHub overlay', () => {
   beforeEach(() => act(() => {
     useDesktopStore.setState({ homeHubOpen: false, startMenuOpen: false });
@@ -111,6 +129,8 @@ describe('HomeHub overlay', () => {
     await waitFor(() => expect(screen.getByText(/Abhis!$/)).toBeInTheDocument());
     expect(screen.getByTitle('No server connected yet')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Set city' })).toBeInTheDocument();
+    // the dial starts on Memory
+    expect(screen.getByRole('button', { name: 'Memory' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('closes on Escape and on a backdrop click, not on a card click', () => {

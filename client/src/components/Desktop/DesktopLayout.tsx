@@ -14,6 +14,7 @@ import { Taskbar } from './Taskbar';
 import { MenuBar } from './MenuBar';
 import { HomeHub } from '../HomeHub/HomeHub';
 import { usePreferencesStore } from '../../store/preferences-store';
+import { displayBrightness } from '../../lib/display-level';
 import { StartMenu } from './StartMenu';
 import { WindowManager } from './WindowManager';
 import { CommandPalette } from './CommandPalette';
@@ -26,19 +27,25 @@ import { Toaster } from '@/components/ui/sonner';
 
 // ── Snap Preview Overlay ────────────────────────────────
 
-// ── EX8.15: Display brightness + night light (Home hub → Display) ──
-// Layers over everything, so the hub dims too while its slider is dragged.
+// ── EX8.15: Display level + night light (Home hub → Display) ──
+// Layers over everything, so the hub changes too while its slider is dragged.
 
 function DisplayFilter() {
-  const brightness = usePreferencesStore((s) => s.displayBrightness);
+  const level = usePreferencesStore((s) => s.displayLevel);
   const night = usePreferencesStore((s) => s.nightLight);
+  const b = displayBrightness(level);
   return (
     <>
       {night && (
         <div aria-hidden className="pointer-events-none fixed inset-0 z-[10080] mix-blend-multiply" style={{ background: 'rgba(255,164,82,.24)' }} />
       )}
-      {brightness < 100 && (
-        <div aria-hidden className="pointer-events-none fixed inset-0 z-[10081]" style={{ background: `rgba(0,0,0,${(((100 - brightness) / 100) * 0.85).toFixed(3)})` }} />
+      {level !== 50 && (
+        <div
+          aria-hidden
+          data-testid="display-level"
+          className="pointer-events-none fixed inset-0 z-[10081]"
+          style={{ backdropFilter: `brightness(${b.toFixed(3)})`, WebkitBackdropFilter: `brightness(${b.toFixed(3)})` }}
+        />
       )}
     </>
   );

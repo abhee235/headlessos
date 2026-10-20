@@ -57,8 +57,8 @@ interface UserPreferences {
   /** EX8.15: HomeHub weather city (null = not set) and units */
   weatherLocation: WeatherLocation | null;
   weatherUnits: WeatherUnits;
-  /** EX8.15: desktop brightness 40–100 % (a dimming layer) and the warm night-light tint */
-  displayBrightness: number;
+  /** EX8.15: display level 0–100 — 50 is the normal look, below dims, above brightens — and the warm night-light tint */
+  displayLevel: number;
   nightLight: boolean;
 
   // ── Terminal Settings ──────────────────────────────────────────────────────
@@ -125,7 +125,7 @@ interface PreferencesState extends UserPreferences {
   setDockIconStyle: (style: DockIconStyle) => void;
   setWeatherLocation: (location: WeatherLocation | null) => void;
   setWeatherUnits: (units: WeatherUnits) => void;
-  setDisplayBrightness: (percent: number) => void;
+  setDisplayLevel: (level: number) => void;
   setNightLight: (on: boolean) => void;
   setAccentColorIndex: (index: number) => void;
   setGlassStrength: (strength: GlassStrength) => void;
@@ -158,7 +158,7 @@ const DEFAULTS: UserPreferences = {
   dockIconStyle: 'color',
   weatherLocation: null,
   weatherUnits: 'celsius',
-  displayBrightness: 100,
+  displayLevel: 50,
   nightLight: false,
   // EX8.6: LumenOS terminal type — Geist Mono 13px (bundled via @fontsource)
   terminalFontSize: 13,
@@ -283,10 +283,10 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => {
       savePreferences({ ...get(), weatherUnits: units });
     },
 
-    setDisplayBrightness: (percent) => {
-      const clamped = Math.max(40, Math.min(100, Math.round(percent)));
-      set({ displayBrightness: clamped });
-      savePreferences({ ...get(), displayBrightness: clamped });
+    setDisplayLevel: (level) => {
+      const clamped = Math.max(0, Math.min(100, Math.round(level)));
+      set({ displayLevel: clamped });
+      savePreferences({ ...get(), displayLevel: clamped });
     },
 
     setNightLight: (on) => {
@@ -395,7 +395,7 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => {
         dockIconStyle: updated.dockIconStyle,
         weatherLocation: updated.weatherLocation,
         weatherUnits: updated.weatherUnits,
-        displayBrightness: updated.displayBrightness,
+        displayLevel: updated.displayLevel,
         nightLight: updated.nightLight,
         accentColorIndex: updated.accentColorIndex,
         glassStrength: updated.glassStrength,

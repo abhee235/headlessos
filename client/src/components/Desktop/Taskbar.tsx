@@ -17,7 +17,7 @@ import {
   Pin,
   PinOff,
 } from 'lucide-react';
-import { createContext, useCallback, useContext } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -33,6 +33,7 @@ import {
 } from '@/components/ui/tooltip';
 import { AppIcon, RecycleBinIcon } from '@/components/ui/FileIcon';
 import { colourTile } from './dock-tiles';
+import { listTrash } from '../../lib/api';
 import { cn } from '@/lib/utils';
 import { eventBus } from '@/lib/event-bus';
 
@@ -57,6 +58,26 @@ function openCommandPalette() {
 }
 
 // ─── Dock pieces ─────────────────────────────────────────────────────────────
+
+/**
+ * EX8.15: whether the active server's Recycle Bin has items, so the dock shows
+ * the full bin (papers inside). Re-checked every 15 s and when the window regains
+ * focus; nothing else emits trash events.
+ */
+export function useTrashHasItems(serverId: string | null, connected: boolean): boolean {
+  const [full, setFull] = useState(false);
+  useEffect(() => {
+    setFull(false);
+    if (!serverId || !connected) return;
+    let alive = true;
+    const check = () => listTrash(serverId).then((items) => { if (alive) setFull(items.length > 0); }).catch(() => {});
+    void check();
+    const id = setInterval(check, 15_000);
+    window.addEventListener('focus', check);
+    return () => { alive = false; clearInterval(id); window.removeEventListener('focus', check); };
+  }, [serverId, connected]);
+  return full;
+}
 
 /** EX8.12: which edge the dock sits on — tooltips and hover lift point away from it */
 const DockSideContext = createContext<DockPosition>('bottom');
@@ -186,6 +207,7 @@ export function Taskbar() {
     (s) => s.servers.find((srv) => srv.id === s.activeServerId)?.state?.status === 'connected',
   );
   const pinnedAppIds = usePreferencesStore(s => s.pinnedAppIds);
+  const trashFull = useTrashHasItems(activeServerId, isConnected);
   const pinApp = usePreferencesStore(s => s.pinApp);
   const unpinApp = usePreferencesStore(s => s.unpinApp);
 
@@ -382,8 +404,8 @@ export function Taskbar() {
 
             {/* ── Divider, then Recycle Bin ── */}
             <span className={cn('shrink-0 bg-border', vertical ? 'my-0.5 h-px w-9' : 'mx-0.5 h-9 w-px')} />
-            <DockTile label="Recycle Bin" bare dimmed={!isConnected} onClick={handleOpenBin}>
-              <RecycleBinIcon size={dockIconStyle === 'color' ? 44 : 32} />
+            <DockTile label={trashFull ? 'Recycle Bin (has items)' : 'Recycle Bin'} bare dimmed={!isConnected} onClick={handleOpenBin}>
+              <RecycleBinIcon size={dockIconStyle === 'color' ? 44 : 32} full={trashFull} />
             </DockTile>
           </div>
         </ContextMenuTrigger>
