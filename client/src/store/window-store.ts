@@ -59,6 +59,13 @@ interface DesktopState {
 let windowCounter = 0;
 
 // Default sizes for different apps
+/**
+ * EX8.3: Space kept clear at the bottom of the screen for the floating dock
+ * (14px gap + 72px dock + 12px breathing room). Maximized and snapped windows
+ * stop here.
+ */
+export const DOCK_RESERVE = 98;
+
 const APP_DEFAULTS: Record<string, { width: number; height: number }> = {
   dashboard: { width: 900, height: 650 },
   files: { width: 850, height: 600 },
@@ -110,7 +117,7 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
     const newZ = state.nextZIndex;
 
     // Clamp initial position & size to viewport
-    const taskbarH = 56;
+    const taskbarH = DOCK_RESERVE;
     const screenW = window.innerWidth;
     const screenH = window.innerHeight - taskbarH;
     const winW = Math.min(defaults.width, screenW - 40);
@@ -204,7 +211,7 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
   restoreWindow: (id) => {
     set(s => {
       const newZ = s.nextZIndex;
-      const taskbarH = 56;
+      const taskbarH = DOCK_RESERVE;
       const screenW = window.innerWidth;
       const screenH = window.innerHeight - taskbarH;
       const TITLE_BAR_H = 40;
@@ -243,7 +250,7 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
 
   moveWindow: (id, x, y) => {
     // Clamp position so the window title bar is always reachable
-    const taskbarH = 56;
+    const taskbarH = DOCK_RESERVE;
     const screenW = window.innerWidth;
     const screenH = window.innerHeight - taskbarH;
     const TITLE_BAR_H = 40;
@@ -268,7 +275,7 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
   },
 
   resizeWindow: (id, width, height) => {
-    const taskbarH = 56;
+    const taskbarH = DOCK_RESERVE;
     const screenW = window.innerWidth;
     const screenH = window.innerHeight - taskbarH;
     set(s => ({
@@ -284,7 +291,7 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
 
   snapWindow: (id, zone) => {
     if (!zone) return;
-    const taskbarH = 56;
+    const taskbarH = DOCK_RESERVE;
     const screenW = window.innerWidth;
     const screenH = window.innerHeight - taskbarH;
 

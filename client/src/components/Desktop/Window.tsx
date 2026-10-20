@@ -1,27 +1,19 @@
-// M6.5: Window — modern glassmorphic window with macOS-style controls
-// @see docs/phases/phase-6.md
+// M6.5: Window — glassmorphic desktop window
+// EX8.3: LumenOS v3 chrome — .glass frame, 24px radius, 44px title bar with the
+// app icon, three 28px round controls, 12px gap above the content.
+// @see docs/phases/phase-6.md, docs/phases/phase-ex8.md
 
 import { useRef, useCallback, type ReactNode, type MouseEvent as ReactMouseEvent } from 'react';
-import { useDesktopStore, type WindowState, type SnapZone } from '../../store/window-store';
+import { useDesktopStore, DOCK_RESERVE, type WindowState, type SnapZone } from '../../store/window-store';
 import {
   Minus,
-  Square,
-  Copy,
   X,
-  LayoutDashboard,
-  FolderOpen,
-  Terminal,
-  Settings,
-  Activity,
-  Box,
-  Server,
   Maximize2,
   Minimize2,
   RotateCcw,
   Move,
-  Telescope,
 } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { AppIcon } from '@/components/ui/FileIcon';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -36,28 +28,6 @@ import {
 import { useSessionsStore } from '../../store/sessions-store';
 import { useAppStore } from '../../store/app-store';
 import { moveWindowToSession } from '../../store/window-session-sync';
-
-const APP_ICONS: Record<string, LucideIcon> = {
-  dashboard: LayoutDashboard,
-  files: FolderOpen,
-  terminal: Terminal,
-  settings: Settings,
-  taskmanager: Activity,
-  docker: Box,
-  services: Server,
-  observatory: Telescope,
-};
-
-const APP_ACCENT: Record<string, string> = {
-  dashboard: 'bg-primary',
-  files: 'bg-warning',
-  terminal: 'bg-success',
-  settings: 'bg-primary/70',
-  taskmanager: 'bg-primary/80',
-  docker: 'bg-primary/80',
-  services: 'bg-warning/80',
-  observatory: 'bg-pink-500',
-};
 
 interface WindowFrameProps {
   win: WindowState;
@@ -191,14 +161,8 @@ export function WindowFrame({ win, children }: WindowFrameProps) {
 
   if (win.minimized) return null;
 
-  const Icon = APP_ICONS[win.appId] ?? LayoutDashboard;
-  const accent = APP_ACCENT[win.appId] ?? 'bg-muted-foreground';
-
-  // Split-sidebar title bar experiment — for apps that have a left sidebar pane
-  const isSidebarApp = win.appId === 'files';
-
   const style = win.maximized
-    ? { top: 0, left: 0, right: 0, bottom: 56, zIndex: win.zIndex }
+    ? { top: 0, left: 0, right: 0, bottom: DOCK_RESERVE, zIndex: win.zIndex }
     : {
         top: win.y,
         left: win.x,
@@ -207,21 +171,15 @@ export function WindowFrame({ win, children }: WindowFrameProps) {
         zIndex: win.zIndex,
       };
 
+  const controlClass =
+    'grid h-7 w-7 place-items-center rounded-full bg-fill text-foreground transition-colors duration-150 hover:bg-fill-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+
   return (
     <div
       className={`
-        absolute flex flex-col
-        ${win.maximized ? 'rounded-none' : 'rounded-2xl'}
+        glass absolute flex flex-col overflow-hidden animate-windowOpen
+        ${win.maximized ? 'rounded-none !border-0' : 'rounded-[24px]'}
         ${win.focused ? 'shadow-window' : 'shadow-window-unfocused'}
-        overflow-hidden
-        transition-shadow duration-300 ease-out
-        bg-background
-        border
-        ${win.focused
-          ? 'border-black/8 dark:border-white/12'
-          : 'border-black/4 dark:border-white/6'
-        }
-        animate-windowOpen
       `}
       style={{
         ...style,
@@ -233,93 +191,54 @@ export function WindowFrame({ win, children }: WindowFrameProps) {
         if (!win.focused) focusWindow(win.id);
       }}
     >
-      {/* ── Title Bar ── */}
+      {/* ── Title Bar: sits directly on the window glass ── */}
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
-            className="flex h-10 shrink-0 select-none"
+            className="flex h-11 shrink-0 select-none items-center gap-2.5 pl-3.5 pr-2"
             onMouseDown={handleDragStart}
             onDoubleClick={handleDoubleClickTitle}
           >
-            {/* ── Sidebar header section (only for sidebar apps) ── */}
-            {isSidebarApp && (
-              <div
-                className={`
-                  w-56 shrink-0 flex items-center gap-2.5 px-5
-                  bg-sidebar border-r border-black/6 dark:border-white/6
-                  ${win.focused ? '' : 'opacity-80'}
-                `}
-              >
-                <div className={`w-1 h-4 rounded-full ${accent} ${win.focused ? 'opacity-80' : 'opacity-30'} transition-opacity shrink-0`} />
-                <Icon className={`w-3.5 h-3.5 shrink-0 transition-colors ${win.focused ? 'text-foreground/60' : 'text-foreground/25'}`} />
-                <span className={`text-[13px] font-semibold truncate transition-colors ${win.focused ? 'text-foreground/70' : 'text-foreground/30'}`}>
-                  {win.title}
-                </span>
-              </div>
-            )}
-
-            {/* ── Main header section (glass, drag, controls) ── */}
-            <div
-              className={`
-                flex-1 flex items-center min-w-0 px-4
-                ${isSidebarApp ? 'bg-background' : ''}
-              `}
+            <span className={`flex h-5 w-5 shrink-0 items-center justify-center transition-opacity ${win.focused ? '' : 'opacity-60'}`}>
+              <AppIcon appId={win.appId} size={20} />
+            </span>
+            <span
+              className={`min-w-0 flex-1 truncate text-[13px] font-semibold transition-colors ${
+                win.focused ? 'text-foreground' : 'text-label-3'
+              }`}
             >
-              {/* Icon + Title (only for non-sidebar apps) */}
-              {!isSidebarApp && (
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <div className={`w-1 h-4 rounded-full ${accent} ${win.focused ? 'opacity-80' : 'opacity-30'} transition-opacity shrink-0`} />
-                  <Icon className={`w-3.5 h-3.5 shrink-0 transition-colors ${win.focused ? 'text-foreground/60' : 'text-foreground/30'}`} />
-                  <span className={`text-[13px] truncate transition-colors font-medium ${win.focused ? 'text-foreground/80' : 'text-foreground/35'}`}>
-                    {win.title}
-                  </span>
-                </div>
-              )}
-              {/* Spacer for sidebar apps so controls push to the right */}
-              {isSidebarApp && <div className="flex-1" />}
+              {win.title}
+            </span>
 
-              {/* Window controls (right side) — Windows 11 style */}
-              <div className="flex items-center gap-1 shrink-0" onMouseDown={e => e.stopPropagation()}>
-                {/* Minimize */}
-                <button
-                  className={`flex items-center justify-center w-6 h-6 rounded-lg transition-colors duration-100
-                    ${win.focused
-                      ? 'text-foreground/50 hover:text-foreground hover:bg-separator'
-                      : 'text-foreground/20 hover:text-foreground/40 hover:bg-black/4 dark:hover:bg-white/5'
-                    }`}
-                  onClick={() => minimizeWindow(win.id)}
-                  title="Minimize"
-                >
-                  <Minus className="w-3.5 h-3.5" strokeWidth={2} />
-                </button>
-                {/* Maximize / Restore */}
-                <button
-                  className={`flex items-center justify-center w-6 h-6 rounded-lg transition-colors duration-100
-                    ${win.focused
-                      ? 'text-foreground/50 hover:text-foreground hover:bg-separator'
-                      : 'text-foreground/20 hover:text-foreground/40 hover:bg-black/4 dark:hover:bg-white/5'
-                    }`}
-                  onClick={() => (win.maximized ? restoreWindow(win.id) : maximizeWindow(win.id))}
-                  title={win.maximized ? 'Restore' : 'Maximize'}
-                >
-                  {win.maximized
-                    ? <Copy className="w-3 h-3" strokeWidth={2} />
-                    : <Square className="w-3 h-3" strokeWidth={2} />
-                  }
-                </button>
-                {/* Close */}
-                <button
-                  className={`flex items-center justify-center w-6 h-6 rounded-lg transition-colors duration-100
-                    ${win.focused
-                      ? 'text-foreground/50 hover:text-white hover:bg-destructive'
-                      : 'text-foreground/20 hover:text-white/90 hover:bg-destructive/80'
-                    }`}
-                  onClick={() => closeWindow(win.id)}
-                  title="Close"
-                >
-                  <X className="w-3.5 h-3.5" strokeWidth={2} />
-                </button>
-              </div>
+            {/* Window controls: Minimize, Maximize/Restore, Close */}
+            <div className="flex shrink-0 items-center gap-1.5" onMouseDown={e => e.stopPropagation()}>
+              <button
+                className={controlClass}
+                onClick={() => minimizeWindow(win.id)}
+                title="Minimize"
+                aria-label="Minimize"
+              >
+                <Minus className="h-[18px] w-[18px]" strokeWidth={1.75} />
+              </button>
+              <button
+                className={controlClass}
+                onClick={() => (win.maximized ? restoreWindow(win.id) : maximizeWindow(win.id))}
+                title={win.maximized ? 'Restore' : 'Maximize'}
+                aria-label={win.maximized ? 'Restore' : 'Maximize'}
+              >
+                {win.maximized
+                  ? <Minimize2 className="h-4 w-4" strokeWidth={1.75} />
+                  : <Maximize2 className="h-4 w-4" strokeWidth={1.75} />
+                }
+              </button>
+              <button
+                className={`${controlClass} hover:!bg-[#D2483F] hover:text-white`}
+                onClick={() => closeWindow(win.id)}
+                title="Close"
+                aria-label="Close"
+              >
+                <X className="h-[18px] w-[18px]" strokeWidth={1.75} />
+              </button>
             </div>
           </div>
         </ContextMenuTrigger>
@@ -361,9 +280,9 @@ export function WindowFrame({ win, children }: WindowFrameProps) {
         </ContextMenuContent>
       </ContextMenu>
 
-      {/* ── Window Content ── */}
+      {/* ── Window Content: 12px below the title bar in every window ── */}
       <div
-        className="flex-1 min-h-0 overflow-auto"
+        className="relative flex-1 min-h-0 overflow-auto pt-3"
         onContextMenu={(e) => {
           e.preventDefault();
         }}
@@ -377,7 +296,7 @@ export function WindowFrame({ win, children }: WindowFrameProps) {
           className="absolute bottom-0 right-0 w-5 h-5 cursor-nwse-resize z-10 group"
           onMouseDown={handleResizeStart}
         >
-          <svg className="absolute bottom-1 right-1 w-3 h-3 text-foreground/15 group-hover:text-foreground/30 transition-colors" viewBox="0 0 12 12">
+          <svg className="absolute bottom-1.5 right-1.5 w-3 h-3 text-label-3 opacity-40 group-hover:opacity-80 transition-opacity" viewBox="0 0 12 12">
             <circle cx="10" cy="10" r="1.2" fill="currentColor" />
             <circle cx="6" cy="10" r="1.2" fill="currentColor" />
             <circle cx="10" cy="6" r="1.2" fill="currentColor" />
@@ -408,7 +327,7 @@ function MoveToSessionSubmenu({
       <ContextMenuItem disabled>
         <Move className="w-4 h-4 mr-2 opacity-60" />
         Move to session…
-        <span className="ml-auto text-[10px] text-muted-foreground">none</span>
+        <span className="ml-auto text-[11px] text-label-3">none</span>
       </ContextMenuItem>
     );
   }

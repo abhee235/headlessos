@@ -1,4 +1,6 @@
-// AppWindow — Windows 11-style reusable window/dialog component
+// AppWindow — LumenOS v3 reusable window/dialog component (EX8.3)
+// Same chrome as desktop windows: .glass, 24px radius, 44px title bar, round
+// 28px close control, 12px gap above the content. Sidebar = PaneSidebar.
 // Compound component with: TitleBar, Sidebar, Toolbar, Body, Footer zones
 // Wraps Radix Dialog for modal overlay behavior + accessibility
 //
@@ -23,6 +25,7 @@ import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { PaneSidebar, PaneSidebarGroup, PaneSidebarItem } from '@/components/ui/pane-sidebar';
 import type { LucideIcon } from 'lucide-react';
 
 // ── Size Presets ──────────────────────────────────────────────────
@@ -55,7 +58,7 @@ interface SidebarItemProps {
 }
 
 function SidebarItem({
-  icon: Icon,
+  icon,
   label,
   active = false,
   badge,
@@ -63,26 +66,14 @@ function SidebarItem({
   onClick,
 }: SidebarItemProps) {
   return (
-    <button
-      className={cn(
-        'flex items-center gap-2.5 w-full px-3 py-1.75 rounded-lg text-[13px] transition-colors text-left',
-        'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
-        active
-          ? 'bg-primary/12 text-primary font-medium dark:bg-primary/20'
-          : 'text-muted-foreground hover:text-foreground hover:bg-accent',
-        disabled && 'opacity-40 pointer-events-none',
-      )}
-      onClick={onClick}
+    <PaneSidebarItem
+      icon={icon}
+      label={label}
+      active={active}
+      badge={badge}
       disabled={disabled}
-    >
-      {Icon && <Icon className="w-4 h-4 shrink-0 opacity-70" />}
-      <span className="truncate flex-1">{label}</span>
-      {badge !== undefined && (
-        <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full min-w-4.5 text-center">
-          {badge}
-        </span>
-      )}
-    </button>
+      onClick={onClick}
+    />
   );
 }
 SidebarItem.displayName = 'AppWindow.SidebarItem';
@@ -94,16 +85,7 @@ interface SidebarGroupProps {
 }
 
 function SidebarGroup({ label, children }: SidebarGroupProps) {
-  return (
-    <div className="space-y-0.5">
-      {label && (
-        <div className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-          {label}
-        </div>
-      )}
-      {children}
-    </div>
-  );
+  return <PaneSidebarGroup label={label}>{children}</PaneSidebarGroup>;
 }
 SidebarGroup.displayName = 'AppWindow.SidebarGroup';
 
@@ -114,19 +96,11 @@ interface SidebarProps {
   width?: number;
 }
 
-function Sidebar({ children, className, width = 200 }: SidebarProps) {
+function Sidebar({ children, className, width = 220 }: SidebarProps) {
   return (
-    <div
-      className={cn(
-        'shrink-0 border-r border-border/60',
-        'bg-sidebar/50',
-        'overflow-y-auto py-2 px-2 space-y-0.5',
-        className,
-      )}
-      style={{ width }}
-    >
+    <PaneSidebar width={width} className={className}>
       {children}
-    </div>
+    </PaneSidebar>
   );
 }
 Sidebar.displayName = 'AppWindow.Sidebar';
@@ -141,9 +115,7 @@ function Toolbar({ children, className }: ToolbarProps) {
   return (
     <div
       className={cn(
-        'flex items-center gap-1.5 px-3 py-1.5 shrink-0',
-        'border-b border-border/60',
-        'bg-background/50',
+        'flex h-10 shrink-0 items-center gap-1.5 px-3',
         className,
       )}
     >
@@ -192,10 +164,9 @@ function Footer({ children, className }: FooterProps) {
   return (
     <div
       className={cn(
-        'flex items-center gap-2 px-3 py-1.5 shrink-0',
-        'border-t border-border/60',
-        'text-[11px] text-muted-foreground',
-        'bg-background/30',
+        'flex min-h-9 shrink-0 items-center gap-2 px-4 py-1.5',
+        'border-t border-border',
+        'text-xs text-muted-foreground',
         className,
       )}
     >
@@ -310,60 +281,50 @@ function AppWindowRoot({
         <DialogPrimitive.Portal>
           {/* Overlay */}
           <DialogPrimitive.Overlay
-            className="fixed inset-0 z-9998 bg-overlay backdrop-blur-sm animate-fadeIn"
+            className="fixed inset-0 z-9998 bg-overlay backdrop-blur-[2px] animate-fadeIn"
           />
 
           {/* Window */}
           <DialogPrimitive.Content
             className={cn(
               'fixed left-1/2 top-1/2 z-9999 -translate-x-1/2 -translate-y-1/2',
-              'flex flex-col overflow-hidden',
-              'rounded-2xl',
-              'bg-background/95 dark:bg-card/95',
-              'backdrop-blur-2xl backdrop-saturate-150',
-              'border border-glass-border',
-              'shadow-window',
-              'ring-1 ring-black/4 dark:ring-white/5',
+              'glass shadow-window flex flex-col overflow-hidden rounded-[24px]',
               'animate-dialogIn',
               'focus-visible:outline-none',
               className,
             )}
             style={{ width: w, height: h }}
           >
-            {/* ── Title Bar ── */}
-            <div className="flex items-center gap-2.5 px-4 py-3 shrink-0 border-b border-border/40 bg-chrome/30">
-              <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                {TitleIcon && (
-                  <TitleIcon className="w-5 h-5 shrink-0 text-primary opacity-80" />
+            {/* ── Title Bar: 44px, on the window glass ── */}
+            <div className="flex h-11 shrink-0 items-center gap-2.5 pl-3.5 pr-2">
+              {TitleIcon && (
+                <TitleIcon className="h-5 w-5 shrink-0 text-accent-solid" strokeWidth={1.75} />
+              )}
+              <div className="min-w-0 flex-1">
+                <DialogPrimitive.Title className="truncate text-[13px] font-semibold leading-tight text-foreground">
+                  {title}
+                </DialogPrimitive.Title>
+                {description && (
+                  <DialogPrimitive.Description className="mt-0.5 truncate text-[11px] leading-tight text-muted-foreground">
+                    {description}
+                  </DialogPrimitive.Description>
                 )}
-                <div className="min-w-0">
-                  <DialogPrimitive.Title className="text-sm font-semibold text-foreground leading-tight truncate">
-                    {title}
-                  </DialogPrimitive.Title>
-                  {description && (
-                    <DialogPrimitive.Description className="text-[11px] text-muted-foreground leading-tight mt-0.5 truncate">
-                      {description}
-                    </DialogPrimitive.Description>
-                  )}
-                </div>
               </div>
 
-              {/* Close button */}
               <DialogPrimitive.Close
                 className={cn(
-                  'shrink-0 rounded-xl p-1.5 transition-all duration-200',
-                  'text-muted-foreground hover:text-foreground',
-                  'hover:bg-accent active:bg-destructive active:text-destructive-foreground',
-                  'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+                  'grid h-7 w-7 shrink-0 place-items-center rounded-full bg-fill text-foreground transition-colors duration-150',
+                  'hover:bg-[#D2483F] hover:text-white',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 )}
               >
-                <X className="w-4 h-4" />
+                <X className="h-[18px] w-[18px]" strokeWidth={1.75} />
                 <span className="sr-only">Close</span>
               </DialogPrimitive.Close>
             </div>
 
             {/* ── Content Area (sidebar + main) ── */}
-            <div className="flex flex-1 min-h-0">
+            <div className="flex flex-1 min-h-0 pt-3">
               {/* Sidebar (optional) */}
               {sidebar}
 

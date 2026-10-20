@@ -388,3 +388,29 @@ function getFileCategory(ext: string): FileCategory {
   if (['exe', 'msi', 'bin', 'app', 'apk', 'appimage'].includes(ext)) return 'executable';
   return 'generic';
 }
+
+// ── AppIcon: appId → picture icon (EX8.3) ───────────────
+// One lookup for window title bars, the dock, the launcher and desktop icons.
+
+const APP_ICON_COMPONENTS: Record<string, React.ComponentType<{ size?: number }>> = {
+  dashboard: DashboardIcon,
+  files: FileExplorerIcon,
+  'container-files': FileExplorerIcon,
+  terminal: TerminalIcon,
+  'container-shell': TerminalIcon,
+  docker: DockerIcon,
+  services: ServicesIcon,
+  taskmanager: TaskManagerIcon,
+  settings: SettingsIcon,
+  serveradmin: ServerAdminIcon,
+  fleet: FleetIcon,
+  agent: AgentIcon,
+  'ui-agent': UIAgentIcon,
+  'dynamic-ui': UIAgentIcon,
+  observatory: ObservatoryIcon,
+};
+
+export function AppIcon({ appId, size = 48 }: { appId: string; size?: number }) {
+  const Icon = APP_ICON_COMPONENTS[appId] ?? DashboardIcon;
+  return <Icon size={size} />;
+}

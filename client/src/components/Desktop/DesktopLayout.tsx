@@ -3,7 +3,7 @@
 
 import { useEffect } from 'react';
 import { useAppStore } from '../../store/app-store';
-import { useDesktopStore, type SnapZone } from '../../store/window-store';
+import { useDesktopStore, DOCK_RESERVE, type SnapZone } from '../../store/window-store';
 import { initWindowSessionSync } from '../../store/window-session-sync';
 import { initAppSessionBridge } from '../../store/app-session-bridge';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
@@ -26,7 +26,7 @@ import { Toaster } from '@/components/ui/sonner';
 function SnapPreview({ zone }: { zone: SnapZone }) {
   if (!zone) return null;
 
-  const taskbarH = 56;
+  const taskbarH = DOCK_RESERVE;
   const style: React.CSSProperties = (() => {
     switch (zone) {
       case 'maximize':
@@ -50,7 +50,7 @@ function SnapPreview({ zone }: { zone: SnapZone }) {
 
   return (
     <div
-      className="fixed z-[9999] pointer-events-none rounded-2xl border-2 border-primary/40 bg-primary/10 backdrop-blur-sm transition-all duration-150 ease-out"
+      className="fixed z-[9999] pointer-events-none m-2 rounded-[24px] border-2 border-accent-solid/45 bg-accent-soft backdrop-blur-sm transition-all duration-150 ease-out"
       style={style}
     />
   );
