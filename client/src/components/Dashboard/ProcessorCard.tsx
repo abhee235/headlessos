@@ -66,6 +66,12 @@ function ArcGauge({ value, label }: { value: number; label?: string }) {
   return (
     <div className="relative shrink-0" style={{ width: SIZE, height: SIZE }}>
       <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} aria-hidden>
+        <defs>
+          <linearGradient id="cpu-arc" x1="0" y1="1" x2="1" y2="0">
+            <stop offset="0" stopColor="var(--viz-violet-from)" />
+            <stop offset="1" stopColor="var(--viz-violet-to)" />
+          </linearGradient>
+        </defs>
         {/* Track */}
         <path d={arcPath(R)} fill="none" strokeWidth={8} strokeLinecap="round" className="stroke-fill-2" />
         {/* Value */}
@@ -77,7 +83,8 @@ function ArcGauge({ value, label }: { value: number; label?: string }) {
             strokeLinecap="round"
             pathLength={100}
             strokeDasharray={`${pct} 100`}
-            className="stroke-accent-solid transition-[stroke-dasharray] duration-500"
+            stroke="url(#cpu-arc)"
+            className="lumen-glow-violet transition-[stroke-dasharray] duration-500"
           />
         )}
         {/* Tick ring */}
@@ -92,13 +99,12 @@ function ArcGauge({ value, label }: { value: number; label?: string }) {
         <circle cx={C} cy={C} r={44} className="fill-fill" />
       </svg>
 
-      {/* Knob — .lumen-lit (accent gradient, white text colour) with a bg-current centre */}
+      {/* Knob — violet with a white ring, as in LumenOS */}
       <span
-        className="lumen-lit absolute flex h-[18px] w-[18px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full transition-[left,top] duration-500"
+        className="absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white bg-viz-violet shadow-[0_2px_8px_rgba(0,0,0,.4)] transition-[left,top] duration-500"
         style={{ left: knob.x, top: knob.y }}
         aria-hidden
       >
-        <span className="h-2 w-2 rounded-full bg-current" />
       </span>
 
       <div

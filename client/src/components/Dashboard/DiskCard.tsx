@@ -50,7 +50,7 @@ function DiskTile({ disk }: { disk: DiskEntry }) {
       ? 'stroke-destructive'
       : disk.usePercent >= 70
         ? 'stroke-warning'
-        : 'stroke-success';
+        : 'stroke-viz-green lumen-glow-green';
 
   return (
     <div className="flex min-w-0 flex-col items-center rounded-[16px] border border-edge bg-chip px-3 pb-3 pt-3.5 text-center">

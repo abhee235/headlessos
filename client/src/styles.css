@@ -120,6 +120,12 @@
   --color-label-3: var(--lumen-label3);
   --color-danger: var(--lumen-danger);
   --color-term: var(--lumen-term-bg);
+  /* Data-viz hues (fixed in both themes, as in LumenOS) */
+  --color-viz-blue: var(--viz-blue);
+  --color-viz-green: var(--viz-green);
+  --color-viz-amber: var(--viz-amber);
+  --color-viz-violet: var(--viz-violet);
+  --color-viz-red: var(--viz-red);
   --color-term-fg: var(--lumen-term-fg);
 
   /* ── Radius: sm 10 · md 14 · lg 18 · xl 22 · 2xl 24 (windows) · 3xl 30 (shell panels) ── */
@@ -175,6 +181,17 @@
   --lumen-lit: linear-gradient(180deg, #8468C8, #6A4FB0); /* "lit" toggle tiles */
   --lumen-danger: #A12C2C;
   --lumen-wall-scrim: transparent;
+  /* Data-viz hues — vivid and theme-independent, as in the LumenOS System and
+     Activity windows: memory/upload blue, disk/download green, CPU violet,
+     network/loopback amber. Use with the .lumen-glow-* drop shadows. */
+  --viz-blue: #4FA3FF;
+  --viz-green: #34D27B;
+  --viz-amber: #F5B83D;
+  --viz-violet: #7D63FF;
+  --viz-violet-from: #5E3BE6;
+  --viz-violet-to: #A493FF;
+  --viz-red: #FF6B5E;
+  --lumen-text-lift: 0 1px 2px rgba(0, 0, 0, .14);
   /* Terminal pane: always dark, in both themes (as in LumenOS) */
   --lumen-term-bg: rgba(9, 13, 19, .8);
   --lumen-term-fg: #D6DEE4;
@@ -264,6 +281,7 @@
   --lumen-on-accent: #071E25;
   --lumen-danger: #FF7B72;
   --lumen-wall-scrim: linear-gradient(180deg, rgba(0, 0, 0, .18), rgba(0, 0, 0, .38));
+  --lumen-text-lift: 0 1px 3px rgba(0, 0, 0, .45);
 
   --background: #202227;
   --card: rgba(255, 255, 255, .06);
@@ -391,6 +409,20 @@ textarea::placeholder {
     border: 1px solid var(--lumen-edge);
     box-shadow: var(--lumen-spec), var(--lumen-lift);
   }
+  /* Raised icon tile (card headers, section headers) — 36px, radius 11 */
+  .lumen-tile {
+    background: linear-gradient(180deg, rgba(255, 255, 255, .22), rgba(255, 255, 255, .08));
+    border: 1px solid rgba(255, 255, 255, .2);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3), 0 6px 14px -6px rgba(0, 0, 0, .45);
+  }
+  /* Headings and big numbers that sit up off the glass */
+  .lumen-text-lift { text-shadow: var(--lumen-text-lift); }
+  /* Soft glow behind vivid data marks (rings, bars, status dots) */
+  .lumen-glow-blue { filter: drop-shadow(0 0 6px rgba(79, 163, 255, .6)); }
+  .lumen-glow-green { filter: drop-shadow(0 0 5px rgba(52, 210, 123, .55)); }
+  .lumen-glow-violet { filter: drop-shadow(0 0 6px rgba(125, 99, 255, .55)); }
+  .lumen-dot-green { background: var(--viz-green); box-shadow: 0 0 0 3px rgba(52, 210, 123, .18), 0 0 10px rgba(52, 210, 123, .85); }
+  .lumen-dot-amber { background: var(--viz-amber); box-shadow: 0 0 0 3px rgba(245, 184, 61, .18), 0 0 8px rgba(245, 184, 61, .8); }
   /* Monochrome SVG icons that must follow the theme */
   .lumen-icon { filter: var(--lumen-icon-filter); }
   /* Wallpaper scrim (darkens the wallpaper in dark mode) */

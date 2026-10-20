@@ -191,7 +191,7 @@ export function DashboardView({ serverId }: DashboardViewProps) {
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
           <div className="flex items-center gap-3">
-            <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-success ring-4 ring-success/20" aria-hidden />
+            <span className="lumen-dot-green h-2.5 w-2.5 shrink-0 rounded-full" aria-hidden />
             <h2 className="truncate text-[30px] font-bold leading-tight tracking-[-0.02em] text-foreground">
               {data.system.hostname}
             </h2>

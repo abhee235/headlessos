@@ -31,17 +31,18 @@ export function formatMb(mb: number): string {
 
 /** Raw CSS vars for recharts strokes/fills; the matching Tailwind classes for HTML marks. */
 export const SERIES = {
-  cpu: { color: 'var(--chart-1)', bg: 'bg-chart-1' },
-  memory: { color: 'var(--chart-3)', bg: 'bg-chart-3' },
-  disk: { color: 'var(--chart-5)', bg: 'bg-chart-5' },
-  network: { color: 'var(--chart-4)', bg: 'bg-chart-4' },
+  // LumenOS Activity hues: CPU violet, memory blue, disk green, network amber
+  cpu: { color: 'var(--viz-violet)', bg: 'bg-viz-violet' },
+  memory: { color: 'var(--viz-blue)', bg: 'bg-viz-blue' },
+  disk: { color: 'var(--viz-green)', bg: 'bg-viz-green' },
+  network: { color: 'var(--viz-amber)', bg: 'bg-viz-amber' },
 } as const;
 
-/** Load bar fill: accent below 75%, warning from 75%, destructive from 90%. */
+/** Load bar fill: violet below 75%, warning from 75%, destructive from 90%. */
 export function loadFill(pct: number): string {
-  if (pct >= 90) return 'bg-destructive';
-  if (pct >= 75) return 'bg-warning';
-  return 'bg-accent-solid';
+  if (pct >= 90) return 'bg-viz-red';
+  if (pct >= 75) return 'bg-viz-amber';
+  return 'bg-[linear-gradient(0deg,var(--viz-violet-from),var(--viz-violet-to))]';
 }
 
 /** Shared recharts axis / grid / tooltip styling — gridlines on var(--border). */

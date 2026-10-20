@@ -30,7 +30,7 @@ export function SectionHeader({ icon: Icon, title, badge, subtitle, actions }: S
   return (
     <div className="flex items-center justify-between gap-4">
       <div className="flex min-w-0 items-center gap-3.5">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] border border-edge bg-fill shadow-[var(--lumen-spec)]">
+        <div className="lumen-tile flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]">
           <Icon className="h-[18px] w-[18px] text-label-2" strokeWidth={1.75} />
         </div>
         <div className="min-w-0">

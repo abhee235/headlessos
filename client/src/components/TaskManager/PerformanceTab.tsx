@@ -67,10 +67,10 @@ const PANELS: PanelConfig[] = [
 ];
 
 // Two-series charts: [series colour for recharts, matching Tailwind class for legends]
-const DISK_READ = { color: 'var(--chart-5)', bg: 'bg-chart-5' };
-const DISK_WRITE = { color: 'var(--chart-3)', bg: 'bg-chart-3' };
-const NET_RX = { color: 'var(--chart-4)', bg: 'bg-chart-4' };
-const NET_TX = { color: 'var(--chart-1)', bg: 'bg-chart-1' };
+const DISK_READ = { color: 'var(--viz-green)', bg: 'bg-viz-green' };
+const DISK_WRITE = { color: 'var(--viz-blue)', bg: 'bg-viz-blue' };
+const NET_RX = { color: 'var(--viz-green)', bg: 'bg-viz-green' };
+const NET_TX = { color: 'var(--viz-blue)', bg: 'bg-viz-blue' };
 
 // ─── Full Chart (main content area) ─────────────────────────────────────────
 
@@ -367,19 +367,19 @@ function MemoryDetail({
         {/* Memory composition bar */}
         <div className="mt-4 flex h-2 gap-0.5 overflow-hidden rounded-full bg-chip">
           <div
-            className="h-full rounded-full bg-chart-3 transition-[width] duration-300"
+            className="h-full rounded-full bg-viz-blue transition-[width] duration-300"
             style={{ width: `${usedPct}%` }}
             title={`Used: ${memory.usedMb} MB`}
           />
           <div
-            className="h-full rounded-full bg-chart-3/35 transition-[width] duration-300"
+            className="h-full rounded-full bg-viz-blue/35 transition-[width] duration-300"
             style={{ width: `${Math.max(0, cachedPct)}%` }}
             title={`Cached: ${memory.availableMb - memory.freeMb} MB`}
           />
         </div>
         <Legend>
-          <LegendItem swatch="bg-chart-3" label="Used" />
-          <LegendItem swatch="bg-chart-3/35" label="Cached" />
+          <LegendItem swatch="bg-viz-blue" label="Used" />
+          <LegendItem swatch="bg-viz-blue/35" label="Cached" />
           <LegendItem swatch="bg-chip-2" label="Free" />
         </Legend>
       </ChartCard>

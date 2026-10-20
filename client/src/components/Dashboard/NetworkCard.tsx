@@ -29,8 +29,8 @@ interface NetworkCardProps {
   history?: NetRatePoint[];
 }
 
-const DOWNLOAD = { color: 'var(--chart-5)' };
-const UPLOAD = { color: 'var(--chart-3)' };
+const DOWNLOAD = { color: 'var(--viz-green)' };
+const UPLOAD = { color: 'var(--viz-blue)' };
 
 export function NetworkCard({ interfaces, history = [] }: NetworkCardProps) {
   // Show UP interfaces first, then UNKNOWN, then DOWN
@@ -147,8 +147,8 @@ function RateTile({
 }
 
 const STATUS = {
-  UP: { dot: 'bg-success', label: 'Up' },
-  UNKNOWN: { dot: 'bg-warning', label: 'Unknown' },
+  UP: { dot: 'lumen-dot-green', label: 'Up' },
+  UNKNOWN: { dot: 'lumen-dot-amber', label: 'Unknown' },
   DOWN: { dot: 'bg-label-3', label: 'Down' },
 } as const;
 

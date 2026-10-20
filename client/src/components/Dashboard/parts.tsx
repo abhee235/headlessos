@@ -22,10 +22,10 @@ export function DashCard({ icon: Icon, title, meta, children, className }: DashC
   return (
     <section className={cn('lumen-card flex min-w-0 flex-col rounded-[22px] p-5', className)}>
       <header className="mb-4 flex items-center gap-3">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border border-edge bg-fill">
-          <Icon className="h-[17px] w-[17px] text-label-2" strokeWidth={1.75} />
+        <span className="lumen-tile flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px]">
+          <Icon className="h-[18px] w-[18px] text-foreground" strokeWidth={1.75} />
         </span>
-        <h3 className="min-w-0 flex-1 truncate text-[17px] font-bold text-foreground">{title}</h3>
+        <h3 className="lumen-text-lift min-w-0 flex-1 truncate text-[17px] font-semibold text-foreground">{title}</h3>
         {meta !== undefined && (
           <span className="shrink-0 text-[13px] text-label-2 tabular-nums">{meta}</span>
         )}

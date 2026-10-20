@@ -160,7 +160,7 @@ export function AddServerForm({ onSubmit, onCancel }: AddServerFormProps) {
 
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <div className="grid h-10 w-10 place-items-center rounded-[12px] border border-edge bg-fill">
+        <div className="lumen-tile grid h-10 w-10 place-items-center rounded-[12px]">
           <Server className="h-5 w-5 text-accent-solid" strokeWidth={1.75} />
         </div>
         <div>

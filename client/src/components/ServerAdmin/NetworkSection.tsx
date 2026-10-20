@@ -434,7 +434,7 @@ export function NetworkSection({ serverId }: { serverId: string }) {
                 className="flex items-center justify-between gap-4 px-5 py-3.5 transition-colors duration-150 hover:bg-fill"
               >
                 <div className="flex min-w-0 items-center gap-3.5">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-edge bg-fill">
+                  <div className="lumen-tile flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px]">
                     <Globe size={17} strokeWidth={1.75} className={iface.state === 'UP' ? 'text-label-2' : 'text-label-3'} />
                   </div>
                   <div className="min-w-0">

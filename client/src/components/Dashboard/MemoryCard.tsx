@@ -3,7 +3,6 @@
 // @see docs/phases/phase-2.md, docs/phases/phase-ex8.md
 
 import { MemoryStick } from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { DashCard, Ring } from './parts';
 
@@ -31,7 +30,7 @@ export function MemoryCard({ memory }: MemoryCardProps) {
     <DashCard icon={MemoryStick} title="Memory" meta={`${formatMb(memory.availableMb)} available`}>
       {/* RAM */}
       <div className={cn('flex flex-1 items-center gap-5', memory.swapTotalMb > 0 && 'mb-5')}>
-        <Ring value={usedPercent} size={112} stroke={10} arcClassName="stroke-chart-3">
+        <Ring value={usedPercent} size={112} stroke={10} arcClassName="stroke-viz-blue lumen-glow-blue">
           <span className="text-[26px] font-bold leading-none tracking-[-0.02em] tabular-nums text-foreground">
             {usedPercent}
             <span className="ml-0.5 text-[14px] font-semibold">%</span>
@@ -57,7 +56,9 @@ export function MemoryCard({ memory }: MemoryCardProps) {
               {formatMb(memory.swapUsedMb)} / {formatMb(memory.swapTotalMb)}
             </span>
           </div>
-          <Progress value={swapPercent} aria-label="Swap usage" />
+          <div className="h-1.5 overflow-hidden rounded-full bg-chip shadow-[inset_0_1px_2px_rgba(0,0,0,.28)]" role="progressbar" aria-label="Swap usage" aria-valuenow={swapPercent} aria-valuemin={0} aria-valuemax={100}>
+            <div className="h-full min-w-[3px] rounded-full bg-viz-blue transition-[width] duration-300" style={{ width: `${swapPercent}%` }} />
+          </div>
         </div>
       )}
     </DashCard>
