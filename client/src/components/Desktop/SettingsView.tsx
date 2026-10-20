@@ -20,7 +20,8 @@ import {
   Puzzle,
 } from 'lucide-react';
 import { SHORTCUT_REFERENCE } from '../../hooks/useKeyboardShortcuts';
-import { usePreferencesStore, ACCENT_PRESETS, type CursorStyle, type DateFormat, type ToastPosition } from '../../store/preferences-store';
+import { LUMEN_ACCENTS, GLASS_STRENGTHS } from '../../lib/lumen-theme';
+import { usePreferencesStore, type CursorStyle, type DateFormat, type ToastPosition } from '../../store/preferences-store';
 import { useSessionsStore } from '../../store/sessions-store';
 import { useEffectivePref, setPreferenceOverride, clearPreferenceOverride } from '../../store/effective-preferences';
 import { useThemeStore, type Theme } from '../../store/theme-store';
@@ -496,18 +497,6 @@ function WallpaperPage() {
 
 // ─── Appearance Page ────────────────────────────────────────────────────────
 
-// Hex approximations for visual swatches (ACCENT_PRESETS in oklch are used for actual CSS vars)
-const ACCENT_SWATCH_COLORS = [
-  '#3b82f6', // Blue
-  '#8b5cf6', // Purple
-  '#ec4899', // Pink
-  '#ef4444', // Red
-  '#f97316', // Orange
-  '#eab308', // Yellow
-  '#22c55e', // Green
-  '#14b8a6', // Teal
-];
-
 function ThemeMiniPreview({ mode }: { mode: 'light' | 'dark' | 'auto' }) {
   const isDark = mode === 'dark';
   const bg = isDark ? '#1c1c1e' : '#f5f5f5';
@@ -558,6 +547,10 @@ function AppearancePage() {
   const { theme, setTheme } = useThemeStore();
   const accentIdx = usePreferencesStore((s) => s.accentColorIndex);
   const setAccentIdx = usePreferencesStore((s) => s.setAccentColorIndex);
+  const glassStrength = usePreferencesStore((s) => s.glassStrength);
+  const setGlassStrength = usePreferencesStore((s) => s.setGlassStrength);
+  const transparency = usePreferencesStore((s) => s.transparency);
+  const setTransparency = usePreferencesStore((s) => s.setTransparency);
   const desktopIconSize = usePreferencesStore((s) => s.desktopIconSize);
   const setDesktopIconSize = usePreferencesStore((s) => s.setDesktopIconSize);
 
@@ -589,25 +582,56 @@ function AppearancePage() {
         </div>
       </div>
 
-      {/* ── Accent Color ──────────────────────── */}
+      {/* ── Accent Color (EX8.1: index 0 = match wallpaper) ── */}
       <div>
         <SectionHeader title="Accent Color" />
         <div className="flex gap-2 flex-wrap">
-          {ACCENT_PRESETS.map((preset, idx) => (
+          {LUMEN_ACCENTS.map((preset, idx) => (
             <button
-              key={preset.name}
+              key={preset.id}
               onClick={() => setAccentIdx(idx)}
               className={cn(
                 'w-7 h-7 rounded-full flex items-center justify-center transition-transform',
                 accentIdx === idx && 'ring-2 ring-offset-2 ring-offset-background ring-primary scale-110',
               )}
-              style={{ background: ACCENT_SWATCH_COLORS[idx] }}
+              style={{ background: preset.swatch }}
               title={preset.name}
+              aria-label={preset.name}
             >
               {accentIdx === idx && <Check size={13} className="text-white drop-shadow" />}
             </button>
           ))}
         </div>
+      </div>
+
+      {/* ── Glass (EX8.1) ─────────────────────── */}
+      <div>
+        <SectionHeader title="Glass" />
+        <GroupedCard>
+          <div className="flex items-center justify-between px-3 py-2.5">
+            <span className="text-[13px] text-foreground">Glass strength</span>
+            <div className="flex gap-1">
+              {GLASS_STRENGTHS.map((g) => (
+                <button
+                  key={g.id}
+                  onClick={() => setGlassStrength(g.id)}
+                  className={cn(
+                    'px-2.5 py-1 rounded-md text-[12px] transition-colors',
+                    glassStrength === g.id
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                  )}
+                >
+                  {g.name}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center justify-between px-3 py-2.5">
+            <span className="text-[13px] text-foreground">Transparency effects</span>
+            <ToggleSwitch checked={transparency} onChange={setTransparency} />
+          </div>
+        </GroupedCard>
       </div>
 
       {/* ── Desktop Icon Size ─────────────────── */}

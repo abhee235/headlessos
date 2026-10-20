@@ -4,6 +4,7 @@
 import { create } from 'zustand';
 import type { ViewMode } from '../components/FileExplorer/ExplorerToolbar';
 import { DEFAULT_WALLPAPER_ID } from '../components/Desktop/wallpapers';
+import { LUMEN_ACCENTS, type GlassStrength } from '../lib/lumen-theme';
 
 export type IconSize = 'medium' | 'large';
 export type DesktopIconSize = 'small' | 'medium' | 'large';
@@ -12,6 +13,11 @@ export type CursorStyle = 'block' | 'underline' | 'bar';
 export type DateFormat = '12h' | '24h';
 export type ToastPosition = 'bottom-right' | 'top-right';
 
+/**
+ * Per-session tile colours (SessionTile / SessionSwitcher hash into this list).
+ * The theme accent is NOT taken from here any more — see `LUMEN_ACCENTS` in
+ * `lib/lumen-theme.ts`, which `accentColorIndex` now indexes (EX8.1).
+ */
 export const ACCENT_PRESETS = [
   { name: 'Blue',   oklchLight: 'oklch(0.488 0.243 264.376)', oklchDark: 'oklch(0.488 0.243 264.376)', oklchFg: 'oklch(0.97 0.014 254.604)' },
   { name: 'Purple', oklchLight: 'oklch(0.541 0.281 293.009)', oklchDark: 'oklch(0.541 0.281 293.009)', oklchFg: 'oklch(0.97 0.014 254.604)' },
@@ -51,9 +57,13 @@ interface UserPreferences {
   /** Copy text to clipboard on selection */
   terminalCopyOnSelect: boolean;
 
-  // ── Appearance (M7.4) ─────────────────────────────────────────────────────
-  /** Accent color preset index (maps to ACCENT_PRESETS) */
+  // ── Appearance (M7.4, EX8.1) ──────────────────────────────────────────────
+  /** Theme accent index into LUMEN_ACCENTS (0 = match wallpaper) */
   accentColorIndex: number;
+  /** Glass opacity/blur preset */
+  glassStrength: GlassStrength;
+  /** Translucent glass; false = near-opaque surfaces, no blur */
+  transparency: boolean;
 
   // ── General (M7.5) ────────────────────────────────────────────────────────
   /** Auto-refresh interval in seconds (0 = off) */
@@ -96,6 +106,8 @@ interface PreferencesState extends UserPreferences {
   setDesktopIconSize: (size: DesktopIconSize) => void;
   setDesktopSortBy: (field: DesktopSortBy) => void;
   setAccentColorIndex: (index: number) => void;
+  setGlassStrength: (strength: GlassStrength) => void;
+  setTransparency: (enabled: boolean) => void;
   setAutoRefreshInterval: (seconds: number) => void;
   setDateFormat: (format: DateFormat) => void;
   setShowToasts: (show: boolean) => void;
@@ -126,6 +138,8 @@ const DEFAULTS: UserPreferences = {
   terminalScrollback: 5000,
   terminalCopyOnSelect: true,
   accentColorIndex: 0,
+  glassStrength: 'heavy',
+  transparency: true,
   autoRefreshInterval: 30,
   dateFormat: '12h',
   showToasts: true,
@@ -156,27 +170,11 @@ function savePreferences(prefs: UserPreferences) {
   }
 }
 
-/** Apply accent color to CSS custom properties on :root */
-export function applyAccentColor(index: number) {
-  if (typeof document === 'undefined') return;
-  const preset = ACCENT_PRESETS[index] ?? ACCENT_PRESETS[0];
-  const root = document.documentElement;
-  const isDark = root.classList.contains('dark');
-  root.style.setProperty('--primary', isDark ? preset.oklchDark : preset.oklchLight);
-  root.style.setProperty('--primary-foreground', preset.oklchFg);
-  // Also update sidebar-primary and ring to match
-  root.style.setProperty('--sidebar-primary', isDark ? preset.oklchDark : preset.oklchLight);
-  root.style.setProperty('--ring', isDark ? preset.oklchDark : preset.oklchLight);
-}
-
 export const usePreferencesStore = create<PreferencesState>((set, get) => {
   const initial = loadPreferences();
 
-  // Apply persisted accent color on load
-  if (typeof document !== 'undefined') {
-    applyAccentColor(initial.accentColorIndex);
-  }
-
+  // Accent, glass and transparency are applied as <html> data attributes by
+  // useLumenAppearance(), which also knows the effective wallpaper.
   return {
     ...initial,
 
@@ -242,11 +240,19 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => {
     },
 
     setAccentColorIndex: (index) => {
-      const clamped = Math.max(0, Math.min(ACCENT_PRESETS.length - 1, index));
+      const clamped = Math.max(0, Math.min(LUMEN_ACCENTS.length - 1, index));
       set({ accentColorIndex: clamped });
       savePreferences({ ...get(), accentColorIndex: clamped });
-      // Apply accent color to CSS vars immediately
-      applyAccentColor(clamped);
+    },
+
+    setGlassStrength: (strength) => {
+      set({ glassStrength: strength });
+      savePreferences({ ...get(), glassStrength: strength });
+    },
+
+    setTransparency: (enabled) => {
+      set({ transparency: enabled });
+      savePreferences({ ...get(), transparency: enabled });
     },
 
     setAutoRefreshInterval: (seconds) => {
@@ -306,8 +312,6 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => {
     resetAllPreferences: () => {
       set(DEFAULTS);
       savePreferences(DEFAULTS);
-      // Re-apply default accent color
-      applyAccentColor(DEFAULTS.accentColorIndex);
     },
 
     updatePreferences: (partial) => {
@@ -328,6 +332,8 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => {
         desktopIconSize: updated.desktopIconSize,
         desktopSortBy: updated.desktopSortBy,
         accentColorIndex: updated.accentColorIndex,
+        glassStrength: updated.glassStrength,
+        transparency: updated.transparency,
         autoRefreshInterval: updated.autoRefreshInterval,
         dateFormat: updated.dateFormat,
         showToasts: updated.showToasts,

@@ -2,7 +2,6 @@
 // @see docs/phases/phase-6.md
 
 import { create } from 'zustand';
-import { ACCENT_PRESETS } from './preferences-store';
 
 export type Theme = 'dark' | 'light' | 'auto';
 
@@ -40,21 +39,8 @@ function applyTheme(resolved: 'dark' | 'light') {
   } else {
     root.classList.remove('dark');
   }
-  // Re-apply accent color when theme changes (light/dark may differ)
-  try {
-    const raw = localStorage.getItem('headlessos-preferences');
-    if (raw) {
-      const prefs = JSON.parse(raw);
-      const idx = typeof prefs.accentColorIndex === 'number' ? prefs.accentColorIndex : 0;
-      const preset = ACCENT_PRESETS[idx] ?? ACCENT_PRESETS[0];
-      root.style.setProperty('--primary', resolved === 'dark' ? preset.oklchDark : preset.oklchLight);
-      root.style.setProperty('--primary-foreground', preset.oklchFg);
-      root.style.setProperty('--sidebar-primary', resolved === 'dark' ? preset.oklchDark : preset.oklchLight);
-      root.style.setProperty('--ring', resolved === 'dark' ? preset.oklchDark : preset.oklchLight);
-    }
-  } catch {
-    // Ignore — accent color will be applied by preference store init
-  }
+  // Accent tokens are switched by data-accent in styles.css (EX8.1), so the
+  // light/dark flip needs no extra work here.
 }
 
 export const useThemeStore = create<ThemeState>((set) => {

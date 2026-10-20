@@ -81,6 +81,9 @@ export function Wallpaper({ className = '' }: WallpaperProps) {
           draggable={false}
         />
       )}
+
+      {/* EX8.1: darkens the wallpaper in dark mode so glass reads as dark */}
+      <div className="absolute inset-0 lumen-scrim pointer-events-none" />
     </div>
   );
 }

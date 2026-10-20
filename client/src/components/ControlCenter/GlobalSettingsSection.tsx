@@ -9,7 +9,8 @@
 
 import { ExternalLink, Palette, Image as ImageIcon, Bell, Calendar, Upload } from 'lucide-react';
 import { useState } from 'react';
-import { usePreferencesStore, ACCENT_PRESETS } from '../../store/preferences-store';
+import { usePreferencesStore } from '../../store/preferences-store';
+import { LUMEN_ACCENTS } from '../../lib/lumen-theme';
 import { useAppStore } from '../../store/app-store';
 import { importSessionViaPicker } from '../../lib/session-io';
 import { Button } from '@/components/ui/button';
@@ -65,9 +66,9 @@ export function GlobalSettingsSection() {
           <Label className="text-sm font-medium">Default accent color</Label>
         </div>
         <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Default accent color">
-          {ACCENT_PRESETS.map((preset, idx) => (
+          {LUMEN_ACCENTS.map((preset, idx) => (
             <button
-              key={preset.name}
+              key={preset.id}
               role="radio"
               aria-checked={accentColorIndex === idx}
               aria-label={preset.name}
@@ -76,7 +77,7 @@ export function GlobalSettingsSection() {
                 'h-8 w-8 rounded-full transition-transform hover:scale-110 ' +
                 (accentColorIndex === idx ? 'ring-2 ring-foreground ring-offset-2 ring-offset-background' : '')
               }
-              style={{ backgroundColor: preset.oklchDark }}
+              style={{ background: preset.swatch }}
             />
           ))}
         </div>
