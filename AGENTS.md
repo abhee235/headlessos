@@ -865,6 +865,7 @@ All UI primitives live in `client/src/components/ui/`. They use the CSS variable
 - **Need charts?** → `ChartContainer` + recharts components (BarChart, LineChart, etc.) with theme-aware tooltips
 - **Need resizable panels?** → `ResizablePanelGroup` / `ResizablePanel` / `ResizableHandle`
 - **Need a date picker?** → `Calendar` (react-day-picker v9) inside a `Popover`
+- **Need to edit or show a code/config file?** → `CodeEditor` (Monaco, syntax colouring, Lumen themes)
 - **Need a file icon?** → `FileIcon` (custom SVG component with 12 color categories, 100+ extension mappings)
 - **Need loading state?** → `Skeleton` (pulse animation placeholder)
 - **Need a progress bar?** → `Progress`
@@ -945,6 +946,7 @@ All files are in `client/src/components/ui/`. Import pattern: `import { Componen
 | Component | File | Base | Key Exports |
 |-----------|------|------|-------------|
 | AppWindow | `app-window.tsx` | Radix Dialog + compound | `AppWindow`, `AppWindow.Sidebar`, `AppWindow.SidebarGroup`, `AppWindow.SidebarItem`, `AppWindow.Toolbar`, `AppWindow.Body`, `AppWindow.Footer` — **standard for all overlay dialogs** |
+| CodeEditor | `code-editor.tsx` | Monaco (lazy chunk) | `CodeEditor` (`value`, `onChange`, `path` → language, `onSave` on Ctrl/⌘+S, `readOnly`) — use for any code/config file editing; never import `code-editor-impl` directly |
 | FileIcon | `FileIcon.tsx` | Custom SVG | `FileIcon`, `DashboardIcon`, `FileExplorerIcon`, `TerminalIcon`, `ThisPCIcon`, `FolderSVG`, `SymlinkSVG`, `FileSVG`, `getFileCategory`, `FILE_COLORS` |
 | Visually Hidden | `visually-hidden.tsx` | Radix | `VisuallyHidden` (accessibility: hidden but screen-reader visible) |
 

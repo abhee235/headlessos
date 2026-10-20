@@ -71,6 +71,7 @@ The design handoff lives outside the repo tree in `Custom OS UI Design/handoff/`
 | EX8.5 | Login + lock: `LockScreen`, `LoginScreen`, `ControlCenter` screen | ✅ |
 | EX8.6 | Apps: FileExplorer, SettingsView, TaskManager, Dashboard, Terminal, Docker, Services, ServerAdmin, DynamicUI widgets — fix what steps 1–4 didn't cover | ✅ |
 | EX8.7 | Verify (light/dark, 4 accents, 3 glass levels, transparency off, 1440×900 + 1024×768), tests, docs | ✅ |
+| EX8.8 | Code editor (requested): Monaco in Files and container Files — syntax colouring, Lumen themes, Ctrl/⌘+S | ✅ |
 
 ## Additions beyond the handoff
 
@@ -108,6 +109,20 @@ Found or asked for during the work; each has tests.
   `docker exec -it <id> sh -c '…bash || sh'` as the pty command
   (`getShell({ command })`), so no login banner or echoed `exec docker exec`
   line, and bash is used when the image has it.
+
+- **Monaco code editor (EX8.8, requested):** `ui/code-editor.tsx` replaces the
+  plain textarea in `FileExplorer/FileViewer` and the container Files editor.
+  Monaco 0.57 is bundled (no CDN; Electron runs offline) and lazy-loaded: the
+  editor chunk (~4 MB, ~1 MB gzip) loads the first time a file opens, behind the
+  H spinner. Language comes from the file name (`lib/code-language.ts`: source,
+  config formats, Dockerfile/.bashrc/.env/sshd_config…; unknown → plain text),
+  shown as a chip in the toolbar ("Config" for `.conf`-style files). Lumen
+  light/dark themes (`lib/monaco-setup.ts`) use the viz hues, a transparent
+  background on the paper pane, accent cursor/selection, and follow theme and
+  accent changes live. Workers: editor + JSON/CSS/HTML/TS, each its own file
+  fetched on first use (TS ≈ 7 MB, only for JS/TS files). TS/JS semantic and
+  suggestion diagnostics are off (a lone server file has no project); syntax
+  errors still show.
 
 ## Deviations from the handoff text (prototype wins where they differ)
 

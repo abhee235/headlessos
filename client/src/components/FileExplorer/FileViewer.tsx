@@ -1,5 +1,6 @@
 // M2.4 + M2.5: File Viewer — text file viewer with save capability
 // EX8.6: LumenOS v3 — transparent toolbar, lit Save pill, bg-paper text pane.
+// EX8.8: Monaco code editor (syntax colouring, Ctrl/⌘+S) + language chip.
 // @see docs/phases/phase-2.md, docs/phases/phase-ex8.md
 
 import { useEffect, useState, useCallback } from 'react';
@@ -8,7 +9,9 @@ import {
   Save,
   AlertCircle,
 } from 'lucide-react';
-import { Spinner } from '@/components/ui/spinner';
+import { LoadingView } from '@/components/ui/loading-view';
+import { CodeEditor } from '@/components/ui/code-editor';
+import { fileLanguageLabel } from '@/lib/code-language';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { FileIcon } from '@/components/ui/FileIcon';
@@ -53,6 +56,7 @@ export function FileViewer({ serverId, filePath, onClose, onSave }: FileViewerPr
   }, [loadFile]);
 
   const handleSave = async () => {
+    if (!hasChanges || saving) return;
     setSaving(true);
     try {
       await writeFile(serverId, filePath, content);
@@ -77,6 +81,7 @@ export function FileViewer({ serverId, filePath, onClose, onSave }: FileViewerPr
           <FileIcon name={fileName} size="sm" className="shrink-0" />
           <span className="truncate text-[13px] font-semibold text-foreground">{fileName}</span>
           <span className="hidden truncate font-mono text-[11px] text-label-3 sm:inline">{filePath}</span>
+          <Badge variant="secondary" className="shrink-0">{fileLanguageLabel(fileName)}</Badge>
           {hasChanges && (
             <Badge variant="warning" className="shrink-0">● modified</Badge>
           )}
@@ -96,9 +101,7 @@ export function FileViewer({ serverId, filePath, onClose, onSave }: FileViewerPr
 
       {/* Content */}
       {loading && (
-        <div className="flex h-48 items-center justify-center">
-          <Spinner size={16} className="text-muted-foreground" />
-        </div>
+        <LoadingView label="Opening file…" />
       )}
 
       {error && !loading && (
@@ -114,14 +117,13 @@ export function FileViewer({ serverId, filePath, onClose, onSave }: FileViewerPr
       )}
 
       {!loading && !error && (
-        <div className="mt-3 min-h-0 flex-1">
-          <textarea
-            className="h-full min-h-[400px] w-full resize-none rounded-[14px] border border-edge bg-paper p-3.5 font-mono text-[13px] leading-relaxed text-foreground outline-none transition-[border-color,box-shadow] duration-150 focus:border-accent-solid/60 focus:ring-[3px] focus:ring-accent-soft"
-            value={content}
-            onChange={e => setContent(e.target.value)}
-            spellCheck={false}
-          />
-        </div>
+        <CodeEditor
+          className="mt-3 min-h-[300px] flex-1"
+          path={filePath}
+          value={content}
+          onChange={setContent}
+          onSave={() => void handleSave()}
+        />
       )}
     </div>
   );

@@ -20,6 +20,9 @@ import {
 } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { LoadingView } from '@/components/ui/loading-view';
+import { CodeEditor } from '@/components/ui/code-editor';
+import { Badge } from '@/components/ui/badge';
+import { fileLanguageLabel } from '@/lib/code-language';
 import {
   ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger,
 } from '@/components/ui/context-menu';
@@ -99,7 +102,7 @@ export function ContainerFilesView({ serverId, containerId, containerName }: Pro
   };
 
   const saveEditor = async () => {
-    if (!editor) return;
+    if (!editor || !editor.dirty || saving) return;
     setSaving(true);
     try {
       await writeContainerFile(serverId, containerId, editor.path, editor.content);
@@ -310,14 +313,16 @@ export function ContainerFilesView({ serverId, containerId, containerName }: Pro
             <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-label-2">
               {editor.path}{editor.dirty ? ' •' : ''}
             </span>
+            <Badge variant="secondary" className="shrink-0">{fileLanguageLabel(editor.path)}</Badge>
             <Button size="sm" onClick={saveEditor} disabled={saving || !editor.dirty}><Save strokeWidth={1.75} />{saving ? 'Saving…' : 'Save'}</Button>
             <Button size="icon" variant="ghost" className="size-[30px]" title="Close" onClick={() => setEditor(null)}><X strokeWidth={1.75} /></Button>
           </div>
-          <textarea
-            className="mx-2 mb-2 min-h-0 flex-1 resize-none rounded-[14px] bg-paper px-4 py-3 font-mono text-[13px] leading-relaxed text-foreground outline-none focus-visible:ring-2 focus-visible:ring-accent-soft"
+          <CodeEditor
+            className="mx-2 mb-2 flex-1"
+            path={editor.path}
             value={editor.content}
-            spellCheck={false}
-            onChange={(ev) => setEditor({ ...editor, content: ev.target.value, dirty: true })}
+            onChange={(content) => setEditor((ed) => (ed ? { ...ed, content, dirty: true } : ed))}
+            onSave={() => void saveEditor()}
           />
         </div>
       )}

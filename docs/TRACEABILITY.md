@@ -987,6 +987,12 @@ None (all changes to existing files).
 - **Verification:** client 564 / server 2010 tests passing, both typechecks clean; Playwright side-by-side vs the prototype (13 screens × 2 themes at 1440×900, plus 1024×768); docs: `UI_DESIGN.md` §5–8, AGENTS.md §19 tokens
 - **Commits:** branch `feat/lumen-v3-design` (`feat|fix(EX8.n): …`)
 
+### EX8.8: Code editor (Monaco)
+- **Status:** ✅ Complete
+- **Files created:** `client/src/components/ui/{code-editor,code-editor-impl}.tsx`, `client/src/lib/{code-language,monaco-setup}.ts`, `client/src/monaco-workers.d.ts`; tests `client/tests/lib/code-language.test.ts`, `client/tests/components/code-editor.test.tsx`
+- **Files modified:** `FileExplorer/FileViewer.tsx`, `Docker/ContainerFilesView.tsx`, `client/package.json` (`monaco-editor` 0.57.0, exact)
+- **Verification:** Playwright — TS / JSON / nginx.conf in Files (dark + light), container Files editor, JSON worker flags a trailing comma, modified badge + Save; `vite build` emits the lazy editor chunk and per-language workers
+
 ## How to Use This File
 
 ### After completing a task:
