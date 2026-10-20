@@ -903,6 +903,61 @@ None (all changes to existing files).
 
 ---
 
+## M12: Backend Architecture Refactor
+
+> Domain service layer + CommandPolicy chokepoint. Spec: [phase-12.md](phases/phase-12.md). ADR: [ADR-023](DECISIONS.md#adr-023-domain-service-layer--command-policy-chokepoint).
+
+### M12.1: CommandPolicy Chokepoint
+- **Status:** ✅ Complete
+- **Files created:** `server/src/services/policy/command-policy.ts` (CommandPolicy class: evaluate, assertAllowed, isAllowed, getRiskLevel, getAuditLog cap 500, getStats, setMode, getMode), `server/tests/services/policy/command-policy.test.ts` (29 tests: allowlist, blocklist, modes enforce/audit/off, audit log, risk levels)
+- **Files modified:** `server/src/ssh/connection-manager.ts` (added `policy` field, optional resolution in `_init()`, `assertAllowed()` call inside `exec()` before ssh2; `setPolicy()` for tests bypassing the container), `server/src/index.ts` (registers `command-policy` BEFORE `ssh`)
+- **Verification:** 29 tests passing; `HEADLESS_POLICY_MODE` env switches modes at boot; BLOCKED_COMMANDS always wins regardless of mode
+
+### M12.2: DockerService + Slim docker.ts
+- **Status:** ✅ Complete
+- **Files created:** `server/src/services/domain/base.ts` (DomainService base, ServiceResult<T>, ServiceError, ok/fail/sendResult/tryRoute, helpers requireConnected/exec/safeExec/execAction), `server/src/services/domain/docker-service.ts` (listContainers/listImages/containerAction/runContainer/removeContainer/removeImage/getLogs/inspectContainer; container ID validation 12-64 hex), `server/tests/services/domain/docker-service.test.ts` (6 tests)
+- **Files modified:** `server/src/routes/docker.ts` (rewritten as thin HTTP wrappers; `send()` helper un-flattens `{containers, dockerAvailable}` to legacy `{success, data, dockerAvailable}`), `server/src/index.ts` (DockerService instantiation + `app.register(dockerRoutes, { connectionManager, dockerService })`)
+- **Verification:** All response shapes preserved (frontend zero changes); 6 unit tests + existing route tests pass
+
+### M12.3: FilesService — Deferred
+- **Status:** ⏭️ Deferred with rationale
+- **Rationale:** `routes/files.ts` already uses SFTP (readdir/readFile/writeFile/rename/unlink), which bypasses CommandPolicy by design (ADR-007: SFTP for file ops, not shell). `validatePath()` is called at every entry. Wrapping SFTP in a domain service would add a layer without adding a policy gate or eliminating duplication. Revisit if SFTP grows orchestration logic.
+
+### M12.4: Admin Domain Services (8)
+- **Status:** ✅ Complete
+- **Files created:**
+  - `server/src/services/domain/admin/index.ts` (barrel)
+  - `server/src/services/domain/admin/network-admin-service.ts` (getNetworkInfo parallel 6 cmds, setHostname, setDns, interfaceUp/Down)
+  - `server/src/services/domain/admin/firewall-admin-service.ts` (getStatus, addRule, addAdvancedRule with IP/CIDR/portRange validation, deleteRule, toggle, listApps, allowDenyApp)
+  - `server/src/services/domain/admin/security-admin-service.ts` (getSecurityInfo parallel passwd/who/last/sshd/fail2ban, getJailDetail, banIp/unbanIp, reloadFail2ban, createUser with PROTECTED_USERS guard, deleteUser refuses root, setPassword, addToGroup, killSession)
+  - `server/src/services/domain/admin/webserver-admin-service.ts` (getWebServerInfo Nginx detection→sites+certs, enableSite/disableSite, reloadNginx/restartNginx, readSiteConfig, testNginxConfig)
+  - `server/src/services/domain/admin/packages-admin-service.ts` (getPackageInfo, aptUpdate 120s, upgradeAll 300s, install/remove/upgradeOne, search)
+  - `server/src/services/domain/admin/cron-admin-service.ts` (getCronInfo, addJob with optional `# description`, deleteJobByIndex, editJobByIndex)
+  - `server/src/services/domain/admin/logs-admin-service.ts` (getLogs cap 1000, exportLogs cap 5000, journalctl/dmesg/tail with regex grep fallback)
+  - `server/src/services/domain/admin/storage-admin-service.ts` (getStorageInfo parallel du/findmnt/swapon)
+  - `server/tests/services/domain/admin-services.test.ts` (39 tests)
+- **Files modified:** `server/src/index.ts` (8 service instantiations + container.register calls)
+- **Verification:** 39 admin unit tests passing; all command construction, validator rejection, ServiceResult mapping (404/409/400), parallel exec count, edge cases covered
+
+### M12.5: Decompose serveradmin.ts
+- **Status:** ✅ Complete
+- **Files modified:** `server/src/routes/serveradmin.ts` (rewritten 1,655 → ~520 lines; 8 sections delegating to admin services; helpers `send<T>(reply, promise)` with ServiceError catch + flatten `{message}` → `{success, message}`, `parseBody<T>` Zod safeParse with 400 reply; logs export endpoint sets text/plain Content-Type and Content-Disposition attachment header), `server/src/index.ts` (`app.register(serverAdminRoutes, { network, firewall, security, webServer, packages, cron, logs, storage })`)
+- **Verification:** All response shapes preserved (frontend zero changes); existing serveradmin route integration tests pass
+
+### M12.6: Domain Service Unit Tests
+- **Status:** ✅ Complete
+- **Files:** `server/tests/services/policy/command-policy.test.ts` (29), `server/tests/services/domain/admin-services.test.ts` (39), `server/tests/services/domain/docker-service.test.ts` (6) — total 74 new tests
+- **Test infrastructure:** `bootService<T>()` helper instantiates ServiceContainer with `MockConnection` (vi.fn'd `exec`, default `getState→connected`), stub Orchestrator and ParsingPipeline, registers service-under-test, awaits `container.boot()`. `MockConnection extends BaseService` to satisfy two-phase boot.
+- **Verification:** Full server suite **1,895/1,895 passing** (was 1,821 before M12; 74 net new). `cd server && npx tsc --noEmit` shows only the 3 known pre-existing errors (ui-agent.ts:343, generator.ts:262, observatory.ts:91 @types/ws).
+
+### M12.7: Documentation
+- **Status:** ✅ Complete
+- **Files created:** `docs/phases/phase-12.md` (full task spec)
+- **Files modified:** `docs/DECISIONS.md` (ADR-023 added before "Template for New ADRs"), `docs/PROGRESS.md` (M12 milestone row + task table + 2026-05-04 changelog entry), `docs/TRACEABILITY.md` (this entry), `docs/ARCHITECTURE.md` (domain layer note + updated request-flow diagram)
+- **Verification:** Cross-references between ADR-023, phase-12, PROGRESS, TRACEABILITY all consistent
+
+---
+
 ## How to Use This File
 
 ### After completing a task:

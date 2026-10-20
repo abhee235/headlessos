@@ -1022,6 +1022,98 @@ With multi-session desktops (ADR-020), preferences like wallpaper, accent color,
 
 ---
 
+## ADR-023: Domain Service Layer + Command Policy Chokepoint
+
+**Status:** Accepted
+**Date:** 2026-05-04
+
+**Context:**
+Through M11 the backend grew three "fat" route files that mixed HTTP wiring with business logic, command building, validation, and parsing:
+
+- `routes/serveradmin.ts` — 1,655 lines, 40+ endpoints
+- `routes/files.ts` — 630 lines, inline SFTP
+- `routes/docker.ts` — 615 lines, inline parsing/validation
+
+There was no domain service layer between routes and infrastructure, so every endpoint duplicated the same shape: parse body → validate → build command → call orchestrator/exec → parse → return JSON. The security validators in `security/validators.ts` (95+ allowlist patterns, 30+ validators) were callable but **not enforced as a chokepoint** — it was up to each route author to remember to call them.
+
+**Options Considered:**
+
+1. **Status quo with linting** — Keep fat routes; add ESLint rules forcing validator calls. Doesn't address duplication and routes-as-business-logic.
+2. **Per-route helpers** — Extract helpers per route file. Reduces duplication but keeps logic scoped to HTTP, makes services hard to reuse from agents/cron/CLI.
+3. **Domain service layer + central policy** — One `DomainService` per concern (Docker, Network, Firewall, Security, WebServer, Packages, Cron, Logs, Storage). Routes become thin HTTP↔ServiceResult adapters. `CommandPolicy` enforced at `ConnectionManager.exec()` so every command crossing SSH passes a single gate.
+
+**Decision:** Option 3.
+
+### Domain Service Layer
+
+```
+server/src/services/
+├── domain/
+│   ├── base.ts                 # DomainService, ServiceResult<T>, ServiceError
+│   ├── docker-service.ts       # M12.2
+│   └── admin/                  # M12.4
+│       ├── network-admin-service.ts
+│       ├── firewall-admin-service.ts
+│       ├── security-admin-service.ts
+│       ├── webserver-admin-service.ts
+│       ├── packages-admin-service.ts
+│       ├── cron-admin-service.ts
+│       ├── logs-admin-service.ts
+│       └── storage-admin-service.ts
+└── policy/
+    └── command-policy.ts       # M12.1
+```
+
+**`DomainService` base** (`server/src/services/domain/base.ts`):
+- Extends `BaseService`. In `_init()` auto-wires `this.ssh`, `this.orchestrator`, `this.pipeline` via `this.services.get<T>(name)`.
+- Exposes `requireConnected(serverId)` (throws `ServiceError` 400 if not connected), `exec()`, `safeExec()`, `execAction()` helpers.
+- Returns `ServiceResult<T> = { ok: true, data?: T } | { ok: false, error: string, statusCode?: number, data?: unknown }`.
+- Helper `sendResult()` translates `ServiceResult` → Fastify reply, mapping `statusCode` to HTTP status. Action-style results whose data is exactly `{ message: string }` are flattened to `{ success: true, message }` for response-shape compatibility with the pre-refactor API.
+
+**Routes become thin wrappers** (`routes/docker.ts`, `routes/serveradmin.ts`):
+```typescript
+fastify.get('/api/docker/:serverId/containers', async (req, reply) =>
+  send(reply, dockerService.listContainers(req.params.serverId))
+);
+```
+
+### Command Policy Chokepoint
+
+`CommandPolicy` (`server/src/services/policy/command-policy.ts`) wraps the existing `ALLOWED_COMMANDS` and `BLOCKED_COMMANDS` patterns from `security/validators.ts`.
+
+- `ConnectionManager.exec()` calls `policy.assertAllowed(command, serverId)` **before** the ssh2 call. This is the single gate every shell command must pass.
+- Three modes via `HEADLESS_POLICY_MODE` env:
+  - `enforce` (default for prod) — block disallowed commands, throw.
+  - `audit` (default for dev/beta) — record decision, log warning, allow command. Use this to discover real-world commands before flipping to enforce.
+  - `off` — bypass policy entirely. Tests + emergency only.
+- `BLOCKED_COMMANDS` always wins regardless of mode.
+- Audit log capped at 500 entries; `getStats()` and `getAuditLog()` exposed for inspection.
+- `shell()` and `sftp()` channels do **not** pass through policy — they have their own constraints (interactive PTY limited to single channel, SFTP confined to file primitives) and would not benefit from regex matching against arbitrary user keystrokes / API calls.
+
+### FilesService Deferred
+
+A `FilesService` was scoped but **deferred**. Rationale: file routes already use SFTP (`readdir`, `readFile`, `writeFile`, `rename`, `unlink`) which **bypasses CommandPolicy** by design (ADR-007). Validation already happens via `validatePath()` at every entry. Wrapping SFTP in a domain service would add a layer without adding a policy gate. Revisit if SFTP grows complex orchestration.
+
+**Rationale:**
+- Single chokepoint is auditable. Reviewers can verify "every shell command passes policy" by inspecting one file.
+- Audit mode lets us tighten the allowlist iteratively against real traffic instead of guessing.
+- Domain services are reusable from future agents (M11 ReAct mode, ADR-014), cron jobs, CLI tools — not tied to HTTP.
+- `ServiceResult` keeps error semantics inside the domain (statusCode, structured error) without coupling to Fastify.
+- Dual defense: validators at parameter level + policy at exec level. A regression in either is caught by the other.
+
+**Consequences:**
+- (+) `serveradmin.ts` shrunk from 1,655 → ~520 lines; logic relocated to typed services.
+- (+) Every command crossing SSH is auditable from a single chokepoint.
+- (+) Domain services unit-testable without HTTP/Fastify boot.
+- (+) New endpoints become 3-line wrappers around an existing service method.
+- (–) Adding a new command requires updating `ALLOWED_COMMANDS` in addition to writing the service method; audit mode mitigates this for early development.
+- (–) `ServiceError` thrown from `requireConnected()` requires `try/catch` at the route boundary (handled in the shared `send()` helper).
+- (–) Slight indirection: route → service → orchestrator/exec → policy → ssh2.
+
+**Reference:** See [phases/phase-12.md](phases/phase-12.md) for the implementation plan and detailed task breakdown.
+
+---
+
 ## Template for New ADRs
 
 ```markdown

@@ -1,0 +1,9 @@
+// M12.4: Admin services barrel export
+export { NetworkAdminService } from './network-admin-service.js';
+export { FirewallAdminService } from './firewall-admin-service.js';
+export { SecurityAdminService } from './security-admin-service.js';
+export { WebServerAdminService } from './webserver-admin-service.js';
+export { PackagesAdminService } from './packages-admin-service.js';
+export { CronAdminService } from './cron-admin-service.js';
+export { LogsAdminService } from './logs-admin-service.js';
+export { StorageAdminService } from './storage-admin-service.js';

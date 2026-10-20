@@ -459,6 +459,68 @@ class InvestigationAgent extends BaseService {
 
 **Where the agent logic lives:** **Backend only.** The frontend never runs agent loops. It calls `POST /api/servers/:id/investigate` and streams the agent's progress via WebSocket.
 
+### 4b. Domain Service Layer + CommandPolicy Chokepoint (M12)
+
+**Location:** `server/src/services/domain/` and `server/src/services/policy/`
+
+**Responsibility:** Sit between HTTP routes and the lower-level orchestrator/pipeline/SSH adapters. Each domain service owns command building, validator calls, and parsing for one concern (Docker, Network, Firewall, Security, Web Server, Packages, Cron, Logs, Storage). Routes become thin HTTP↔ServiceResult wrappers.
+
+`CommandPolicy` is the **single chokepoint** every shell command crossing SSH must pass — evaluated inside `ConnectionManager.exec()` before ssh2 dispatch.
+
+> See [ADR-023](DECISIONS.md#adr-023-domain-service-layer--command-policy-chokepoint) and [phase-12.md](phases/phase-12.md).
+
+```
+  HTTP Route (thin wrapper, ~3 lines)
+  ┌──────────────────────────────────┐
+  │ send(reply,                      │
+  │   dockerService.listContainers() │
+  │ )                                │
+  └────────────────┬─────────────────┘
+                   │
+                   ▼
+  DomainService                                  Service Container
+  ┌──────────────────────────────────┐         ┌─────────────────┐
+  │ requireConnected(serverId)       │         │ ssh             │
+  │ build command (with validators)  │◀───────▶│ orchestrator    │
+  │ exec / safeExec / execAction     │         │ parser          │
+  │ Zod parse → ServiceResult<T>     │         │ command-policy  │
+  └────────────────┬─────────────────┘         └─────────────────┘
+                   │
+                   ▼
+  Command Orchestrator (§4) / ParsingPipeline (§2)
+                   │
+                   ▼
+  ConnectionManager.exec()
+  ┌──────────────────────────────────┐
+  │ CommandPolicy.assertAllowed()    │  ← single chokepoint
+  │   modes: enforce | audit | off   │
+  │   ALLOWED_COMMANDS regex match   │
+  │   BLOCKED_COMMANDS always wins   │
+  └────────────────┬─────────────────┘
+                   │
+                   ▼
+                ssh2 → remote VPS
+```
+
+**`ServiceResult<T>`:**
+```typescript
+type ServiceResult<T> =
+  | { ok: true; data?: T }
+  | { ok: false; error: string; statusCode?: number; data?: unknown };
+```
+
+**Mode selection** via `HEADLESS_POLICY_MODE`:
+
+| Mode | Behavior | Use case |
+|------|----------|----------|
+| `enforce` | Disallowed commands throw before ssh2 | Production / hardened beta |
+| `audit` | Disallowed commands logged + allowed through | Dev — iterate allowlist against real traffic |
+| `off` | Bypass policy entirely | Tests, emergency |
+
+**Dual defense:** validators (`validatePath`, `validateContainerId`, `validateUsername`, etc.) at parameter entry + `CommandPolicy` at exec time. A regression in either layer is caught by the other.
+
+**SFTP exclusion:** `shell()` and `sftp()` channels do not pass through `CommandPolicy` by design (ADR-007: SFTP for file ops). Each has its own constraints.
+
 ### 5. App System
 
 **Location:** Each app spans backend routes + frontend components.
