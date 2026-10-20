@@ -2,10 +2,9 @@
 // EX8.6: LumenOS v3 look — PaneSidebar, Lumen header, card tables, badges
 // @see docs/phases/phase-3.md, docs/phases/phase-ex8.md
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { isValidElement, useCallback, useEffect, useRef, useState } from 'react';
 import { usePreferencesStore } from '../../store/preferences-store';
 import {
-  Box,
   Image,
   Play,
   Square,
@@ -81,11 +80,12 @@ type TabId = 'containers' | 'images';
 interface SidebarEntry {
   id: TabId;
   label: string;
-  icon: LucideIcon;
+  icon: LucideIcon | React.ReactElement;
 }
 
 const TABS: SidebarEntry[] = [
-  { id: 'containers', label: 'Containers', icon: Box },
+  // Containers are Docker's own thing: use the Docker app icon
+  { id: 'containers', label: 'Containers', icon: <AppIcon appId="docker" size={18} /> },
   { id: 'images', label: 'Images', icon: Image },
 ];
 
@@ -137,7 +137,7 @@ function SectionHeader({
   onRefresh,
   refreshing,
 }: {
-  icon: LucideIcon;
+  icon: LucideIcon | React.ReactElement;
   title: string;
   subtitle: string;
   search: string;
@@ -149,7 +149,7 @@ function SectionHeader({
     <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-3 pb-4">
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <div className="flex size-10 shrink-0 items-center justify-center rounded-[12px] border border-edge bg-mat shadow-[var(--lumen-spec)]">
-          <Icon className="size-5 text-label-2" strokeWidth={1.75} />
+          {isValidElement(Icon) ? Icon : <Icon className="size-5 text-label-2" strokeWidth={1.75} />}
         </div>
         <div className="min-w-0">
           <h2 className="truncate text-[24px] font-bold leading-7 tracking-[-0.02em] text-foreground">{title}</h2>
@@ -453,7 +453,7 @@ function ContainersTab({
   return (
     <div className="flex h-full flex-col">
       <SectionHeader
-        icon={Box}
+        icon={<AppIcon appId="docker" size={24} />}
         title="Containers"
         subtitle={`${containers.length} ${containers.length === 1 ? 'container' : 'containers'} · ${running} running`}
         search={search}
@@ -897,7 +897,7 @@ export function DockerView({ serverId }: DockerViewProps) {
       <div className="flex h-full items-center justify-center px-6 pb-6">
         <div className="max-w-sm text-center">
           <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-[18px] border border-edge bg-mat shadow-[var(--lumen-spec)]">
-            <Box className="size-8 text-label-2" strokeWidth={1.5} />
+            <AppIcon appId="docker" size={40} />
           </div>
           <p className="mb-1.5 text-[17px] font-bold text-foreground">Docker is not installed</p>
           <p className="mb-5 text-[13px] leading-relaxed text-label-2">

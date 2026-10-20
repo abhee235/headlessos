@@ -10,6 +10,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { LoadingView } from '@/components/ui/loading-view';
+import { AppIcon } from '@/components/ui/FileIcon';
 
 // ─── Formatting ──────────────────────────────────────────────────────────────
 
@@ -203,7 +204,17 @@ export function glyphFor(name: string): LucideIcon {
   return GLYPHS.find(([re]) => re.test(n))?.[1] ?? Cog;
 }
 
+const DOCKER = /^(docker|containerd|dockerd)/;
+
 export function ProcessGlyph({ name, className }: { name: string; className?: string }) {
+  // Docker's daemons get the Docker app icon, like everywhere else
+  if (DOCKER.test(name.toLowerCase())) {
+    return (
+      <span className={cn('lumen-tile grid size-9 shrink-0 place-items-center rounded-[11px]', className)}>
+        <AppIcon appId="docker" size={22} />
+      </span>
+    );
+  }
   const Icon = glyphFor(name);
   return (
     <span className={cn('lumen-tile grid size-9 shrink-0 place-items-center rounded-[11px] text-label-2', className)}>

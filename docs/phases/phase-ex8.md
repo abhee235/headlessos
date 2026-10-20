@@ -193,6 +193,8 @@ Users, Services. Stat tiles + one table card per page, as in the prototype.
   bottom, as the handoff says.
 - **Terminal pane** is always dark (`--lumen-term-bg`), as in the prototype, not
   `bg-paper`.
+- **Dock indicator (user review):** no focus ring and no underline; a running app gets an 8px accent dot at its tile's top-left (glowing when focused, 55% when in the background). Glyphs are grid-centred in the plate.
+- **Docker icon (user review):** the orange Docker app icon replaces the lucide cube for Containers (sidebar + header), the not-installed state, the container chip in container Files and docker/containerd rows in the Task Manager pages.
 - **Tray pill** is glyph-only (server name in its tooltip) so a wide dock never
   collides with it.
 

@@ -97,7 +97,7 @@ function WellButton({
   );
 }
 
-/** 50px app plate with a running / focused indicator underneath. */
+/** 50px app plate; an accent dot at its top-left marks a running app (glowing when focused). */
 function DockTile({
   label,
   focused = false,
@@ -119,28 +119,26 @@ function DockTile({
         <button
           aria-label={label}
           className={cn(
-            'group relative h-[50px] w-[50px] shrink-0 transition-transform duration-[180ms] ease-out',
+            'group relative h-[50px] w-[50px] shrink-0 rounded-[16px] transition-transform duration-[180ms] ease-out',
             'hover:-translate-y-[5px] hover:scale-[1.07]',
+            // No ring on click; keyboard focus still gets one
+            'outline-none focus-visible:ring-2 focus-visible:ring-ring',
             dimmed && 'opacity-40',
           )}
           onClick={onClick}
         >
-          <span
-            className={cn(
-              'lumen-plate absolute inset-0 rounded-[16px] transition-shadow duration-200',
-              focused && 'shadow-[inset_0_1px_0_rgba(255,255,255,.4),0_0_0_2px_var(--lumen-accent),0_10px_20px_-8px_var(--lumen-accent-glow)]',
-            )}
-          />
-          <span className="absolute left-[9px] top-[9px] flex h-8 w-8 items-center justify-center drop-shadow-[0_2px_3px_rgba(0,0,0,.3)]">
+          <span className="lumen-plate absolute inset-0 rounded-[16px]" />
+          <span className="absolute inset-0 grid place-items-center drop-shadow-[0_2px_3px_rgba(0,0,0,.3)] [&>*]:block">
             {children}
           </span>
           {(focused || running) && (
             <span
+              aria-hidden
               className={cn(
-                'absolute -bottom-2 left-1/2 h-1 -translate-x-1/2 rounded-full transition-[width] duration-200',
+                'absolute left-[3px] top-[3px] size-2 rounded-full bg-accent-solid shadow-[0_0_0_1.5px_rgba(0,0,0,.28)] transition-[opacity,box-shadow] duration-200',
                 focused
-                  ? 'w-[18px] bg-accent-solid shadow-[0_0_8px_var(--lumen-accent-glow)]'
-                  : 'w-[5px] bg-label-2',
+                  ? 'shadow-[0_0_0_1.5px_rgba(0,0,0,.28),0_0_8px_var(--lumen-accent-glow)]'
+                  : 'opacity-55',
               )}
             />
           )}
