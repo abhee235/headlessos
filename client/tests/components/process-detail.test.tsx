@@ -6,6 +6,7 @@ import {
   formatPriority,
   formatStarted,
   shortProcessName,
+  sparkPaths,
 } from '../../src/components/TaskManager/ProcessDetailCard';
 
 vi.mock('../../src/lib/api', () => ({
@@ -92,5 +93,16 @@ describe('isHeadlessProbe', () => {
     expect(isHeadlessProbe(mk('ps aux', 'root'), 'testuser')).toBe(false);
     expect(isHeadlessProbe(mk('python3 -m http.server'), 'testuser')).toBe(false);
     expect(isHeadlessProbe(mk('ps aux'), undefined)).toBe(false);
+  });
+});
+
+describe('sparkPaths (Activity.dc.html spark)', () => {
+  it('spans the box with 2px inner padding and clips at max', () => {
+    const { line, area } = sparkPaths([0, 50, 200], 100, 200, 48);
+    expect(line).toBe('M 0.0 46.0 L 100.0 24.0 L 200.0 2.0');
+    expect(area).toBe('M 0 48 L 0.0 46.0 L 100.0 24.0 L 200.0 2.0 L 200 48 Z');
+  });
+  it('needs two samples', () => {
+    expect(sparkPaths([5], 10)).toEqual({ line: '', area: '' });
   });
 });

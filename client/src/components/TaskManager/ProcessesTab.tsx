@@ -231,7 +231,7 @@ export function ProcessesTab({ processes, serverId, onRefresh, refreshing, onCon
   return (
     <div className="flex h-full flex-col">
       {/* ── Toolbar: pill search with count, kill actions for the selection ── */}
-      <div className="mb-3 flex shrink-0 items-center gap-2">
+      <div className="mb-3.5 flex shrink-0 items-center gap-2">
         <div className="relative min-w-0 flex-1">
           <Search
             size={17}

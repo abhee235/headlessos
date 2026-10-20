@@ -78,6 +78,7 @@ The design handoff lives outside the repo tree in `Custom OS UI Design/handoff/`
 | EX8.10 | HomeHub (requested): the prototype's smart-home overlay as React, opened from the dock's Home button; 9-dot Launcher glyph | ✅ |
 | EX8.11 | Top menu bar (updated design): the bottom-right tray pill moves to a 28px strip; Quick Settings and notifications hang from the top-right | ✅ |
 | EX8.12 | Dock position setting (requested): bottom-centre (default) or right-middle; only the dock moves | ✅ |
+| EX8.13 | Task Manager process detail card re-ported from `Activity.dc.html`: same flex-wrap reflow at every width | ✅ |
 
 ## Additions beyond the handoff
 
@@ -232,6 +233,21 @@ leftwards. The Launcher, Home hub, Search, Quick Settings and notifications open
 where they always do. `dockInsets()` / `useDockInsets()` in `window-store` give the
 space windows keep clear (`{ bottom: 98, right: 0 }` or `{ bottom: 0, right: 98 }`),
 used by new/moved/restored/snapped windows, maximized windows and the snap preview.
+
+## EX8.13 — Process detail card (re-port)
+
+The EX8.6 card used a single 820px container breakpoint (stack ↔ 3-column grid);
+the prototype reflows continuously. `ProcessDetailCard` now copies it: one
+`flex-wrap` row (18px gap, padding 16×18, radius 22, violet `#9C8BFF` tint and
+border) with columns `flex 1 1 220px` (name 17px + status, PID · user 13px, a
+wrapped 12px mono command, 38px Suspend / End task pills), `1 1 228px` (CPU · last
+60 s in a chip well, the prototype's own SVG sparkline via `sparkPaths`), and
+`1 1 180px` (31px fact rows). The prototype has no `box-sizing` reset, so its sizes
+exclude padding and borders; the 228px basis, 24px badge and 31px rows are those
+sizes in border-box terms. Measured at card widths 1180, 740 and 500px against the
+prototype: every column's x, y, width and height match, including the wrap at
+500px (details on top, chart + facts below). The toolbar → card → table gaps are
+14px, as in the prototype.
 
 ## Deviations from the handoff text (prototype wins where they differ)
 
