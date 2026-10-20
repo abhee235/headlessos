@@ -21,6 +21,7 @@ const AgentView = lazy(() => import('../Agent/AgentView').then(m => ({ default: 
 const DynamicUITabView = lazy(() => import('../DynamicUI/DynamicUITabView').then(m => ({ default: m.DynamicUITabView })));
 const UIAgentView = lazy(() => import('../Agent/UIAgentView').then(m => ({ default: m.UIAgentView })));
 const ObservatoryView = lazy(() => import('../Observatory/ObservatoryView').then(m => ({ default: m.ObservatoryView })));
+const ContainerFilesView = lazy(() => import('../Docker/ContainerFilesView').then(m => ({ default: m.ContainerFilesView })));
 
 function LazyFallback() {
   return (
@@ -50,7 +51,19 @@ function WindowContent({ appId, serverId, windowId, meta }: { appId: string; ser
     case 'terminal':
       return (
         <div className="h-full">
-          <TerminalView serverId={serverId} />
+          <TerminalView serverId={serverId} containerId={meta?.containerId} />
+        </div>
+      );
+    case 'container-shell':
+      return (
+        <div className="h-full">
+          <TerminalView serverId={serverId} containerId={meta?.containerId} />
+        </div>
+      );
+    case 'container-files':
+      return (
+        <div className="relative h-full overflow-hidden">
+          <ContainerFilesView serverId={serverId} containerId={meta?.containerId ?? ''} containerName={meta?.containerName} />
         </div>
       );
     case 'settings':

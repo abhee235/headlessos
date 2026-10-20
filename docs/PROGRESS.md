@@ -36,7 +36,8 @@
 | **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **✅** | **26/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
 | **EX4: LLM Observatory** | **Experimental** | **✅** | **16/16 tasks** | [phase-ex4](phases/phase-ex4.md) |
 | **EX5: CLI App Generation + Sandbox** | **Experimental** | **✅** | **10/10 tasks** | [phase-ex5](phases/phase-ex5.md) |
-| **EX6: Multi-Session Desktop & Hibernation** | **Experimental** | **🔄** | **11/27 tasks** | [phase-ex6](phases/phase-ex6.md) |
+| **EX6: Multi-Session Desktop & Hibernation** | **Experimental** | **✅** | **34/34 tasks** | [phase-ex6](phases/phase-ex6.md) |
+| **EX7: Container Target Mode** | **Experimental** | **✅** | **9/9 tasks** | [phase-ex7](phases/phase-ex7.md) |
 
 ---
 
@@ -525,6 +526,8 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-10-20 | **EX7 ✅** Container Target Mode (9/9). Browse/view/edit/create/upload/rename/delete files **inside** a Docker container, plus shell-into-container, via `docker exec`/base64 (container stays SSH-free). New: `parsers/container-ls.ts`, `routes/container-files.ts`, `components/Docker/ContainerFilesView.tsx`; terminal `?container=` exec; Docker app "Open Files"/"Open Shell" context items. Security: hex container-id + path validation + shellEscape + double-escaped nested `sh -c`; 2 MB cap. Verified live against real containers + Playwright UI run. See [phase-ex7](phases/phase-ex7.md). |
+| 2026-10-20 | **Security audit** before open-sourcing: fixed 2 RCEs (C1 `/dynamic-ui/refresh`, C2 chpasswd), added per-session API token + Host/WS-origin checks (C3), allowlist hardening (H1/H2), encryption secret (M1), write-back denylist (M3). See [SECURITY_AUDIT.md](SECURITY_AUDIT.md). Also: `CLAUDE.md`, `.gitattributes` (LF for scripts), Windows Electron build validated, init-analysis fixes. |
 | 2026-04-18 | **EX6 ✅** Multi-Session Desktop & Hibernation complete (32/32 tasks). EX6-D Polish: D.1 per-session lock + activation guard + WakeConfirmDialog; D.2 move-window-between-sessions + **Citrix isolation** (WindowManager/Taskbar filter by activeServerId — fixes cross-session window bleed); D.3 per-session wallpaper via useEffectivePref; D.4 session export/import (envelope JSON); D.5 auto-hibernation watchdog (30s tick); D.6 agent conversation history persisted into SessionState.agentHistory; D.7 Observatory trace persistence to `~/.headlessos/observatory/traces/` with 30d/10k retention sweep. **2,360 tests passing** (1,821 server + 539 client). |
 | 2026-04-18 | **EX6 🔄** Multi-Session Desktop & Hibernation phase started. ADR-020 (Multi-Session Architecture), ADR-021 (Persistence & Hibernation), ADR-022 (Per-Session Preference Layering) drafted. Phase spec: phase-ex6.md (27 tasks across 4 sub-phases A/B/C/D). EX6-A.1 ✅ (ADRs), EX6-A.2 ✅ (phase doc + PROGRESS). Citrix-style multi-server desktop with hover-reveal Session Switcher, three-tier persistence (hot/warm/cold), per-session accent colors as safety mechanism, Fleet relocated to new Control Center. |
 | 2026-04-14 | **EX3 ✅** Smart Layout Engine & Progressive UI complete (26/26 tasks). EX3-B.3: 12 new templates (27 total, all schema-validated). EX3-B.4: FakeLLMGenerator class. EX3-C.1: WorkingView + createSkeleton. EX3-C.2: layout_update event pipeline. EX3-C.3: Early window opening with skeleton. EX3-C.4: Multi-step executor prompt. EX3-D.1: Phase-based DynamicAppWindow rendering. EX3-D.2: Copy JSON toolbar button. EX3-D.3: Staggered entrance animations + prefers-reduced-motion. EX3-D.4: 117 QA tests. **2,224 tests passing** (1,778 server + 446 client). |
