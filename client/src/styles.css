@@ -119,6 +119,8 @@
   --color-label-2: var(--lumen-label2);
   --color-label-3: var(--lumen-label3);
   --color-danger: var(--lumen-danger);
+  --color-term: var(--lumen-term-bg);
+  --color-term-fg: var(--lumen-term-fg);
 
   /* ── Radius: sm 10 · md 14 · lg 18 · xl 22 · 2xl 24 (windows) · 3xl 30 (shell panels) ── */
   --radius-sm: calc(var(--radius) - 4px);
@@ -173,6 +175,9 @@
   --lumen-lit: linear-gradient(180deg, #8468C8, #6A4FB0); /* "lit" toggle tiles */
   --lumen-danger: #A12C2C;
   --lumen-wall-scrim: transparent;
+  /* Terminal pane: always dark, in both themes (as in LumenOS) */
+  --lumen-term-bg: rgba(9, 13, 19, .8);
+  --lumen-term-fg: #D6DEE4;
 
   /* ── shadcn semantic tokens mapped onto Lumen ── */
   --background: #EEF1F4;

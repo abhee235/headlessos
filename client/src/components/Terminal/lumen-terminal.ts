@@ -1,16 +1,17 @@
 // EX8.6: LumenOS v3 terminal look, shared by TerminalView and DockerInstallTerminal.
-//   Pane:  inset 8px (mx-2 mb-2), radius 14px, bg-paper (= rgba(0,0,0,.16) dark,
-//          --lumen-paper light), no borders. xterm's own background is transparent.
+//   Pane:  inset 8px (mx-2 mb-2), radius 12px, always-dark bg-term with a faint
+//          hairline (as in the LumenOS prototype, in both themes). xterm's own
+//          background is transparent.
 //   Font:  Geist Mono 13px when the user kept the default terminal font.
-//   Theme: foreground --lumen-label, cursor --lumen-accent, selection
-//          --lumen-accent-soft, re-read when <html> `class` / `data-accent` change.
+//   Theme: dark ANSI palette, foreground --lumen-term-fg, cursor --lumen-accent-hi,
+//          selection --lumen-accent-glow, re-read when <html> `class` / `data-accent` change.
 // @see Custom OS UI Design/handoff/HANDOFF.md §3 Terminal, docs/phases/phase-ex8.md
 
 import { useEffect, type RefObject } from 'react';
 import type { ITheme, Terminal } from '@xterm/xterm';
 
 /** Rounded inset pane that hosts xterm. */
-export const TERMINAL_PANE_CLASS = 'relative min-h-0 overflow-hidden rounded-[14px] bg-paper';
+export const TERMINAL_PANE_CLASS = 'relative min-h-0 overflow-hidden rounded-[12px] border border-white/[.08] bg-term';
 /** Padding around the xterm element (kept off xterm's parent so FitAddon measures correctly). */
 export const TERMINAL_PADDING_CLASS = 'h-full w-full py-3.5 pl-[18px] pr-1.5';
 /** Element passed to `term.open()`; xterm.css paints `.xterm-viewport` black by default. */
@@ -34,9 +35,8 @@ export function resolveTerminalFont(fontFamily: string, fontSize: number) {
   };
 }
 
-// ANSI palettes. These are terminal colour data (like chart series), tuned to the
-// Lumen hues (danger / success / warning / chart-3 / chart-4) and kept readable on
-// the translucent pane in each scheme.
+// ANSI palette. Terminal colour data (like chart series), tuned to the Lumen hues
+// (danger / success / warning / chart-3 / chart-4) on the always-dark pane.
 const ANSI_DARK: ITheme = {
   black: '#4B5059',
   red: '#FF7B72',
@@ -56,30 +56,10 @@ const ANSI_DARK: ITheme = {
   brightWhite: '#FFFFFF',
 };
 
-const ANSI_LIGHT: ITheme = {
-  black: '#24292F',
-  red: '#B42318',
-  green: '#1F7A45',
-  yellow: '#8A5A00',
-  blue: '#2F5FB3',
-  magenta: '#7A3FB0',
-  cyan: '#00708A',
-  white: '#6E7781',
-  brightBlack: '#57606A',
-  brightRed: '#D1242F',
-  brightGreen: '#2A8F55',
-  brightYellow: '#9A6700',
-  brightBlue: '#3B73D1',
-  brightMagenta: '#8E4EC6',
-  brightCyan: '#0B8AA6',
-  brightWhite: '#8C959F',
-};
-
 // Fully transparent, so the pane colour shows through. The RGB part only matters
 // for xterm's internal blends (selection, inverse text), so it approximates the
-// pane's effective colour in each scheme.
-const BG_DARK = 'rgba(24, 24, 28, 0)';
-const BG_LIGHT = 'rgba(255, 255, 255, 0)';
+// pane's colour.
+const BG_DARK = 'rgba(9, 13, 19, 0)';
 
 function token(name: string): string | undefined {
   const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -88,17 +68,17 @@ function token(name: string): string | undefined {
 
 /** Builds the xterm theme from the current Lumen tokens on <html>. */
 export function getLumenTerminalTheme(): ITheme {
-  const dark = document.documentElement.classList.contains('dark');
+  // The pane is dark in both themes, so the dark palette always applies.
   return {
-    ...(dark ? ANSI_DARK : ANSI_LIGHT),
-    background: dark ? BG_DARK : BG_LIGHT,
-    foreground: token('--lumen-label'),
-    cursor: token('--lumen-accent'),
-    cursorAccent: token('--lumen-on-accent'),
-    selectionBackground: token('--lumen-accent-soft'),
-    scrollbarSliderBackground: token('--lumen-fill2'),
-    scrollbarSliderHoverBackground: token('--lumen-label3'),
-    scrollbarSliderActiveBackground: token('--lumen-label3'),
+    ...ANSI_DARK,
+    background: BG_DARK,
+    foreground: token('--lumen-term-fg'),
+    cursor: token('--lumen-accent-hi'),
+    cursorAccent: '#090D13',
+    selectionBackground: token('--lumen-accent-glow'),
+    scrollbarSliderBackground: 'rgba(255, 255, 255, .16)',
+    scrollbarSliderHoverBackground: 'rgba(255, 255, 255, .28)',
+    scrollbarSliderActiveBackground: 'rgba(255, 255, 255, .28)',
   };
 }
 
