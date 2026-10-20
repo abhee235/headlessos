@@ -80,6 +80,7 @@ The design handoff lives outside the repo tree in `Custom OS UI Design/handoff/`
 | EX8.12 | Dock position setting (requested): bottom-centre (default) or right-middle; only the dock moves | ✅ |
 | EX8.13 | Task Manager process detail card re-ported from `Activity.dc.html`: same flex-wrap reflow at every width | ✅ |
 | EX8.14 | One segmented/tab look everywhere (requested): the Settings control | ✅ |
+| EX8.15 | HomeHub as a real glance (requested): same layout, cards bound to server and local data | ✅ |
 
 ## Additions beyond the handoff
 
@@ -263,6 +264,39 @@ mode, Quick Settings glass strength, Observatory filters, Control Center section
 and the Add server auth switch use it. Measured live: every one has a 38px well,
 32px options, 14px / 400 text and the same selected background and colours as
 Settings.
+
+## EX8.15 — HomeHub as a glance
+
+The layout, sizes and styling of EX8.10 stay; each card is re-bound (user's choices:
+Open-Meteo weather for a city set in Settings, a server health dial, a photo frame
+from the server; the music card stays a sample for now).
+
+| Card | Bound to |
+|------|----------|
+| Greeting | "Good morning/afternoon/evening, <local user>!" (`GET /api/host`: `os.userInfo().username`, hostname). Headline: "All calm on / <server>", "<n> things need / attention", "Not connected to / <server>", "No server / connected yet" |
+| Members → Users | accounts on the selected server with a session or processes (`GET taskmanager/users`), initials on the design's gradient discs; ＋ opens Server Admin → Security |
+| Room bar → Servers | saved servers (selected shows its name); picking one re-points the hub; ＋ goes to the Control Center to add one |
+| Camera → Photo frame | images in a folder on the server (default `~/Pictures`, fallback: HeadlessOS wallpapers) via `files/download`; chip = folder, "Live" → "Slideshow", buttons prev / play-pause / full screen / open in Files; 8 s per photo |
+| Weather | `GET /api/weather?lat&lon&units` → Open-Meteo forecast (current temperature, humidity, wind, 4 next days), cached 30 min; city via `GET /api/weather/geocode?q`; °C/°F toggles units. No city → "Set a city" prompt |
+| Air conditioner → Server health | arc = CPU % (Task Manager poll, 2 s); Fan/Timer/Mode → CPU / Memory / Disk; LED green < 75 %, amber < 90 %, red above |
+| TV → Recent apps | last 4 distinct apps (`recentApps`) on dark tiles; ＋ opens the Launcher; power → show desktop |
+| Ambient LED → Display | brightness slider 40–100 % (a dimming layer over the whole desktop, `displayBrightness`); LED + power = Night light (warm tint, `nightLight`) |
+| Alexa → Assistant | opens the AI agent; LED/power reflect whether an LLM provider is configured (power opens Settings → AI / LLM when not) |
+| WiFi → Connection | selected server's connection; power connects / disconnects; command latency underneath |
+| Music player | unchanged sample (decided later) |
+| Top nav | Search → command palette · Overview → hub · Calendar → notification centre · Scenes → Launcher · Bell → notifications on/off · Pie → Task Manager |
+
+Outbound calls: only the weather routes, server-side, to `geocoding-api.open-meteo.com`
+and `api.open-meteo.com` (no key; only the chosen city's coordinates leave the machine).
+
+Built as `routes/glance.ts` (host + weather, 30-minute cache, stale fallback),
+`HomeHub/glance.tsx` (the re-bound cards, `useServerPulse`, `useServerUsers`),
+`Desktop/WeatherCityPicker.tsx` (Settings → General → Weather) and a `DisplayFilter`
+layer in `DesktopLayout`. Verified live: greeting with the local user, headline from
+the server state (shrinks for long names), users, Delhi weather with a day-first
+date, live CPU / memory / disk dial, recent apps, brightness + night light layers,
+latency, both saved servers, and the photo frame from `~/Pictures` (falls back to the
+wallpapers when the folder is missing).
 
 ## Deviations from the handoff text (prototype wins where they differ)
 

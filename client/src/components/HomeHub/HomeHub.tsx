@@ -1,15 +1,27 @@
 // EX8.10: HomeHub — the LumenOS smart-home overlay, ported from the Claude Design
-// prototype (HomeHub.dc.html) as React. A client-only sample: devices, members
-// and rooms are local state; nothing is read from or sent to a server.
-// Opened from the dock's Home button; Escape or a click outside the cards closes it.
+// prototype (HomeHub.dc.html) as React. Opened from the dock's Home button;
+// Escape or a click outside the cards closes it.
+// EX8.15: a glance — the same layout re-bound to real data: greeting with the
+// local user, users on the selected server, a photo frame from ~/Pictures,
+// Open-Meteo weather, a server health dial, recent apps, display brightness /
+// night light, the AI assistant, the connection, and the saved servers in the
+// room bar. The music card is still the sample. See phase-ex8.md for the table.
 // @see docs/phases/phase-ex8.md
 
 import { useEffect, useState, type MouseEvent } from 'react';
 import { useDesktopStore } from '../../store/window-store';
+import { useAppStore } from '../../store/app-store';
+import { usePreferencesStore } from '../../store/preferences-store';
+import { useNotificationStore } from '../../store/notification-store';
+import { eventBus } from '../../lib/event-bus';
+import { fetchHostInfo } from '../../lib/api';
+import { APPS } from '../../lib/apps';
 import { Glyph, hubIcon, pressedPill } from './hub-ui';
+import { PlayerCard } from './cards';
 import {
-  AirConditionerCard, AlexaCard, CameraCard, LedCard, PlayerCard, TvCard, WeatherCard, WifiCard,
-} from './cards';
+  AssistantCard, ConnectionCard, DisplayCard, HealthDialCard, PhotoFrameCard, RecentAppsCard, ServerBar,
+  UserAvatars, WeatherGlanceCard, glanceHeadline, greetingFor, useServerPulse, useServerUsers,
+} from './glance';
 
 const CANVAS_W = 1536;
 const CANVAS_H = 1150;
@@ -24,17 +36,6 @@ const NAV: Array<[string, string]> = [
   ['remote3', 'Scenes'], ['bell', 'Alerts'], ['pie', 'Energy'],
 ];
 
-const ROOMS: Array<[string, string]> = [
-  ['couch', 'Living room'], ['bath', 'Bathroom'], ['chair', 'Study'], ['car', 'Garage'], ['bin', 'Kitchen'],
-];
-
-const MEMBER_BG = [
-  'linear-gradient(160deg,#5FB3D6,#2C6F92)', 'linear-gradient(160deg,#D9C59A,#9C8558)',
-  'linear-gradient(160deg,#F2C64F,#B98A17)', 'linear-gradient(160deg,#C9CED6,#8A93A0)',
-  'linear-gradient(160deg,#5A5A5A,#1E1E1E)', 'linear-gradient(160deg,#D9775F,#8F3826)',
-  'linear-gradient(160deg,#4F8F7A,#21483B)',
-];
-
 const pillBar = {
   background: 'linear-gradient(160deg, rgba(255,255,255,.22), rgba(255,255,255,.08)), rgba(120,110,104,.22)',
   backdropFilter: 'blur(24px) saturate(140%)',
@@ -42,6 +43,12 @@ const pillBar = {
   border: '1px solid rgba(255,255,255,.18)',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,.18), 0 20px 40px -20px rgba(0,0,0,.5)',
 };
+
+/** The design's 60px fits ~15 characters in the greeting column; longer server names shrink to fit (min 40px) */
+export function headlineSize(line1: string, line2: string): number {
+  const longest = Math.max(line1.length, line2.length);
+  return Math.max(40, Math.min(60, Math.floor((60 * 15) / longest)));
+}
 
 export function HomeHub() {
   const open = useDesktopStore((s) => s.homeHubOpen);
@@ -51,21 +58,70 @@ export function HomeHub() {
 
 function HomeHubOverlay() {
   const close = useDesktopStore((s) => s.closeHomeHub);
+  const openWindow = useDesktopStore((s) => s.openWindow);
+  const toggleStartMenu = useDesktopStore((s) => s.toggleStartMenu);
+  const toggleShowDesktop = useDesktopStore((s) => s.toggleShowDesktop);
+  const servers = useAppStore((s) => s.servers);
+  const activeServerId = useAppStore((s) => s.activeServerId);
+  const goToLogin = useAppStore((s) => s.goToLogin);
+  const showToasts = usePreferencesStore((s) => s.showToasts);
+  const setShowToasts = usePreferencesStore((s) => s.setShowToasts);
+  const openPanel = useNotificationStore((s) => s.openPanel);
+
   const [viewport, setViewport] = useState({ w: window.innerWidth, h: window.innerHeight });
-  const [nav, setNav] = useState(1);
-  const [room, setRoom] = useState(0);
+  const [username, setUsername] = useState<string | null>(null);
+  const [now, setNow] = useState(() => new Date());
+  // The hub's subject: the active session's server by default; the room bar re-points it
+  const [serverId, setServerId] = useState<string | null>(activeServerId ?? servers[0]?.id ?? null);
   const k = hubScale(viewport.w, viewport.h);
+
+  const server = servers.find((s) => s.id === serverId) ?? null;
+  const status = server?.state?.status;
+  const connected = status === 'connected';
+  const pulse = useServerPulse(serverId, connected);
+  const users = useServerUsers(serverId, connected);
+  const [line1, line2] = glanceHeadline({ serverName: server?.name ?? null, connected, pulse });
 
   useEffect(() => {
     const onResize = () => setViewport({ w: window.innerWidth, h: window.innerHeight });
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    const tick = setInterval(() => setNow(new Date()), 60_000);
     window.addEventListener('resize', onResize);
     window.addEventListener('keydown', onKey);
-    return () => { window.removeEventListener('resize', onResize); window.removeEventListener('keydown', onKey); };
+    return () => { clearInterval(tick); window.removeEventListener('resize', onResize); window.removeEventListener('keydown', onKey); };
   }, [close]);
+
+  useEffect(() => {
+    fetchHostInfo().then((r) => { if (r.success && r.data) setUsername(r.data.username); }).catch(() => {});
+  }, []);
 
   // Clicks on the backdrop (not on a card) close the hub
   const onBg = (e: MouseEvent) => { if (e.target === e.currentTarget) close(); };
+
+  /** Close the hub, then open an app window on the hub's server */
+  const launch = (appId: string, meta?: Record<string, string>) => {
+    const target = appId === 'settings' ? (serverId ?? '') : serverId;
+    if (target === null) return;
+    close();
+    const appName = APPS.find((a) => a.id === appId)?.name ?? appId;
+    openWindow(appId, target, appName, appId, meta);
+  };
+  const thenClose = (fn: () => void) => () => { close(); fn(); };
+
+  const navActions: Record<string, () => void> = {
+    Search: thenClose(() => eventBus.emit('palette:toggle', {})),
+    Overview: () => {},
+    Calendar: thenClose(openPanel),
+    Scenes: thenClose(toggleStartMenu),
+    Alerts: () => setShowToasts(!showToasts),
+    Energy: () => launch('taskmanager'),
+  };
+  const navTitles: Record<string, string> = {
+    Search: 'Search', Overview: 'Overview', Calendar: 'Calendar and notifications', Scenes: 'Launcher',
+    Alerts: showToasts ? 'Notifications on (click to mute)' : 'Notifications muted (click to turn on)', Energy: 'Task Manager',
+  };
+
+  const name = username ? username.charAt(0).toUpperCase() + username.slice(1) : null;
 
   return (
     <div
@@ -97,88 +153,74 @@ function HomeHubOverlay() {
           className="animate-[hub-rise_.35s_ease-out]"
           style={{ position: 'relative', width: CANVAS_W, height: CANVAS_H, pointerEvents: 'auto' }}
         >
-          {/* Top nav */}
+          {/* Top nav: each icon opens the matching HeadlessOS feature */}
           <nav
             aria-label="Home hub sections"
             style={{ ...pillBar, position: 'absolute', left: 546, top: 84, width: 444, height: 76, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px', borderRadius: 38 }}
           >
-            {NAV.map(([icon, title], i) => (
-              <button
-                key={title}
-                type="button"
-                title={title}
-                aria-label={title}
-                aria-current={i === nav ? 'page' : undefined}
-                onClick={() => setNav(i)}
-                style={{ ...pressedPill(i === nav), width: i === nav ? 70 : 52, height: 52, borderRadius: 26, border: 'none', display: 'grid', placeItems: 'center', cursor: 'pointer', transition: 'all .2s' }}
-              >
-                <Glyph src={hubIcon(icon)} size={24} />
-              </button>
-            ))}
-          </nav>
-
-          {/* Greeting + members */}
-          <div style={{ position: 'absolute', left: 76, top: 192, display: 'flex', flexDirection: 'column' }}>
-            <div style={{ fontSize: 31, lineHeight: '40px', fontWeight: 400, letterSpacing: '-.005em' }}>Good Morning Zia!</div>
-            <div style={{ marginTop: 14, fontSize: 60, lineHeight: '70px', fontWeight: 400, letterSpacing: '-.01em' }}>Laid-back Eco<br />Home Vibes</div>
-            <div style={{ marginTop: 38, fontSize: 31, lineHeight: '40px', fontWeight: 400 }}>Members</div>
-            <div style={{ marginTop: 14, display: 'flex', alignItems: 'center' }}>
-              <div style={{ display: 'flex' }}>
-                {MEMBER_BG.map((bg, i) => (
-                  <div
-                    key={bg}
-                    style={{ width: 60, height: 60, marginLeft: i ? -20 : 0, borderRadius: 999, overflow: 'hidden', background: bg, position: 'relative', boxShadow: '0 4px 10px rgba(0,0,0,.25)', border: '2px solid rgba(255,255,255,.18)' }}
-                  >
-                    <img src={`hub/member-${i + 1}.jpg`} alt="" draggable={false} style={{ width: 60, height: 60, objectFit: 'cover', display: 'block' }} />
-                  </div>
-                ))}
-              </div>
-              <button type="button" title="Add member" aria-label="Add member" style={{ width: 56, height: 56, marginLeft: 16, borderRadius: 999, border: '1.5px dashed rgba(255,255,255,.35)', background: 'transparent', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
-                <Glyph src={hubIcon('add', true)} size={22} style={{ opacity: 0.6 }} />
-              </button>
-            </div>
-          </div>
-
-          <CameraCard />
-          <WeatherCard />
-          <AirConditionerCard scale={k} />
-          <TvCard />
-          <LedCard />
-          <AlexaCard />
-          <WifiCard />
-          <PlayerCard />
-
-          {/* Room bar */}
-          <nav
-            aria-label="Rooms"
-            style={{ ...pillBar, background: 'linear-gradient(160deg, rgba(255,255,255,.2), rgba(255,255,255,.06)), rgba(110,96,86,.24)', position: 'absolute', left: 768, top: 984, transform: 'translateX(-50%)', height: 84, display: 'flex', alignItems: 'center', gap: 6, padding: '0 14px', whiteSpace: 'nowrap', borderRadius: 42 }}
-          >
-            {ROOMS.map(([icon, name], i) => {
-              const on = i === room;
+            {NAV.map(([icon, title]) => {
+              const on = title === 'Overview';
               return (
                 <button
-                  key={name}
+                  key={title}
                   type="button"
-                  title={name}
-                  aria-label={name}
+                  title={navTitles[title]}
+                  aria-label={navTitles[title]}
                   aria-current={on ? 'page' : undefined}
-                  onClick={() => setRoom(i)}
-                  style={{ ...pressedPill(on), height: 60, flex: 'none', padding: `0 ${on ? 24 : 18}px`, display: 'flex', alignItems: 'center', gap: 10, borderRadius: 30, border: 'none', cursor: 'pointer', color: '#fff', font: 'inherit', fontSize: 18, fontWeight: 500, transition: 'all .2s' }}
+                  aria-pressed={title === 'Alerts' ? showToasts : undefined}
+                  onClick={navActions[title]}
+                  style={{ ...pressedPill(on), width: on ? 70 : 52, height: 52, borderRadius: 26, border: 'none', display: 'grid', placeItems: 'center', cursor: 'pointer', transition: 'all .2s', opacity: title === 'Alerts' && !showToasts ? 0.5 : 1 }}
                 >
                   <Glyph src={hubIcon(icon)} size={24} />
-                  {on && <span style={{ whiteSpace: 'nowrap' }}>{name}</span>}
                 </button>
               );
             })}
-            <button
-              type="button"
-              title="Add room"
-              aria-label="Add room"
-              className="[background:linear-gradient(180deg,rgba(255,255,255,.30),rgba(255,255,255,.12))] hover:[background:linear-gradient(180deg,rgba(255,255,255,.40),rgba(255,255,255,.18))]"
-              style={{ width: 56, height: 56, flex: 'none', marginLeft: 6, borderRadius: 999, display: 'grid', placeItems: 'center', cursor: 'pointer', border: '1px solid rgba(255,255,255,.28)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.35), 0 6px 14px -6px rgba(0,0,0,.4)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}
-            >
-              <Glyph src={hubIcon('add', true)} size={22} />
-            </button>
+          </nav>
+
+          {/* Greeting + users */}
+          <div style={{ position: 'absolute', left: 76, top: 192, display: 'flex', flexDirection: 'column', maxWidth: 470 }}>
+            <div style={{ fontSize: 31, lineHeight: '40px', fontWeight: 400, letterSpacing: '-.005em' }}>
+              {greetingFor(now.getHours())}{name ? ` ${name}` : ''}!
+            </div>
+            <div style={{ marginTop: 14, fontSize: headlineSize(line1, line2), lineHeight: '70px', fontWeight: 400, letterSpacing: '-.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={`${line1} ${line2}`}>
+              {line1}<br />{line2}
+            </div>
+            <div style={{ marginTop: 38, fontSize: 31, lineHeight: '40px', fontWeight: 400 }}>Users</div>
+            <UserAvatars users={users} onAdd={() => launch('serveradmin')} />
+          </div>
+
+          <PhotoFrameCard
+            serverId={serverId}
+            connected={connected}
+            username={server?.username}
+            onOpenFolder={(source, path) => (source === 'pictures' ? launch('files', { initialPath: path }) : launch('settings', { initialPage: 'wallpaper' }))}
+          />
+          <WeatherGlanceCard onSetCity={() => launch('settings', { initialPage: 'general' })} />
+          <HealthDialCard serverName={server?.name ?? null} connected={connected} pulse={pulse} onOpen={() => launch('taskmanager')} />
+          <RecentAppsCard
+            serverName={server?.name ?? null}
+            canLaunch={connected}
+            onLaunch={(id) => launch(id)}
+            onMore={thenClose(toggleStartMenu)}
+            onShowDesktop={thenClose(toggleShowDesktop)}
+          />
+          <DisplayCard />
+          <AssistantCard canOpen={connected} onOpen={() => launch('agent')} onSettings={() => launch('settings', { initialPage: 'ai' })} />
+          <ConnectionCard serverId={serverId} status={status} latencyMs={pulse.latencyMs} />
+          <PlayerCard />
+
+          {/* Room bar: saved servers */}
+          <nav
+            aria-label="Servers"
+            style={{ ...pillBar, background: 'linear-gradient(160deg, rgba(255,255,255,.2), rgba(255,255,255,.06)), rgba(110,96,86,.24)', position: 'absolute', left: 768, top: 984, transform: 'translateX(-50%)', height: 84, display: 'flex', alignItems: 'center', gap: 6, padding: '0 14px', whiteSpace: 'nowrap', borderRadius: 42 }}
+          >
+            <ServerBar
+              servers={servers}
+              selected={serverId}
+              onSelect={setServerId}
+              onAdd={thenClose(goToLogin)}
+              pressed={pressedPill}
+            />
           </nav>
         </div>
       </div>

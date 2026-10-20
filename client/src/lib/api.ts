@@ -697,6 +697,39 @@ export async function setStartupItem(
   );
 }
 
+// ── HomeHub glance: local host + weather (EX8.15) ──────
+
+export interface HostInfo { username: string; hostname: string; platform: string }
+
+export async function fetchHostInfo(): Promise<Envelope<HostInfo>> {
+  return request<Envelope<HostInfo>>('/host');
+}
+
+export interface GeoPlace {
+  name: string;
+  admin1: string | null;
+  country: string | null;
+  latitude: number;
+  longitude: number;
+  timezone: string | null;
+}
+
+export async function geocodeCity(q: string): Promise<Envelope<GeoPlace[]>> {
+  return request<Envelope<GeoPlace[]>>(`/weather/geocode?q=${encodeURIComponent(q)}`);
+}
+
+export interface WeatherData {
+  current: { temperature: number; humidity: number; windSpeed: number; code: number; isDay: boolean };
+  daily: Array<{ date: string; max: number; min: number; code: number }>;
+  units: 'celsius' | 'fahrenheit';
+  timezone: string;
+  fetchedAt: string;
+}
+
+export async function fetchWeather(lat: number, lon: number, units: 'celsius' | 'fahrenheit'): Promise<Envelope<WeatherData>> {
+  return request<Envelope<WeatherData>>(`/weather?lat=${lat}&lon=${lon}&units=${units}`);
+}
+
 // ── Docker ──────────────────────────────────────────────
 
 export interface DockerContainerData {

@@ -72,8 +72,17 @@ export const pressedPill = (on: boolean): CSSProperties => ({
   boxShadow: on ? 'inset 0 1px 3px rgba(0,0,0,.35), 0 1px 0 rgba(255,255,255,.08)' : 'none',
 });
 
-/** Green status LED for a device card */
-export function Led({ on, left, top }: { on: boolean; left: number; top: number }) {
+/** EX8.15: LED colours — green (the design), amber / red for load, warm for night light */
+const LED_TONES = {
+  green: ['radial-gradient(circle at 50% 40%, #46F04A, #18C21F 70%)', 'rgba(40,230,60,.75)'],
+  amber: ['radial-gradient(circle at 50% 40%, #FFD36A, #E5A11A 70%)', 'rgba(245,184,61,.75)'],
+  red: ['radial-gradient(circle at 50% 40%, #FF7A70, #D9362C 70%)', 'rgba(229,83,75,.8)'],
+  warm: ['radial-gradient(circle at 50% 40%, #FFC07A, #F08A2C 70%)', 'rgba(240,138,44,.75)'],
+} as const;
+
+/** Status LED for a device card */
+export function Led({ on, left, top, tone = 'green' }: { on: boolean; left: number; top: number; tone?: keyof typeof LED_TONES }) {
+  const [fill, glow] = LED_TONES[tone];
   return (
     <span
       aria-hidden
@@ -84,8 +93,8 @@ export function Led({ on, left, top }: { on: boolean; left: number; top: number 
         width: 34,
         height: 34,
         borderRadius: 999,
-        background: on ? 'radial-gradient(circle at 50% 40%, #46F04A, #18C21F 70%)' : 'rgba(255,255,255,.18)',
-        boxShadow: on ? '0 0 0 5px rgba(0,0,0,.22), 0 0 18px rgba(40,230,60,.75)' : '0 0 0 5px rgba(0,0,0,.18)',
+        background: on ? fill : 'rgba(255,255,255,.18)',
+        boxShadow: on ? `0 0 0 5px rgba(0,0,0,.22), 0 0 18px ${glow}` : '0 0 0 5px rgba(0,0,0,.18)',
         transition: 'background .2s, box-shadow .2s',
       }}
     />
@@ -93,16 +102,19 @@ export function Led({ on, left, top }: { on: boolean; left: number; top: number 
 }
 
 /** 30px power glyph; pink-white when on, dim when off */
-export function PowerButton({ on, onToggle, right, top, label }: {
+export function PowerButton({ on, onToggle, right, top, label, ariaLabel, title = 'Power' }: {
   on: boolean; onToggle: () => void; right: number; top: number; label: string;
+  /** EX8.15: when the button does something other than power (e.g. "Open Task Manager") */
+  ariaLabel?: string;
+  title?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onToggle}
-      aria-pressed={on}
-      aria-label={`${label} power`}
-      title="Power"
+      aria-pressed={ariaLabel ? undefined : on}
+      aria-label={ariaLabel ?? `${label} power`}
+      title={title}
       style={{ position: 'absolute', right, top, width: 30, height: 30, padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}
     >
       <Glyph

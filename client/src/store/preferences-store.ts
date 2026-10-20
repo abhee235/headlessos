@@ -11,6 +11,9 @@ export type DesktopIconSize = 'small' | 'medium' | 'large';
 export type DesktopSortBy = 'name' | 'type' | 'date';
 /** EX8.12: where the dock sits — centred along the bottom, or centred on the right edge */
 export type DockPosition = 'bottom' | 'right';
+/** EX8.15: city for the HomeHub weather card (Open-Meteo coordinates) */
+export interface WeatherLocation { name: string; latitude: number; longitude: number }
+export type WeatherUnits = 'celsius' | 'fahrenheit';
 export type CursorStyle = 'block' | 'underline' | 'bar';
 export type DateFormat = '12h' | '24h';
 export type ToastPosition = 'bottom-right' | 'top-right';
@@ -48,6 +51,12 @@ interface UserPreferences {
   desktopSortBy: DesktopSortBy;
   /** EX8.12: dock placement (only the dock moves; its panels open where they always do) */
   dockPosition: DockPosition;
+  /** EX8.15: HomeHub weather city (null = not set) and units */
+  weatherLocation: WeatherLocation | null;
+  weatherUnits: WeatherUnits;
+  /** EX8.15: desktop brightness 40–100 % (a dimming layer) and the warm night-light tint */
+  displayBrightness: number;
+  nightLight: boolean;
 
   // ── Terminal Settings ──────────────────────────────────────────────────────
   /** Terminal font size in px */
@@ -110,6 +119,10 @@ interface PreferencesState extends UserPreferences {
   setDesktopIconSize: (size: DesktopIconSize) => void;
   setDesktopSortBy: (field: DesktopSortBy) => void;
   setDockPosition: (position: DockPosition) => void;
+  setWeatherLocation: (location: WeatherLocation | null) => void;
+  setWeatherUnits: (units: WeatherUnits) => void;
+  setDisplayBrightness: (percent: number) => void;
+  setNightLight: (on: boolean) => void;
   setAccentColorIndex: (index: number) => void;
   setGlassStrength: (strength: GlassStrength) => void;
   setTransparency: (enabled: boolean) => void;
@@ -138,6 +151,10 @@ const DEFAULTS: UserPreferences = {
   desktopIconSize: 'large',
   desktopSortBy: 'name',
   dockPosition: 'bottom',
+  weatherLocation: null,
+  weatherUnits: 'celsius',
+  displayBrightness: 100,
+  nightLight: false,
   // EX8.6: LumenOS terminal type — Geist Mono 13px (bundled via @fontsource)
   terminalFontSize: 13,
   terminalFontFamily: "'Geist Mono Variable', 'Geist Mono', ui-monospace, monospace",
@@ -246,6 +263,27 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => {
       savePreferences({ ...get(), dockPosition: position });
     },
 
+    setWeatherLocation: (location) => {
+      set({ weatherLocation: location });
+      savePreferences({ ...get(), weatherLocation: location });
+    },
+
+    setWeatherUnits: (units) => {
+      set({ weatherUnits: units });
+      savePreferences({ ...get(), weatherUnits: units });
+    },
+
+    setDisplayBrightness: (percent) => {
+      const clamped = Math.max(40, Math.min(100, Math.round(percent)));
+      set({ displayBrightness: clamped });
+      savePreferences({ ...get(), displayBrightness: clamped });
+    },
+
+    setNightLight: (on) => {
+      set({ nightLight: on });
+      savePreferences({ ...get(), nightLight: on });
+    },
+
     setDesktopSortBy: (field) => {
       set({ desktopSortBy: field });
       savePreferences({ ...get(), desktopSortBy: field });
@@ -344,6 +382,10 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => {
         desktopIconSize: updated.desktopIconSize,
         desktopSortBy: updated.desktopSortBy,
         dockPosition: updated.dockPosition,
+        weatherLocation: updated.weatherLocation,
+        weatherUnits: updated.weatherUnits,
+        displayBrightness: updated.displayBrightness,
+        nightLight: updated.nightLight,
         accentColorIndex: updated.accentColorIndex,
         glassStrength: updated.glassStrength,
         transparency: updated.transparency,

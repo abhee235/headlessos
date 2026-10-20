@@ -1005,6 +1005,12 @@ None (all changes to existing files).
 - **Files modified:** `store/window-store.ts` (`homeHubOpen`, `toggleHomeHub`, `closeHomeHub`), `Desktop/Taskbar.tsx` (well: Launcher `Grip` · Home `House` · Search), `Desktop/DesktopLayout.tsx`, `styles.css` (keyframes)
 - **Verification:** pixel diff vs the prototype per card; Playwright interactions (gauge drag 18°→24°, power, play, rooms, Escape and backdrop close)
 
+### EX8.15: HomeHub glance
+- **Status:** ✅ Complete
+- **Files created:** `server/src/routes/glance.ts`, `server/tests/routes/glance.test.ts`, `client/src/components/HomeHub/glance.tsx`, `client/src/components/Desktop/WeatherCityPicker.tsx`
+- **Files modified:** `server/src/index.ts`, `HomeHub/{HomeHub,cards,hub-ui}.tsx`, `Desktop/{DesktopLayout,SettingsView}.tsx`, `lib/api.ts`, `store/preferences-store.ts`, `client/tests/components/home-hub.test.tsx`
+- **Verification:** client 611 / server 2159 tests; Playwright of every card on the dev box
+
 ## How to Use This File
 
 ### After completing a task:

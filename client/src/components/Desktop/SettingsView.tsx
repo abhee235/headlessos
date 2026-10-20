@@ -47,6 +47,7 @@ import { cn } from '../../lib/utils';
 import { ConfirmDialog } from '../ui/confirm-dialog';
 import { PaneSidebar, PaneSidebarItem } from '../ui/pane-sidebar';
 import { Segmented } from '../ui/segmented';
+import { WeatherCityPicker } from './WeatherCityPicker';
 import { Switch } from '../ui/switch';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -788,6 +789,8 @@ const AUTO_HIBERNATE_OPTIONS = [
 ] as const;
 
 function GeneralPage() {
+  const weatherUnits = usePreferencesStore((s) => s.weatherUnits);
+  const setWeatherUnits = usePreferencesStore((s) => s.setWeatherUnits);
   const autoRefreshInterval = usePreferencesStore((s) => s.autoRefreshInterval);
   const setAutoRefreshInterval = usePreferencesStore((s) => s.setAutoRefreshInterval);
   const dateFormat = usePreferencesStore((s) => s.dateFormat);
@@ -812,6 +815,23 @@ function GeneralPage() {
         </Row>
         <Row label="Auto-Refresh Interval" description="How often dashboard & file explorer refresh data">
           <SelectPill value={autoRefreshInterval} onChange={setAutoRefreshInterval} options={AUTO_REFRESH_OPTIONS} />
+        </Row>
+      </RowSection>
+
+      {/* ── EX8.15: Weather for the Home hub ─── */}
+      <RowSection title="Weather" footer="Shown in the Home hub. Forecasts come from Open-Meteo; only the chosen city's coordinates are sent.">
+        <Row label="City">
+          <WeatherCityPicker />
+        </Row>
+        <Row label="Units">
+          <Segmented
+            value={weatherUnits}
+            onChange={setWeatherUnits}
+            options={[
+              { value: 'celsius', label: '°C' },
+              { value: 'fahrenheit', label: '°F' },
+            ]}
+          />
         </Row>
       </RowSection>
 

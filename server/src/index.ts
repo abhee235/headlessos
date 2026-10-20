@@ -27,6 +27,7 @@ import { terminalRoutes } from "./routes/terminal.js";
 import { systemRoutes } from "./routes/system.js";
 import { fileRoutes } from "./routes/files.js";
 import { wallpaperRoutes } from "./routes/wallpapers.js";
+import { glanceRoutes } from "./routes/glance.js";
 import { taskManagerRoutes } from "./routes/taskmanager.js";
 import { dockerRoutes } from "./routes/docker.js";
 import { servicesRoutes } from "./routes/services.js";
@@ -413,6 +414,8 @@ async function main(): Promise<void> {
   await app.register(systemRoutes, { systemService });
   await app.register(fileRoutes, { filesService });
   await app.register(wallpaperRoutes);
+  // EX8.15: HomeHub glance — local host identity + Open-Meteo weather
+  await app.register(glanceRoutes);
   await app.register(taskManagerRoutes, { taskManagerService });
   await app.register(dockerRoutes, { connectionManager, dockerService });
   await app.register(containerFileRoutes, { connectionManager });

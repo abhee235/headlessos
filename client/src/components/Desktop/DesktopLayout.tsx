@@ -13,6 +13,7 @@ import { Desktop } from './Desktop';
 import { Taskbar } from './Taskbar';
 import { MenuBar } from './MenuBar';
 import { HomeHub } from '../HomeHub/HomeHub';
+import { usePreferencesStore } from '../../store/preferences-store';
 import { StartMenu } from './StartMenu';
 import { WindowManager } from './WindowManager';
 import { CommandPalette } from './CommandPalette';
@@ -24,6 +25,24 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
 
 // ── Snap Preview Overlay ────────────────────────────────
+
+// ── EX8.15: Display brightness + night light (Home hub → Display) ──
+// Layers over everything, so the hub dims too while its slider is dragged.
+
+function DisplayFilter() {
+  const brightness = usePreferencesStore((s) => s.displayBrightness);
+  const night = usePreferencesStore((s) => s.nightLight);
+  return (
+    <>
+      {night && (
+        <div aria-hidden className="pointer-events-none fixed inset-0 z-[10080] mix-blend-multiply" style={{ background: 'rgba(255,164,82,.24)' }} />
+      )}
+      {brightness < 100 && (
+        <div aria-hidden className="pointer-events-none fixed inset-0 z-[10081]" style={{ background: `rgba(0,0,0,${(((100 - brightness) / 100) * 0.85).toFixed(3)})` }} />
+      )}
+    </>
+  );
+}
 
 function SnapPreview({ zone }: { zone: SnapZone }) {
   const { bottom: taskbarH, right } = useDockInsets();
@@ -112,6 +131,9 @@ export function DesktopLayout() {
 
         {/* EX8.10: HomeHub smart-home overlay (dock Home button) — above the dock */}
         <HomeHub />
+
+        {/* EX8.15: brightness / night light layers */}
+        <DisplayFilter />
 
         {/* Snap zone preview */}
         <SnapPreview zone={snapPreview} />

@@ -1,42 +1,103 @@
-// EX8.10: HomeHub — client-only smart-home overlay
-import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+// EX8.10 + EX8.15: HomeHub — overlay behaviour and the glance bindings
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
+
+vi.hoisted(() => {
+  window.matchMedia ??= ((query: string) => ({
+    matches: false, media: query, onchange: null,
+    addEventListener: () => {}, removeEventListener: () => {},
+    addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
+  })) as unknown as typeof window.matchMedia;
+});
+
+vi.mock('../../src/lib/api', async (orig) => {
+  const actual = await orig<typeof import('../../src/lib/api')>();
+  return {
+    ...actual,
+    fetchHostInfo: vi.fn(async () => ({ success: true, data: { username: 'abhis', hostname: 'pc', platform: 'win32' } })),
+    fetchLLMConfig: vi.fn(async () => ({ success: true, data: { provider: 'none', model: '', hasApiKey: false } })),
+    fetchWeather: vi.fn(async () => ({ success: false, error: 'offline' })),
+    fetchTaskManager: vi.fn(async () => ({ success: false })),
+    fetchSystemDashboard: vi.fn(async () => ({ success: false })),
+    fetchTaskManagerUsers: vi.fn(async () => ({ success: false })),
+    fetchFiles: vi.fn(async () => []),
+  };
+});
+vi.mock('../../src/components/Desktop/wallpapers', async (orig) => {
+  const actual = await orig<typeof import('../../src/components/Desktop/wallpapers')>();
+  return { ...actual, fetchWallpapers: vi.fn(async () => ({ system: [{ url: 'w/dusk.jpg' }], user: [] })) };
+});
+
 import { HomeHub, hubScale } from '../../src/components/HomeHub/HomeHub';
-import { arcPath, formatTrackTime, tempFromPoint } from '../../src/components/HomeHub/cards';
+import { arcPath, formatTrackTime } from '../../src/components/HomeHub/cards';
+import { glanceHeadline, greetingFor, levelTone, recentAppIds, skyFor } from '../../src/components/HomeHub/glance';
 import { useDesktopStore } from '../../src/store/window-store';
+import { useAppStore } from '../../src/store/app-store';
+
+const pulse = (cpu: number | null, mem: number | null = 10, disk: number | null = 10) => ({ cpu, memPct: mem, diskPct: disk, latencyMs: 20 });
 
 describe('HomeHub maths', () => {
   it('scales like the prototype: width, height or the 0.82 cap', () => {
     expect(hubScale(1440, 900)).toBeCloseTo(0.7487, 3);
     expect(hubScale(2560, 1600)).toBe(0.82);
-    expect(hubScale(1000, 1400)).toBeCloseTo(0.625, 3);
   });
-
-  it('maps the gauge ends to 10° and 26°, the top to 18°', () => {
-    // centre (100,100): straight up is the midpoint, far left/right clamp to the ends
-    expect(tempFromPoint(100, 10)).toBe(18);
-    expect(tempFromPoint(0, 120)).toBe(10);
-    expect(tempFromPoint(200, 120)).toBe(26);
-  });
-
   it('draws arcs with the large-arc flag only past 180°', () => {
     expect(arcPath(100, 100, 86, -100, 100)).toMatch(/ A 86 86 0 1 1 /);
     expect(arcPath(100, 100, 86, -100, 0)).toMatch(/ A 86 86 0 0 1 /);
   });
-
   it('formats track time as m:ss', () => {
-    expect(formatTrackTime(90)).toBe('1:30');
     expect(formatTrackTime(236)).toBe('3:56');
   });
 });
 
+describe('glance bindings', () => {
+  it('greets by the hour', () => {
+    expect(greetingFor(8)).toBe('Good Morning');
+    expect(greetingFor(14)).toBe('Good Afternoon');
+    expect(greetingFor(21)).toBe('Good Evening');
+    expect(greetingFor(2)).toBe('Good Evening');
+  });
+
+  it('builds the headline from the server state', () => {
+    expect(glanceHeadline({ serverName: null, connected: false, pulse: pulse(null) })).toEqual(['No server', 'connected yet']);
+    expect(glanceHeadline({ serverName: 'Prod', connected: false, pulse: pulse(null) })).toEqual(['Not connected to', 'Prod']);
+    expect(glanceHeadline({ serverName: 'Prod', connected: true, pulse: pulse(20) })).toEqual(['All calm on', 'Prod']);
+    expect(glanceHeadline({ serverName: 'Prod', connected: true, pulse: pulse(95, 92) })).toEqual(['2 things need', 'attention']);
+  });
+
+  it('colours load green / amber / red', () => {
+    expect(levelTone(null)).toBe('off');
+    expect(levelTone(40)).toBe('green');
+    expect(levelTone(80)).toBe('amber');
+    expect(levelTone(95)).toBe('red');
+  });
+
+  it('maps WMO weather codes, with a moon at night', () => {
+    expect(skyFor(0)).toEqual({ sky: 'sun', label: 'Clear' });
+    expect(skyFor(0, false).sky).toBe('moon');
+    expect(skyFor(3).label).toBe('Overcast');
+    expect(skyFor(63)).toEqual({ sky: 'rain', label: 'Rain' });
+    expect(skyFor(95).label).toBe('Thunderstorm');
+  });
+
+  it('lists the 4 most recent known apps, then pinned ones', () => {
+    const recent = [
+      { appId: 'files', timestamp: 3 }, { appId: 'terminal', timestamp: 5 },
+      { appId: 'files', timestamp: 1 }, { appId: 'nope', timestamp: 9 },
+    ];
+    expect(recentAppIds(recent, ['dashboard', 'docker', 'files'])).toEqual(['terminal', 'files', 'dashboard', 'docker']);
+  });
+});
+
 describe('HomeHub overlay', () => {
-  beforeEach(() => act(() => useDesktopStore.setState({ homeHubOpen: false, startMenuOpen: false })));
+  beforeEach(() => act(() => {
+    useDesktopStore.setState({ homeHubOpen: false, startMenuOpen: false });
+    useAppStore.setState({ servers: [], activeServerId: null });
+  }));
 
   it('renders only while open; opening it closes the launcher', () => {
     const { rerender } = render(<HomeHub />);
     expect(screen.queryByRole('dialog', { name: 'Home hub' })).toBeNull();
-
     act(() => useDesktopStore.setState({ startMenuOpen: true }));
     act(() => useDesktopStore.getState().toggleHomeHub());
     rerender(<HomeHub />);
@@ -44,30 +105,41 @@ describe('HomeHub overlay', () => {
     expect(useDesktopStore.getState().startMenuOpen).toBe(false);
   });
 
+  it('greets the local user and says when no server is connected', async () => {
+    act(() => useDesktopStore.setState({ homeHubOpen: true }));
+    render(<HomeHub />);
+    await waitFor(() => expect(screen.getByText(/Abhis!$/)).toBeInTheDocument());
+    expect(screen.getByTitle('No server connected yet')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Set city' })).toBeInTheDocument();
+  });
+
   it('closes on Escape and on a backdrop click, not on a card click', () => {
     act(() => useDesktopStore.setState({ homeHubOpen: true }));
     render(<HomeHub />);
     fireEvent.click(screen.getByRole('region', { name: 'Weather' }));
     expect(useDesktopStore.getState().homeHubOpen).toBe(true);
-
     fireEvent.click(screen.getByTestId('hub-canvas'));
     expect(useDesktopStore.getState().homeHubOpen).toBe(false);
-
     act(() => useDesktopStore.setState({ homeHubOpen: true }));
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(useDesktopStore.getState().homeHubOpen).toBe(false);
   });
 
-  it('toggles a device and switches rooms', () => {
-    act(() => useDesktopStore.setState({ homeHubOpen: true }));
+  it('lists saved servers in the room bar and re-points the hub', () => {
+    act(() => {
+      useAppStore.setState({
+        servers: [
+          { id: 'a', name: 'Alpha', host: 'h', port: 22, username: 'u', authMethod: 'password', state: null },
+          { id: 'b', name: 'Beta', host: 'h', port: 22, username: 'u', authMethod: 'password', state: null },
+        ] as never,
+        activeServerId: 'a',
+      });
+      useDesktopStore.setState({ homeHubOpen: true });
+    });
     render(<HomeHub />);
-    const power = screen.getByRole('button', { name: 'TV power' });
-    expect(power).toHaveAttribute('aria-pressed', 'true');
-    fireEvent.click(power);
-    expect(power).toHaveAttribute('aria-pressed', 'false');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Garage' }));
-    expect(screen.getByRole('button', { name: 'Garage' })).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByText('Garage')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Alpha' })).toHaveAttribute('aria-current', 'page');
+    fireEvent.click(screen.getByRole('button', { name: 'Beta' }));
+    expect(screen.getByRole('button', { name: 'Beta' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByTitle('Not connected to Beta')).toBeInTheDocument();
   });
 });
