@@ -31,6 +31,7 @@
 | M9: Desktop Polish & Core UX | Week 11 | ✅ | 12/12 tasks | — |
 | M10: Advanced Features | Week 12-14 | ✅ | 10/10 tasks | — |
 | M11: Fleet, Agent & Platform | Week 15-16 | ✅ | 8/8 tasks | — |
+| M12: Backend Architecture Refactor | Beta | ✅ | 7/7 tasks | [phase-12](phases/phase-12.md) |
 | **EX1: Dynamic UI Engine** | **Experimental** | **✅** | **15/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
 | **EX2: UI Generation Agent** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
 | **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **✅** | **26/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
@@ -288,6 +289,23 @@ Example:
 
 ---
 
+## M12: Backend Architecture Refactor
+
+> Domain service layer + CommandPolicy chokepoint. No new features — restructure routes/services for safety, testability, and reusability. See [phase-12.md](phases/phase-12.md) and [ADR-023](DECISIONS.md#adr-023-domain-service-layer--command-policy-chokepoint).
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| M12.1 | CommandPolicy chokepoint | ✅ | `services/policy/command-policy.ts`, wired into `ConnectionManager.exec()`, 3 modes via `HEADLESS_POLICY_MODE`, 29 tests |
+| M12.2 | DockerService + slim docker.ts | ✅ | `services/domain/{base,docker-service}.ts`, `routes/docker.ts` reduced to thin wrappers, response shapes preserved |
+| M12.3 | FilesService | ✅ | `services/domain/files-service.ts` (SFTP domain layer), `routes/files.ts` 628 → ~170 lines, 30 tests |
+| M12.4 | Admin domain services (8) | ✅ | `services/domain/admin/{network,firewall,security,webserver,packages,cron,logs,storage}-admin-service.ts` + barrel index |
+| M12.5 | Decompose serveradmin.ts | ✅ | Single-file rewrite 1,655 → ~520 lines, 8 sections matching original, all response shapes preserved |
+| M12.6 | Domain service unit tests | ✅ | `tests/services/domain/admin-services.test.ts` (39), `docker-service.test.ts` (6), `policy/command-policy.test.ts` (29). Full suite 1895/1895 |
+| M12.7 | Documentation | ✅ | ADR-023, phase-12.md, ARCHITECTURE.md update, PROGRESS/TRACEABILITY entries |
+| M12.8 | Domain services for remaining routes | ✅ | SystemService, SystemdService, TaskManagerService, FleetService, FilesService + slim routes + 65 new tests. Full suite 1960/1960 server tests |
+
+---
+
 ## EX1: Dynamic UI Engine (Experimental)
 
 > LLM-generated dynamic interfaces from terminal output. Any CLI tool gets a visual UI.
@@ -527,7 +545,8 @@ Example:
 | Date | Change |
 |------|--------|
 | 2026-10-20 | **EX7 ✅** Container Target Mode (9/9). Browse/view/edit/create/upload/rename/delete files **inside** a Docker container, plus shell-into-container, via `docker exec`/base64 (container stays SSH-free). New: `parsers/container-ls.ts`, `routes/container-files.ts`, `components/Docker/ContainerFilesView.tsx`; terminal `?container=` exec; Docker app "Open Files"/"Open Shell" context items. Security: hex container-id + path validation + shellEscape + double-escaped nested `sh -c`; 2 MB cap. Verified live against real containers + Playwright UI run. See [phase-ex7](phases/phase-ex7.md). |
-| 2026-10-20 | **Security audit** before open-sourcing: fixed 2 RCEs (C1 `/dynamic-ui/refresh`, C2 chpasswd), added per-session API token + Host/WS-origin checks (C3), allowlist hardening (H1/H2), encryption secret (M1), write-back denylist (M3). See [SECURITY_AUDIT.md](SECURITY_AUDIT.md). Also: `CLAUDE.md`, `.gitattributes` (LF for scripts), Windows Electron build validated, init-analysis fixes. |
+| 2026-10-20 | **Security audit** before open-sourcing: fixed 2 RCEs (C1 `/dynamic-ui/refresh`, C2 chpasswd — re-homed into `security-admin-service.ts` after the M12 refactor), added per-session API token + Host/WS-origin checks (C3), allowlist hardening (H1/H2), encryption secret (M1), write-back denylist (M3). See [SECURITY_AUDIT.md](SECURITY_AUDIT.md). Also: `CLAUDE.md`, `.gitattributes` (LF for scripts), Windows Electron build validated, init-analysis fixes. |
+| 2026-05-04 | **M12 ✅** Backend Architecture Refactor complete (7/7 tasks, M12.3 deferred with rationale). M12.1 CommandPolicy chokepoint at `ConnectionManager.exec()` (3 modes: enforce/audit/off via `HEADLESS_POLICY_MODE`, 29 tests). M12.2 DockerService + slim `routes/docker.ts`. M12.4 8 admin domain services (network/firewall/security/webserver/packages/cron/logs/storage). M12.5 `routes/serveradmin.ts` 1,655 → ~520 lines. M12.6 74 new tests (39 admin + 6 docker + 29 policy). M12.7 ADR-023, phase-12.md, ARCHITECTURE.md domain layer note. **1,895 server tests passing.** Zero new tsc errors. All response shapes preserved — frontend unchanged. |
 | 2026-04-18 | **EX6 ✅** Multi-Session Desktop & Hibernation complete (32/32 tasks). EX6-D Polish: D.1 per-session lock + activation guard + WakeConfirmDialog; D.2 move-window-between-sessions + **Citrix isolation** (WindowManager/Taskbar filter by activeServerId — fixes cross-session window bleed); D.3 per-session wallpaper via useEffectivePref; D.4 session export/import (envelope JSON); D.5 auto-hibernation watchdog (30s tick); D.6 agent conversation history persisted into SessionState.agentHistory; D.7 Observatory trace persistence to `~/.headlessos/observatory/traces/` with 30d/10k retention sweep. **2,360 tests passing** (1,821 server + 539 client). |
 | 2026-04-18 | **EX6 🔄** Multi-Session Desktop & Hibernation phase started. ADR-020 (Multi-Session Architecture), ADR-021 (Persistence & Hibernation), ADR-022 (Per-Session Preference Layering) drafted. Phase spec: phase-ex6.md (27 tasks across 4 sub-phases A/B/C/D). EX6-A.1 ✅ (ADRs), EX6-A.2 ✅ (phase doc + PROGRESS). Citrix-style multi-server desktop with hover-reveal Session Switcher, three-tier persistence (hot/warm/cold), per-session accent colors as safety mechanism, Fleet relocated to new Control Center. |
 | 2026-04-14 | **EX3 ✅** Smart Layout Engine & Progressive UI complete (26/26 tasks). EX3-B.3: 12 new templates (27 total, all schema-validated). EX3-B.4: FakeLLMGenerator class. EX3-C.1: WorkingView + createSkeleton. EX3-C.2: layout_update event pipeline. EX3-C.3: Early window opening with skeleton. EX3-C.4: Multi-step executor prompt. EX3-D.1: Phase-based DynamicAppWindow rendering. EX3-D.2: Copy JSON toolbar button. EX3-D.3: Staggered entrance animations + prefers-reduced-motion. EX3-D.4: 117 QA tests. **2,224 tests passing** (1,778 server + 446 client). |
