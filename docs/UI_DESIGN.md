@@ -266,8 +266,9 @@ for code, paths, PIDs, IPs and the terminal.
 | Context | Size |
 |---------|------|
 | Menus, title bars, list rows | 13px |
-| Body text, settings rows | 14px (settings row labels 15px) |
-| Captions, footers | 12px |
+| Body text | 14px |
+| Settings rows | 15px label over a 13px `text-label-2` description (keep ≥ 2px between a label and its description) |
+| Captions, footers | 12–13px |
 | Group labels | 11px, weight 700, uppercase, `tracking-[.06em]`, `text-label-3` |
 | Section headings | 15–17px, weight 700 |
 | Page titles | 30px, weight 600, `tracking-[-0.022em]` |

@@ -146,9 +146,12 @@
 
   /* ── Lumen raw layer (light, Heavy glass, Iris accent) ── */
   --lumen-ink: 16, 30, 38;
-  --lumen-label: rgba(16, 30, 38, .9);
-  --lumen-label2: rgba(16, 30, 38, .72);
-  --lumen-label3: rgba(16, 30, 38, .5);
+  /* Labels are darker than the handoff's .9/.72/.5: light glass renders
+     mid-grey over most wallpapers, where .72 measured 4.2:1 (below WCAG AA).
+     These keep label2 ≈ 5:1 and label3 ≥ 4.5:1 on Heavy glass. */
+  --lumen-label: rgba(16, 30, 38, .95);
+  --lumen-label2: rgba(16, 30, 38, .82);
+  --lumen-label3: rgba(16, 30, 38, .74);
   --lumen-sep: rgba(16, 30, 38, .1);
   --lumen-fill: rgba(16, 30, 38, .06);
   --lumen-fill2: rgba(16, 30, 38, .12);
@@ -255,7 +258,7 @@
   --lumen-sep: rgba(255, 255, 255, .12);
   --lumen-fill: rgba(255, 255, 255, .08);
   --lumen-fill2: rgba(255, 255, 255, .16);
-  --lumen-mat-thin: rgba(44, 44, 50, .40);
+  --lumen-mat-thin: rgba(44, 44, 50, .25);
   --lumen-mat: rgba(44, 44, 50, .54);
   --lumen-mat-thick: rgba(44, 44, 50, .72);
   --lumen-field: rgba(0, 0, 0, .2);

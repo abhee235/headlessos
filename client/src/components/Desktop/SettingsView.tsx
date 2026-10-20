@@ -167,7 +167,7 @@ function Row({
       {Icon && <Icon className="h-5 w-5 shrink-0 text-label-2" strokeWidth={1.75} />}
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className={cn('text-[15px]', danger ? 'text-danger' : 'text-foreground')}>{label}</span>
-        {description && <span className="text-[14px] text-label-2">{description}</span>}
+        {description && <span className="text-[13px] leading-[18px] text-label-2">{description}</span>}
       </div>
       {children !== undefined && children !== null && (
         <div className="flex shrink-0 items-center gap-2">{children}</div>
@@ -1350,7 +1350,7 @@ function PluginsPage() {
                   </Badge>
                 </div>
                 {plugin.description && (
-                  <p className="truncate text-[14px] text-label-2">{plugin.description}</p>
+                  <p className="truncate text-[13px] text-label-2">{plugin.description}</p>
                 )}
                 {plugin.error && (
                   <p className="mt-0.5 text-[13px] text-danger">{plugin.error}</p>

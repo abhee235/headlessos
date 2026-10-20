@@ -111,6 +111,13 @@ Found or asked for during the work; each has tests.
 
 ## Deviations from the handoff text (prototype wins where they differ)
 
+- **Settings row type and light-theme contrast (user review):** the prototype's
+  15px label over a 14px description was too close a step; descriptions are now
+  13px. Light labels are darker than the tokens' `.9 / .72 / .5` (now
+  `.95 / .82 / .74`): measured from rendered pixels, light Heavy glass sits
+  mid-grey over the wallpaper and `.72` gave 4.2:1, below WCAG AA; now ≈ 5:1.
+  Dark labels already measured 8–14:1 and are unchanged.
+
 - **Button:** `default`/`primary` stay the lit call-to-action (84 call sites rely on
   it); `secondary`/`outline` are the neutral glass pill.
 - **Dock tiles** use the prototype's 50px plates / 32px icons / 5px hover lift.
