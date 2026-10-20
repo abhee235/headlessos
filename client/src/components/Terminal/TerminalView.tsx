@@ -11,7 +11,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { terminalWsUrl } from '../../lib/api';
 import { usePreferencesStore } from '../../store/preferences-store';
 import { toast } from 'sonner';
-import { WifiOff, RefreshCw, Copy, ClipboardPaste, Trash2, MousePointerClick, Sparkles } from 'lucide-react';
+import { WifiOff, RotateCw, Copy, ClipboardPaste, Trash2, MousePointerClick, Sparkles } from 'lucide-react';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -343,7 +343,7 @@ export function TerminalView({ serverId, onVisualize, containerId }: TerminalVie
                     {status === 'error' ? 'Connection error' : 'Disconnected'}
                   </span>
                   <Button variant="secondary" size="sm" onClick={handleReconnect}>
-                    <RefreshCw strokeWidth={1.75} />
+                    <RotateCw strokeWidth={1.75} />
                     Reconnect
                   </Button>
                 </div>
@@ -397,7 +397,7 @@ export function TerminalView({ serverId, onVisualize, containerId }: TerminalVie
             <>
               <ContextMenuSeparator />
               <ContextMenuItem onClick={handleReconnect}>
-                <RefreshCw strokeWidth={1.75} />
+                <RotateCw strokeWidth={1.75} />
                 Reconnect
               </ContextMenuItem>
             </>

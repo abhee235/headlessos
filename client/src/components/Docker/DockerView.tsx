@@ -13,7 +13,7 @@ import {
   Pause,
   PlayCircle,
   Trash2,
-  RefreshCw,
+  RotateCw,
   AlertCircle,
   FileText,
   Info,
@@ -171,7 +171,7 @@ function SectionHeader({
           />
         </div>
         <Button variant="secondary" onClick={onRefresh}>
-          <RefreshCw className={cn(refreshing && 'animate-spin')} strokeWidth={1.75} />
+          <RotateCw className={cn(refreshing && 'animate-spin')} strokeWidth={1.75} />
           Refresh
         </Button>
       </div>
@@ -783,7 +783,7 @@ function RunImageDialog({ open, onOpenChange, image, serverId, onCreated }: RunI
             onClick={handleRun}
             disabled={running}
           >
-            {running ? <RefreshCw className="animate-spin" strokeWidth={1.75} /> : <Play strokeWidth={1.75} />}
+            {running ? <RotateCw className="animate-spin" strokeWidth={1.75} /> : <Play strokeWidth={1.75} />}
             {running ? 'Creating…' : 'Run'}
           </Button>
         </DialogFooter>

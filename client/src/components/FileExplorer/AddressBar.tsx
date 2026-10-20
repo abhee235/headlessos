@@ -7,7 +7,7 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUp,
-  RefreshCw,
+  RotateCw,
   ChevronRight as Separator,
   Trash2,
 } from 'lucide-react';
@@ -163,7 +163,7 @@ export function AddressBar({
 
       {/* Refresh */}
       <ExplorerIconButton onClick={onRefresh} title="Refresh">
-        <RefreshCw className={cn('h-[17px] w-[17px]', loading && 'animate-spin')} strokeWidth={1.75} />
+        <RotateCw className={cn('h-[17px] w-[17px]', loading && 'animate-spin')} strokeWidth={1.75} />
       </ExplorerIconButton>
     </div>
   );

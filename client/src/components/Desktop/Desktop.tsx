@@ -37,7 +37,7 @@ import { Input } from '@/components/ui/input';
 import {
   Folder,
   File,
-  RefreshCw,
+  RotateCw,
   LayoutGrid,
   SortAsc,
   Info,
@@ -326,7 +326,7 @@ export function Desktop() {
         <ContextMenuSeparator />
 
         <ContextMenuItem onClick={handleRefresh}>
-          <RefreshCw className="w-4 h-4 mr-2 opacity-60" />
+          <RotateCw className="w-4 h-4 mr-2 opacity-60" />
           Refresh
           <ContextMenuShortcut>F5</ContextMenuShortcut>
         </ContextMenuItem>

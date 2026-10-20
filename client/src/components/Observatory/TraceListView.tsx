@@ -14,7 +14,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
-import { RefreshCw, Trash2 } from 'lucide-react';
+import { RotateCw, Trash2 } from 'lucide-react';
 import { SpanStatusIcon } from './SpanKindIcon';
 import { formatTokens, formatCost, formatLatency, getStatusColor } from './constants';
 import type { TraceTrigger, SpanStatus } from 'headlessos-shared/schemas/observatory';
@@ -115,7 +115,7 @@ export function TraceListView() {
         <div className="flex-1" />
 
         <Button size="icon" variant="ghost" onClick={fetchTraces}>
-          <RefreshCw strokeWidth={1.75} />
+          <RotateCw strokeWidth={1.75} />
         </Button>
         <Button size="icon" variant="ghost" className="text-destructive" onClick={clearTraces}>
           <Trash2 strokeWidth={1.75} />

@@ -5,7 +5,7 @@
 
 import * as React from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { AlertCircle, MoreHorizontal, RefreshCw, Search, X } from 'lucide-react';
+import { AlertCircle, MoreHorizontal, RotateCw, Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -62,7 +62,7 @@ export function RefreshButton({
 }) {
   return (
     <Button variant="secondary" onClick={onClick} disabled={disabled} title={title}>
-      <RefreshCw strokeWidth={1.75} className={cn(spinning && 'animate-spin')} />
+      <RotateCw strokeWidth={1.75} className={cn(spinning && 'animate-spin')} />
       Refresh
     </Button>
   );

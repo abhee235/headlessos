@@ -2,7 +2,7 @@
 // EX8.6: Lumen hover controls (glass pill of round icon buttons)
 // @see docs/phases/phase-ex1.md
 
-import { RefreshCw, Pause, Play } from 'lucide-react';
+import { RotateCw, Pause, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const CONTROL_CLASS =
@@ -70,7 +70,7 @@ export function RefreshableWidget({
             )}
             title="Refresh now"
           >
-            <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.75} />
+            <RotateCw className="h-3.5 w-3.5" strokeWidth={1.75} />
           </button>
         </div>
       )}

@@ -9,8 +9,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  ArrowUp, Upload, RefreshCw,
-  Save, X, Trash2, Download, Pencil, ChevronRight, FolderOpen, Box,
+  ArrowUp,
+  Upload,
+  RotateCw,
+  Save,
+  X,
+  Trash2,
+  Download,
+  Pencil,
+  ChevronRight,
+  FolderOpen,
+  Box,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -183,7 +192,7 @@ export function ContainerFilesView({ serverId, containerId, containerName }: Pro
           <ArrowUp strokeWidth={1.75} />
         </Button>
         <Button size="icon" variant="ghost" title="Refresh" onClick={load}>
-          <RefreshCw className={cn(loading && 'animate-spin')} strokeWidth={1.75} />
+          <RotateCw className={cn(loading && 'animate-spin')} strokeWidth={1.75} />
         </Button>
 
         {/* Breadcrumb */}

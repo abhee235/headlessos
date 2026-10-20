@@ -6,7 +6,7 @@
 // @see docs/phases/phase-2.md, docs/phases/phase-ex8.md
 
 import { useEffect, useRef, useState, useCallback, type ReactNode } from 'react';
-import { RefreshCw, Clock, Zap, AlertCircle } from 'lucide-react';
+import { RotateCw, Clock, Zap, AlertCircle } from 'lucide-react';
 import { LoadingView } from '@/components/ui/loading-view';
 import { Button } from '@/components/ui/button';
 import type { CpuStatsData, SystemDashboardData } from '../../lib/api';
@@ -175,7 +175,7 @@ export function DashboardView({ serverId }: DashboardViewProps) {
     return (
       <div className="flex h-64 items-center justify-center">
         <div className="text-center">
-          <RefreshCw className="mx-auto mb-2 h-8 w-8 text-label-3" strokeWidth={1.75} />
+          <RotateCw className="mx-auto mb-2 h-8 w-8 text-label-3" strokeWidth={1.75} />
           <p className="text-[13px] text-label-2">No dashboard data available</p>
           <Button variant="secondary" size="sm" className="mt-3" onClick={() => loadData()}>
             Refresh
@@ -220,7 +220,7 @@ export function DashboardView({ serverId }: DashboardViewProps) {
             title="Refresh"
             aria-label="Refresh"
           >
-            <RefreshCw
+            <RotateCw
               strokeWidth={1.75}
               className={cn('text-label-2', refreshing && 'animate-spin motion-reduce:animate-none')}
             />

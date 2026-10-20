@@ -14,7 +14,7 @@ import {
   ClipboardPaste,
   Folder,
   File,
-  RefreshCw,
+  RotateCw,
   LayoutGrid,
   List,
   SortAsc,
@@ -527,7 +527,7 @@ export function FileList({
         </ContextMenuSub>
         <ContextMenuSeparator />
         <ContextMenuItem onClick={() => onRefresh()}>
-          <RefreshCw className="w-4 h-4 mr-2 opacity-60" />
+          <RotateCw className="w-4 h-4 mr-2 opacity-60" />
           Refresh
           <ContextMenuShortcut>F5</ContextMenuShortcut>
         </ContextMenuItem>

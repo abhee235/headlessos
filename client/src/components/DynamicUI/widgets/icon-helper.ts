@@ -13,7 +13,7 @@ import {
   FileText, Filter, Folder, Globe, HardDrive, Heart, History, Home, Image,
   Info, Key, KeyRound, Layers, Link, List, Lock, Mail, Map, MapPin,
   MessageSquare, Monitor, MoreHorizontal, Network, Package, PackageCheck,
-  Pencil, Play, Plug, Power, Radio, RefreshCw, RotateCcw, Route, Save,
+  Pencil, Play, Plug, Power, Radio, RotateCcw, RotateCw, Route, Save,
   ScrollText, Search, Server, Settings, Shield, ShieldAlert, ShieldCheck,
   Signal, Star, Square, Target, Terminal, Trash2, Upload, User, Users,
   Wifi, X, Zap,
@@ -27,11 +27,13 @@ const ICON_MAP: Record<string, LucideIcon> = {
   FileText, Filter, Folder, Globe, HardDrive, Heart, History, Home, Image,
   Info, Key, KeyRound, Layers, Link, List, Lock, Mail, Map, MapPin,
   MessageSquare, Monitor, MoreHorizontal, Network, Package, PackageCheck,
-  Pencil, Play, Plug, Power, Radio, RefreshCw, RotateCcw, Route, Save,
+  Pencil, Play, Plug, Power, Radio, RotateCcw, RotateCw, Route, Save,
   ScrollText, Search, Server, Settings, Shield, ShieldAlert, ShieldCheck,
   Signal, Star, Square, Target, Terminal, Trash2, Upload, User, Users,
   Wifi, X, Zap,
   // Aliases
+  // HeadlessOS draws refresh as one clockwise arrow; keep the name the LLM emits
+  RefreshCw: RotateCw,
   Stop: Square,
   Dns: Globe,
 };

@@ -5,7 +5,13 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  RefreshCw, AlertCircle, ScrollText, Download, ArrowDown, Filter } from 'lucide-react';
+  RotateCw,
+  AlertCircle,
+  ScrollText,
+  Download,
+  ArrowDown,
+  Filter,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -164,7 +170,7 @@ export function LogsSection({ serverId }: { serverId: string }) {
                   size="icon"
                   onClick={() => setAutoRefresh(!autoRefresh)}
                 >
-                  <RefreshCw strokeWidth={1.75} className={autoRefresh ? 'animate-spin' : ''} />
+                  <RotateCw strokeWidth={1.75} className={autoRefresh ? 'animate-spin' : ''} />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>{autoRefresh ? 'Stop auto-refresh' : 'Auto-refresh (5s)'}</TooltipContent>

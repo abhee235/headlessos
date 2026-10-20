@@ -4,7 +4,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import {
-  RefreshCw,
+  RotateCw,
   Wifi,
   WifiOff,
   HardDrive,
@@ -324,7 +324,7 @@ export function FleetDashboardView({ onServerActivated }: FleetDashboardViewProp
               onClick={() => loadData(true)}
               disabled={refreshing}
             >
-              <RefreshCw className={refreshing ? 'animate-spin' : ''} strokeWidth={1.75} />
+              <RotateCw className={refreshing ? 'animate-spin' : ''} strokeWidth={1.75} />
               Refresh
             </Button>
           </TooltipTrigger>

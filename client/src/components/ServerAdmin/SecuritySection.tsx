@@ -3,7 +3,7 @@
 // @see docs/phases/phase-7.md, docs/phases/phase-8.md, docs/phases/phase-ex8.md
 
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshCw, Lock, ShieldCheck, Ban, ShieldOff, RotateCw, Plus, Trash2, KeyRound, UserPlus } from 'lucide-react';
+import { RotateCw, Lock, ShieldCheck, Ban, ShieldOff, Plus, Trash2, KeyRound, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -756,7 +756,7 @@ export function SecuritySection({ serverId }: { serverId: string }) {
                           onClick={() => loadJailDetail(selectedJail)}
                           disabled={jailLoading}
                         >
-                          <RefreshCw strokeWidth={1.75} />
+                          <RotateCw strokeWidth={1.75} />
                           Refresh
                         </Button>
                       </div>

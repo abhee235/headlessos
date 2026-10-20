@@ -1,4 +1,4 @@
-import { WifiOff, RefreshCw } from 'lucide-react';
+import { WifiOff, RotateCw } from 'lucide-react';
 import { Button } from './button';
 import { useState } from 'react';
 import * as api from '../../lib/api';
@@ -52,7 +52,7 @@ export function DisconnectedState({ serverId, onReconnected, message }: Disconne
 
         <div className="flex items-center justify-center gap-2">
           <Button onClick={handleReconnect} disabled={reconnecting} className="gap-2">
-            <RefreshCw className={`h-4 w-4 ${reconnecting ? 'animate-spin' : ''}`} />
+            <RotateCw className={`h-4 w-4 ${reconnecting ? 'animate-spin' : ''}`} />
             {reconnecting ? 'Reconnecting…' : 'Reconnect'}
           </Button>
         </div>
