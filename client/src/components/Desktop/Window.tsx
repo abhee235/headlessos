@@ -177,23 +177,33 @@ export function WindowFrame({ win, children }: WindowFrameProps) {
   const controlClass =
     'grid h-7 w-7 place-items-center rounded-full bg-fill text-foreground transition-colors duration-150 hover:bg-fill-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
+  const radius = win.maximized ? 'rounded-none' : 'rounded-[24px]';
+
   return (
     <div
-      className={`
-        glass absolute flex flex-col overflow-hidden animate-windowOpen
-        ${win.maximized ? 'rounded-none !border-0' : 'rounded-[24px]'}
-        ${win.focused ? 'shadow-window' : 'shadow-window-unfocused'}
-      `}
+      className="absolute"
       style={{
         ...style,
         transition: win.maximized || win.preSnap
-          ? 'top 150ms ease-out, left 150ms ease-out, right 150ms ease-out, bottom 150ms ease-out, width 150ms ease-out, height 150ms ease-out, box-shadow 300ms ease-out'
-          : 'box-shadow 300ms ease-out',
+          ? 'top 150ms ease-out, left 150ms ease-out, right 150ms ease-out, bottom 150ms ease-out, width 150ms ease-out, height 150ms ease-out'
+          : undefined,
       }}
       onMouseDown={() => {
         if (!win.focused) focusWindow(win.id);
       }}
     >
+      {/* EX8.18: the drop shadow is its own element. On the glass element Chrome
+          sized the blur layer to the shadow too (+40px a side), and where that
+          margin lay over another window's glass it redrew as a hard-edged,
+          flickering strip whenever content behind it updated. */}
+      <div
+        aria-hidden
+        className={`pointer-events-none absolute inset-0 animate-windowOpen ${radius} ${win.focused ? 'shadow-window-drop' : 'shadow-window-drop-unfocused'}`}
+        style={{ transition: 'box-shadow 300ms ease-out' }}
+      />
+      <div
+        className={`glass absolute inset-0 flex flex-col overflow-hidden animate-windowOpen shadow-[var(--lumen-spec)] ${radius} ${win.maximized ? '!border-0' : ''}`}
+      >
       {/* ── Title Bar: sits directly on the window glass ── */}
       <ContextMenu>
         <ContextMenuTrigger asChild>
@@ -306,6 +316,7 @@ export function WindowFrame({ win, children }: WindowFrameProps) {
           </svg>
         </div>
       )}
+      </div>
     </div>
   );
 }

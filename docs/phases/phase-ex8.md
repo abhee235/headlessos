@@ -83,6 +83,7 @@ The design handoff lives outside the repo tree in `Custom OS UI Design/handoff/`
 | EX8.15 | HomeHub as a real glance (requested): same layout, cards bound to server and local data | ✅ |
 | EX8.16 | Colour dock tiles (requested experiment): per-app tile colour with a contrasting glyph; Glass kept as a setting | ✅ |
 | EX8.17 | Idle glance (requested): after N idle minutes the Home hub covers the desktop as a privacy screen; Settings → General → Sessions → Privacy Screen (default 5 min) | ✅ |
+| EX8.18 | Glass shadow artifact in Chrome (user report): window drop shadow moved off the blurred glass element; window open animation no longer fills forwards | ✅ |
 
 ## Additions beyond the handoff
 
@@ -329,6 +330,44 @@ screen, not a lock: anyone at the machine can dismiss it.
 Verified live: no hub after 50 s idle; the away hub (with an "Away · press any key
 to return" pill) at ~60 s over an open Terminal; a mouse move keeps it, a key press
 returns to the desktop. `hooks/useIdleGlance.ts` checks every 5 s; tests use fake timers.
+
+## EX8.18 — Glass shadow artifact in Chrome
+
+**Report:** with two or three windows open and Glass on, a hard-edged shadow band
+kept dimming and recovering at the lower right of a window, about every 2–3 s
+(like a flickering tube light). Glass off: gone. It showed in Google Chrome 155
+only; Playwright's Chromium and the Electron desktop app drew it correctly, and
+the prototype uses the same window recipe.
+
+**Cause, measured:** a `backdrop-filter` element is its own composited layer, and
+Chrome sized it to the element's visual overflow, so the window's 60px drop
+shadow put 40px of extra layer on every side. The CDP layer tree showed Docker's
+950×600 window as a 1030×680 blur layer. In the user's screenshot the band's hard
+edge is exactly 40px out from Docker's right edge, where that margin lay over the
+Dashboard window's glass. Chrome redrew that margin wrongly whenever content
+behind it repainted, so the 2 s Task Manager / Dashboard polls (and the CPU ring's
+500 ms re-animation) set it off. The layer tree also showed every window still on
+an "active" opacity + transform animation long after opening: `animate-windowOpen`
+filled `forwards`.
+
+**Fix:** `Desktop/Window.tsx` is a positioned frame with two layers: an
+`aria-hidden` shadow element (`.shadow-window-drop` / `-unfocused`, which keeps
+the 300 ms focus transition) and the glass (`.glass` plus the inset spec line,
+`overflow-hidden`, the content). Both carry the open animation, so they scale
+and fade together. The blur layer is now the window's own box (Docker
+1425×900 device px = 950×600). `.animate-windowOpen` drops `forwards`: its last
+frame is the resting style, and Chrome now removes the animation after 150 ms.
+
+Verified: layer bounds as above; dark and light screenshots against the old
+one-element recipe (in-page swap on the same windows) differ only in live numbers;
+the open animation, maximize (radius 0, no border) and restore still work;
+`client/tests/components/window-frame.test.tsx`. Could not be reproduced outside
+the user's Chrome (Playwright screencast and Windows Graphics Capture of Chrome
+155 with a clean profile showed no artifact), so the user confirms it in Chrome.
+
+The dock, menus and dialogs still carry their shadows on the glass element.
+Windows stop above the dock and the dock's shadow falls mostly below it, so they
+are left as they are unless the artifact shows there too.
 
 ## Deviations from the handoff text (prototype wins where they differ)
 

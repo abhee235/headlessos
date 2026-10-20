@@ -448,6 +448,10 @@ textarea::placeholder {
   .shadow-glass { box-shadow: var(--lumen-spec), var(--lumen-lift); }
   .shadow-window { box-shadow: var(--lumen-spec), var(--lumen-lift); }
   .shadow-window-unfocused { box-shadow: var(--lumen-spec), 0 16px 40px -20px rgba(0, 0, 0, .35); }
+  /* EX8.18: desktop windows split the two: the drop shadow sits on its own
+     element so Chrome's blur layer stays the window's own box */
+  .shadow-window-drop { box-shadow: var(--lumen-lift); }
+  .shadow-window-drop-unfocused { box-shadow: 0 16px 40px -20px rgba(0, 0, 0, .35); }
   .shadow-dock { box-shadow: inset 0 1px 0 var(--lumen-spec2), 0 24px 60px -24px rgba(0, 0, 0, .6); }
 }
 
@@ -585,8 +589,11 @@ textarea::placeholder {
   animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* EX8.18: no `forwards` — the last frame is the resting style anyway, and a
+   filling animation kept every window on an "active" opacity + transform
+   compositor animation for as long as it stayed open */
 .animate-windowOpen {
-  animation: windowOpen 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: windowOpen 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .animate-windowClose {
