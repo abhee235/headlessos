@@ -11,6 +11,7 @@ import { useSessionShortcuts } from '../../hooks/useSessionShortcuts';
 import { useAutoHibernate } from '../../hooks/useAutoHibernate';
 import { Desktop } from './Desktop';
 import { Taskbar } from './Taskbar';
+import { HomeHub } from '../HomeHub/HomeHub';
 import { StartMenu } from './StartMenu';
 import { WindowManager } from './WindowManager';
 import { CommandPalette } from './CommandPalette';
@@ -101,6 +102,9 @@ export function DesktopLayout() {
 
         {/* Taskbar — bottom bar */}
         <Taskbar />
+
+        {/* EX8.10: HomeHub smart-home overlay (dock Home button) — above the dock */}
+        <HomeHub />
 
         {/* Snap zone preview */}
         <SnapPreview zone={snapPreview} />

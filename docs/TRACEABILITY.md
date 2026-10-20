@@ -999,6 +999,12 @@ None (all changes to existing files).
 - **Files modified:** `TaskManager/TaskManagerView.tsx`, `client/src/lib/api.ts`; server `services/domain/{taskmanager-service,systemd-service,base}.ts`, `routes/{taskmanager,services}.ts`, `parsers/deterministic/systemctl.ts`, `parsers/schemas/{taskmanager,services}.ts`, `security/validators.ts`, `tests/services/domain/systemd-service.test.ts`
 - **Verification:** client 593 / server 2154 tests; Playwright of the four pages on the SysV dev box
 
+### EX8.10: HomeHub
+- **Status:** ✅ Complete
+- **Files created:** `client/src/components/HomeHub/{HomeHub,cards,hub-ui}.tsx`, `client/public/icons/hub/*` (34 SVG + LICENSE), `client/public/hub/*.jpg`, test `client/tests/components/home-hub.test.tsx`
+- **Files modified:** `store/window-store.ts` (`homeHubOpen`, `toggleHomeHub`, `closeHomeHub`), `Desktop/Taskbar.tsx` (well: Launcher `Grip` · Home `House` · Search), `Desktop/DesktopLayout.tsx`, `styles.css` (keyframes)
+- **Verification:** pixel diff vs the prototype per card; Playwright interactions (gauge drag 18°→24°, power, play, rooms, Escape and backdrop close)
+
 ## How to Use This File
 
 ### After completing a task:

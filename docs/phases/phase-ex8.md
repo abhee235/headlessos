@@ -51,8 +51,10 @@ The design handoff lives outside the repo tree in `Custom OS UI Design/handoff/`
   `ui/pane-sidebar.tsx` (`PaneSidebar`, `PaneSidebarGroup`, `PaneSidebarItem`), which
   `AppWindow.Sidebar` also uses.
 - **Shell mapping where HeadlessOS differs from the prototype:**
-  - Dock utility well = Launcher, Search (CommandPalette), Show desktop. HeadlessOS
-    has no "Home hub".
+  - Dock utility well = Launcher (9-dot grid), Home hub (EX8.10), Search
+    (CommandPalette), as in the prototype. Show desktop stays on its keyboard
+    shortcut, the Quick Settings tile, the Launcher quick action and the dock's
+    context menu.
   - Tray pill = server connection + notifications glyphs + clock. Clicking the glyphs
     opens **Quick Settings** (`Desktop/QuickSettings.tsx`), the prototype's "Control
     Center". It is named differently because `ControlCenter/` is already the
@@ -73,6 +75,7 @@ The design handoff lives outside the repo tree in `Custom OS UI Design/handoff/`
 | EX8.7 | Verify (light/dark, 4 accents, 3 glass levels, transparency off, 1440×900 + 1024×768), tests, docs | ✅ |
 | EX8.8 | Code editor (requested): Monaco in Files and container Files — syntax colouring, Lumen themes, Ctrl/⌘+S | ✅ |
 | EX8.9 | Task Manager: App history, Startup apps, Users, Services pages (prototype `Activity`) | ✅ |
+| EX8.10 | HomeHub (requested): the prototype's smart-home overlay as React, opened from the dock's Home button; 9-dot Launcher glyph | ✅ |
 
 ## Additions beyond the handoff
 
@@ -174,6 +177,26 @@ Users, Services. Stat tiles + one table card per page, as in the prototype.
 - **Sessions:** `loginAt` is now − the age of the oldest process on that tty (`who` prints a zone-less wall-clock time); null when no process is on it. With an empty utmp (containers), each terminal with processes is one session.
 - **ioReadable** is true when the SSH user is root or `/proc/<pid>/io` was readable for at least one process it does not own. Kernel threads (pid 2 and its children) are left out of App history, as are `ps`/`grep`/`cat`/`id` run by the SSH user.
 
+## EX8.10 — HomeHub
+
+A client-only sample of controlling home devices: nothing comes from or goes to a
+server. `components/HomeHub/` ports `HomeHub.dc.html` to React: `HomeHub.tsx` (the
+overlay, top nav, greeting + members, room bar), `cards.tsx` (camera, weather, air
+conditioner with a draggable gauge, TV, ambient LED hue slider, Alexa, WiFi, music
+player) and `hub-ui.tsx` (card glass, LED, power button, white glyphs).
+- Same 1536×1150 canvas and coordinates, scaled by `min(vw/1600, (vh−24)/1170, 0.82)`;
+  frosted brown backdrop above the dock (z 10050); `hub-in` / `hub-rise` keyframes.
+- Escape, or a click on the backdrop, closes it. State `homeHubOpen` lives in the
+  desktop store; opening it closes the launcher.
+- Assets: 34 Fluent hub glyphs (MIT, C2PA metadata stripped, 34 KB) in
+  `client/public/icons/hub/`; the sample photos in `client/public/hub/`.
+- The root resets `font-variant-numeric` to normal: the app's body sets tabular
+  digits, which made the prototype's numbers wider.
+- Verified against the prototype at 1440×900: every card region matches pixel for
+  pixel (0.00% of pixels differ by more than 60/255) except the TV app marks (0.4%,
+  sub-pixel weight rendering). The prototype's image slots are empty when served
+  locally; HomeHub shows the photos, as Claude Design does.
+
 ## Deviations from the handoff text (prototype wins where they differ)
 
 - **Settings row type and light-theme contrast (user review):** the prototype's
@@ -217,5 +240,5 @@ Users, Services. Stat tiles + one table card per page, as in the prototype.
 
 ## Not in scope
 
-- The prototype's Home hub, Browser, Notepad, Calculator and Photos apps.
+- The prototype's Browser, Notepad, Calculator and Photos apps.
 - Wi-Fi, Bluetooth, volume and brightness controls (no local hardware to drive).

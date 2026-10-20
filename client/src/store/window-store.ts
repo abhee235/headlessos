@@ -36,6 +36,8 @@ interface DesktopState {
   windows: WindowState[];
   nextZIndex: number;
   startMenuOpen: boolean;
+  /** EX8.10: HomeHub smart-home overlay (client-only sample) */
+  homeHubOpen: boolean;
   snapPreview: SnapZone;
 
   // Actions
@@ -51,6 +53,8 @@ interface DesktopState {
   setSnapPreview: (zone: SnapZone) => void;
   toggleStartMenu: () => void;
   closeStartMenu: () => void;
+  toggleHomeHub: () => void;
+  closeHomeHub: () => void;
   toggleShowDesktop: () => void;
   /** EX6-A.7: Bump the internal window-counter past `n` to avoid ID collisions after restoring persisted windows. */
   setCounterFloor: (n: number) => void;
@@ -83,6 +87,7 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
   windows: [],
   nextZIndex: 100,
   startMenuOpen: false,
+  homeHubOpen: false,
   snapPreview: null,
 
   openWindow: (appId, serverId, title, icon, meta) => {
@@ -330,6 +335,15 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
 
   toggleStartMenu: () => {
     set(s => ({ startMenuOpen: !s.startMenuOpen }));
+  },
+
+  // EX8.10: one overlay at a time — opening HomeHub closes the launcher
+  toggleHomeHub: () => {
+    set(s => ({ homeHubOpen: !s.homeHubOpen, startMenuOpen: false }));
+  },
+
+  closeHomeHub: () => {
+    set({ homeHubOpen: false });
   },
 
   closeStartMenu: () => {

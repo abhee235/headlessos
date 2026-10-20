@@ -7,9 +7,10 @@
 import { useDesktopStore } from '../../store/window-store';
 import { useAppStore } from '../../store/app-store';
 import {
-  LayoutGrid,
-  Search,
+  Grip,
   Monitor,
+  House,
+  Search,
   Wifi,
   WifiOff,
   Bell,
@@ -251,6 +252,8 @@ export function Taskbar() {
     closeWindow,
     openWindow,
     toggleStartMenu,
+    toggleHomeHub,
+    homeHubOpen,
     startMenuOpen,
   } = useDesktopStore();
   const { activeServerId } = useAppStore();
@@ -309,7 +312,7 @@ export function Taskbar() {
             role="toolbar"
             aria-label="Dock"
           >
-            {/* ── Utility well: Launcher · Search · Show desktop ── */}
+            {/* ── Utility well: Launcher · Home hub · Search (prototype order) ── */}
             <div className="lumen-well flex h-[52px] shrink-0 items-center gap-0.5 rounded-[26px] px-[5px]">
               <WellButton
                 label="Launcher"
@@ -319,13 +322,20 @@ export function Taskbar() {
                   toggleStartMenu();
                 }}
               >
-                <LayoutGrid strokeWidth={1.75} />
+                <Grip strokeWidth={1.75} />
+              </WellButton>
+              <WellButton
+                label="Home hub"
+                active={homeHubOpen}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleHomeHub();
+                }}
+              >
+                <House strokeWidth={1.75} />
               </WellButton>
               <WellButton label="Search (Ctrl+K)" onClick={openCommandPalette}>
                 <Search strokeWidth={1.75} />
-              </WellButton>
-              <WellButton label="Show desktop" onClick={handleShowDesktop}>
-                <Monitor strokeWidth={1.75} />
               </WellButton>
             </div>
 
