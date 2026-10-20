@@ -1,5 +1,6 @@
 // M6.1: File List — multi-view file display with rich SVG icons
-// @see docs/phases/phase-6.md
+// EX8.6: LumenOS v3 — 34px rows, 14px grid tiles, accent-soft selection.
+// @see docs/phases/phase-6.md, docs/phases/phase-ex8.md
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import {
@@ -42,6 +43,7 @@ import {
 } from '@/components/ui/context-menu';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { FileProperties } from './FileProperties';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 interface FileListProps {
@@ -480,22 +482,22 @@ export function FileList({
             <ContextMenuItem onClick={() => changeView('large-icons')}>
               <LayoutGrid className="w-4 h-4 mr-2 opacity-60" />
               Large Icons
-              {viewMode === 'large-icons' && <span className="ml-auto text-primary">✓</span>}
+              {viewMode === 'large-icons' && <span className="ml-auto text-accent-text">✓</span>}
             </ContextMenuItem>
             <ContextMenuItem onClick={() => changeView('small-icons')}>
               <Grid3x3 className="w-4 h-4 mr-2 opacity-60" />
               Medium Icons
-              {viewMode === 'small-icons' && <span className="ml-auto text-primary">✓</span>}
+              {viewMode === 'small-icons' && <span className="ml-auto text-accent-text">✓</span>}
             </ContextMenuItem>
             <ContextMenuItem onClick={() => changeView('list')}>
               <List className="w-4 h-4 mr-2 opacity-60" />
               List
-              {viewMode === 'list' && <span className="ml-auto text-primary">✓</span>}
+              {viewMode === 'list' && <span className="ml-auto text-accent-text">✓</span>}
             </ContextMenuItem>
             <ContextMenuItem onClick={() => changeView('details')}>
               <Table2 className="w-4 h-4 mr-2 opacity-60" />
               Details
-              {viewMode === 'details' && <span className="ml-auto text-primary">✓</span>}
+              {viewMode === 'details' && <span className="ml-auto text-accent-text">✓</span>}
             </ContextMenuItem>
           </ContextMenuSubContent>
         </ContextMenuSub>
@@ -507,19 +509,19 @@ export function FileList({
           <ContextMenuSubContent>
             <ContextMenuItem onClick={() => { setSortBy('name'); setSortAsc(true); }}>
               Name
-              {sortBy === 'name' && <span className="ml-auto text-primary">✓</span>}
+              {sortBy === 'name' && <span className="ml-auto text-accent-text">✓</span>}
             </ContextMenuItem>
             <ContextMenuItem onClick={() => { setSortBy('size'); setSortAsc(false); }}>
               Size
-              {sortBy === 'size' && <span className="ml-auto text-primary">✓</span>}
+              {sortBy === 'size' && <span className="ml-auto text-accent-text">✓</span>}
             </ContextMenuItem>
             <ContextMenuItem onClick={() => { setSortBy('date'); setSortAsc(false); }}>
               Date Modified
-              {sortBy === 'date' && <span className="ml-auto text-primary">✓</span>}
+              {sortBy === 'date' && <span className="ml-auto text-accent-text">✓</span>}
             </ContextMenuItem>
             <ContextMenuItem onClick={() => { setSortBy('type'); setSortAsc(true); }}>
               Type
-              {sortBy === 'type' && <span className="ml-auto text-primary">✓</span>}
+              {sortBy === 'type' && <span className="ml-auto text-accent-text">✓</span>}
             </ContextMenuItem>
           </ContextMenuSubContent>
         </ContextMenuSub>
@@ -686,6 +688,25 @@ interface ViewProps extends RenameProps, ActionProps, ContextMenuProps, CreatePr
   onNavigateUp: () => void;
 }
 
+// ── Shared Lumen recipes ────────────────────────────────
+
+/** Row hover / selection — `bg-accent-soft text-accent-text` when selected. */
+const rowTone = (selected: boolean) =>
+  selected ? 'bg-accent-soft text-accent-text' : 'text-foreground hover:bg-fill';
+
+/** Rename / inline-create field: 6px radius, 1px accent border, bg-mat-thick. */
+const RENAME_FIELD =
+  'rounded-[6px] border border-accent-solid bg-mat-thick px-1.5 py-0.5 text-[13px] text-foreground outline-none focus:ring-[3px] focus:ring-accent-soft';
+
+/**
+ * Details columns: Name | Date modified | Type | Size | Permissions.
+ * Date and permissions appear as the `list` container grows.
+ */
+const DETAILS_COLS =
+  'grid grid-cols-[minmax(0,1fr)_112px_72px] gap-x-3 @2xl/list:grid-cols-[minmax(0,1fr)_168px_112px_72px] @4xl/list:grid-cols-[minmax(0,1fr)_168px_112px_72px_96px]';
+const COL_DATE = 'hidden truncate @2xl/list:block';
+const COL_PERMS = 'hidden truncate @4xl/list:block';
+
 // ── Details (table) ─────────────────────────────────────
 
 function DetailsView({
@@ -713,95 +734,95 @@ function DetailsView({
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
-        <div className="overflow-auto h-full">
-          <table className="w-full text-xs">
-            <thead className="sticky top-0 z-10">
-              <tr className="bg-muted/40 text-muted-foreground border-b border-border/50">
-                <th className="text-left px-3 py-1.5 font-medium">Name</th>
-                <th className="text-left px-3 py-1.5 font-medium w-20">Type</th>
-                <th className="text-right px-3 py-1.5 font-medium w-20">Size</th>
-                <th className="text-left px-3 py-1.5 font-medium w-36 hidden md:table-cell">Date modified</th>
-                <th className="text-left px-3 py-1.5 font-medium w-24 hidden lg:table-cell">Permissions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {canGoUp && (
-                <tr
-                  className="hover:bg-accent/50 cursor-pointer border-b border-border/20"
-                  onClick={onNavigateUp}
-                >
-                  <td className="px-3 py-1 flex items-center gap-2 text-muted-foreground">
-                    <ArrowUp className="w-3.5 h-3.5" />
-                    <span>..</span>
-                  </td>
-                  <td className="px-3 py-1 text-muted-foreground">Folder</td>
-                  <td />
-                  <td className="hidden md:table-cell" />
-                  <td className="hidden lg:table-cell" />
-                </tr>
-              )}
-              {entries.map(entry => {
-                const selected = isSelected(entry.name);
-                const isCut = clipboardEntryPaths.has(entry.name);
-                return (
-                <ContextMenu key={entry.name}>
-                  <ContextMenuTrigger asChild>
-                    <tr
-                      className={`cursor-pointer group border-b border-border/15 ${selected ? 'bg-primary/12' : 'hover:bg-primary/8'} ${isCut ? 'opacity-50' : ''}`}
-                      onClick={(e) => handleSelect(entry.name, e)}
-                      onDoubleClick={() => onOpen(entry)}
-                    >
-                      <td className="px-3 py-1">
-                        <div className="flex items-center gap-2">
-                          <FileIcon entry={entry} size="sm" className="shrink-0" />
-                          {renamingEntry === entry.name ? (
-                            <RenameInput
-                              value={renameValue}
-                              onChange={setRenameValue}
-                              onSubmit={() => submitRename(entry.name)}
-                              onCancel={() => setRenamingEntry(null)}
-                            />
-                          ) : (
-                            <span className="text-foreground truncate">{entry.name}</span>
-                          )}
-                          {entry.type === 'symlink' && entry.symlinkTarget && (
-                            <span className="text-[10px] text-muted-foreground/60">→ {entry.symlinkTarget}</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-3 py-1 text-muted-foreground">{getTypeLabel(entry)}</td>
-                      <td className="px-3 py-1 text-right text-muted-foreground font-mono">
-                        {entry.type === 'directory' ? '' : formatSize(entry.size)}
-                      </td>
-                      <td className="px-3 py-1 text-muted-foreground hidden md:table-cell">
-                        {formatDate(entry.modified)}
-                      </td>
-                      <td className="px-3 py-1 text-muted-foreground/50 font-mono hidden lg:table-cell">
-                        {entry.permissions.split(' ')[0]}
-                      </td>
-                    </tr>
-                  </ContextMenuTrigger>
-                  {fileContextMenu(entry)}
-                </ContextMenu>
-                );
-              })}
-              {/* Inline create at bottom */}
-              {creatingType && (
-                <tr>
-                  <td colSpan={5}>
-                    <InlineCreateInput
-                      name={createName}
-                      onChange={setCreateName}
-                      onSubmit={handleCreateSubmit}
-                      onCancel={cancelCreate}
-                      type={creatingType}
-                    />
-                  </td>
-                </tr>
-              )}
-              {entries.length === 0 && !canGoUp && !creatingType && <EmptyRow colSpan={5} />}
-            </tbody>
-          </table>
+        <div role="table" className="@container/list flex h-full flex-col pl-3 pr-2">
+          {/* Header stays put while the rows scroll beneath it */}
+          <div role="rowgroup" className="shrink-0 overflow-hidden pr-2 [scrollbar-gutter:stable]">
+            <div
+              role="row"
+              className={`${DETAILS_COLS} h-8 items-center px-3 text-[11px] font-bold uppercase tracking-[.06em] text-label-3`}
+            >
+              <div role="columnheader" className="truncate">Name</div>
+              <div role="columnheader" className={COL_DATE}>Date modified</div>
+              <div role="columnheader" className="truncate">Type</div>
+              <div role="columnheader" className="truncate">Size</div>
+              <div role="columnheader" className={COL_PERMS}>Permissions</div>
+            </div>
+          </div>
+
+          <div role="rowgroup" className="min-h-0 flex-1 overflow-y-auto pb-2 pr-2 [scrollbar-gutter:stable]">
+            {canGoUp && (
+              <div
+                role="row"
+                className={`${DETAILS_COLS} h-[34px] cursor-pointer items-center rounded-[10px] px-3 text-[13px] text-label-2 transition-colors duration-150 hover:bg-fill`}
+                onClick={onNavigateUp}
+              >
+                <div role="cell" className="flex min-w-0 items-center gap-2.5">
+                  <ArrowUp className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+                  <span>..</span>
+                </div>
+                <div role="cell" className={COL_DATE} />
+                <div role="cell">Folder</div>
+                <div role="cell" />
+                <div role="cell" className={COL_PERMS} />
+              </div>
+            )}
+            {entries.map(entry => {
+              const selected = isSelected(entry.name);
+              const isCut = clipboardEntryPaths.has(entry.name);
+              return (
+              <ContextMenu key={entry.name}>
+                <ContextMenuTrigger asChild>
+                  <div
+                    role="row"
+                    aria-selected={selected}
+                    className={`${DETAILS_COLS} h-[34px] cursor-pointer items-center rounded-[10px] px-3 text-[13px] transition-colors duration-150 ${rowTone(selected)} ${isCut ? 'opacity-50' : ''}`}
+                    onClick={(e) => handleSelect(entry.name, e)}
+                    onDoubleClick={() => onOpen(entry)}
+                  >
+                    <div role="cell" className="flex min-w-0 items-center gap-2.5">
+                      <FileIcon entry={entry} size="sm" className="shrink-0" />
+                      {renamingEntry === entry.name ? (
+                        <RenameInput
+                          value={renameValue}
+                          onChange={setRenameValue}
+                          onSubmit={() => submitRename(entry.name)}
+                          onCancel={() => setRenamingEntry(null)}
+                        />
+                      ) : (
+                        <span className="truncate">{entry.name}</span>
+                      )}
+                      {entry.type === 'symlink' && entry.symlinkTarget && (
+                        <span className="truncate text-[11px] text-label-3">→ {entry.symlinkTarget}</span>
+                      )}
+                    </div>
+                    <div role="cell" className={`${COL_DATE} text-label-2`}>
+                      {formatDate(entry.modified)}
+                    </div>
+                    <div role="cell" className="truncate text-label-2">{getTypeLabel(entry)}</div>
+                    <div role="cell" className="truncate text-label-2">
+                      {entry.type === 'directory' ? '' : formatSize(entry.size)}
+                    </div>
+                    <div role="cell" className={`${COL_PERMS} font-mono text-xs text-label-3`}>
+                      {entry.permissions.split(' ')[0]}
+                    </div>
+                  </div>
+                </ContextMenuTrigger>
+                {fileContextMenu(entry)}
+              </ContextMenu>
+              );
+            })}
+            {/* Inline create at bottom */}
+            {creatingType && (
+              <InlineCreateInput
+                name={createName}
+                onChange={setCreateName}
+                onSubmit={handleCreateSubmit}
+                onCancel={cancelCreate}
+                type={creatingType}
+              />
+            )}
+            {entries.length === 0 && !canGoUp && !creatingType && <EmptyState />}
+          </div>
         </div>
       </ContextMenuTrigger>
       {emptyAreaContextMenu()}
@@ -836,14 +857,14 @@ function ListView({
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
-        <div className="overflow-auto h-full p-1">
-          <div className="flex flex-col gap-0">
+        <div className="h-full overflow-auto px-3 pb-2">
+          <div className="flex flex-col gap-px">
             {canGoUp && (
               <button
                 onClick={onNavigateUp}
-                className="flex items-center gap-2 px-2 py-0.5 rounded-lg text-xs text-muted-foreground hover:bg-accent/60 hover:text-foreground text-left"
+                className="flex h-[30px] items-center gap-2.5 rounded-[10px] px-2.5 text-left text-[13px] text-label-2 transition-colors duration-150 hover:bg-fill hover:text-foreground"
               >
-                <ArrowUp className="w-3.5 h-3.5 shrink-0" />
+                <ArrowUp className="h-4 w-4 shrink-0" strokeWidth={1.75} />
                 <span>..</span>
               </button>
             )}
@@ -854,7 +875,7 @@ function ListView({
               <ContextMenu key={entry.name}>
                 <ContextMenuTrigger asChild>
                   <div
-                    className={`flex items-center gap-2 px-2 py-0.5 rounded-lg text-xs cursor-pointer ${selected ? 'bg-primary/12' : 'hover:bg-primary/8'} ${isCut ? 'opacity-50' : ''}`}
+                    className={`flex h-[30px] cursor-pointer items-center gap-2.5 rounded-[10px] px-2.5 text-[13px] transition-colors duration-150 ${rowTone(selected)} ${isCut ? 'opacity-50' : ''}`}
                     onClick={(e) => handleSelect(entry.name, e)}
                     onDoubleClick={() => onOpen(entry)}
                   >
@@ -867,9 +888,9 @@ function ListView({
                         onCancel={() => setRenamingEntry(null)}
                       />
                     ) : (
-                      <span className="text-foreground truncate flex-1">{entry.name}</span>
+                      <span className="flex-1 truncate">{entry.name}</span>
                     )}
-                    <span className="text-muted-foreground/60 font-mono text-[10px] shrink-0">
+                    <span className="shrink-0 text-xs text-label-3">
                       {entry.type === 'directory' ? '' : formatSize(entry.size)}
                     </span>
                   </div>
@@ -888,7 +909,7 @@ function ListView({
               />
             )}
             {entries.length === 0 && !canGoUp && !creatingType && (
-              <div className="text-center text-muted-foreground text-xs py-8">Empty directory</div>
+              <EmptyState label="Empty directory" />
             )}
           </div>
         </div>
@@ -899,10 +920,11 @@ function ListView({
 }
 
 // ── Icon grid (small + large) ───────────────────────────
+// Tiles: radius 14px, hover bg-fill, selected bg-accent-soft + accent-glow ring.
 
-const ICON_SIZE_CONFIG: Record<IconSize, { iconPx: number; fileSize: 'lg' | 'xl'; gridCols: string; cellPad: string; textSize: string }> = {
-  medium: { iconPx: 40, fileSize: 'lg', gridCols: 'grid-cols-[repeat(auto-fill,minmax(88px,1fr))]', cellPad: 'p-2', textSize: 'text-[11px]' },
-  large:  { iconPx: 60, fileSize: 'xl', gridCols: 'grid-cols-[repeat(auto-fill,minmax(110px,1fr))]', cellPad: 'p-3', textSize: 'text-xs' },
+const ICON_SIZE_CONFIG: Record<IconSize, { fileSize: 'lg' | 'xl'; iconBox: string; upIcon: string; gridCols: string; cellPad: string; textSize: string }> = {
+  medium: { fileSize: 'lg', iconBox: 'h-10', upIcon: 'h-6 w-6', gridCols: 'grid-cols-[repeat(auto-fill,minmax(88px,1fr))]', cellPad: 'px-1.5 pt-2.5 pb-2', textSize: 'text-xs' },
+  large:  { fileSize: 'xl', iconBox: 'h-14', upIcon: 'h-8 w-8', gridCols: 'grid-cols-[repeat(auto-fill,minmax(104px,1fr))]', cellPad: 'px-2 pt-3 pb-2.5', textSize: 'text-[13px]' },
 };
 
 function IconGridView({
@@ -933,15 +955,17 @@ function IconGridView({
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
-        <div className="overflow-auto h-full p-2">
-          <div className={`grid ${cfg.gridCols} gap-1`}>
+        <div className="h-full overflow-auto px-3 pb-3 pt-0.5">
+          <div className={`grid ${cfg.gridCols} gap-1.5`}>
             {canGoUp && (
               <button
                 onClick={onNavigateUp}
-                className={`flex flex-col items-center justify-center ${cfg.cellPad} rounded-xl hover:bg-accent/60 text-muted-foreground hover:text-foreground transition-colors`}
+                className={`flex flex-col items-center gap-1.5 ${cfg.cellPad} rounded-[14px] text-label-2 transition-colors duration-150 hover:bg-fill hover:text-foreground`}
               >
-                <ArrowUp style={{ width: cfg.iconPx * 0.6, height: cfg.iconPx * 0.6 }} className="mb-1" />
-                <span className={`${cfg.textSize} truncate max-w-full`}>..</span>
+                <span className={`flex ${cfg.iconBox} items-center justify-center`}>
+                  <ArrowUp className={cfg.upIcon} strokeWidth={1.5} />
+                </span>
+                <span className={`${cfg.textSize} max-w-full truncate leading-tight`}>..</span>
               </button>
             )}
             {entries.map(entry => {
@@ -951,11 +975,11 @@ function IconGridView({
               <ContextMenu key={entry.name}>
                 <ContextMenuTrigger asChild>
                   <div
-                    className={`flex flex-col items-center justify-center ${cfg.cellPad} rounded-xl cursor-pointer transition-colors ${selected ? 'bg-primary/12 ring-1 ring-primary/30' : 'hover:bg-primary/8'} ${isCut ? 'opacity-50' : ''}`}
+                    className={`flex cursor-pointer flex-col items-center gap-1.5 ${cfg.cellPad} rounded-[14px] transition-colors duration-150 ${selected ? 'bg-accent-soft ring-1 ring-accent-glow' : 'hover:bg-fill'} ${isCut ? 'opacity-50' : ''}`}
                     onClick={(e) => handleSelect(entry.name, e)}
                     onDoubleClick={() => onOpen(entry)}
                   >
-                    <FileIcon entry={entry} size={cfg.fileSize} style={{ width: cfg.iconPx, height: cfg.iconPx }} />
+                    <FileIcon entry={entry} size={cfg.fileSize} />
                     {renamingEntry === entry.name ? (
                       <RenameInput
                         value={renameValue}
@@ -965,7 +989,7 @@ function IconGridView({
                         centered
                       />
                     ) : (
-                      <span className={`${cfg.textSize} text-foreground text-center truncate max-w-full mt-1 leading-tight`}>
+                      <span className={`${cfg.textSize} max-w-full truncate text-center font-medium leading-tight text-foreground`}>
                         {entry.name}
                       </span>
                     )}
@@ -983,14 +1007,14 @@ function IconGridView({
                 onSubmit={handleCreateSubmit}
                 onCancel={cancelCreate}
                 type={creatingType}
-                iconPx={cfg.iconPx}
+                fileSize={cfg.fileSize}
                 textSize={cfg.textSize}
                 cellPad={cfg.cellPad}
               />
             )}
           </div>
           {entries.length === 0 && !canGoUp && !creatingType && (
-            <div className="text-center text-muted-foreground text-xs py-12">This folder is empty</div>
+            <EmptyState />
           )}
         </div>
       </ContextMenuTrigger>
@@ -1033,7 +1057,7 @@ function RenameInput({
   return (
     <input
       ref={inputRef}
-      className={`bg-background border border-primary rounded-lg px-1.5 py-0.5 text-foreground text-xs outline-none w-full max-w-30 focus:ring-1 focus:ring-primary/30 ${centered ? 'text-center' : ''}`}
+      className={cn(RENAME_FIELD, 'w-full max-w-30', centered && 'text-center')}
       value={value}
       onChange={e => onChange(e.target.value)}
       onBlur={() => onSubmit()}
@@ -1072,7 +1096,7 @@ function InlineCreateInput({
   }, []);
 
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5">
+    <div className="flex h-[34px] items-center gap-2.5 rounded-[10px] bg-accent-soft px-3">
       {type === 'folder' ? (
         <FolderSVG size={16} className="shrink-0" />
       ) : (
@@ -1080,7 +1104,7 @@ function InlineCreateInput({
       )}
       <input
         ref={inputRef}
-        className="bg-background border border-primary rounded-lg px-1.5 py-0.5 text-foreground text-xs outline-none w-48 focus:ring-1 focus:ring-primary/30"
+        className={`${RENAME_FIELD} w-48`}
         value={name}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {
@@ -1103,7 +1127,7 @@ function GridCreateCard({
   onSubmit,
   onCancel,
   type,
-  iconPx,
+  fileSize,
   textSize,
   cellPad,
 }: {
@@ -1112,7 +1136,7 @@ function GridCreateCard({
   onSubmit: (name: string) => Promise<void>;
   onCancel: () => void;
   type: 'file' | 'folder';
-  iconPx: number;
+  fileSize: 'lg' | 'xl';
   textSize: string;
   cellPad: string;
 }) {
@@ -1127,15 +1151,15 @@ function GridCreateCard({
   }, []);
 
   return (
-    <div className={`flex flex-col items-center justify-center ${cellPad} rounded-xl bg-primary/8 border border-primary/20`}>
+    <div className={`flex flex-col items-center gap-1.5 ${cellPad} rounded-[14px] bg-accent-soft ring-1 ring-accent-glow`}>
       {type === 'folder' ? (
-        <FolderSVG size={iconPx} className="" />
+        <FileIcon type="directory" size={fileSize} />
       ) : (
-        <FileIcon type="file" name="untitled" size={iconPx >= 50 ? 'xl' : 'lg'} />
+        <FileIcon type="file" name="untitled" size={fileSize} />
       )}
       <input
         ref={inputRef}
-        className={`${textSize} bg-background border border-primary rounded-lg px-1 py-0.5 text-foreground outline-none text-center mt-1 w-full max-w-[90px] focus:ring-1 focus:ring-primary/30`}
+        className={cn(RENAME_FIELD, textSize, 'w-full max-w-[90px] px-1 text-center')}
         value={name}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {
@@ -1151,13 +1175,11 @@ function GridCreateCard({
   );
 }
 
-function EmptyRow({ colSpan }: { colSpan: number }) {
+function EmptyState({ label = 'This folder is empty' }: { label?: string }) {
   return (
-    <tr>
-      <td colSpan={colSpan} className="px-3 py-8 text-center text-muted-foreground text-xs">
-        This folder is empty
-      </td>
-    </tr>
+    <div className="py-12 text-center text-[13px] text-label-3">
+      {label}
+    </div>
   );
 }
 

@@ -1,5 +1,6 @@
 // File Search Dialog — Ctrl+F search across server filesystem
 // Uses `find` command via SSH with -iname glob matching
+// EX8.6: LumenOS v3 — relies on the glass Dialog; inner rows use tokens only.
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Search, FileText, Folder, AlertCircle, X } from 'lucide-react';
@@ -115,77 +116,77 @@ export function FileSearchDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg p-0 gap-0 overflow-hidden">
-        <DialogHeader className="p-4 pb-0">
-          <DialogTitle className="text-sm font-medium flex items-center gap-2">
-            <Search className="w-4 h-4" />
+        <DialogHeader className="px-5 pt-5 pb-0">
+          <DialogTitle className="flex items-center gap-2 text-[15px]">
+            <Search className="h-[18px] w-[18px] text-accent-solid" strokeWidth={1.75} />
             Search Files
           </DialogTitle>
         </DialogHeader>
 
         {/* Search input */}
-        <div className="px-4 pt-3 pb-2">
+        <div className="px-5 pt-3.5 pb-3">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-[17px] w-[17px] -translate-y-1/2 text-label-3" strokeWidth={1.75} />
             <Input
               ref={inputRef}
               value={query}
               onChange={e => handleInputChange(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Search by filename... (e.g., *.log, config, nginx)"
-              className="pl-10 h-9 text-sm"
+              className="pl-10 pr-9"
             />
             {query && (
               <button
                 onClick={() => { setQuery(''); setResults([]); setSearched(false); }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-muted transition-colors"
+                className="absolute right-2 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-full text-label-3 transition-colors duration-150 hover:bg-fill hover:text-foreground"
               >
-                <X className="w-3.5 h-3.5 text-muted-foreground" />
+                <X className="h-3.5 w-3.5" strokeWidth={2} />
               </button>
             )}
           </div>
-          <div className="flex items-center gap-2 mt-1.5 text-[11px] text-muted-foreground">
-            <span>Searching in: <span className="text-foreground/60 font-mono">{currentPath}</span></span>
+          <div className="mt-2 flex items-center gap-2 px-1 text-xs text-muted-foreground">
+            <span>Searching in: <span className="font-mono text-label-3">{currentPath}</span></span>
           </div>
         </div>
 
         {/* Results */}
-        <div className="border-t border-border/30">
+        <div className="border-t border-border">
           {loading && (
-            <div className="flex items-center justify-center py-8 gap-2 text-muted-foreground">
-              <Spinner className="w-4 h-4" />
-              <span className="text-xs">Searching...</span>
+            <div className="flex items-center justify-center gap-2 py-8 text-muted-foreground">
+              <Spinner className="h-4 w-4" />
+              <span className="text-[13px]">Searching...</span>
             </div>
           )}
 
           {error && !loading && (
-            <div className="flex items-center justify-center py-8 gap-2 text-destructive">
-              <AlertCircle className="w-4 h-4" />
-              <span className="text-xs">{error}</span>
+            <div className="flex items-center justify-center gap-2 py-8 text-danger">
+              <AlertCircle className="h-4 w-4" strokeWidth={1.75} />
+              <span className="text-[13px]">{error}</span>
             </div>
           )}
 
           {!loading && !error && searched && results.length === 0 && (
             <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-              <Search className="w-6 h-6 mb-2 opacity-40" />
-              <span className="text-xs">No files found matching &quot;{query}&quot;</span>
+              <Search className="mb-2 h-6 w-6 text-label-3" strokeWidth={1.5} />
+              <span className="text-[13px]">No files found matching &quot;{query}&quot;</span>
             </div>
           )}
 
           {!loading && !error && !searched && (
             <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-              <Search className="w-6 h-6 mb-2 opacity-30" />
-              <span className="text-xs">Type at least 2 characters to search</span>
+              <Search className="mb-2 h-6 w-6 text-label-3 opacity-70" strokeWidth={1.5} />
+              <span className="text-[13px]">Type at least 2 characters to search</span>
             </div>
           )}
 
           {!loading && results.length > 0 && (
             <ScrollArea className="max-h-75">
-              <div className="py-1">
+              <div className="flex flex-col gap-px p-2">
                 {results.map((result, idx) => (
                   <button
                     key={`${result.path}-${idx}`}
                     onClick={() => handleResultClick(result)}
-                    className="w-full flex items-center gap-3 px-4 py-2 hover:bg-accent/50 transition-colors text-left"
+                    className="flex w-full items-center gap-3 rounded-[10px] px-3 py-2 text-left transition-colors duration-150 hover:bg-fill"
                   >
                     <div className="shrink-0 w-5 h-5 flex items-center justify-center">
                       {result.type === 'directory' ? (
@@ -195,19 +196,19 @@ export function FileSearchDialog({
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm truncate">{result.name}</div>
-                      <div className="text-[11px] text-muted-foreground truncate font-mono">
+                      <div className="truncate text-[13px] font-medium text-foreground">{result.name}</div>
+                      <div className="truncate font-mono text-[11px] text-label-3">
                         {getParentDir(result.path)}
                       </div>
                     </div>
-                    <Badge variant="outline" className="text-[10px] shrink-0">
+                    <Badge variant="secondary" className="shrink-0">
                       {result.type === 'directory' ? 'folder' : 'file'}
                     </Badge>
                   </button>
                 ))}
               </div>
               {truncated && (
-                <div className="px-4 py-2 text-[11px] text-muted-foreground border-t border-border/20 text-center">
+                <div className="border-t border-border px-5 py-2 text-center text-xs text-muted-foreground">
                   Results limited to 200 items. Try a more specific search.
                 </div>
               )}
@@ -217,7 +218,7 @@ export function FileSearchDialog({
 
         {/* Footer with count */}
         {results.length > 0 && (
-          <div className="px-4 py-2 border-t border-border/20 text-[11px] text-muted-foreground">
+          <div className="border-t border-border px-5 py-2.5 text-xs text-muted-foreground">
             {results.length} result{results.length !== 1 ? 's' : ''} found
           </div>
         )}

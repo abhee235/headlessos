@@ -1,9 +1,10 @@
 // M2.5: File Explorer View — Windows-style layout with nav pane, address bar, multi-view
-// @see docs/phases/phase-2.md
+// EX8.6: LumenOS v3 — no opaque panes; the window glass shows through.
+// @see docs/phases/phase-2.md, docs/phases/phase-ex8.md
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { RefreshCw, AlertCircle, Trash2 } from 'lucide-react';
-import { Spinner } from '@/components/ui/spinner';
+import { AlertCircle, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { LoadingView } from '@/components/ui/loading-view';
 import type { FileEntryData } from '../../lib/api';
 import { fetchFiles, listTrash, restoreFromTrash, deleteFromTrash, emptyTrash, type TrashItem } from '../../lib/api';
@@ -233,7 +234,7 @@ export function FileExplorerView({ serverId, initialPath }: FileExplorerViewProp
         {/* Full-height sidebar */}
         <NavigationPane currentPath={currentPath} onNavigate={navigateTo} />
         {/* Right: file viewer */}
-        <div className="flex flex-col flex-1 min-w-0 bg-background">
+        <div className="flex min-w-0 flex-1 flex-col pb-4 pl-3 pr-4">
           <FileViewer
             serverId={serverId}
             filePath={viewingFile}
@@ -247,40 +248,43 @@ export function FileExplorerView({ serverId, initialPath }: FileExplorerViewProp
 
   return (
     <div className="flex h-full">
-      {/* Full-height sidebar — flows from the window title bar sidebar header */}
+      {/* Full-height sidebar — floating glass-subtle inset pane */}
       <NavigationPane currentPath={currentPath} onNavigate={navigateTo} />
 
       {/* Right column: address bar + toolbar + files + status bar */}
-      <div className="flex flex-col flex-1 min-w-0 bg-background">
-        {/* Address bar */}
-        <AddressBar
-          currentPath={currentPath}
-          onNavigate={navigateTo}
-          onRefresh={handleRefresh}
-          loading={loading}
-          historyBack={historyBack}
-          historyForward={historyForward}
-          onBack={goBack}
-          onForward={goForward}
-          onUp={navigateUp}
-        />
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* Address bar + toolbar share one transparent row; the `explorer`
+            container lets the toolbar expand labels when there is room. */}
+        <div className="@container/explorer flex shrink-0 items-center gap-1.5 pb-2.5 pl-3 pr-4">
+          <AddressBar
+            currentPath={currentPath}
+            onNavigate={navigateTo}
+            onRefresh={handleRefresh}
+            loading={loading}
+            historyBack={historyBack}
+            historyForward={historyForward}
+            onBack={goBack}
+            onForward={goForward}
+            onUp={navigateUp}
+          />
 
-        {/* Toolbar */}
-        <ExplorerToolbar
-          viewMode={viewMode}
-          onViewModeChange={handleViewModeChange}
-          serverId={serverId}
-          currentPath={currentPath}
-          onActionComplete={handleActionComplete}
-          onStartCreate={handleStartCreate}
-          splitPane={splitPane}
-          onToggleSplitPane={isTrash ? undefined : () => setSplitPane(s => !s)}
-          onOpenSearch={isTrash ? undefined : () => setSearchOpen(true)}
-          trashMode={isTrash}
-          onEmptyTrash={() => setConfirmEmptyTrash(true)}
-        />
+          <ExplorerToolbar
+            viewMode={viewMode}
+            onViewModeChange={handleViewModeChange}
+            serverId={serverId}
+            currentPath={currentPath}
+            onActionComplete={handleActionComplete}
+            onStartCreate={handleStartCreate}
+            splitPane={splitPane}
+            onToggleSplitPane={isTrash ? undefined : () => setSplitPane(s => !s)}
+            onOpenSearch={isTrash ? undefined : () => setSearchOpen(true)}
+            trashMode={isTrash}
+            onEmptyTrash={() => setConfirmEmptyTrash(true)}
+          />
+        </div>
 
         {/* File content area */}
+        <div className="min-h-0 flex-1">
         {splitPane && !isTrash ? (
           <SplitPaneExplorer
             serverId={serverId}
@@ -292,7 +296,7 @@ export function FileExplorerView({ serverId, initialPath }: FileExplorerViewProp
           currentPath={currentPath}
           onUploadComplete={handleRefresh}
         >
-          <div className="flex-1 min-h-0 bg-background h-full">
+          <div className="h-full min-h-0">
           {loading && <LoadingView />}
 
           {error && !loading && /not connected/i.test(error) && (
@@ -304,25 +308,22 @@ export function FileExplorerView({ serverId, initialPath }: FileExplorerViewProp
           )}
 
           {error && !loading && !/not connected/i.test(error) && (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <AlertCircle className="w-6 h-6 text-destructive mx-auto mb-2" />
-                <p className="text-xs text-destructive mb-3">{error}</p>
-                <button
-                  onClick={handleRefresh}
-                  className="px-3 py-1.5 text-xs bg-accent hover:bg-accent/80 text-foreground rounded-lg transition-colors"
-                >
+            <div className="flex h-full items-center justify-center px-6">
+              <div className="flex flex-col items-center text-center">
+                <AlertCircle className="mb-2 h-7 w-7 text-danger" strokeWidth={1.75} />
+                <p className="mb-3 text-[13px] text-danger">{error}</p>
+                <Button variant="secondary" size="sm" onClick={handleRefresh}>
                   Retry
-                </button>
+                </Button>
               </div>
             </div>
           )}
 
           {!loading && !error && isTrash && entries.length === 0 && (
-            <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-              <Trash2 className="w-12 h-12 mb-3 opacity-15" />
-              <span className="text-sm">Recycle Bin is empty</span>
-              <span className="text-xs text-muted-foreground/60 mt-1">Deleted files will appear here</span>
+            <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
+              <Trash2 className="mb-3 h-12 w-12 text-label-3 opacity-60" strokeWidth={1.25} />
+              <span className="text-[14px] font-medium text-label-2">Recycle Bin is empty</span>
+              <span className="mt-1 text-xs text-label-3">Deleted files will appear here</span>
             </div>
           )}
 
@@ -346,14 +347,15 @@ export function FileExplorerView({ serverId, initialPath }: FileExplorerViewProp
           </div>
         </UploadDropZone>
         )}
+        </div>
 
         {/* Status bar */}
-        <div className="flex items-center justify-between px-3 py-1 border-t border-border/20 text-[11px] text-foreground/40">
-          <span className="truncate max-w-[40%]">{isTrash ? 'Recycle Bin' : currentPath}</span>
+        <div className="flex h-[34px] shrink-0 items-center justify-between gap-4 border-t border-border px-4 text-xs text-muted-foreground">
           <span className="shrink-0">
             {entries.length} {entries.length === 1 ? 'item' : 'items'}
             {selectedCount > 0 && ` | ${selectedCount} selected`}
           </span>
+          <span className="min-w-0 truncate font-mono text-[11px] text-label-3">{isTrash ? 'Recycle Bin' : currentPath}</span>
         </div>
       </div>
 

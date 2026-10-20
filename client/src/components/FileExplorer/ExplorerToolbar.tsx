@@ -1,21 +1,58 @@
-// M6: Explorer Toolbar — modern view mode switcher with rounded pill buttons
-// @see docs/phases/phase-6.md
+// M6: Explorer Toolbar — view mode switcher, create/search actions
+// EX8.6: LumenOS v3 — transparent row of round ghost icon buttons and pill
+// actions. Labels and the search field expand with the `explorer` container
+// (set by FileExplorerView), so narrow windows collapse to icon buttons.
+// @see docs/phases/phase-6.md, docs/phases/phase-ex8.md
 
 import {
   LayoutGrid,
   List,
   Table2,
-  Folder,
-  File,
+  FolderPlus,
+  FilePlus,
   Grid3x3,
   PanelLeftClose,
   Columns2,
   Search,
-  RotateCcw,
   Trash2,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export type ViewMode = 'details' | 'list' | 'small-icons' | 'large-icons';
+
+// ── Shared round icon button (also used by AddressBar) ──────────
+
+/** 34px round ghost icon button; `active` tints it with the accent. */
+export function ExplorerIconButton({
+  active = false,
+  className,
+  children,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { active?: boolean }) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        'grid h-[34px] w-[34px] shrink-0 place-items-center rounded-full transition-colors duration-150',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        'disabled:pointer-events-none disabled:opacity-35',
+        active
+          ? 'bg-accent-soft text-accent-text'
+          : 'text-label-2 hover:bg-fill hover:text-foreground active:bg-fill-2',
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** Lucide glyph sizing used across the explorer chrome (18px, 1.75 stroke). */
+export const EXPLORER_ICON = 'h-[18px] w-[18px] shrink-0';
+
+// ── Toolbar ──────────────────────────────────────────────────────
 
 interface ExplorerToolbarProps {
   viewMode: ViewMode;
@@ -32,19 +69,16 @@ interface ExplorerToolbarProps {
   onEmptyTrash?: () => void;
 }
 
-const VIEW_MODES: { mode: ViewMode; icon: React.ReactNode; label: string }[] = [
-  { mode: 'large-icons', icon: <LayoutGrid className="w-4 h-4" />, label: 'Large icons' },
-  { mode: 'small-icons', icon: <Grid3x3 className="w-4 h-4" />, label: 'Medium icons' },
-  { mode: 'list', icon: <List className="w-4 h-4" />, label: 'List' },
-  { mode: 'details', icon: <Table2 className="w-4 h-4" />, label: 'Details' },
+const VIEW_MODES: { mode: ViewMode; icon: LucideIcon; label: string }[] = [
+  { mode: 'large-icons', icon: LayoutGrid, label: 'Large icons' },
+  { mode: 'small-icons', icon: Grid3x3, label: 'Medium icons' },
+  { mode: 'list', icon: List, label: 'List' },
+  { mode: 'details', icon: Table2, label: 'Details' },
 ];
 
 export function ExplorerToolbar({
   viewMode,
   onViewModeChange,
-  serverId,
-  currentPath,
-  onActionComplete,
   onStartCreate,
   splitPane,
   onToggleSplitPane,
@@ -53,92 +87,112 @@ export function ExplorerToolbar({
   onEmptyTrash,
 }: ExplorerToolbarProps) {
   return (
-    <div className="flex items-center gap-2 px-3 py-2 border-b border-border/30">
+    <div className="flex shrink-0 items-center gap-1">
       {trashMode ? (
         /* ── Trash mode toolbar ── */
-        <button
-          onClick={onEmptyTrash}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-destructive/10 text-sidebar-foreground hover:text-destructive text-[13px] transition-all duration-150"
+        <ToolbarAction
+          icon={Trash2}
+          label="Empty Recycle Bin"
           title="Empty Recycle Bin"
-        >
-          <Trash2 className="w-4 h-4 text-sidebar-foreground/70" />
-          <span className="hidden sm:inline">Empty Recycle Bin</span>
-        </button>
+          onClick={onEmptyTrash}
+          danger
+        />
       ) : (
         /* ── Normal mode toolbar ── */
         <>
-          {/* New file / folder */}
-          <div className="flex items-center gap-0.5">
-            <button
-              onClick={() => onStartCreate('file')}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-accent/40 text-sidebar-foreground hover:text-foreground text-[13px] transition-all duration-150"
-              title="New File"
-            >
-              <File className="w-4 h-4 text-sidebar-foreground/70" />
-              <span className="hidden sm:inline">New File</span>
-            </button>
-            <button
-              onClick={() => onStartCreate('folder')}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-accent/40 text-sidebar-foreground hover:text-foreground text-[13px] transition-all duration-150"
-              title="New Folder"
-            >
-              <Folder className="w-4 h-4 text-sidebar-foreground/70" />
-              <span className="hidden sm:inline">New Folder</span>
-            </button>
-          </div>
-
-          {/* Separator */}
-          <div className="w-px h-4 bg-border/30" />
-
-          {/* Search button */}
+          {/* Search — a pill field that opens the search dialog */}
           {onOpenSearch && (
             <button
+              type="button"
               onClick={onOpenSearch}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-accent/40 text-sidebar-foreground hover:text-foreground text-[13px] transition-all duration-150"
+              className={cn(
+                'flex h-[34px] w-[34px] shrink-0 items-center justify-center gap-2 rounded-full border border-edge bg-field text-label-3',
+                'transition-[border-color,color] duration-150 hover:border-edge-2 hover:text-label-2',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                '@3xl/explorer:mr-1 @3xl/explorer:w-[200px] @3xl/explorer:justify-start @3xl/explorer:px-3',
+              )}
               title="Search Files (Ctrl+F)"
             >
-              <Search className="w-4 h-4 text-sidebar-foreground/70" />
-              <span className="hidden sm:inline">Search</span>
+              <Search className="h-[17px] w-[17px] shrink-0" strokeWidth={1.75} />
+              <span className="hidden flex-1 truncate text-left text-[13px] @3xl/explorer:inline">Search files</span>
             </button>
           )}
+
+          {/* New file / folder */}
+          <ToolbarAction icon={FilePlus} label="New File" title="New File" onClick={() => onStartCreate('file')} />
+          <ToolbarAction icon={FolderPlus} label="New Folder" title="New Folder" onClick={() => onStartCreate('folder')} />
         </>
       )}
 
-      {/* Spacer */}
-      <div className="flex-1" />
-
       {/* Split pane toggle */}
       {onToggleSplitPane && (
-        <button
+        <ExplorerIconButton
           onClick={onToggleSplitPane}
-          className={`p-2 rounded-lg transition-all duration-150 ${
-            splitPane
-              ? 'bg-primary/10 text-primary'
-              : 'text-foreground/50 hover:text-foreground hover:bg-foreground/4'
-          }`}
+          active={splitPane}
           title={splitPane ? 'Close split pane' : 'Split pane view'}
         >
-          {splitPane ? <PanelLeftClose className="w-4 h-4" /> : <Columns2 className="w-4 h-4" />}
-        </button>
+          {splitPane
+            ? <PanelLeftClose className={EXPLORER_ICON} strokeWidth={1.75} />
+            : <Columns2 className={EXPLORER_ICON} strokeWidth={1.75} />}
+        </ExplorerIconButton>
       )}
 
-      {/* View mode switcher — pill capsule */}
-      <div className="flex items-center bg-foreground/[0.05] rounded-full p-0.5">
-        {VIEW_MODES.map((vm) => (
+      {/* View mode switcher — round buttons in a fill capsule */}
+      <div className="ml-1 flex shrink-0 items-center gap-0.5 rounded-full bg-fill p-[3px]">
+        {VIEW_MODES.map(({ mode, icon: Icon, label }) => (
           <button
-            key={vm.mode}
-            onClick={() => onViewModeChange(vm.mode)}
-            className={`p-2 rounded-full transition-all duration-150 ${
-              viewMode === vm.mode
-                ? 'bg-background text-primary shadow-sm'
-                : 'text-foreground/50 hover:text-foreground'
-            }`}
-            title={vm.label}
+            type="button"
+            key={mode}
+            onClick={() => onViewModeChange(mode)}
+            className={cn(
+              'grid h-7 w-7 place-items-center rounded-full transition-colors duration-150',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              viewMode === mode
+                ? 'bg-accent-soft text-accent-text'
+                : 'text-label-2 hover:bg-fill-2 hover:text-foreground',
+            )}
+            title={label}
+            aria-pressed={viewMode === mode}
           >
-            {vm.icon}
+            <Icon className="h-4 w-4" strokeWidth={1.75} />
           </button>
         ))}
       </div>
     </div>
+  );
+}
+
+// ── Pill action: icon-only below the `explorer` @4xl width ─────────
+
+function ToolbarAction({
+  icon: Icon,
+  label,
+  title,
+  onClick,
+  danger = false,
+}: {
+  icon: LucideIcon;
+  label: string;
+  title: string;
+  onClick?: () => void;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'flex h-[34px] shrink-0 items-center gap-2 rounded-full px-2 text-[13px] font-medium transition-colors duration-150',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        '@4xl/explorer:px-3',
+        danger
+          ? 'text-danger hover:bg-danger/12'
+          : 'text-foreground hover:bg-fill active:bg-fill-2',
+      )}
+      title={title}
+    >
+      <Icon className={cn(EXPLORER_ICON, !danger && 'text-label-2')} strokeWidth={1.75} />
+      <span className="hidden @4xl/explorer:inline">{label}</span>
+    </button>
   );
 }

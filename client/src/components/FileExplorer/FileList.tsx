@@ -1,4 +1,5 @@
-// M2.4: File List — table view of directory entries
+// M2.4: File List — table view of directory entries (legacy; FileListNew is in use)
+// EX8.6: LumenOS v3 tokens — no card background, 34px rows, hover bg-fill.
 // @see docs/phases/phase-2.md
 
 import { useState } from 'react';
@@ -78,10 +79,10 @@ export function FileList({
   };
 
   return (
-    <div className="rounded-lg border border-border bg-card overflow-hidden">
-      <table className="w-full text-sm">
+    <div className="overflow-hidden px-3">
+      <table className="w-full text-[13px]">
         <thead>
-          <tr className="border-b border-border text-xs text-muted-foreground">
+          <tr className="border-b border-border text-[11px] font-bold uppercase tracking-[.06em] text-label-3">
             <th className="text-left px-3 py-2 font-medium">Name</th>
             <th className="text-right px-3 py-2 font-medium w-24">Size</th>
             <th className="text-left px-3 py-2 font-medium w-40 hidden md:table-cell">Modified</th>
@@ -93,7 +94,7 @@ export function FileList({
           {/* Navigate up row */}
           {currentPath !== '/' && (
             <tr
-              className="border-b border-border/50 hover:bg-accent/50 cursor-pointer"
+              className="h-[34px] cursor-pointer text-label-2 transition-colors duration-150 hover:bg-fill"
               onDoubleClick={onNavigateUp}
               onClick={onNavigateUp}
             >
@@ -111,7 +112,7 @@ export function FileList({
           {entries.map(entry => (
             <tr
               key={entry.name}
-              className="border-b border-border/30 hover:bg-accent/50 cursor-pointer group"
+              className="group h-[34px] cursor-pointer transition-colors duration-150 hover:bg-fill"
               onDoubleClick={() => onOpen(entry)}
               onContextMenu={e => {
                 e.preventDefault();
@@ -124,7 +125,7 @@ export function FileList({
                   {renamingEntry === entry.name ? (
                     <input
                       autoFocus
-                      className="bg-background border border-primary rounded px-1 py-0.5 text-foreground text-sm outline-none focus:border-primary w-full max-w-xs"
+                      className="w-full max-w-xs rounded-[6px] border border-accent-solid bg-mat-thick px-1.5 py-0.5 text-[13px] text-foreground outline-none focus:ring-[3px] focus:ring-accent-soft"
                       value={renameValue}
                       onChange={e => setRenameValue(e.target.value)}
                       onBlur={() => submitRename(entry.name)}
@@ -143,13 +144,13 @@ export function FileList({
                   )}
                 </div>
               </td>
-              <td className="px-3 py-1.5 text-right text-muted-foreground font-mono text-xs">
+              <td className="px-3 py-1.5 text-right text-label-2">
                 {entry.type === 'directory' ? '—' : formatSize(entry.size)}
               </td>
-              <td className="px-3 py-1.5 text-muted-foreground text-xs hidden md:table-cell">
+              <td className="hidden px-3 py-1.5 text-label-2 md:table-cell">
                 {formatDate(entry.modified)}
               </td>
-              <td className="px-3 py-1.5 text-muted-foreground/60 font-mono text-xs hidden lg:table-cell">
+              <td className="hidden px-3 py-1.5 font-mono text-xs text-label-3 lg:table-cell">
                 {entry.permissions.split(' ')[0]}
               </td>
               <td className="px-3 py-1.5">
@@ -159,7 +160,7 @@ export function FileList({
                       e.stopPropagation();
                       startRename(entry);
                     }}
-                    className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+                    className="grid h-6 w-6 place-items-center rounded-full text-label-2 transition-colors duration-150 hover:bg-fill-2 hover:text-foreground"
                     title="Rename"
                   >
                     <Pencil className="w-3 h-3" />
@@ -169,7 +170,7 @@ export function FileList({
                       e.stopPropagation();
                       handleDelete(entry);
                     }}
-                    className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-destructive"
+                    className="grid h-6 w-6 place-items-center rounded-full text-label-2 transition-colors duration-150 hover:bg-danger/12 hover:text-danger"
                     title="Delete"
                   >
                     <Trash2 className="w-3 h-3" />
@@ -181,7 +182,7 @@ export function FileList({
 
           {entries.length === 0 && (
             <tr>
-              <td colSpan={5} className="px-3 py-8 text-center text-muted-foreground text-sm">
+              <td colSpan={5} className="px-3 py-8 text-center text-[13px] text-label-3">
                 Empty directory
               </td>
             </tr>
@@ -197,11 +198,11 @@ export function FileList({
 function FileIcon({ type }: { type: string }) {
   switch (type) {
     case 'directory':
-      return <Folder className="w-4 h-4 text-primary shrink-0" />;
+      return <Folder className="h-4 w-4 shrink-0 text-accent-solid" strokeWidth={1.75} />;
     case 'symlink':
-      return <Link2 className="w-4 h-4 text-primary/60 shrink-0" />;
+      return <Link2 className="h-4 w-4 shrink-0 text-accent-solid opacity-70" strokeWidth={1.75} />;
     default:
-      return <FileText className="w-4 h-4 text-muted-foreground shrink-0" />;
+      return <FileText className="h-4 w-4 shrink-0 text-label-2" strokeWidth={1.75} />;
   }
 }
 

@@ -1,16 +1,19 @@
-// M6: Address Bar — modern rounded editable path bar
-// @see docs/phases/phase-6.md
+// M6: Address Bar — editable breadcrumb path bar
+// EX8.6: LumenOS v3 — round ghost nav buttons and a 34px bg-field breadcrumb pill.
+// @see docs/phases/phase-6.md, docs/phases/phase-ex8.md
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  ChevronLeft,
-  ChevronRight,
+  ArrowLeft,
+  ArrowRight,
   ArrowUp,
   RefreshCw,
   ChevronRight as Separator,
-  Folder,
   Trash2,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { FolderSVG } from '@/components/ui/FileIcon';
+import { ExplorerIconButton, EXPLORER_ICON } from './ExplorerToolbar';
 
 interface AddressBarProps {
   currentPath: string;
@@ -23,6 +26,9 @@ interface AddressBarProps {
   onForward: () => void;
   onUp: () => void;
 }
+
+/** One breadcrumb segment: 26px pill inside the address field. */
+const CRUMB = 'flex h-[26px] shrink-0 items-center gap-1.5 rounded-full px-2 text-[13px] transition-colors duration-150';
 
 export function AddressBar({
   currentPath,
@@ -63,38 +69,31 @@ export function AddressBar({
   const canGoUp = currentPath !== '/' && !isTrash;
 
   return (
-    <div className="flex items-center gap-2 px-3 pt-1 pb-2">
+    <div className="flex min-w-0 flex-1 items-center gap-0.5">
       {/* Navigation buttons */}
-      <div className="flex items-center gap-1 shrink-0">
-        <NavButton
-          icon={<ChevronLeft className="w-4.5 h-4.5" />}
-          onClick={onBack}
-          disabled={historyBack.length === 0}
-          title="Back"
-        />
-        <NavButton
-          icon={<ChevronRight className="w-4.5 h-4.5" />}
-          onClick={onForward}
-          disabled={historyForward.length === 0}
-          title="Forward"
-        />
-        <NavButton
-          icon={<ArrowUp className="w-4.5 h-4.5" />}
-          onClick={onUp}
-          disabled={!canGoUp}
-          title="Up"
-        />
-      </div>
+      <ExplorerIconButton onClick={onBack} disabled={historyBack.length === 0} title="Back">
+        <ArrowLeft className={EXPLORER_ICON} strokeWidth={1.75} />
+      </ExplorerIconButton>
+      <ExplorerIconButton onClick={onForward} disabled={historyForward.length === 0} title="Forward">
+        <ArrowRight className={EXPLORER_ICON} strokeWidth={1.75} />
+      </ExplorerIconButton>
+      <ExplorerIconButton onClick={onUp} disabled={!canGoUp} title="Up">
+        <ArrowUp className={EXPLORER_ICON} strokeWidth={1.75} />
+      </ExplorerIconButton>
 
-      {/* Address / breadcrumb area */}
+      {/* Address / breadcrumb pill */}
       <div
-        className="flex-1 flex items-center min-w-0 h-10 bg-foreground/3 rounded-xl px-3.5 cursor-text hover:bg-foreground/5 focus-within:bg-background focus-within:ring-2 focus-within:ring-primary/20 transition-all"
+        className={cn(
+          'ml-1.5 flex h-[34px] min-w-0 flex-1 cursor-text items-center rounded-full border border-edge bg-field px-1.5',
+          'transition-[border-color,box-shadow] duration-150 hover:border-edge-2',
+          'focus-within:border-accent-solid/60 focus-within:ring-[3px] focus-within:ring-accent-soft',
+        )}
         onClick={() => !isTrash && setEditing(true)}
       >
         {editing && !isTrash ? (
           <input
             ref={inputRef}
-            className="w-full bg-transparent text-sm text-foreground outline-none font-mono"
+            className="w-full bg-transparent px-2 font-mono text-[13px] text-foreground outline-none"
             value={editValue}
             onChange={e => setEditValue(e.target.value)}
             onBlur={() => {
@@ -110,13 +109,11 @@ export function AddressBar({
             }}
           />
         ) : (
-          <div className="flex items-center gap-0.5 text-sm overflow-x-auto min-w-0 select-none">
+          <div className="flex min-w-0 select-none items-center gap-0.5 overflow-x-auto [scrollbar-width:none]">
             {isTrash ? (
-              <button
-                className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-lg text-foreground font-medium shrink-0"
-              >
-                <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
-                <span className="text-xs font-medium">Recycle Bin</span>
+              <button className={cn(CRUMB, 'font-semibold text-foreground')}>
+                <Trash2 className="h-4 w-4 text-label-2" strokeWidth={1.75} />
+                <span>Recycle Bin</span>
               </button>
             ) : (
             <>
@@ -125,27 +122,33 @@ export function AddressBar({
                 e.stopPropagation();
                 onNavigate('/');
               }}
-              className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-lg hover:bg-accent/80 text-foreground/60 hover:text-foreground shrink-0 transition-colors"
+              className={cn(
+                CRUMB,
+                parts.length === 0
+                  ? 'font-semibold text-foreground'
+                  : 'font-medium text-label-2 hover:bg-fill hover:text-foreground',
+              )}
             >
-              <Folder className="w-3.5 h-3.5 text-warning" />
-              <span className="text-xs font-medium">/</span>
+              <FolderSVG size={16} />
+              <span>/</span>
             </button>
             {parts.map((part, i) => {
               const fullPath = '/' + parts.slice(0, i + 1).join('/');
               const isLast = i === parts.length - 1;
               return (
-                <span key={fullPath} className="flex items-center gap-0.5 shrink-0">
-                  <Separator className="w-3 h-3 text-foreground/25" />
+                <span key={fullPath} className="flex shrink-0 items-center gap-0.5">
+                  <Separator className="h-3.5 w-3.5 text-label-3" strokeWidth={1.75} />
                   <button
                     onClick={e => {
                       e.stopPropagation();
                       onNavigate(fullPath);
                     }}
-                    className={`px-1.5 py-0.5 rounded-lg text-xs transition-colors ${
+                    className={cn(
+                      CRUMB,
                       isLast
-                        ? 'text-foreground font-medium'
-                        : 'text-foreground/60 hover:text-foreground hover:bg-accent/80'
-                    }`}
+                        ? 'font-semibold text-foreground'
+                        : 'font-medium text-label-2 hover:bg-fill hover:text-foreground',
+                    )}
                   >
                     {part}
                   </button>
@@ -159,35 +162,9 @@ export function AddressBar({
       </div>
 
       {/* Refresh */}
-      <NavButton
-        icon={<RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />}
-        onClick={onRefresh}
-        disabled={false}
-        title="Refresh"
-      />
+      <ExplorerIconButton onClick={onRefresh} title="Refresh">
+        <RefreshCw className={cn('h-[17px] w-[17px]', loading && 'animate-spin')} strokeWidth={1.75} />
+      </ExplorerIconButton>
     </div>
-  );
-}
-
-function NavButton({
-  icon,
-  onClick,
-  disabled,
-  title,
-}: {
-  icon: React.ReactNode;
-  onClick: () => void;
-  disabled: boolean;
-  title: string;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className="p-2 rounded-lg text-foreground/50 hover:text-foreground/70 hover:bg-foreground/4 disabled:text-foreground/30 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-all duration-150"
-      title={title}
-    >
-      {icon}
-    </button>
   );
 }

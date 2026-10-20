@@ -1,5 +1,6 @@
 // M10.3: File Upload Drop Zone — drag-and-drop file upload for File Explorer
-// @see docs/PROGRESS.md
+// EX8.6: LumenOS v3 — accent-soft dashed drop target, glass-heavy progress toast.
+// @see docs/PROGRESS.md, docs/phases/phase-ex8.md
 
 import { useState, useCallback, useRef, type DragEvent } from 'react';
 import { Upload, CheckCircle, XCircle } from 'lucide-react';
@@ -128,10 +129,10 @@ export function UploadDropZone({
 
       {/* Drag overlay */}
       {dragOver && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-primary/5 backdrop-blur-sm border-2 border-dashed border-primary/40 rounded-lg pointer-events-none">
+        <div className="pointer-events-none absolute inset-x-3 top-0 bottom-2 z-50 flex items-center justify-center rounded-[14px] border-2 border-dashed border-accent-solid/45 bg-accent-soft backdrop-blur-sm">
           <div className="flex flex-col items-center gap-2">
-            <Upload className="w-10 h-10 text-primary/60" />
-            <p className="text-sm font-medium text-primary/80">Drop files to upload</p>
+            <Upload className="h-10 w-10 text-accent-solid" strokeWidth={1.5} />
+            <p className="text-[14px] font-semibold text-accent-text">Drop files to upload</p>
             <p className="text-xs text-muted-foreground">
               Files will be uploaded to {currentPath}
             </p>
@@ -141,15 +142,15 @@ export function UploadDropZone({
 
       {/* Upload progress overlay */}
       {upload.uploading && (
-        <div className="absolute bottom-4 right-4 z-50 w-64 p-3 rounded-lg bg-background/95 backdrop-blur-xl border border-border shadow-lg">
-          <div className="flex items-center gap-2 mb-2">
-            <Spinner className="w-4 h-4 text-primary" />
-            <span className="text-xs font-medium text-foreground truncate">
+        <div className="glass-heavy absolute bottom-4 right-4 z-50 w-64 rounded-[18px] p-3.5">
+          <div className="mb-2.5 flex items-center gap-2">
+            <Spinner className="h-4 w-4 text-accent-solid" />
+            <span className="truncate text-[13px] font-semibold text-foreground">
               Uploading {upload.fileName}…
             </span>
           </div>
-          <Progress value={upload.progress} className="h-1.5" />
-          <span className="text-[10px] text-muted-foreground mt-1 block">
+          <Progress value={upload.progress} />
+          <span className="mt-1.5 block text-[11px] text-muted-foreground">
             {upload.progress}%
           </span>
         </div>
