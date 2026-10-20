@@ -1,9 +1,10 @@
-// M1.5 + EX1.11 + M12.8 + EX7: Terminal WebSocket Bridge — thin route, delegates to TerminalService
+// M1.5 + EX1.11 + M12.8 + EX7 + EX8: Terminal WebSocket Bridge — thin route, delegates to TerminalService
 // @see docs/phases/phase-1.md, docs/phases/phase-ex1.md, docs/phases/phase-12.md, docs/phases/phase-ex7.md
 
 import type { FastifyInstance } from 'fastify';
 import type { TerminalService, TerminalSession } from '../services/domain/terminal-service.js';
 import { validateContainerId } from '../security/validators.js';
+import { parseTerminalControl } from '../terminal/control.js';
 
 interface TerminalRouteOpts {
   terminalService: TerminalService;
@@ -60,35 +61,28 @@ export async function terminalRoutes(
         return;
       }
 
-      // Browser → SSH
+      // Browser → SSH. Keystrokes and JSON control messages share the socket
+      // and both arrive as Buffers, so parseTerminalControl decides which is which.
       socket.on('message', (data: Buffer | string) => {
-        // JSON control messages have a 0x01 sentinel byte or are plain strings
-        if (typeof data === 'string' || (data instanceof Buffer && data[0] === 0x01)) {
-          try {
-            const str = typeof data === 'string' ? data : data.toString();
-            const msg = JSON.parse(str) as { type: string; rows?: number; cols?: number; lastN?: number };
+        const msg = parseTerminalControl(data);
 
-            if (msg.type === 'resize' && msg.rows && msg.cols) {
-              session.resize(msg.rows, msg.cols);
-              return;
-            }
+        if (msg?.type === 'resize') {
+          session.resize(msg.rows, msg.cols);
+          return;
+        }
 
-            if (msg.type === 'get-buffer') {
-              const snapshot = session.getBufferSnapshot(msg.lastN ?? 100);
-              if (socket.readyState === 1) {
-                socket.send(
-                  JSON.stringify({
-                    type: 'buffer-snapshot',
-                    text: snapshot.text,
-                    lineCount: snapshot.lineCount,
-                  }),
-                );
-              }
-              return;
-            }
-          } catch {
-            // Not JSON — fall through to write as raw terminal input
+        if (msg?.type === 'get-buffer') {
+          const snapshot = session.getBufferSnapshot(msg.lastN ?? 100);
+          if (socket.readyState === 1) {
+            socket.send(
+              JSON.stringify({
+                type: 'buffer-snapshot',
+                text: snapshot.text,
+                lineCount: snapshot.lineCount,
+              }),
+            );
           }
+          return;
         }
 
         session.write(data);
