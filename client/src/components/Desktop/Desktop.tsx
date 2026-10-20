@@ -18,6 +18,7 @@ import {
   UIAgentIcon,
   RecycleBinIcon,
   FileIcon,
+  AppIcon,
 } from '../ui/FileIcon';
 import {
   ContextMenu,
@@ -40,11 +41,7 @@ import {
   LayoutGrid,
   SortAsc,
   Info,
-  Paintbrush,
-  Activity,
-  Box,
   Server,
-  Shield,
   Check,
 } from 'lucide-react';
 import { Wallpaper } from './Wallpaper';
@@ -314,7 +311,7 @@ export function Desktop() {
           disabled={!isConnected}
           onClick={() => { setCreatingType('folder'); setCreateName(''); setCreateError(null); }}
         >
-          <FileIcon type="directory" size="sm" className="mr-2" />
+          <FileIcon type="directory" size="sm" />
           New Folder
           <ContextMenuShortcut>⇧⌘N</ContextMenuShortcut>
         </ContextMenuItem>
@@ -322,7 +319,7 @@ export function Desktop() {
           disabled={!isConnected}
           onClick={() => { setCreatingType('file'); setCreateName(''); setCreateError(null); }}
         >
-          <FileIcon type="file" size="sm" className="mr-2" />
+          <FileIcon type="file" size="sm" />
           New File
         </ContextMenuItem>
 
@@ -340,7 +337,7 @@ export function Desktop() {
           disabled={!isConnected}
           onClick={() => activeServerId && openWindow('taskmanager', activeServerId, 'Task Manager', 'taskmanager')}
         >
-          <Activity className="w-4 h-4 mr-2 opacity-60" />
+          <AppIcon appId="taskmanager" size={17} />
           Task Manager
           <ContextMenuShortcut>⌃⇧Esc</ContextMenuShortcut>
         </ContextMenuItem>
@@ -349,7 +346,7 @@ export function Desktop() {
           disabled={!isConnected}
           onClick={() => activeServerId && openWindow('docker', activeServerId, 'Docker', 'docker')}
         >
-          <Box className="w-4 h-4 mr-2 opacity-60" />
+          <AppIcon appId="docker" size={17} />
           Docker
         </ContextMenuItem>
 
@@ -357,7 +354,7 @@ export function Desktop() {
           disabled={!isConnected}
           onClick={() => activeServerId && openWindow('services', activeServerId, 'Services', 'services')}
         >
-          <Server className="w-4 h-4 mr-2 opacity-60" />
+          <AppIcon appId="services" size={17} />
           Services
         </ContextMenuItem>
 
@@ -365,12 +362,12 @@ export function Desktop() {
           disabled={!isConnected}
           onClick={() => activeServerId && openWindow('serveradmin', activeServerId, 'Server Admin', 'serveradmin')}
         >
-          <Shield className="w-4 h-4 mr-2 opacity-60" />
+          <AppIcon appId="serveradmin" size={17} />
           Server Admin
         </ContextMenuItem>
 
         <ContextMenuItem onClick={() => openWindow('settings', '', 'Personalize', 'settings', { initialPage: 'wallpaper' })}>
-          <Paintbrush className="w-4 h-4 mr-2 opacity-60" />
+          <AppIcon appId="settings" size={17} />
           Personalize
         </ContextMenuItem>
 

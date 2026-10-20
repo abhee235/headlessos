@@ -22,6 +22,8 @@ export const menuSubContentClass =
 export const menuItemBase =
   "relative flex h-[30px] cursor-default select-none items-center gap-2.5 rounded-[4px] px-2.5 text-[13px] outline-none transition-colors " +
   "[&>svg]:size-[17px] [&>svg]:shrink-0 [&>svg]:mr-0 [&>svg]:opacity-80 " +
+  // Our image icons (FileIcon, AppIcon) sit in the same 17px slot, full colour
+  "[&>img]:size-[17px] [&>img]:shrink-0 [&>img]:mr-0 " +
   "data-[disabled]:pointer-events-none data-[disabled]:opacity-40";
 
 export const menuItemTone = (danger?: boolean) =>

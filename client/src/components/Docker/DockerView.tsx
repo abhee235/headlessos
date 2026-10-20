@@ -20,8 +20,6 @@ import {
   Search,
   X,
   Download,
-  FolderOpen,
-  SquareTerminal,
   MoreHorizontal,
   type LucideIcon,
 } from 'lucide-react';
@@ -74,6 +72,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DockerInstallTerminal } from './DockerInstallTerminal';
+import { AppIcon } from '@/components/ui/FileIcon';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -434,11 +433,11 @@ function ContainersTab({
       {c.state === 'running' && (
         <>
           <Item onClick={() => openWindow('container-files', serverId, `Files — ${c.name}`, 'FolderOpen', { containerId: c.id, containerName: c.name })}>
-            <FolderOpen strokeWidth={1.75} />
+            <AppIcon appId="container-files" size={17} />
             Open Files
           </Item>
           <Item onClick={() => openWindow('container-shell', serverId, `Shell — ${c.name}`, 'SquareTerminal', { containerId: c.id, containerName: c.name })}>
-            <SquareTerminal strokeWidth={1.75} />
+            <AppIcon appId="container-shell" size={17} />
             Open Shell
           </Item>
         </>
