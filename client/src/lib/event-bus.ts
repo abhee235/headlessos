@@ -35,6 +35,7 @@ export interface EventMap {
   'window:closed':  { windowId: string; appId: string };
   'window:focused': { windowId: string };
   'tab:switch':     { tabId: string };
+  'palette:toggle': Record<string, never>; // EX8.4: dock Search button
 
   // Theme / Preferences
   'theme:changed':       { theme: 'light' | 'dark' };

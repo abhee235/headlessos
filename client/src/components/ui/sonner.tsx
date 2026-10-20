@@ -1,5 +1,6 @@
 // shadcn/ui: Sonner Toast — notification system for HeadlessOS
-// Windows 11 style notifications
+// EX8.4: LumenOS v3 toasts — 360px glass-heavy cards, radius 28px, stacked
+// 14px apart above the tray pill.
 
 import { Toaster as Sonner } from "sonner";
 import { useThemeStore } from "@/store/theme-store";
@@ -15,24 +16,28 @@ function Toaster({ ...props }: ToasterProps) {
   // When user disables notifications, don't render the toast container at all
   if (!showToasts) return null;
 
-  const bottomOffset = toastPosition === 'bottom-right' ? 56 : 12;
+  // Clear the 64px tray pill (+14px margin) at the bottom-right
+  const bottomOffset = toastPosition === 'bottom-right' ? 92 : 14;
 
   return (
     <Sonner
       theme={resolvedTheme}
       className="toaster group"
       position={toastPosition}
-      offset={{ right: 12, bottom: bottomOffset }}
+      offset={{ right: 14, bottom: bottomOffset, top: 14 }}
+      gap={14}
       toastOptions={{
         classNames: {
           toast:
-            "group toast group-[.toaster]:bg-popover group-[.toaster]:text-popover-foreground group-[.toaster]:border group-[.toaster]:border-border group-[.toaster]:shadow-xl group-[.toaster]:rounded-xl",
+            "group toast glass-heavy !w-[360px] !gap-3.5 !rounded-[28px] !py-3.5 !pr-3.5 !pl-4 !font-sans !text-foreground",
+          title: "!text-[15px] !font-semibold",
           description:
-            "group-[.toast]:text-muted-foreground",
+            "!text-[14px] !leading-5 !text-label-2",
           actionButton:
-            "group-[.toast]:bg-primary group-[.toast]:text-white",
+            "lumen-lit !rounded-full !px-3 !text-xs !font-semibold",
           cancelButton:
-            "group-[.toast]:bg-secondary group-[.toast]:text-muted-foreground",
+            "!rounded-full !bg-fill !px-3 !text-xs !text-foreground",
+          closeButton: "!border-edge !bg-mat !text-label-2",
         },
       }}
       {...props}
