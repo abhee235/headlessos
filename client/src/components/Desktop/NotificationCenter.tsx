@@ -194,7 +194,6 @@ export function NotificationCenter() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7"
                   onClick={markAllRead}
                   aria-label="Mark all read"
                 >
@@ -210,7 +209,6 @@ export function NotificationCenter() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7"
                   onClick={clearAll}
                   aria-label="Clear all"
                 >
@@ -223,7 +221,6 @@ export function NotificationCenter() {
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
             onClick={closePanel}
             aria-label="Close notifications"
           >

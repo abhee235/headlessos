@@ -205,7 +205,6 @@ export function DockerInstallTerminal({
             size="icon"
             variant="ghost"
             onClick={handleClose}
-            className="size-[30px]"
             title="Close"
             aria-label="Close installer"
           >

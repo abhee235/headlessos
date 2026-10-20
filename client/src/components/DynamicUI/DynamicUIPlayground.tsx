@@ -96,7 +96,7 @@ export function DynamicUIPlayground({ open, onOpenChange }: DynamicUIPlaygroundP
       <AppWindow.Toolbar>
         <div className="flex items-center gap-2 flex-1">
           <Select value={selectedExample} onValueChange={handleExampleChange}>
-            <SelectTrigger className="h-[30px] w-[200px] text-xs">
+            <SelectTrigger className="w-[200px]">
               <SelectValue placeholder="Load example…" />
             </SelectTrigger>
             <SelectContent>

@@ -1,5 +1,5 @@
 // shadcn/ui: Button — LumenOS v3 pill buttons (EX8.2)
-// 34px pills, radius 999px. Variants map by meaning:
+// 36px (h-9) pills, radius 999px — no button is shorter than 36px. Variants map by meaning:
 //   default / primary → lit accent pill (the call to action)
 //   secondary / outline → neutral glass pill (bg-mat + border-edge)
 //   ghost → transparent, bg-fill on hover
@@ -27,10 +27,10 @@ const buttonVariants = cva(
         link: "text-accent-text underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-[34px] px-4",
-        sm: "h-[30px] px-3 text-xs",
+        default: "h-9 px-4",
+        sm: "h-9 px-3.5",
         lg: "h-10 px-6 text-sm",
-        icon: "h-[34px] w-[34px]",
+        icon: "size-9",
       },
     },
     defaultVariants: {

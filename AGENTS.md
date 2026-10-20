@@ -866,6 +866,7 @@ All UI primitives live in `client/src/components/ui/`. They use the CSS variable
 - **Need resizable panels?** → `ResizablePanelGroup` / `ResizablePanel` / `ResizableHandle`
 - **Need a date picker?** → `Calendar` (react-day-picker v9) inside a `Popover`
 - **Need to edit or show a code/config file?** → `CodeEditor` (Monaco, syntax colouring, Lumen themes)
+- **Need a folder or file glyph (New Folder, New File, listings)?** → `FileIcon type="directory"|"file"`, never lucide `Folder`/`FolderPlus`/`File`/`FilePlus`
 - **Need a file icon?** → `FileIcon` (custom SVG component with 12 color categories, 100+ extension mappings)
 - **Need loading state?** → `Skeleton` (pulse animation placeholder)
 - **Need a progress bar?** → `Progress`

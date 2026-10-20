@@ -133,6 +133,7 @@ Found or asked for during the work; each has tests.
   mid-grey over the wallpaper and `.72` gave 4.2:1, below WCAG AA; now ≈ 5:1.
   Dark labels already measured 8–14:1 and are unchanged.
 
+- **Control height (user review):** every Button size (`default`, `sm`, `icon`), Input and Select trigger is `h-9` (36px); call-site overrides below 36px were removed. Window title-bar controls stay 28px, as specified.
 - **Button:** `default`/`primary` stay the lit call-to-action (84 call sites rely on
   it); `secondary`/`outline` are the neutral glass pill.
 - **Dock tiles** use the prototype's 50px plates / 32px icons / 5px hover lift.

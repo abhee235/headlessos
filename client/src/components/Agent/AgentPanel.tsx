@@ -189,7 +189,7 @@ export function AgentPanel({ events, isRunning, onAbort, className }: AgentPanel
         <Bot className="h-[18px] w-[18px] text-accent-solid" strokeWidth={1.75} />
         <span className="flex-1 text-[13px] font-semibold">UI Agent</span>
         {isRunning && <Spinner className="h-4 w-4 text-accent-solid" />}
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCollapsed(false)}>
+        <Button variant="ghost" size="icon" onClick={() => setCollapsed(false)}>
           <Maximize2 strokeWidth={1.75} />
         </Button>
       </div>
@@ -209,12 +209,12 @@ export function AgentPanel({ events, isRunning, onAbort, className }: AgentPanel
         <Bot className="h-[18px] w-[18px] text-accent-solid" strokeWidth={1.75} />
         <span className="flex-1 text-[13px] font-semibold">UI Agent</span>
         {isRunning && (
-          <Button variant="destructive" size="sm" className="h-7 gap-1.5 px-3" onClick={onAbort} data-testid="abort-button">
+          <Button variant="destructive" size="sm" className="gap-1.5" onClick={onAbort} data-testid="abort-button">
             <Square strokeWidth={1.75} />
             Abort
           </Button>
         )}
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCollapsed(true)}>
+        <Button variant="ghost" size="icon" onClick={() => setCollapsed(true)}>
           <Minimize2 strokeWidth={1.75} />
         </Button>
       </div>

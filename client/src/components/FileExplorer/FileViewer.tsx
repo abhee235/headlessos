@@ -73,7 +73,7 @@ export function FileViewer({ serverId, filePath, onClose, onSave }: FileViewerPr
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* Toolbar — transparent row on the window glass */}
-      <div className="flex h-[34px] shrink-0 items-center justify-between gap-2">
+      <div className="flex h-9 shrink-0 items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <ExplorerIconButton onClick={onClose} title="Back to file list">
             <ArrowLeft className={EXPLORER_ICON} strokeWidth={1.75} />

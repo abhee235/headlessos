@@ -17,6 +17,7 @@ import {
   AgentIcon,
   UIAgentIcon,
   RecycleBinIcon,
+  FileIcon,
 } from '../ui/FileIcon';
 import {
   ContextMenu,
@@ -313,7 +314,7 @@ export function Desktop() {
           disabled={!isConnected}
           onClick={() => { setCreatingType('folder'); setCreateName(''); setCreateError(null); }}
         >
-          <Folder className="w-4 h-4 mr-2 opacity-60" />
+          <FileIcon type="directory" size="sm" className="mr-2" />
           New Folder
           <ContextMenuShortcut>⇧⌘N</ContextMenuShortcut>
         </ContextMenuItem>
@@ -321,7 +322,7 @@ export function Desktop() {
           disabled={!isConnected}
           onClick={() => { setCreatingType('file'); setCreateName(''); setCreateError(null); }}
         >
-          <File className="w-4 h-4 mr-2 opacity-60" />
+          <FileIcon type="file" size="sm" className="mr-2" />
           New File
         </ContextMenuItem>
 

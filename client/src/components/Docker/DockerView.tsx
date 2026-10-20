@@ -242,7 +242,7 @@ function RowMenuButton({
         <Button
           variant="ghost"
           size="icon"
-          className="size-[30px] bg-fill hover:bg-fill-2"
+          className="bg-fill hover:bg-fill-2"
           aria-label={label}
           title={label}
         >
@@ -312,7 +312,6 @@ function LogViewer({
           variant="ghost"
           size="icon"
           onClick={onClose}
-          className="size-[30px]"
           aria-label="Close logs"
           title="Close logs"
         >

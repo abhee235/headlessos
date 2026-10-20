@@ -362,7 +362,7 @@ function ActionButton({
       <Button
         variant={variant}
         size="sm"
-        className="h-[26px] px-3 text-xs"
+        className="px-3 text-xs"
         disabled={executing || !serverId}
         onClick={handleClick}
       >

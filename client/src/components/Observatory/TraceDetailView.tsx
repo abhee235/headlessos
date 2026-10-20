@@ -51,7 +51,7 @@ export function TraceDetailView({ onBack }: { onBack: () => void }) {
     <div className="flex h-full flex-col">
       {/* Phoenix-style header — back button + name + horizontal stat pills */}
       <div className="flex shrink-0 items-center gap-3 px-4 pb-3">
-        <Button size="icon" variant="secondary" className="h-8 w-8" onClick={onBack}>
+        <Button size="icon" variant="secondary" onClick={onBack}>
           <ArrowLeft strokeWidth={1.75} />
         </Button>
 

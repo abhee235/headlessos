@@ -348,13 +348,13 @@ export function FirewallSection({ serverId }: { serverId: string }) {
                           type="number"
                           min={1}
                           max={65535}
-                          className="h-[30px] w-24 font-mono"
+                          className="w-24 font-mono"
                           value={newPort}
                           onChange={(e) => setNewPort(e.target.value)}
                           onKeyDown={(e) => e.key === 'Enter' && newPort && handleAddRule()}
                         />
                         <Select value={newProto} onValueChange={(v) => setNewProto(v as 'tcp' | 'udp')}>
-                          <SelectTrigger className="h-[30px] w-24"><SelectValue /></SelectTrigger>
+                          <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="tcp">TCP</SelectItem>
                             <SelectItem value="udp">UDP</SelectItem>
@@ -364,7 +364,7 @@ export function FirewallSection({ serverId }: { serverId: string }) {
                     </Td>
                     <Td>
                       <Select value={newAction} onValueChange={(v) => setNewAction(v as 'allow' | 'deny')}>
-                        <SelectTrigger className="h-[30px] w-28"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="allow">Allow</SelectItem>
                           <SelectItem value="deny">Deny</SelectItem>

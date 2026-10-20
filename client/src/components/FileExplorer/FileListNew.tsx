@@ -456,12 +456,12 @@ export function FileList({
         {!trashMode && (
           <>
             <ContextMenuItem onClick={() => startCreate('folder')}>
-              <Folder className="w-4 h-4 mr-2 opacity-60" />
+              <FileIcon type="directory" size="sm" className="mr-2" />
               New Folder
               <ContextMenuShortcut>⇧⌘N</ContextMenuShortcut>
             </ContextMenuItem>
             <ContextMenuItem onClick={() => startCreate('file')}>
-              <File className="w-4 h-4 mr-2 opacity-60" />
+              <FileIcon type="file" size="sm" className="mr-2" />
               New File
             </ContextMenuItem>
             <ContextMenuSeparator />

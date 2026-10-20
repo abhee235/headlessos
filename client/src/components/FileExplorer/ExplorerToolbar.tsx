@@ -4,12 +4,11 @@
 // (set by FileExplorerView), so narrow windows collapse to icon buttons.
 // @see docs/phases/phase-6.md, docs/phases/phase-ex8.md
 
+import { isValidElement } from 'react';
 import {
   LayoutGrid,
   List,
   Table2,
-  FolderPlus,
-  FilePlus,
   Grid3x3,
   PanelLeftClose,
   Columns2,
@@ -18,6 +17,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { FileIcon } from '@/components/ui/FileIcon';
 
 export type ViewMode = 'details' | 'list' | 'small-icons' | 'large-icons';
 
@@ -34,7 +34,7 @@ export function ExplorerIconButton({
     <button
       type="button"
       className={cn(
-        'grid h-[34px] w-[34px] shrink-0 place-items-center rounded-full transition-colors duration-150',
+        'grid size-9 shrink-0 place-items-center rounded-full transition-colors duration-150',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         'disabled:pointer-events-none disabled:opacity-35',
         active
@@ -106,7 +106,7 @@ export function ExplorerToolbar({
               type="button"
               onClick={onOpenSearch}
               className={cn(
-                'flex h-[34px] w-[34px] shrink-0 items-center justify-center gap-2 rounded-full border border-edge bg-field text-label-3',
+                'flex size-9 shrink-0 items-center justify-center gap-2 rounded-full border border-edge bg-field text-label-3',
                 'transition-[border-color,color] duration-150 hover:border-edge-2 hover:text-label-2',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 '@3xl/explorer:mr-1 @3xl/explorer:w-[200px] @3xl/explorer:justify-start @3xl/explorer:px-3',
@@ -119,8 +119,8 @@ export function ExplorerToolbar({
           )}
 
           {/* New file / folder */}
-          <ToolbarAction icon={FilePlus} label="New File" title="New File" onClick={() => onStartCreate('file')} />
-          <ToolbarAction icon={FolderPlus} label="New Folder" title="New Folder" onClick={() => onStartCreate('folder')} />
+          <ToolbarAction icon={<FileIcon type="file" size="sm" />} label="New File" title="New File" onClick={() => onStartCreate('file')} />
+          <ToolbarAction icon={<FileIcon type="directory" size="sm" />} label="New Folder" title="New Folder" onClick={() => onStartCreate('folder')} />
         </>
       )}
 
@@ -171,7 +171,8 @@ function ToolbarAction({
   onClick,
   danger = false,
 }: {
-  icon: LucideIcon;
+  /** A lucide glyph, or a ready element such as our FileIcon */
+  icon: LucideIcon | React.ReactElement;
   label: string;
   title: string;
   onClick?: () => void;
@@ -182,7 +183,7 @@ function ToolbarAction({
       type="button"
       onClick={onClick}
       className={cn(
-        'flex h-[34px] shrink-0 items-center gap-2 rounded-full px-2 text-[13px] font-medium transition-colors duration-150',
+        'flex h-9 shrink-0 items-center gap-2 rounded-full px-2 text-[13px] font-medium transition-colors duration-150',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         '@4xl/explorer:px-3',
         danger
@@ -191,7 +192,7 @@ function ToolbarAction({
       )}
       title={title}
     >
-      <Icon className={cn(EXPLORER_ICON, !danger && 'text-label-2')} strokeWidth={1.75} />
+      {isValidElement(Icon) ? Icon : <Icon className={cn(EXPLORER_ICON, !danger && 'text-label-2')} strokeWidth={1.75} />}
       <span className="hidden @4xl/explorer:inline">{label}</span>
     </button>
   );

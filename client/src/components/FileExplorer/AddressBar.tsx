@@ -84,7 +84,7 @@ export function AddressBar({
       {/* Address / breadcrumb pill */}
       <div
         className={cn(
-          'ml-1.5 flex h-[34px] min-w-0 flex-1 cursor-text items-center rounded-full border border-edge bg-field px-1.5',
+          'ml-1.5 flex h-9 min-w-0 flex-1 cursor-text items-center rounded-full border border-edge bg-field px-1.5',
           'transition-[border-color,box-shadow] duration-150 hover:border-edge-2',
           'focus-within:border-accent-solid/60 focus-within:ring-[3px] focus-within:ring-accent-soft',
         )}

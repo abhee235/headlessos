@@ -9,8 +9,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  Folder, File as FileIcon, ArrowUp, FilePlus, FolderPlus, Upload, RefreshCw,
-  Save, X, Trash2, Download, Pencil, CornerDownRight, ChevronRight, FolderOpen, Box,
+  ArrowUp, Upload, RefreshCw,
+  Save, X, Trash2, Download, Pencil, ChevronRight, FolderOpen, Box,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { LoadingView } from '@/components/ui/loading-view';
+import { FileIcon } from '@/components/ui/FileIcon';
 import { CodeEditor } from '@/components/ui/code-editor';
 import { Badge } from '@/components/ui/badge';
 import { fileLanguageLabel } from '@/lib/code-language';
@@ -178,15 +179,15 @@ export function ContainerFilesView({ serverId, containerId, containerName }: Pro
     <div className="relative flex h-full flex-col text-[13px]">
       {/* Toolbar */}
       <div className={cn('flex shrink-0 items-center gap-1.5 px-3 pb-3', editor && 'invisible')}>
-        <Button size="icon" variant="ghost" className="size-[30px]" title="Up" disabled={cwd === '/'} onClick={() => setCwd(parentPath(cwd))}>
+        <Button size="icon" variant="ghost" title="Up" disabled={cwd === '/'} onClick={() => setCwd(parentPath(cwd))}>
           <ArrowUp strokeWidth={1.75} />
         </Button>
-        <Button size="icon" variant="ghost" className="size-[30px]" title="Refresh" onClick={load}>
+        <Button size="icon" variant="ghost" title="Refresh" onClick={load}>
           <RefreshCw className={cn(loading && 'animate-spin')} strokeWidth={1.75} />
         </Button>
 
         {/* Breadcrumb */}
-        <div className="mx-1 flex h-[30px] min-w-0 flex-1 items-center gap-0.5 overflow-x-auto rounded-full border border-edge bg-field px-1.5 [scrollbar-width:none]">
+        <div className="mx-1 flex h-9 min-w-0 flex-1 items-center gap-0.5 overflow-x-auto rounded-full border border-edge bg-field px-1.5 [scrollbar-width:none]">
           <span className="flex shrink-0 items-center gap-1.5 px-1.5 text-label-3" title={containerId}>
             <Box className="size-4" strokeWidth={1.75} />
             <span className="max-w-[160px] truncate text-[12px]">{containerName ? `${containerName}` : containerId.slice(0, 12)}</span>
@@ -221,8 +222,8 @@ export function ContainerFilesView({ serverId, containerId, containerName }: Pro
           })}
         </div>
 
-        <Button size="sm" variant="secondary" onClick={() => setNewItem({ kind: 'file', name: '' })}><FilePlus strokeWidth={1.75} />New File</Button>
-        <Button size="sm" variant="secondary" onClick={() => setNewItem({ kind: 'folder', name: '' })}><FolderPlus strokeWidth={1.75} />New Folder</Button>
+        <Button size="sm" variant="secondary" onClick={() => setNewItem({ kind: 'file', name: '' })}><FileIcon type="file" size="sm" />New File</Button>
+        <Button size="sm" variant="secondary" onClick={() => setNewItem({ kind: 'folder', name: '' })}><FileIcon type="directory" size="sm" />New Folder</Button>
         <Button size="sm" variant="secondary" onClick={() => fileInputRef.current?.click()}><Upload strokeWidth={1.75} />Upload</Button>
         <input ref={fileInputRef} type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload(f); e.target.value = ''; }} />
       </div>
@@ -268,11 +269,7 @@ export function ContainerFilesView({ serverId, containerId, containerName }: Pro
                       onDoubleClick={() => openEntry(e)}
                     >
                       <div role="cell" className={cn('flex min-w-0 items-center gap-2.5', selectedName === e.name ? 'text-accent-text' : 'text-foreground')}>
-                        {e.type === 'directory'
-                          ? <Folder className="size-[18px] shrink-0 fill-accent-solid/20 text-accent-solid" strokeWidth={1.75} />
-                          : e.type === 'symlink'
-                            ? <CornerDownRight className="size-[18px] shrink-0 text-label-3" strokeWidth={1.75} />
-                            : <FileIcon className="size-[18px] shrink-0 text-label-3" strokeWidth={1.75} />}
+                        <FileIcon type={e.type === 'other' ? 'file' : e.type} name={e.name} size="sm" className="shrink-0" />
                         <span className="truncate">{e.name}</span>
                         {e.symlinkTarget && <span className="min-w-0 truncate font-mono text-[12px] text-label-3">→ {e.symlinkTarget}</span>}
                       </div>
@@ -309,13 +306,13 @@ export function ContainerFilesView({ serverId, containerId, containerName }: Pro
       {editor && (
         <div className="absolute inset-0 z-20 flex flex-col">
           <div className="mb-3 flex h-[30px] shrink-0 items-center gap-2 px-3">
-            <FileIcon className="size-4 shrink-0 text-label-3" strokeWidth={1.75} />
+            <FileIcon name={editor.path} size="sm" className="shrink-0" />
             <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-label-2">
               {editor.path}{editor.dirty ? ' •' : ''}
             </span>
             <Badge variant="secondary" className="shrink-0">{fileLanguageLabel(editor.path)}</Badge>
             <Button size="sm" onClick={saveEditor} disabled={saving || !editor.dirty}><Save strokeWidth={1.75} />{saving ? 'Saving…' : 'Save'}</Button>
-            <Button size="icon" variant="ghost" className="size-[30px]" title="Close" onClick={() => setEditor(null)}><X strokeWidth={1.75} /></Button>
+            <Button size="icon" variant="ghost" title="Close" onClick={() => setEditor(null)}><X strokeWidth={1.75} /></Button>
           </div>
           <CodeEditor
             className="mx-2 mb-2 flex-1"

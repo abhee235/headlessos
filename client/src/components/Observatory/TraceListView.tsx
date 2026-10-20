@@ -114,10 +114,10 @@ export function TraceListView() {
 
         <div className="flex-1" />
 
-        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={fetchTraces}>
+        <Button size="icon" variant="ghost" onClick={fetchTraces}>
           <RefreshCw strokeWidth={1.75} />
         </Button>
-        <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={clearTraces}>
+        <Button size="icon" variant="ghost" className="text-destructive" onClick={clearTraces}>
           <Trash2 strokeWidth={1.75} />
         </Button>
       </div>
