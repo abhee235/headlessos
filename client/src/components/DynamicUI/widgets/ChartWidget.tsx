@@ -1,10 +1,10 @@
 // EX1.5 + EX3-A.6: Chart Widget — Bar, Line, Area, Pie, Donut via recharts
 // Enhanced with stacking, thresholds, unit formatting, grid/legend toggles
+// EX8.6: Lumen card, --chart-n series, token threshold colour, rounded bars
 // @see docs/phases/phase-ex1.md docs/phases/phase-ex3.md
 
 import type { z } from 'zod';
 import type { ChartWidgetSchema } from 'headlessos-shared/schemas/dynamic-view';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   ChartContainer,
   ChartTooltip,
@@ -29,6 +29,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { formatUnit } from '@/lib/format-utils';
+import { WidgetCard } from './widget-card';
 
 type ChartWidgetData = z.infer<typeof ChartWidgetSchema>;
 
@@ -40,6 +41,9 @@ const DEFAULT_COLORS = [
   'var(--chart-4)',
   'var(--chart-5)',
 ];
+
+/** Axis tick labels: 11px tertiary label (recharts defaults to a fixed grey) */
+const AXIS_TICK = { fill: 'var(--lumen-label3)', fontSize: 11 };
 
 function buildChartConfig(yKeys: ChartWidgetData['yKeys']): ChartConfig {
   const config: ChartConfig = {};
@@ -92,19 +96,19 @@ export function ChartWidget({ widget }: { widget: ChartWidgetData }) {
       <ReferenceLine
         key={`threshold-${i}`}
         y={t.value}
-        stroke={t.color ?? 'rgb(var(--destructive))'}
+        stroke={t.color ?? 'var(--destructive)'}
         strokeDasharray="4 4"
         strokeWidth={1.5}
-        label={t.label ? { value: t.label, position: 'insideTopRight', fontSize: 11 } : undefined}
+        label={t.label ? { value: t.label, position: 'insideTopRight', fontSize: 11, fill: 'var(--lumen-label2)' } : undefined}
       />
     ));
 
   /** Common cartesian chart elements: grid, axes, tooltip, legend */
   const renderCartesianBase = () => (
     <>
-      {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} />}
-      <XAxis dataKey={xKey} tickLine={false} axisLine={false} />
-      <YAxis tickLine={false} axisLine={false} tickFormatter={tickFormatter} />
+      {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />}
+      <XAxis dataKey={xKey} tickLine={false} axisLine={false} tickMargin={8} tick={AXIS_TICK} />
+      <YAxis tickLine={false} axisLine={false} tickFormatter={tickFormatter} width={44} tick={AXIS_TICK} />
       <ChartTooltip
         content={
           <ChartTooltipContent
@@ -118,14 +122,8 @@ export function ChartWidget({ widget }: { widget: ChartWidgetData }) {
   );
 
   return (
-    <Card>
-      {title && (
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        </CardHeader>
-      )}
-      <CardContent className={title ? 'pt-0' : 'pt-4'}>
-      <ChartContainer config={config} className="w-full" style={{ height }}>
+    <WidgetCard title={title}>
+      <ChartContainer config={config} className="aspect-auto w-full" style={{ height }}>
         {isPie ? (
           <PieChart>
             <Pie
@@ -135,6 +133,7 @@ export function ChartWidget({ widget }: { widget: ChartWidgetData }) {
               innerRadius={chartType === 'donut' ? '50%' : 0}
               outerRadius="80%"
               paddingAngle={2}
+              stroke="none"
             >
               {data.map((_entry, index) => (
                 <Cell
@@ -154,7 +153,8 @@ export function ChartWidget({ widget }: { widget: ChartWidgetData }) {
                 key={yk.key}
                 dataKey={yk.key}
                 fill={getColor(yKeys, i)}
-                radius={stackId ? undefined : [4, 4, 0, 0]}
+                radius={stackId ? undefined : [6, 6, 0, 0]}
+                maxBarSize={40}
                 stackId={stackId}
               />
             ))}
@@ -184,14 +184,14 @@ export function ChartWidget({ widget }: { widget: ChartWidgetData }) {
                 dataKey={yk.key}
                 fill={getColor(yKeys, i)}
                 stroke={getColor(yKeys, i)}
-                fillOpacity={0.3}
+                strokeWidth={2}
+                fillOpacity={0.18}
                 stackId={stackId}
               />
             ))}
           </AreaChart>
         )}
       </ChartContainer>
-      </CardContent>
-    </Card>
+    </WidgetCard>
   );
 }

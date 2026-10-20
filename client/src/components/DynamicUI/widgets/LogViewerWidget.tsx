@@ -1,56 +1,51 @@
 // EX1.5: Log Viewer Widget — scrollable log with level coloring
+// EX8.6: recessed bg-paper mono pane, muted 6px level chips in semantic tints
 // @see docs/phases/phase-ex1.md
 
 import type { z } from 'zod';
 import type { LogViewerWidgetSchema } from 'headlessos-shared/schemas/dynamic-view';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import { PANE_CLASS, WidgetCard } from './widget-card';
 
 type LogViewerWidgetData = z.infer<typeof LogViewerWidgetSchema>;
 
 const LEVEL_STYLES: Record<string, string> = {
-  error: 'text-destructive',
+  error: 'text-danger',
   warn: 'text-warning',
-  info: 'text-primary',
-  debug: 'text-muted-foreground',
+  info: 'text-foreground',
+  debug: 'text-label-3',
 };
 
 const LEVEL_BADGE_STYLES: Record<string, string> = {
-  error: 'bg-destructive/15 text-destructive',
-  warn: 'bg-warning/15 text-warning',
-  info: 'bg-primary/15 text-primary',
-  debug: 'bg-muted text-muted-foreground',
+  error: 'border-danger/30 bg-danger/14 text-danger',
+  warn: 'border-warning/30 bg-warning/14 text-warning',
+  info: 'border-accent-solid/30 bg-accent-solid/14 text-accent-text',
+  debug: 'border-edge bg-fill text-label-3',
 };
 
 export function LogViewerWidget({ widget }: { widget: LogViewerWidgetData }) {
   const { title, lines, maxHeight = '400px' } = widget;
 
   return (
-    <Card>
-      {title && (
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        </CardHeader>
-      )}
-      <CardContent className={title ? 'pt-0' : 'pt-4'}>
-      <div className="rounded-md border border-border/60 bg-muted/30 overflow-hidden">
+    <WidgetCard title={title}>
+      <div className={cn(PANE_CLASS, 'overflow-hidden')}>
         <ScrollArea style={{ maxHeight }}>
-          <div className="font-mono text-xs leading-relaxed p-2 space-y-0">
+          <div className="space-y-0 p-1.5 text-xs leading-relaxed">
             {lines.length === 0 ? (
-              <p className="text-muted-foreground italic px-1">No log entries</p>
+              <p className="px-1.5 py-1 italic text-label-3">No log entries</p>
             ) : (
               lines.map((line, i) => (
                 <div
                   key={i}
                   className={cn(
-                    'flex gap-2 px-1 py-0.5 rounded-sm hover:bg-accent/30',
+                    'flex gap-2.5 rounded-[8px] px-1.5 py-1 transition-colors duration-150 hover:bg-fill',
                     line.level && LEVEL_STYLES[line.level],
                   )}
                 >
                   {/* Timestamp */}
                   {line.timestamp && (
-                    <span className="shrink-0 text-muted-foreground tabular-nums">
+                    <span className="shrink-0 text-label-3 tabular-nums">
                       {line.timestamp}
                     </span>
                   )}
@@ -59,8 +54,8 @@ export function LogViewerWidget({ widget }: { widget: LogViewerWidgetData }) {
                   {line.level && (
                     <span
                       className={cn(
-                        'shrink-0 rounded px-1 py-0 text-[10px] font-semibold uppercase w-12 text-center inline-flex items-center justify-center',
-                        LEVEL_BADGE_STYLES[line.level] ?? 'bg-muted text-muted-foreground',
+                        'inline-flex h-[18px] w-12 shrink-0 items-center justify-center rounded-[6px] border text-[10px] font-semibold uppercase',
+                        LEVEL_BADGE_STYLES[line.level] ?? 'border-edge bg-fill text-label-3',
                       )}
                     >
                       {line.level}
@@ -77,7 +72,6 @@ export function LogViewerWidget({ widget }: { widget: LogViewerWidgetData }) {
           </div>
         </ScrollArea>
       </div>
-      </CardContent>
-    </Card>
+    </WidgetCard>
   );
 }

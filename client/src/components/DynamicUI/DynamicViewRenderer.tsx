@@ -16,9 +16,9 @@ export function DynamicViewRenderer({ view }: DynamicViewRendererProps) {
 
   if (sectionEntries.length === 0) {
     return (
-      <div className="space-y-4 p-4">
-        <Skeleton className="h-6 w-48" />
-        <Skeleton className="h-32 w-full" />
+      <div className="space-y-4">
+        <Skeleton className="h-6 w-48 rounded-full" />
+        <Skeleton className="h-32 w-full rounded-[22px]" />
       </div>
     );
   }
@@ -26,12 +26,12 @@ export function DynamicViewRenderer({ view }: DynamicViewRendererProps) {
   return (
     <div className="space-y-6">
       {view.description && (
-        <p className="text-sm text-muted-foreground">{view.description}</p>
+        <p className="text-sm text-label-2">{view.description}</p>
       )}
       {sectionEntries.map(([id, layout]) => (
         <div key={id}>
           {sectionEntries.length > 1 && (
-            <h3 className="text-sm font-medium text-muted-foreground mb-2 capitalize">{id}</h3>
+            <h3 className="mb-3 text-[15px] font-bold capitalize">{id}</h3>
           )}
           <LayoutRenderer layout={layout} />
         </div>

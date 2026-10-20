@@ -6,7 +6,7 @@
 import { useState, useCallback } from 'react';
 import type { Widget, DeepPartial } from 'headlessos-shared/schemas/dynamic-view';
 import { getWidget } from './widget-registry';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { LumenAlert } from './widgets/widget-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RefreshableWidget } from './RefreshableWidget';
 import { useDynamicViewContext } from './DynamicViewContext';
@@ -25,7 +25,7 @@ interface DataSource {
 
 export function WidgetRenderer({ widget, index = 0 }: { widget: DeepPartial<Widget>; index?: number }) {
   if (!widget.type) {
-    return <Skeleton className="h-24 w-full rounded-lg" />;
+    return <Skeleton className="h-24 w-full rounded-[22px]" />;
   }
 
   // EX3-D.3: Stagger delay via CSS custom property
@@ -35,7 +35,7 @@ export function WidgetRenderer({ widget, index = 0 }: { widget: DeepPartial<Widg
   const formWidget = widget as Record<string, unknown>;
   if (widget.type === 'form' && formWidget.commandTemplate) {
     return (
-      <div className="animate-widget-enter" style={staggerStyle}>
+      <div className="h-full animate-widget-enter" style={staggerStyle}>
         <FormCommandWrapper widget={widget} />
       </div>
     );
@@ -44,12 +44,9 @@ export function WidgetRenderer({ widget, index = 0 }: { widget: DeepPartial<Widg
   const Component = getWidget(widget.type as string);
   if (!Component) {
     return (
-      <Alert variant="destructive">
-        <AlertTitle>Unknown widget</AlertTitle>
-        <AlertDescription>
-          Widget type &ldquo;{widget.type as string}&rdquo; is not registered.
-        </AlertDescription>
-      </Alert>
+      <LumenAlert tone="destructive" title="Unknown widget">
+        Widget type &ldquo;{widget.type as string}&rdquo; is not registered.
+      </LumenAlert>
     );
   }
 
@@ -59,7 +56,7 @@ export function WidgetRenderer({ widget, index = 0 }: { widget: DeepPartial<Widg
     return (
       <LiveWidgetWrapper widget={widget} dataSource={ds}>
         {(liveWidget) => (
-          <div className="animate-widget-enter" style={staggerStyle}>
+          <div className="h-full animate-widget-enter" style={staggerStyle}>
             <Component widget={liveWidget as Widget} />
           </div>
         )}
@@ -68,7 +65,7 @@ export function WidgetRenderer({ widget, index = 0 }: { widget: DeepPartial<Widg
   }
 
   return (
-    <div className="animate-widget-enter" style={staggerStyle}>
+    <div className="h-full animate-widget-enter" style={staggerStyle}>
       <Component widget={widget as Widget} />
     </div>
   );

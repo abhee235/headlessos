@@ -4,6 +4,7 @@
 // Frontend panel showing the UI generation agent's thinking process,
 // tool calls, safety warnings, rate-limit countdowns, and progressive preview.
 // Renders events streamed from the UIAgent via WebSocket (EX2.12).
+// EX8.6: Lumen glass — step bubbles with semantic tints, token icon colours.
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
@@ -14,6 +15,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { Spinner } from '@/components/ui/spinner';
+import { BUBBLE_CLASS } from './agent-ui';
 
 // ── Types (mirroring server-side AgentEvent + UIAgentEvent) ──
 
@@ -70,9 +72,12 @@ function AgentStepCard({ step, defaultExpanded }: { step: TimelineStep; defaultE
   const { icon, label, color, content, expandable } = getStepDisplay(event);
 
   return (
-    <div className={cn('border border-border/40 rounded-md overflow-hidden', color)}>
+    <div className={cn(BUBBLE_CLASS, 'overflow-hidden', color)}>
       <button
-        className="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-muted/30 transition-colors text-sm"
+        className={cn(
+          'flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-[13px] transition-colors duration-150',
+          expandable && 'hover:bg-fill',
+        )}
         onClick={() => expandable && setExpanded(!expanded)}
         disabled={!expandable}
         data-testid={`step-${event.type}`}
@@ -80,19 +85,19 @@ function AgentStepCard({ step, defaultExpanded }: { step: TimelineStep; defaultE
         {icon}
         <span className="flex-1 truncate">{label}</span>
         {event.type === 'tool_result' && (
-          <Badge variant={event.success ? 'outline' : 'destructive'} className="text-xs px-1 py-0">
+          <Badge variant={event.success ? 'secondary' : 'destructive'} className="font-mono text-[10px]">
             {event.latencyMs}ms
           </Badge>
         )}
         {expandable && (
           expanded
-            ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
-            : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+            ? <ChevronDown className="h-3.5 w-3.5 text-label-3" />
+            : <ChevronRight className="h-3.5 w-3.5 text-label-3" />
         )}
       </button>
 
       {expanded && content && (
-        <div className="px-3 py-2 text-xs text-muted-foreground border-t border-border/30 bg-muted/10">
+        <div className="border-t border-border bg-paper px-3.5 py-2.5 text-xs text-label-2">
           {content}
         </div>
       )}
@@ -117,9 +122,9 @@ function RateLimitCountdown({ retryInMs, attempt }: { retryInMs: number; attempt
   }, [retryInMs]);
 
   return (
-    <div className="border border-yellow-500/30 rounded-md px-3 py-2 bg-yellow-500/5" data-testid="rate-limit-countdown">
-      <div className="flex items-center gap-2 text-sm text-yellow-600 dark:text-yellow-400 mb-1">
-        <Clock className="w-4 h-4" />
+    <div className="rounded-[18px] border border-warning/30 bg-warning/10 px-3.5 py-2.5" data-testid="rate-limit-countdown">
+      <div className="mb-2 flex items-center gap-2 text-[13px] text-warning">
+        <Clock className="h-4 w-4" strokeWidth={1.75} />
         <span>Rate limited. Retrying in {(retryInMs / 1000).toFixed(0)}s... (attempt {attempt})</span>
       </div>
       <Progress value={progress} className="h-1.5" />
@@ -137,18 +142,18 @@ function AgentMetaFooter({ meta }: { meta: AgentMetaType }) {
 
   return (
     <div
-      className="flex items-center gap-3 px-3 py-2 text-xs text-muted-foreground border-t border-border/40"
+      className="flex min-h-9 items-center gap-3 border-t border-border px-3.5 py-2 text-xs text-label-2"
       data-testid="agent-meta"
     >
-      <span className="flex items-center gap-1">
-        <CheckCircle2 className="w-3.5 h-3.5 text-success" />
+      <span className="flex items-center gap-1 font-semibold text-success">
+        <CheckCircle2 className="h-3.5 w-3.5" strokeWidth={1.75} />
         Done
       </span>
       <span>{meta.stepsCompleted} steps</span>
       <span>{(meta.latencyMs / 1000).toFixed(1)}s</span>
-      {modelList && <span className="text-muted-foreground/70">{modelList}</span>}
+      {modelList && <span className="truncate font-mono text-label-3">{modelList}</span>}
       {meta.warning && (
-        <Badge variant="warning" className="text-xs">
+        <Badge variant="warning">
           {meta.warning}
         </Badge>
       )}
@@ -176,16 +181,16 @@ export function AgentPanel({ events, isRunning, onAbort, className }: AgentPanel
     return (
       <div
         className={cn(
-          'flex items-center gap-2 px-3 py-2 border border-border/60 rounded-lg bg-card',
+          'flex h-11 items-center gap-2.5 rounded-full border border-edge bg-mat-thin pl-4 pr-1.5',
           className,
         )}
         data-testid="agent-panel-collapsed"
       >
-        <Bot className="w-4 h-4 text-primary" />
-        <span className="text-sm font-medium flex-1">UI Agent</span>
-        {isRunning && <Spinner className="w-4 h-4 text-primary" />}
-        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setCollapsed(false)}>
-          <Maximize2 className="w-3.5 h-3.5" />
+        <Bot className="h-[18px] w-[18px] text-accent-solid" strokeWidth={1.75} />
+        <span className="flex-1 text-[13px] font-semibold">UI Agent</span>
+        {isRunning && <Spinner className="h-4 w-4 text-accent-solid" />}
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCollapsed(false)}>
+          <Maximize2 strokeWidth={1.75} />
         </Button>
       </div>
     );
@@ -194,29 +199,29 @@ export function AgentPanel({ events, isRunning, onAbort, className }: AgentPanel
   return (
     <div
       className={cn(
-        'flex flex-col border border-border/60 rounded-lg bg-card overflow-hidden',
+        'flex flex-col overflow-hidden rounded-[22px] border border-edge bg-mat-thin',
         className,
       )}
       data-testid="agent-panel"
     >
       {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-border/40">
-        <Bot className="w-4 h-4 text-primary" />
-        <span className="text-sm font-medium flex-1">UI Agent</span>
+      <div className="flex h-11 items-center gap-2.5 border-b border-border pl-3.5 pr-1.5">
+        <Bot className="h-[18px] w-[18px] text-accent-solid" strokeWidth={1.75} />
+        <span className="flex-1 text-[13px] font-semibold">UI Agent</span>
         {isRunning && (
-          <Button variant="destructive" size="sm" className="h-6 text-xs px-2" onClick={onAbort} data-testid="abort-button">
-            <Square className="w-3 h-3 mr-1" />
+          <Button variant="destructive" size="sm" className="h-7 gap-1.5 px-3" onClick={onAbort} data-testid="abort-button">
+            <Square strokeWidth={1.75} />
             Abort
           </Button>
         )}
-        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setCollapsed(true)}>
-          <Minimize2 className="w-3.5 h-3.5" />
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCollapsed(true)}>
+          <Minimize2 strokeWidth={1.75} />
         </Button>
       </div>
 
       {/* Timeline */}
-      <ScrollArea className="flex-1 max-h-80" ref={scrollRef}>
-        <div className="p-2 space-y-1.5">
+      <ScrollArea className="max-h-80 flex-1" ref={scrollRef}>
+        <div className="space-y-2 p-2.5">
           {events.map((step) => {
             // Rate limit countdown gets special rendering
             if (step.event.type === 'rate_limited') {
@@ -229,8 +234,8 @@ export function AgentPanel({ events, isRunning, onAbort, className }: AgentPanel
           })}
 
           {isRunning && (
-            <div className="flex items-center gap-2 px-3 py-1.5 text-sm text-muted-foreground">
-              <Spinner className="w-4 h-4" />
+            <div className="flex items-center gap-2 px-3.5 py-1.5 text-[13px] text-label-2">
+              <Spinner className="h-4 w-4 text-accent-solid" />
               <span>Working...</span>
             </div>
           )}
@@ -245,6 +250,8 @@ export function AgentPanel({ events, isRunning, onAbort, className }: AgentPanel
 
 // ── Display Helpers ──
 
+const STEP_ICON_CLASS = 'h-4 w-4 shrink-0';
+
 function getStepDisplay(event: AgentEventType): {
   icon: React.ReactNode;
   label: string;
@@ -255,7 +262,7 @@ function getStepDisplay(event: AgentEventType): {
   switch (event.type) {
     case 'thinking':
       return {
-        icon: <Brain className="w-4 h-4 text-blue-400" />,
+        icon: <Brain className={STEP_ICON_CLASS + ' text-accent-solid'} strokeWidth={1.75} />,
         label: event.message,
         color: '',
         content: null,
@@ -265,37 +272,37 @@ function getStepDisplay(event: AgentEventType): {
     case 'tool_result':
       return {
         icon: event.success
-          ? <Wrench className="w-4 h-4 text-green-400" />
-          : <Wrench className="w-4 h-4 text-red-400" />,
+          ? <Wrench className={STEP_ICON_CLASS + ' text-success'} strokeWidth={1.75} />
+          : <Wrench className={STEP_ICON_CLASS + ' text-danger'} strokeWidth={1.75} />,
         label: `${event.tool}()`,
-        color: event.success ? '' : 'border-red-500/20',
+        color: event.success ? '' : 'border-danger/30',
         content: <pre className="whitespace-pre-wrap break-all font-mono">{event.outputPreview}</pre>,
         expandable: true,
       };
 
     case 'tool_blocked':
       return {
-        icon: <ShieldAlert className="w-4 h-4 text-yellow-400" />,
+        icon: <ShieldAlert className={STEP_ICON_CLASS + ' text-warning'} strokeWidth={1.75} />,
         label: `${event.tool}() — blocked`,
-        color: 'border-yellow-500/20 bg-yellow-500/5',
+        color: 'border-warning/30 bg-warning/10',
         content: <span>{event.reason}</span>,
         expandable: true,
       };
 
     case 'generation_complete':
       return {
-        icon: <CheckCircle2 className="w-4 h-4 text-green-400" />,
+        icon: <CheckCircle2 className={STEP_ICON_CLASS + ' text-success'} strokeWidth={1.75} />,
         label: 'Schema generated — Zod validation passed',
-        color: 'border-green-500/20 bg-green-500/5',
+        color: 'border-success/30 bg-success/10',
         content: null,
         expandable: false,
       };
 
     case 'partial_view':
       return {
-        icon: <Eye className="w-4 h-4 text-emerald-400" />,
+        icon: <Eye className={STEP_ICON_CLASS + ' text-accent-solid'} strokeWidth={1.75} />,
         label: 'View updated — progressive render',
-        color: 'border-emerald-500/20 bg-emerald-500/5',
+        color: 'border-accent-solid/30 bg-accent-soft',
         content: null,
         expandable: false,
       };
@@ -303,23 +310,23 @@ function getStepDisplay(event: AgentEventType): {
     case 'reflection':
       return {
         icon: event.action === 'approve'
-          ? <Search className="w-4 h-4 text-green-400" />
-          : <Search className="w-4 h-4 text-yellow-400" />,
+          ? <Search className={STEP_ICON_CLASS + ' text-success'} strokeWidth={1.75} />
+          : <Search className={STEP_ICON_CLASS + ' text-warning'} strokeWidth={1.75} />,
         label: event.action === 'approve'
           ? `Reflection: Approved — ${event.feedback}`
           : `Reflection: Fix needed — ${event.feedback}`,
-        color: event.action === 'approve' ? 'border-green-500/20' : 'border-yellow-500/20',
+        color: event.action === 'approve' ? 'border-success/30' : 'border-warning/30',
         content: <span>{event.feedback}</span>,
         expandable: true,
       };
 
     case 'safety_warning':
       return {
-        icon: <AlertTriangle className="w-4 h-4 text-yellow-400" />,
+        icon: <AlertTriangle className={STEP_ICON_CLASS + ' text-warning'} strokeWidth={1.75} />,
         label: event.warning === 'tool_repetition'
           ? `Tool repetition: ${event.tool} called repeatedly`
           : event.message ?? 'Safety warning',
-        color: 'border-yellow-500/20 bg-yellow-500/5',
+        color: 'border-warning/30 bg-warning/10',
         content: event.message ? <span>{event.message}</span> : null,
         expandable: !!event.message,
       };
@@ -327,7 +334,7 @@ function getStepDisplay(event: AgentEventType): {
     case 'rate_limited':
       // Handled separately by RateLimitCountdown
       return {
-        icon: <Clock className="w-4 h-4 text-yellow-400" />,
+        icon: <Clock className={STEP_ICON_CLASS + ' text-warning'} strokeWidth={1.75} />,
         label: `Rate limited — retrying in ${event.retryInMs}ms`,
         color: '',
         content: null,
@@ -336,25 +343,25 @@ function getStepDisplay(event: AgentEventType): {
 
     case 'context_compacted':
       return {
-        icon: <Package className="w-4 h-4 text-blue-400" />,
+        icon: <Package className={STEP_ICON_CLASS + ' text-chart-3'} strokeWidth={1.75} />,
         label: `Context compacted: ${event.originalTokens} → ${event.compactedTokens} tokens`,
-        color: 'border-blue-500/10',
+        color: '',
         content: null,
         expandable: false,
       };
 
     case 'error':
       return {
-        icon: <XCircle className="w-4 h-4 text-destructive" />,
+        icon: <XCircle className={STEP_ICON_CLASS + ' text-danger'} strokeWidth={1.75} />,
         label: event.message,
-        color: 'border-destructive/20 bg-destructive/5',
+        color: 'border-danger/30 bg-danger/10',
         content: null,
         expandable: false,
       };
 
     case 'complete':
       return {
-        icon: <CheckCircle2 className="w-4 h-4 text-success" />,
+        icon: <CheckCircle2 className={STEP_ICON_CLASS + ' text-success'} strokeWidth={1.75} />,
         label: 'Generation complete',
         color: '',
         content: null,
@@ -363,7 +370,7 @@ function getStepDisplay(event: AgentEventType): {
 
     default:
       return {
-        icon: <Bot className="w-4 h-4" />,
+        icon: <Bot className={STEP_ICON_CLASS + ' text-label-2'} strokeWidth={1.75} />,
         label: 'Unknown event',
         color: '',
         content: null,

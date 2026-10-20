@@ -7,6 +7,7 @@
 // Shows the agent's thinking process via AgentPanel as events stream in.
 // EX3-C.3: Opens a desktop DynamicUI window immediately on generation start
 // with skeleton loading, progressively filling as partial_view events arrive.
+// EX8.6: Lumen glass — preset tiles, accent tints, pill composer.
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
@@ -32,6 +33,10 @@ import type { DynamicView, DeepPartial } from 'headlessos-shared/schemas/dynamic
 import { checkDockerAvailable } from '../../lib/api';
 import { cn } from '@/lib/utils';
 import { Spinner } from '@/components/ui/spinner';
+import {
+  AgentHeader, Composer, COMPOSER_BUTTON_CLASS, COMPOSER_TEXTAREA_CLASS,
+  PRESET_TILE_CLASS, SectionLabel,
+} from './agent-ui';
 
 // ── Preset prompts ──────────────────────────────────────
 
@@ -198,54 +203,47 @@ export function UIAgentView({ serverId }: UIAgentViewProps) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-border/40">
-        <Wand2 className="w-5 h-5 text-emerald-500" />
-        <div className="flex-1">
-          <h2 className="text-sm font-semibold">UI Agent</h2>
-          <p className="text-[11px] text-muted-foreground">
-            Describe what you want to see — the agent builds a live UI from your server data
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge
-            variant={connected ? 'success' : 'outline'}
-            className="text-[10px]"
-          >
-            {connected ? 'Connected' : 'Disconnected'}
-          </Badge>
-          {activeSession && !isRunning && (
-            <Button variant="ghost" size="sm" onClick={handleReset} className="h-7 px-2 gap-1">
-              <RotateCcw className="w-3 h-3" />
-              New
-            </Button>
-          )}
-        </div>
-      </div>
+      <AgentHeader
+        icon={Wand2}
+        title="UI Agent"
+        subtitle="Describe what you want to see — the agent builds a live UI from your server data"
+        trailing={
+          <div className="flex shrink-0 items-center gap-2">
+            <Badge variant={connected ? 'success' : 'secondary'}>
+              {connected ? 'Connected' : 'Disconnected'}
+            </Badge>
+            {activeSession && !isRunning && (
+              <Button variant="secondary" size="sm" onClick={handleReset} className="gap-1.5">
+                <RotateCcw strokeWidth={1.75} />
+                New
+              </Button>
+            )}
+          </div>
+        }
+      />
 
       {/* Main scroll area */}
-      <ScrollArea className="flex-1" ref={scrollRef}>
-        <div className="p-4 space-y-4">
+      <ScrollArea className="min-h-0 flex-1" ref={scrollRef}>
+        <div className="space-y-5 px-4 pb-4">
           {/* Preset suggestions (only when no active session) */}
           {!activeSession && (
-            <div className="space-y-3">
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-                Quick prompts
-              </p>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            <div className="space-y-2.5">
+              <SectionLabel>Quick prompts</SectionLabel>
+              <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3">
                 {PRESETS.map(preset => (
                   <button
                     key={preset.label}
-                    className="text-left px-3 py-2.5 rounded-lg border border-border/40 hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-colors group"
+                    className={cn(PRESET_TILE_CLASS, 'group')}
                     onClick={() => {
                       setPrompt(preset.prompt);
                       handleGenerate(preset.prompt);
                     }}
                   >
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <Sparkles className="w-3 h-3 text-emerald-500/60 group-hover:text-emerald-500" />
-                      <span className="text-xs font-medium">{preset.label}</span>
+                    <div className="mb-1 flex items-center gap-1.5">
+                      <Sparkles className="h-3.5 w-3.5 text-accent-solid opacity-70 transition-opacity duration-150 group-hover:opacity-100" strokeWidth={1.75} />
+                      <span className="text-[13px] font-semibold">{preset.label}</span>
                     </div>
-                    <p className="text-[10px] text-muted-foreground leading-snug line-clamp-2">
+                    <p className="line-clamp-2 text-[11px] leading-snug text-label-2">
                       {preset.prompt}
                     </p>
                   </button>
@@ -261,9 +259,9 @@ export function UIAgentView({ serverId }: UIAgentViewProps) {
 
           {/* Running indicator (before events start arriving) */}
           {isRunning && activeSession.events.length === 0 && (
-            <div className="flex items-center gap-3 py-8 justify-center">
-              <Spinner className="w-5 h-5 text-emerald-500" />
-              <span className="text-sm text-muted-foreground">Starting agent…</span>
+            <div className="flex items-center justify-center gap-3 py-8">
+              <Spinner className="h-5 w-5 text-accent-solid" />
+              <span className="text-sm text-label-2">Starting agent…</span>
             </div>
           )}
 
@@ -273,21 +271,21 @@ export function UIAgentView({ serverId }: UIAgentViewProps) {
               events={activeSession.events}
               isRunning={isRunning}
               onAbort={isRunning ? handleAbort : undefined}
-              className="border-none p-0"
+              className="border-none bg-transparent"
             />
           )}
 
           {/* Completion summary */}
           {activeSession?.status === 'complete' && activeSession.meta && (
             <div className="space-y-4">
-              <div className="border border-emerald-500/20 rounded-lg p-3 bg-emerald-500/5 space-y-2">
+              <div className="space-y-1.5 rounded-[18px] border border-success/30 bg-success/10 px-4 py-3">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-emerald-500" />
-                  <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                  <Sparkles className="h-4 w-4 text-success" strokeWidth={1.75} />
+                  <span className="text-sm font-semibold text-success">
                     View Generated
                   </span>
                 </div>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs text-label-2">
                   Completed in {((activeSession.meta.latencyMs ?? 0) / 1000).toFixed(1)}s
                   {' · '}
                   {activeSession.meta.stepsCompleted} step{activeSession.meta.stepsCompleted !== 1 ? 's' : ''}
@@ -302,9 +300,9 @@ export function UIAgentView({ serverId }: UIAgentViewProps) {
 
           {/* Error state */}
           {activeSession?.status === 'error' && (
-            <div className="border border-destructive/20 rounded-lg p-3 bg-destructive/5">
-              <p className="text-sm text-destructive font-medium">Generation Failed</p>
-              <p className="text-xs text-muted-foreground mt-1">
+            <div className="rounded-[18px] border border-danger/30 bg-danger/10 px-4 py-3">
+              <p className="text-sm font-semibold text-danger">Generation Failed</p>
+              <p className="mt-1 text-xs text-label-2">
                 {activeSession.errorMessage ?? 'An unknown error occurred'}
               </p>
             </div>
@@ -313,9 +311,9 @@ export function UIAgentView({ serverId }: UIAgentViewProps) {
       </ScrollArea>
 
       {/* Input area */}
-      <div className="border-t border-border/40 p-3 space-y-2">
+      <div className="shrink-0 space-y-2 px-4 pb-4">
         {/* EX5-B.4: Sandbox toggle */}
-        <div className="flex items-center justify-between" data-testid="sandbox-toggle-row">
+        <div className="flex items-center justify-between px-1" data-testid="sandbox-toggle-row">
           <Tooltip>
             <TooltipTrigger asChild>
               <label
@@ -326,12 +324,12 @@ export function UIAgentView({ serverId }: UIAgentViewProps) {
                 htmlFor="sandbox-toggle"
               >
                 <Shield className={cn(
-                  'w-3.5 h-3.5',
+                  'h-4 w-4',
                   sandboxEnabled && dockerAvailable !== false
-                    ? 'text-emerald-500'
-                    : 'text-muted-foreground',
-                )} />
-                <span className="text-xs font-medium text-muted-foreground">
+                    ? 'text-accent-solid'
+                    : 'text-label-3',
+                )} strokeWidth={1.75} />
+                <span className="text-xs font-semibold text-label-2">
                   Sandbox Mode
                 </span>
               </label>
@@ -353,12 +351,12 @@ export function UIAgentView({ serverId }: UIAgentViewProps) {
           />
         </div>
 
-        <div className="flex items-end gap-2">
+        <Composer>
           <Textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="Describe the UI you want… e.g., 'Show me disk usage with a bar chart'"
-            className="min-h-[44px] max-h-[120px] resize-none text-sm"
+            className={COMPOSER_TEXTAREA_CLASS}
             rows={1}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
@@ -372,23 +370,23 @@ export function UIAgentView({ serverId }: UIAgentViewProps) {
             <Button
               variant="destructive"
               size="icon"
-              className="shrink-0 h-[44px] w-[44px]"
+              className={COMPOSER_BUTTON_CLASS}
               onClick={handleAbort}
             >
-              <Square className="w-4 h-4" />
+              <Square strokeWidth={1.75} />
             </Button>
           ) : (
             <Button
               size="icon"
-              className="shrink-0 h-[44px] w-[44px]"
+              className={COMPOSER_BUTTON_CLASS}
               disabled={!prompt.trim() || !connected}
               onClick={() => handleGenerate()}
             >
-              <Send className="w-4 h-4" />
+              <Send strokeWidth={1.75} />
             </Button>
           )}
-        </div>
-        <p className="text-[10px] text-muted-foreground mt-1.5 px-1">
+        </Composer>
+        <p className="px-4 text-[11px] text-label-3">
           The agent runs commands on your server, parses the output, and generates a UI view. Requires LLM API key.
         </p>
       </div>
@@ -426,15 +424,13 @@ function AgentHistoryList({ serverId, onReRun }: AgentHistoryListProps) {
   const ordered = [...history].sort((a, b) => (a.startedAt < b.startedAt ? 1 : -1));
 
   return (
-    <div className="space-y-2" data-testid="agent-history-list">
-      <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-        Recent runs
-      </p>
-      <div className="space-y-1.5">
+    <div className="space-y-2.5" data-testid="agent-history-list">
+      <SectionLabel>Recent runs</SectionLabel>
+      <div className="space-y-2">
         {ordered.map((h) => (
           <button
             key={h.requestId}
-            className="w-full text-left px-3 py-2 rounded-lg border border-border/40 hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-colors group"
+            className={cn(PRESET_TILE_CLASS, 'group w-full')}
             onClick={() => onReRun(h.prompt)}
             data-testid={`agent-history-item-${h.requestId}`}
             title={`Re-run: ${h.prompt}`}
@@ -446,24 +442,24 @@ function AgentHistoryList({ serverId, onReRun }: AgentHistoryListProps) {
                     ? 'success'
                     : h.status === 'error'
                       ? 'destructive'
-                      : 'outline'
+                      : 'secondary'
                 }
                 className="text-[10px] uppercase"
               >
                 {h.status}
               </Badge>
-              <span className="text-[10px] text-muted-foreground">
+              <span className="text-[11px] text-label-3">
                 {formatRelativeTime(h.startedAt)}
               </span>
               {h.viewTitle && (
-                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 truncate">
+                <span className="truncate text-[11px] font-medium text-accent-text">
                   {h.viewTitle}
                 </span>
               )}
             </div>
-            <p className="text-xs mt-1 leading-snug line-clamp-2">{h.prompt}</p>
+            <p className="mt-1.5 line-clamp-2 text-[13px] leading-snug">{h.prompt}</p>
             {h.errorMessage && (
-              <p className="text-[10px] text-destructive mt-0.5 line-clamp-1">
+              <p className="mt-0.5 line-clamp-1 text-[11px] text-danger">
                 {h.errorMessage}
               </p>
             )}

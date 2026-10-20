@@ -1,4 +1,5 @@
 // EX1.2 + EX1.14 + EX3-P: Table Widget — tabular data + filters + rich cells + dropdown actions
+// EX8.6: Lumen list-view spec — 34px rows, 11px uppercase sticky header, hairlines, bg-fill hover
 // @see docs/phases/phase-ex1.md, docs/phases/phase-ex3.md
 
 import { useState, useCallback, useMemo } from 'react';
@@ -11,7 +12,6 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getLucideIcon } from './icon-helper';
+import { GROUP_LABEL_CLASS, WidgetCard } from './widget-card';
 
 type TableWidget = z.infer<typeof TableWidgetSchema>;
 type WidgetAction = z.infer<typeof WidgetActionSchema>;
@@ -67,120 +68,117 @@ export function TableWidget({ widget }: { widget: TableWidget }) {
   }, [rows, columns, searchQuery, dropdownValues]);
 
   return (
-    <Card>
-      {title && (
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        </CardHeader>
-      )}
-      <CardContent className={title ? 'pt-0' : 'pt-4'}>
-        {/* ── Filter bar (EX3-P.4) ── */}
-        {filters && (
-          <div className="flex items-center justify-between gap-3 mb-3">
-            <div className="flex items-center gap-2">
-              {(filters.dropdowns ?? []).map((dd, di) => (
-                <FilterDropdown
-                  key={di}
-                  label={dd.label}
-                  iconName={dd.icon}
-                  options={dd.options ?? []}
-                  value={dropdownValues[dd.key] ?? ''}
-                  onChange={(val) =>
-                    setDropdownValues((prev) => ({ ...prev, [dd.key]: val }))
-                  }
-                />
-              ))}
-            </div>
-            {filters.search && (
-              <div className="relative w-56">
-                <Search
-                  size={14}
-                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-foreground/30"
-                />
-                <Input
-                  placeholder={filters.searchPlaceholder ?? 'Search...'}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-8 pl-8 text-xs bg-muted/30 border shadow-none"
-                />
-              </div>
-            )}
+    <WidgetCard title={title} flush className={cn(!title && 'pt-1.5', !title && filters && 'pt-4')}>
+      {/* ── Filter bar (EX3-P.4) ── */}
+      {filters && (
+        <div className="mb-2 flex items-center justify-between gap-3 px-5">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            {(filters.dropdowns ?? []).map((dd, di) => (
+              <FilterDropdown
+                key={di}
+                label={dd.label}
+                iconName={dd.icon}
+                options={dd.options ?? []}
+                value={dropdownValues[dd.key] ?? ''}
+                onChange={(val) =>
+                  setDropdownValues((prev) => ({ ...prev, [dd.key]: val }))
+                }
+              />
+            ))}
           </div>
-        )}
+          {filters.search && (
+            <div className="relative w-56 shrink-0">
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 h-[17px] w-[17px] -translate-y-1/2 text-label-3"
+                strokeWidth={1.75}
+              />
+              <Input
+                placeholder={filters.searchPlaceholder ?? 'Search...'}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-[30px] pl-9 text-xs"
+              />
+            </div>
+          )}
+        </div>
+      )}
 
-        <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent border-0">
+      <Table className="text-[13px]">
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            {columns.map((col) => (
+              <TableHead
+                key={col.key}
+                style={col.width ? { width: col.width } : undefined}
+                className={cn(HEAD_CLASS, GROUP_LABEL_CLASS)}
+              >
+                {col.label}
+              </TableHead>
+            ))}
+            {hasActions && !isDropdown && (
+              <TableHead className={cn(HEAD_CLASS, GROUP_LABEL_CLASS, 'w-auto text-right')}>
+                Actions
+              </TableHead>
+            )}
+            {hasActions && isDropdown && (
+              <TableHead className={cn(HEAD_CLASS, 'w-12')} />
+            )}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {filteredRows.map((row, rowIdx) => (
+            <TableRow key={rowIdx} className="group transition-colors duration-150 hover:bg-fill">
               {columns.map((col) => (
-                <TableHead
-                  key={col.key}
-                  style={col.width ? { width: col.width } : undefined}
-                  className="text-xs font-medium text-foreground/40 h-9"
-                >
-                  {col.label}
-                </TableHead>
+                <TableCell key={col.key} className={CELL_CLASS}>
+                  {renderCellValue(row[col.key], col, row)}
+                </TableCell>
               ))}
               {hasActions && !isDropdown && (
-                <TableHead className="w-auto text-right text-xs font-medium text-foreground/40 h-9">
-                  Actions
-                </TableHead>
+                <TableCell className={cn(CELL_CLASS, 'text-right')}>
+                  <div className="flex items-center justify-end gap-1">
+                    {actions.map((action) => (
+                      <ActionButton
+                        key={action.id}
+                        action={action}
+                        row={row}
+                      />
+                    ))}
+                  </div>
+                </TableCell>
               )}
               {hasActions && isDropdown && (
-                <TableHead className="w-10 text-xs font-medium text-foreground/40 h-9" />
+                <TableCell className={cn(CELL_CLASS, 'text-right')}>
+                  <ActionDropdown actions={actions} row={row} />
+                </TableCell>
               )}
             </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredRows.map((row, rowIdx) => (
-              <TableRow key={rowIdx} className="border-0 hover:bg-muted/20 group">
-                {columns.map((col) => (
-                  <TableCell key={col.key} className="py-3">
-                    {renderCellValue(row[col.key], col, row)}
-                  </TableCell>
-                ))}
-                {hasActions && !isDropdown && (
-                  <TableCell className="text-right py-3">
-                    <div className="flex items-center justify-end gap-1">
-                      {actions.map((action) => (
-                        <ActionButton
-                          key={action.id}
-                          action={action}
-                          row={row}
-                        />
-                      ))}
-                    </div>
-                  </TableCell>
-                )}
-                {hasActions && isDropdown && (
-                  <TableCell className="py-3">
-                    <ActionDropdown actions={actions} row={row} />
-                  </TableCell>
-                )}
-              </TableRow>
-            ))}
-            {filteredRows.length === 0 && (
-              <TableRow className="border-0">
-                <TableCell
-                  colSpan={columns.length + (hasActions ? 1 : 0)}
-                  className="text-center py-12"
-                >
-                  {searchQuery || Object.values(dropdownValues).some(Boolean)
-                    ? <span className="text-foreground/30 text-sm">No rows match your filter</span>
-                    : widget.emptyState
-                      ? <EmptyState emptyState={widget.emptyState} />
-                      : <span className="text-foreground/30 text-sm">No data</span>}
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-        {footer && (
-          <p className="mt-2 text-xs text-muted-foreground">{footer}</p>
-        )}
-      </CardContent>
-    </Card>
+          ))}
+          {filteredRows.length === 0 && (
+            <TableRow className="border-0 hover:bg-transparent">
+              <TableCell
+                colSpan={columns.length + (hasActions ? 1 : 0)}
+                className="py-12 text-center"
+              >
+                {searchQuery || Object.values(dropdownValues).some(Boolean)
+                  ? <span className="text-sm text-label-3">No rows match your filter</span>
+                  : widget.emptyState
+                    ? <EmptyState emptyState={widget.emptyState} />
+                    : <span className="text-sm text-label-3">No data</span>}
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+      {footer && (
+        <p className="border-t border-border px-5 pt-2.5 pb-1 text-xs text-label-2">{footer}</p>
+      )}
+    </WidgetCard>
   );
 }
+
+/** Header + body cell recipes: 34px rows, 20px inset on the outer columns */
+const HEAD_CLASS = 'sticky top-0 h-[34px] px-3 first:pl-5 last:pr-5';
+const CELL_CLASS = 'h-[34px] px-3 py-1.5 first:pl-5 last:pr-5';
 
 // ── Filter Dropdown ──────────────────────────────────────
 
@@ -203,14 +201,14 @@ function FilterDropdown({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
-          variant="outline"
+          variant="secondary"
           size="sm"
-          className="h-8 gap-1.5 text-xs font-medium border-border/50"
+          className={cn('gap-1.5 text-xs', value && 'bg-accent-soft text-accent-text')}
         >
-          {!Icon && <SlidersHorizontal size={13} />}
-          {Icon && <Icon size={13} />}
+          {!Icon && <SlidersHorizontal strokeWidth={1.75} />}
+          {Icon && <Icon strokeWidth={1.75} />}
           {value ? options.find((o) => o.value === value)?.label ?? label : label}
-          <ChevronDown size={12} className="opacity-40" />
+          <ChevronDown className="text-label-3" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-36">
@@ -274,10 +272,10 @@ function ActionDropdown({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          className="p-1.5 rounded-md text-foreground/20 hover:text-foreground/60 hover:bg-muted/50 transition-colors opacity-0 group-hover:opacity-100"
+          className="inline-grid h-7 w-7 place-items-center rounded-full bg-fill text-label-2 opacity-70 transition-[background,opacity,color] duration-150 hover:bg-fill-2 hover:text-foreground group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           disabled={executing}
         >
-          <MoreHorizontal size={15} />
+          <MoreHorizontal className="h-4 w-4" strokeWidth={1.75} />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
@@ -287,9 +285,9 @@ function ActionDropdown({
             <DropdownMenuItem
               key={action.id}
               onClick={() => void handleAction(action)}
-              className={action.variant === 'destructive' ? 'text-destructive' : ''}
+              className={action.variant === 'destructive' ? 'text-danger' : ''}
             >
-              {ActionIcon && <ActionIcon size={14} className="mr-2" />}
+              {ActionIcon && <ActionIcon strokeWidth={1.75} />}
               {action.label}
             </DropdownMenuItem>
           );
@@ -355,7 +353,8 @@ function ActionButton({
     }
   }, [action.confirm, executeAction]);
 
-  const variant = (action.variant ?? 'default') as
+  // Row actions read as glass pills; destructive keeps its danger-text look
+  const variant = (action.variant && action.variant !== 'default' ? action.variant : 'secondary') as
     | 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost';
 
   return (
@@ -363,7 +362,7 @@ function ActionButton({
       <Button
         variant={variant}
         size="sm"
-        className="h-7 px-2 text-xs"
+        className="h-[26px] px-3 text-xs"
         disabled={executing || !serverId}
         onClick={handleClick}
       >
@@ -424,25 +423,27 @@ function RichCell({
             return IconComp ? (
               <IconComp
                 key={i}
-                size={12}
-                className={seg.className ?? 'text-foreground/30'}
+                size={13}
+                strokeWidth={1.75}
+                className={seg.className ?? 'text-label-3'}
               />
             ) : null;
           }
           case 'dot': {
             if (!row[seg.key]) return null;
+            // Named dot colours map onto theme tokens
             const colorMap: Record<string, string> = {
-              amber: 'bg-amber-400',
-              emerald: 'bg-emerald-400',
-              red: 'bg-red-400',
-              blue: 'bg-blue-400',
-              green: 'bg-green-400',
-              yellow: 'bg-yellow-400',
-              orange: 'bg-orange-400',
-              purple: 'bg-purple-400',
-              gray: 'bg-gray-400',
+              amber: 'bg-warning',
+              emerald: 'bg-success',
+              red: 'bg-danger',
+              blue: 'bg-chart-3',
+              green: 'bg-success',
+              yellow: 'bg-warning',
+              orange: 'bg-warning',
+              purple: 'bg-accent-solid',
+              gray: 'bg-label-3',
             };
-            const bgClass = colorMap[seg.color ?? 'amber'] ?? 'bg-amber-400';
+            const bgClass = colorMap[seg.color ?? 'amber'] ?? 'bg-warning';
             return (
               <span
                 key={i}
@@ -476,12 +477,12 @@ function renderCellValue(
     }
     case 'code':
       return (
-        <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">
+        <code className="rounded-[6px] bg-chip px-1.5 py-0.5 font-mono text-xs">
           {str}
         </code>
       );
     case 'mono':
-      return <span className="font-mono text-sm">{str}</span>;
+      return <span className="font-mono text-[13px]">{str}</span>;
     case 'rich':
       return col.segments ? (
         <RichCell segments={col.segments} row={row} />
@@ -504,10 +505,10 @@ function EmptyState({ emptyState }: { emptyState: { icon?: string | null; title:
   const Icon = emptyState.icon ? getLucideIcon(emptyState.icon) : null;
   return (
     <div className="flex flex-col items-center gap-2 py-4">
-      {Icon && <Icon className="h-10 w-10 text-foreground/15" strokeWidth={1.5} />}
-      <p className="text-sm font-medium text-foreground/40">{emptyState.title}</p>
+      {Icon && <Icon className="h-10 w-10 text-label-3 opacity-60" strokeWidth={1.5} />}
+      <p className="text-sm font-semibold text-label-2">{emptyState.title}</p>
       {emptyState.message && (
-        <p className="text-xs text-foreground/25">{emptyState.message}</p>
+        <p className="text-xs text-label-3">{emptyState.message}</p>
       )}
     </div>
   );

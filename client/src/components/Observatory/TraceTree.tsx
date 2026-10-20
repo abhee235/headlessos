@@ -1,4 +1,5 @@
 // EX4-E.2: Trace Tree Component — Phoenix-style recursive span hierarchy
+// EX8.6: Lumen rows — bg-fill hover, accent-soft selection (no left bar), token connectors
 // @see docs/phases/phase-ex4.md
 
 import { useState, useCallback } from 'react';
@@ -58,22 +59,20 @@ function SpanRow({ node, depth, isLast, parentLines, selectedSpanId, onSelect, t
     onSelect(span.spanId);
   }, [span.spanId, onSelect]);
 
-  const connectorColor = isError ? 'rgb(228, 62, 62)' : 'rgb(var(--border))';
+  const connectorColor = isError ? 'var(--destructive)' : 'var(--border)';
 
   return (
     <>
-      {/* Row — Phoenix-style: 4px left border, hover/selected states */}
+      {/* Row — hover bg-fill, selected bg-accent-soft (no left border bar) */}
       <div
-        className={`span-node-wrap flex items-center cursor-pointer text-[13px] relative
+        className={`span-node-wrap relative mx-1 flex cursor-pointer items-center rounded-[10px] text-[13px] transition-colors duration-150
           ${isSelected
-            ? 'bg-[#303030] border-l-[rgb(var(--border))]'
-            : 'border-l-transparent hover:bg-[#0E0E0E]'
+            ? 'bg-accent-soft text-accent-text'
+            : 'hover:bg-fill'
           }`}
         style={{
-          borderLeftWidth: 4,
-          borderLeftStyle: 'solid',
-          paddingTop: 8,
-          paddingBottom: 8,
+          paddingTop: 7,
+          paddingBottom: 7,
           paddingRight: 8,
         }}
         onClick={handleClick}
@@ -125,14 +124,8 @@ function SpanRow({ node, depth, isLast, parentLines, selectedSpanId, onSelect, t
             {hasChildren ? (
               <button
                 onClick={handleToggle}
-                className="flex items-center justify-center w-5 h-5 rounded text-[rgb(var(--foreground))]"
-                style={{
-                  backgroundColor: 'rgba(255,255,255,0.05)',
-                  transition: 'transform 0.2s, background-color 0.3s',
-                  transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.12)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'; }}
+                className="flex h-5 w-5 items-center justify-center rounded-[6px] bg-fill text-foreground transition-[transform,background-color] duration-200 hover:bg-fill-2"
+                style={{ transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)' }}
               >
                 <ChevronDown className="w-3.5 h-3.5" />
               </button>
@@ -149,7 +142,7 @@ function SpanRow({ node, depth, isLast, parentLines, selectedSpanId, onSelect, t
           />
 
           {/* Span name */}
-          <span className="truncate flex-1 min-w-0 font-medium text-[rgb(var(--foreground))]">
+          <span className={`min-w-0 flex-1 truncate font-medium ${isSelected ? 'text-accent-text' : 'text-foreground'}`}>
             {span.name}
           </span>
 
@@ -160,14 +153,14 @@ function SpanRow({ node, depth, isLast, parentLines, selectedSpanId, onSelect, t
 
           {/* Token count (LLM spans) */}
           {span.tokenUsage && span.tokenUsage.totalTokens > 0 && (
-            <span className="token-count-item ml-1 flex-shrink-0 text-[10px] font-mono text-[rgb(var(--muted-foreground))] bg-[rgb(var(--muted))]/30 rounded px-1 py-0.5">
+            <span className="token-count-item ml-1 flex-shrink-0 rounded-[6px] bg-chip px-1 py-0.5 font-mono text-[10px] text-label-2">
               {formatTokens(span.tokenUsage.totalTokens)}
             </span>
           )}
 
           {/* Collapsed child count */}
           {totalDescendants > 0 && !expanded && (
-            <span className="token-count-item ml-1 flex-shrink-0 text-[10px] text-[rgb(var(--muted-foreground))] bg-[rgb(var(--muted))]/30 rounded px-1 py-0.5">
+            <span className="token-count-item ml-1 flex-shrink-0 rounded-[6px] bg-chip px-1 py-0.5 text-[10px] text-label-2">
               +{totalDescendants}
             </span>
           )}
@@ -175,7 +168,7 @@ function SpanRow({ node, depth, isLast, parentLines, selectedSpanId, onSelect, t
 
         {/* Right section: latency text + timeline bar */}
         <div className="span-tree-timing flex-shrink-0 flex items-center gap-2" style={{ width: 150 }}>
-          <span className="latency-text text-[11px] font-mono text-[rgb(var(--muted-foreground))] text-right" style={{ minWidth: '2.5rem' }}>
+          <span className="latency-text text-right font-mono text-[11px] text-label-2" style={{ minWidth: '2.5rem' }}>
             {formatLatency(span.latencyMs)}
           </span>
           <div className="flex-1">
@@ -209,7 +202,7 @@ function SpanRow({ node, depth, isLast, parentLines, selectedSpanId, onSelect, t
       {/* "Show N hidden spans" when collapsed with children */}
       {!expanded && totalDescendants > 0 && (
         <button
-          className="flex items-center gap-1 text-[11px] text-blue-400 hover:text-blue-300 cursor-pointer py-0.5 transition-colors"
+          className="flex cursor-pointer items-center gap-1 py-0.5 text-[11px] font-medium text-accent-text transition-opacity duration-150 hover:opacity-80"
           style={{ paddingLeft: (depth + 1) * NESTING_INDENT + 40 }}
           onClick={handleToggle}
         >
@@ -221,6 +214,9 @@ function SpanRow({ node, depth, isLast, parentLines, selectedSpanId, onSelect, t
 }
 
 /* ── TraceTree ── */
+
+const TOOL_BUTTON_CLASS =
+  'flex h-7 w-7 items-center justify-center rounded-full text-label-2 transition-colors duration-150 hover:bg-fill hover:text-foreground';
 
 interface TraceTreeProps {
   tree: SpanTreeNode;
@@ -246,23 +242,23 @@ export function TraceTree({ tree, traceStartTime, traceLatencyMs }: TraceTreePro
       data-testid="trace-tree"
     >
       {/* ── Toolbar — Phoenix-style ── */}
-      <div className="flex items-center justify-between px-2 border-b border-[rgb(var(--border))]"
+      <div className="flex items-center justify-between border-b border-border pl-3 pr-1.5"
         style={{ height: 40, flexShrink: 0 }}
       >
-        <span className="text-xs font-semibold text-[rgb(var(--muted-foreground))] uppercase tracking-wider">
+        <span className="text-[11px] font-bold uppercase tracking-[.06em] text-label-3">
           Spans
         </span>
         <div className="flex items-center gap-1">
           <button
             onClick={handleExpandAll}
-            className="flex items-center justify-center w-7 h-7 rounded text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))] hover:bg-[rgb(var(--accent))]/30 transition-colors"
+            className={TOOL_BUTTON_CLASS}
             title="Expand all"
           >
             <ChevronsDownUp className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={handleCollapseAll}
-            className="flex items-center justify-center w-7 h-7 rounded text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))] hover:bg-[rgb(var(--accent))]/30 transition-colors"
+            className={TOOL_BUTTON_CLASS}
             title="Collapse all"
           >
             <ChevronsUpDown className="w-3.5 h-3.5" />
@@ -271,7 +267,7 @@ export function TraceTree({ tree, traceStartTime, traceLatencyMs }: TraceTreePro
       </div>
 
       {/* ── Tree List ── */}
-      <div className="flex-1 overflow-auto" key={treeKey}>
+      <div className="flex-1 overflow-auto py-1" key={treeKey}>
         <SpanRow
           node={tree}
           depth={0}

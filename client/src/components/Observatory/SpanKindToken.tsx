@@ -1,4 +1,5 @@
-// Phoenix-style SpanKindToken — pill badge with auto-derived colors via lch()
+// Phoenix-style SpanKindToken — pill badge with auto-derived colors
+// EX8.6: Lumen badge recipe (radius 6px, ~14% tint, ~30% border), works in light + dark
 // @see temp/phoenix/app/src/components/trace/SpanKindToken.tsx
 
 import { getSpanKindTokenColor } from './constants';
@@ -16,13 +17,11 @@ const SIZE_MAP = {
 } as const;
 
 /**
- * Phoenix-style token badge that uses CSS lch() color functions
- * to auto-derive bg/border/text from a single base color.
- *
- * Dark theme formula (from Phoenix):
- *   bg:     lch(from <color> 18 calc(c * 0.2) h)
- *   border: lch(from <color> 28 calc(c * 0.3) h)
- *   text:   lch(from <color> 90 calc(c * 0.8) h)
+ * Token badge that derives bg/border/text from a single kind colour with
+ * color-mix(), following the Lumen status-badge recipe:
+ *   bg:     kind colour at 14%
+ *   border: kind colour at 30%
+ *   text:   kind colour mixed toward the label colour (lighter in dark, darker in light)
  */
 export function SpanKindToken({ kind, size = 'M', className = '' }: SpanKindTokenProps) {
   const baseColor = getSpanKindTokenColor(kind);
@@ -30,14 +29,12 @@ export function SpanKindToken({ kind, size = 'M', className = '' }: SpanKindToke
 
   return (
     <span
-      className={`phoenix-token inline-flex items-center rounded-full px-2 font-medium select-none ${sizeClass} ${className}`}
+      className={`phoenix-token inline-flex items-center rounded-[6px] border px-1.5 font-semibold select-none ${sizeClass} ${className}`}
       style={{
         '--internal-token-color': baseColor,
-        backgroundColor: `lch(from ${baseColor} 18 calc(c * 0.2) h)`,
-        borderColor: `lch(from ${baseColor} 28 calc(c * 0.3) h)`,
-        color: `lch(from ${baseColor} 90 calc(c * 0.8) h)`,
-        borderWidth: '1px',
-        borderStyle: 'solid',
+        backgroundColor: `color-mix(in srgb, ${baseColor} 14%, transparent)`,
+        borderColor: `color-mix(in srgb, ${baseColor} 30%, transparent)`,
+        color: `color-mix(in srgb, ${baseColor} 62%, var(--lumen-label))`,
       } as React.CSSProperties}
     >
       <span className="truncate">{kind.toLowerCase()}</span>

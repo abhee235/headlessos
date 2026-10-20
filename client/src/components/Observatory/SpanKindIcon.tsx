@@ -3,6 +3,7 @@
 // @see temp/phoenix/app/src/components/trace/SpanKindIcon.tsx
 
 import { getSpanKindColor, getStatusColor } from './constants';
+import { cn } from '@/lib/utils';
 
 /* ═══════════════════════════════════════════════════════════
    SpanKindIcon — main exported component
@@ -55,7 +56,7 @@ export function SpanKindIcon({ kind, variant = 'fill', size = 20, className }: S
     <div
       style={{ color, width: size, height: size, flexShrink: 0 }}
       title={kind}
-      className={className}
+      className={cn('[&>svg]:h-full [&>svg]:w-full', className)}
     >
       {icon}
     </div>
@@ -97,8 +98,8 @@ export function SpanStatusIcon({ status, size = 16, className }: SpanStatusIconP
     case 'RUNNING':
       icon = (
         <svg width={size} height={size} viewBox="0 0 16 16" fill="none" className="animate-pulse">
-          <circle cx="8" cy="8" r="7" stroke="rgb(59, 130, 246)" strokeWidth="1.5" />
-          <circle cx="8" cy="8" r="3" fill="rgb(59, 130, 246)" opacity="0.5" />
+          <circle cx="8" cy="8" r="7" stroke={color} strokeWidth="1.5" />
+          <circle cx="8" cy="8" r="3" fill={color} opacity="0.5" />
         </svg>
       );
       break;

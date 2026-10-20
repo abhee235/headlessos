@@ -1,4 +1,5 @@
 // EX4-E.3: Timeline Bar — Phoenix-style horizontal bar showing span duration relative to trace
+// EX8.6: recessed bg-chip track; the bar keeps its span-kind colour
 // @see docs/phases/phase-ex4.md
 
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
@@ -36,12 +37,10 @@ export function TimelineBar({
       <Tooltip>
         <TooltipTrigger asChild>
           <div
-            className="relative w-full"
+            className="relative w-full overflow-hidden bg-chip"
             style={{
               height: TIMELINE_BAR_HEIGHT,
               borderRadius: TIMELINE_BAR_RADIUS,
-              backgroundColor: 'rgb(var(--border))',
-              overflow: 'hidden',
             }}
           >
             <div
