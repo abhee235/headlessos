@@ -483,13 +483,9 @@ export function SpanDetailPanel() {
       {/* ── Tab content — kind-colored active indicator ── */}
       <Tabs defaultValue="io" className="flex-1 flex flex-col min-h-0">
         <div className="flex-shrink-0 border-b border-border px-4 pb-2.5">
-          <TabsList className="h-[34px]">
+          <TabsList>
             {(['io', 'attributes', 'json'] as const).map((tab) => (
-              <TabsTrigger
-                key={tab}
-                value={tab}
-                className="h-7 px-3.5 text-xs"
-              >
+              <TabsTrigger key={tab} value={tab}>
                 {tab === 'io' ? 'Inputs / Outputs' : tab === 'attributes' ? 'Attributes' : 'JSON'}
               </TabsTrigger>
             ))}

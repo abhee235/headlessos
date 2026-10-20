@@ -355,7 +355,7 @@ export function StartMenu() {
                       <button
                         key={`saved-pinned-${app.id}`}
                         className={cn(
-                          'flex h-[34px] items-center gap-2 rounded-full border border-edge bg-mat px-3 text-[13px] font-medium transition-colors',
+                          'flex h-9 items-center gap-2 rounded-full border border-edge bg-mat px-3 text-[13px] font-medium transition-colors',
                           isConnected ? 'hover:bg-mat-thick' : 'cursor-not-allowed opacity-40',
                         )}
                         disabled={!isConnected}

@@ -88,14 +88,14 @@ export function FileActions({ serverId, currentPath, onComplete }: FileActionsPr
     <div className="flex items-center gap-1">
       <button
         onClick={() => setCreatingType('file')}
-        className="grid h-[34px] w-[34px] place-items-center rounded-full text-label-2 transition-colors duration-150 hover:bg-fill hover:text-foreground"
+        className="grid size-9 place-items-center rounded-full text-label-2 transition-colors duration-150 hover:bg-fill hover:text-foreground"
         title="New File"
       >
         <FilePlus className="h-[18px] w-[18px]" strokeWidth={1.75} />
       </button>
       <button
         onClick={() => setCreatingType('folder')}
-        className="grid h-[34px] w-[34px] place-items-center rounded-full text-label-2 transition-colors duration-150 hover:bg-fill hover:text-foreground"
+        className="grid size-9 place-items-center rounded-full text-label-2 transition-colors duration-150 hover:bg-fill hover:text-foreground"
         title="New Folder"
       >
         <FolderPlus className="h-[18px] w-[18px]" strokeWidth={1.75} />

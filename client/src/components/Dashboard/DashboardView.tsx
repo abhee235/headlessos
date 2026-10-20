@@ -248,7 +248,7 @@ function HeaderChip({ icon, title, children }: { icon: ReactNode; title: string;
   return (
     <span
       title={title}
-      className="inline-flex h-[34px] items-center gap-1.5 rounded-full border border-edge bg-mat px-3.5 text-[13px] font-medium tabular-nums text-foreground shadow-[var(--lumen-spec)] [&_svg]:h-[15px] [&_svg]:w-[15px] [&_svg]:text-label-2"
+      className="inline-flex h-9 items-center gap-1.5 rounded-full border border-edge bg-mat px-3.5 text-[13px] font-medium tabular-nums text-foreground shadow-[var(--lumen-spec)] [&_svg]:h-[15px] [&_svg]:w-[15px] [&_svg]:text-label-2"
     >
       {icon}
       {children}
