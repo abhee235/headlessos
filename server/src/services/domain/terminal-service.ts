@@ -15,6 +15,8 @@ export interface ShellOptions {
   rows?: number;
   cols?: number;
   term?: string;
+  /** EX7: if set (validated hex container id), exec into this container. */
+  containerId?: string;
 }
 
 export interface TerminalSessionCallbacks {
@@ -70,6 +72,13 @@ export class TerminalService extends BaseService {
       cols: opts.cols ?? 80,
       term: opts.term ?? 'xterm-256color',
     });
+
+    // EX7: exec into a container if requested. containerId is a validated hex id
+    // (see routes/terminal.ts); `exec` replaces the shell so exiting the container
+    // shell ends the SSH session cleanly.
+    if (opts.containerId) {
+      shell.write(`exec docker exec -it ${opts.containerId} sh\n`);
+    }
 
     const buffer = new TerminalBuffer();
 

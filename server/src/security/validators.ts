@@ -65,8 +65,11 @@ export const ALLOWED_COMMANDS = new Map<string, CommandRule>([
   ['crontab', { pattern: /^crontab\s+-l(\s+-u\s+[\w.-]+)?$/, risk: 'none' }],
   ['crontab list 2>&1', { pattern: /^crontab\s+-l\s+2>&1$/, risk: 'none' }],
   ['cat /etc/crontab', { pattern: /^cat\s+\/etc\/crontab$/, risk: 'none' }],
-  ['crontab write', { pattern: /^\(crontab\s+-l\s+2>\/dev\/null/, risk: 'high' }],
-  ['crontab replace', { pattern: /^echo\s+'/, risk: 'high' }],
+  // NOTE: cron add/edit is performed directly by the serveradmin cron routes
+  // (which build + shell-escape their own commands), NOT through validateCommand.
+  // The old permissive `echo '…'` and `(crontab -l …` allowlist entries were only
+  // reachable via dynamic-ui execute-action and let arbitrary `echo '…'` through —
+  // removed to shrink that attack surface.
 
   // Nginx
   ['nginx -t', { pattern: /^(sudo\s+)?nginx\s+-t(\s+2>&1)?$/, risk: 'low' }],
@@ -156,6 +159,13 @@ export const BLOCKED_COMMANDS: RegExp[] = [
   /\bchown\s+-R\s+.*\s+\/$/,    // recursive chown from root
   /\b>\s*\/etc\//,              // redirect to /etc
   /\biptables\s+-F\b/,          // flush all iptables rules
+  // Metacharacter-free escalations (not caught by the chaining check):
+  /\s-exec(dir)?\b/,            // find … -exec/-execdir → arbitrary exec
+  /\bnsenter\b/,                // enter host namespaces (container escape)
+  /\btar\b[\s\S]*--to-command/, // tar --to-command → arbitrary exec
+  /\|\s*(ba|z|k|c|a)?sh\b/,     // pipe to a shell (generalizes curl|sh, wget|sh)
+  // Dangerous `docker run` flags → host root / container escape:
+  /\bdocker\s+run\b[\s\S]*(--privileged|--cap-add|--pid[ =]host|--network[ =]host|--ipc[ =]host|--device\b|--volume[= ]\/:|-v\s+\/:|\/var\/run\/docker\.sock)/,
 ];
 
 // ---------------------------------------------------------------------------
@@ -212,6 +222,13 @@ export function validateCommand(command: string): CommandRule {
   // Check blocklist first (takes precedence)
   if (isBlockedCommand(trimmed)) {
     throw new SecurityError(`Blocked command detected: ${trimmed.substring(0, 50)}...`);
+  }
+
+  // Reject shell constructs that enable command chaining or substitution. No
+  // allowlisted command legitimately uses these — they only appear in injection
+  // attempts (e.g. `docker logs x; id`). Single `|`, `>`, and `2>&1` remain allowed.
+  if (/[;`\r\n]/.test(trimmed) || /\$\(|\$\{/.test(trimmed) || /&&|\|\|/.test(trimmed)) {
+    throw new SecurityError('Command contains disallowed shell metacharacters');
   }
 
   // Check allowlist

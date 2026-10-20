@@ -262,7 +262,7 @@ Before releasing any feature:
 - [ ] All user inputs validated before use in commands
 - [ ] No string interpolation in shell commands without validation
 - [ ] File operations use SFTP, not shell commands
-- [ ] Path traversal tested and blocked
+- [ ] File paths normalized via `validateAndSanitizePath` and operated on as normalized (null-byte-free, absolute, `BLOCKED_PATHS` enforced). NOTE: the file manager intentionally allows any absolute path the SSH account can reach — access is bounded by the server's own Unix permissions, not by path confinement. See `docs/SECURITY_AUDIT.md`.
 - [ ] Destructive actions require confirmation
 - [ ] Command allowlist covers the new feature
 - [ ] Audit logging covers the new endpoints

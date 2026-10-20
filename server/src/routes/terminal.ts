@@ -1,8 +1,9 @@
-// M1.5 + EX1.11 + M12.8: Terminal WebSocket Bridge — thin route, delegates to TerminalService
-// @see docs/phases/phase-1.md, docs/phases/phase-ex1.md, docs/phases/phase-12.md
+// M1.5 + EX1.11 + M12.8 + EX7: Terminal WebSocket Bridge — thin route, delegates to TerminalService
+// @see docs/phases/phase-1.md, docs/phases/phase-ex1.md, docs/phases/phase-12.md, docs/phases/phase-ex7.md
 
 import type { FastifyInstance } from 'fastify';
 import type { TerminalService, TerminalSession } from '../services/domain/terminal-service.js';
+import { validateContainerId } from '../security/validators.js';
 
 interface TerminalRouteOpts {
   terminalService: TerminalService;
@@ -16,6 +17,10 @@ export async function terminalRoutes(
 
   fastify.get('/ws/terminal/:serverId', { websocket: true }, (socket, req) => {
     const { serverId } = req.params as { serverId: string };
+    // EX7: optional ?container=<hex id> drops the session straight into that
+    // container via `docker exec -it`. Validated as hex to prevent injection.
+    const containerParam = (req.query as { container?: string } | undefined)?.container;
+    const containerId = containerParam && validateContainerId(containerParam) ? containerParam : undefined;
 
     const setup = async () => {
       let session: TerminalSession;
@@ -23,7 +28,7 @@ export async function terminalRoutes(
       try {
         session = await terminalService.openSession(
           serverId,
-          { rows: 24, cols: 80 },
+          { rows: 24, cols: 80, containerId },
           {
             onData: (data) => {
               if (socket.readyState === 1) socket.send(data);
@@ -96,4 +101,3 @@ export async function terminalRoutes(
     setup();
   });
 }
-

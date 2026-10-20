@@ -9,7 +9,7 @@
 
 import { posix } from 'path';
 import { DomainService, ok, fail, type ServiceResult } from './base.js';
-import { validatePath, shellEscape } from '../../security/validators.js';
+import { validatePath, validateAndSanitizePath, shellEscape } from '../../security/validators.js';
 import type { FileEntry, FileStatInfo } from 'headlessos-shared';
 import type { SFTPWrapper } from 'ssh2';
 
@@ -29,13 +29,17 @@ export class FilesService extends DomainService {
   }
 
   private validPath(path: string | undefined, field = 'path'): string {
-    if (!path || !validatePath(path)) {
+    // Operate on the NORMALIZED path (validateAndSanitizePath also enforces
+    // absolute, no null bytes, and BLOCKED_PATHS) rather than the raw input.
+    try {
+      if (!path) throw new Error('missing path');
+      return validateAndSanitizePath(path);
+    } catch {
       throw Object.assign(
         new Error(`Invalid ${field}: must be an absolute path without traversal`),
         { statusCode: 400 },
       );
     }
-    return path;
   }
 
   // ── List directory ────────────────────────────────────

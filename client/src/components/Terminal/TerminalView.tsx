@@ -85,9 +85,11 @@ interface TerminalViewProps {
   serverId: string;
   /** EX1.11: Called when user clicks "Visualize" with the raw terminal output */
   onVisualize?: (rawOutput: string, suggestedTool: string) => void;
+  /** EX7: if set, the session execs into this container (docker exec -it). */
+  containerId?: string;
 }
 
-export function TerminalView({ serverId, onVisualize }: TerminalViewProps) {
+export function TerminalView({ serverId, onVisualize, containerId }: TerminalViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -192,7 +194,7 @@ export function TerminalView({ serverId, onVisualize }: TerminalViewProps) {
     fitRef.current = fitAddon;
 
     // WebSocket
-    const ws = new WebSocket(terminalWsUrl(serverId));
+    const ws = new WebSocket(terminalWsUrl(serverId, containerId));
     ws.binaryType = 'arraybuffer';
     wsRef.current = ws;
 

@@ -167,6 +167,14 @@ export const BLOCKED_PATTERNS: RegExp[] = [
   />\s*\/etc\//,
   /sudo\s+su/,
   /passwd/,
+  // Escalations that bypass the read-only intent (H2):
+  /\s-exec(dir)?\b/,                 // find … -exec/-execdir → arbitrary exec
+  /\bnsenter\b/,                     // host namespace escape
+  /\btar\b[\s\S]*--to-command/,     // tar --to-command → arbitrary exec
+  /\bawk\b[\s\S]*system\s*\(/,      // awk system() → exec
+  /\bawk\b[\s\S]*\|\s*&/,           // awk getline from a coprocess/pipe
+  /\bgetline\b/,                     // awk getline cmd
+  /\bdocker\s+run\b[\s\S]*(--privileged|--cap-add|--pid[ =]host|--network[ =]host|--ipc[ =]host|--device\b|--volume[= ]\/:|-v\s+\/:|\/var\/run\/docker\.sock)/,
 ];
 
 // ── Safe Pipe Filters ───────────────────────────────────
@@ -178,8 +186,9 @@ export const PIPE_FILTERS: RegExp[] = [
   /^sort(\s+-[a-zA-Z0-9]+)*$/,
   /^uniq(\s+-[cd]+)?$/,
   /^wc\s+/,
-  /^awk\s+/,
-  /^sed\s+/,
+  // NOTE: awk and sed were removed as pipe filters — both can execute shell
+  // commands (awk system()/getline, GNU sed `e`), so they are not "safe" read
+  // filters. The agent can still use grep/cut/head/tail/sort/uniq/wc/tr/column.
   /^cut\s+/,
   /^tr\s+/,
   /^column\s+/,
@@ -195,6 +204,16 @@ export const WRITE_ALLOWED_PATHS: RegExp[] = [
   /^\/var\/www\//,                   // Web roots
   /^\/etc\/nginx\/sites-(available|enabled)\//,  // Nginx configs
   /^\/opt\//,                        // Optional software
+];
+
+// Files that must NEVER be written, even inside an allowed root — writing these
+// creates a persistent backdoor or privilege escalation (M3).
+const WRITE_DENIED_PATTERNS: RegExp[] = [
+  /(^|\/)\.ssh(\/|$)/,               // ~/.ssh (authorized_keys, config, keys)
+  /(^|\/)authorized_keys2?$/,
+  /(^|\/)\.(bashrc|bash_profile|bash_login|bash_logout|profile|zshrc|zprofile|zlogin|zshenv|kshrc|cshrc|tcshrc|login|logout|inputrc|netrc|pgpass|git-credentials)$/,
+  /(^|\/)sudoers(\.d)?(\/|$)/,
+  /(^|\/)crontab$/,
 ];
 
 // ── Validation Functions ────────────────────────────────
@@ -260,6 +279,9 @@ export function isWritePathAllowed(path: string): boolean {
 
   // Block path traversal
   if (normalized.includes('..')) return false;
+
+  // Block sensitive files even inside allowed roots (persistence/backdoor).
+  if (WRITE_DENIED_PATTERNS.some(re => re.test(normalized))) return false;
 
   return WRITE_ALLOWED_PATHS.some(re => re.test(normalized));
 }

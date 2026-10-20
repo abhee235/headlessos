@@ -189,9 +189,12 @@ export class SecurityAdminService extends DomainService {
   ): Promise<ServiceResult<{ message: string }>> {
     this.requireConnected(serverId);
     if (!validateUsername(username)) return fail('Invalid username', 400);
+    // SECURITY (C2): escape the ENTIRE "user:pass" string once. Wrapping
+    // shellEscape() output in extra quotes (echo '...') breaks the quoting and
+    // leaves the password unquoted → command injection.
     return this.execAction(
       serverId,
-      `echo '${shellEscape(username)}:${shellEscape(password)}' | sudo chpasswd`,
+      `echo ${shellEscape(`${username}:${password}`)} | sudo chpasswd`,
       `Password set for "${username}"`,
       10_000,
     );

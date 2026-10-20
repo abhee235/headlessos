@@ -19,7 +19,10 @@ import {
   Search,
   X,
   Download,
+  FolderOpen,
+  SquareTerminal,
 } from 'lucide-react';
+import { useDesktopStore } from '../../store/window-store';
 import { Spinner } from '@/components/ui/spinner';
 import { LoadingView } from '@/components/ui/loading-view';
 import type {
@@ -186,6 +189,7 @@ function ContainersTab({
 }) {
   const [search, setSearch] = useState('');
   const [actionBusy, setActionBusy] = useState<string | null>(null);
+  const openWindow = useDesktopStore((s) => s.openWindow);
 
   const filtered = containers.filter(
     (c) =>
@@ -326,6 +330,18 @@ function ContainersTab({
                     <FileText className="w-4 h-4 mr-2 opacity-60" />
                     View Logs
                   </ContextMenuItem>
+                  {c.state === 'running' && (
+                    <>
+                      <ContextMenuItem onClick={() => openWindow('container-files', serverId, `Files — ${c.name}`, 'FolderOpen', { containerId: c.id, containerName: c.name })}>
+                        <FolderOpen className="w-4 h-4 mr-2 opacity-60" />
+                        Open Files
+                      </ContextMenuItem>
+                      <ContextMenuItem onClick={() => openWindow('container-shell', serverId, `Shell — ${c.name}`, 'SquareTerminal', { containerId: c.id, containerName: c.name })}>
+                        <SquareTerminal className="w-4 h-4 mr-2 opacity-60" />
+                        Open Shell
+                      </ContextMenuItem>
+                    </>
+                  )}
                   <ContextMenuSeparator />
                   <ContextMenuItem
                     className="text-destructive"
