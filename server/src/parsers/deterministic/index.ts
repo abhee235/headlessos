@@ -8,6 +8,7 @@ import { ipParser } from './ip.js';
 import { systemInfoParser } from './system-info.js';
 import { psAuxParser } from './ps-aux.js';
 import { cpuStatsParser } from './cpu-stats.js';
+import { procStatParser } from './proc-stat.js';
 import { netDevParser } from './net-dev.js';
 import { diskStatsParser } from './disk-stats.js';
 
@@ -35,6 +36,7 @@ export const allParsers: DeterministicParser[] = [
   systemInfoParser,
   psAuxParser,
   cpuStatsParser,
+  procStatParser,
   netDevParser,
   diskStatsParser,
   // Server Admin (M7.2)

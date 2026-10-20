@@ -39,6 +39,7 @@ export const ALLOWED_COMMANDS = new Map<string, CommandRule>([
   ['ps -o', { pattern: /^ps\s+-o\s+nlwp=,ni=,lstart=\s+-p\s+\d{1,7}$/, risk: 'none' }],
   ['cat /proc/cpuinfo', { pattern: /^cat\s+\/proc\/cpuinfo$/, risk: 'none' }],
   ['cat /proc/meminfo', { pattern: /^cat\s+\/proc\/meminfo$/, risk: 'none' }],
+  ['cat /proc/stat', { pattern: /^cat\s+\/proc\/stat$/, risk: 'none' }], // EX8.6: CPU usage deltas
   ['cat /etc/os-release', { pattern: /^cat\s+\/etc\/os-release$/, risk: 'none' }],
   ['lsb_release', { pattern: /^lsb_release\s+-[adsc]+$/, risk: 'none' }],
   ['who', { pattern: /^who(\s+-[abduHlmpqrsTt]+)*$/, risk: 'none' }],

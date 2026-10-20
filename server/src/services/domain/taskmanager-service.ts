@@ -10,13 +10,16 @@ import {
   CpuStatsSchema,
   NetworkIoSchema,
   DiskIoSchema,
+  ProcStatSchema,
 } from '../../parsers/schemas/taskmanager.js';
+import { computeCpuUsage, type CpuUsage } from '../../parsers/deterministic/proc-stat.js';
 import { MemoryInfoSchema as SystemMemorySchema } from '../../parsers/schemas/system.js';
 import type {
   ProcessListParsed,
   CpuStatsParsed,
   NetworkIoParsed,
   DiskIoParsed,
+  ProcStatParsed,
 } from '../../parsers/schemas/taskmanager.js';
 import type { MemoryInfoParsed } from '../../parsers/schemas/system.js';
 import type { ExecutionPlan } from '../../orchestrator/orchestrator.js';
@@ -73,6 +76,9 @@ export interface TaskManagerResult {
 }
 
 export class TaskManagerService extends DomainService {
+  /** EX8.6: previous /proc/stat sample + last computed usage, per server */
+  private cpuSamples = new Map<string, { stat: ProcStatParsed; usage: CpuUsage | null }>();
+
   protected async _construct(): Promise<void> {}
 
   // ── Full snapshot ────────────────────────────────────
@@ -93,6 +99,8 @@ export class TaskManagerService extends DomainService {
           { id: 'memory', command: 'free -m', schema: SystemMemorySchema, timeout: 10_000 },
           { id: 'network-io', command: 'cat /proc/net/dev', schema: NetworkIoSchema, timeout: 10_000 },
           { id: 'disk-io', command: 'cat /proc/diskstats', schema: DiskIoSchema, timeout: 10_000 },
+          // EX8.6: CPU % from counter deltas (top's one frame averages since boot)
+          { id: 'proc-stat', command: 'cat /proc/stat', schema: ProcStatSchema, timeout: 10_000 },
         ],
         parallel: true,
       };
@@ -102,12 +110,16 @@ export class TaskManagerService extends DomainService {
         plan,
         (results) => ({
           processes: (results.get('processes') ?? []) as ProcessListParsed,
-          cpu: (results.get('cpu') ?? {
-            overallPercent: 0, coreCount: 1, cores: [],
-            loadAverage: { one: 0, five: 0, fifteen: 0 },
-            processes: { total: 0, running: 0, sleeping: 0, stopped: 0, zombie: 0 },
-            uptime: 'unknown',
-          }) as CpuStatsParsed,
+          cpu: this.withProcStat(
+            serverId,
+            (results.get('cpu') ?? {
+              overallPercent: 0, coreCount: 1, cores: [],
+              loadAverage: { one: 0, five: 0, fifteen: 0 },
+              processes: { total: 0, running: 0, sleeping: 0, stopped: 0, zombie: 0 },
+              uptime: 'unknown',
+            }) as CpuStatsParsed,
+            results.get('proc-stat') as ProcStatParsed | undefined,
+          ),
           memory: (results.get('memory') ?? {
             totalMb: 0, usedMb: 0, freeMb: 0,
             availableMb: 0, swapTotalMb: 0, swapUsedMb: 0,
@@ -131,6 +143,25 @@ export class TaskManagerService extends DomainService {
       const e = err as Error & { statusCode?: number };
       return fail(e.message ?? 'Failed to fetch task manager data', e.statusCode ?? 500);
     }
+  }
+
+  /**
+   * EX8.6: Replace top's CPU percentages with /proc/stat deltas since this
+   * server's previous sample (every core, accurate). Two polls inside one clock
+   * tick reuse the last computed value; no sample keeps top's numbers.
+   */
+  private withProcStat(serverId: string, cpu: CpuStatsParsed, stat: ProcStatParsed | undefined): CpuStatsParsed {
+    if (!stat || stat.length === 0) return cpu;
+    const prev = this.cpuSamples.get(serverId);
+    const usage = computeCpuUsage(prev?.stat, stat) ?? prev?.usage ?? null;
+    this.cpuSamples.set(serverId, { stat, usage });
+    if (!usage) return cpu;
+    return {
+      ...cpu,
+      overallPercent: usage.overallPercent,
+      cores: usage.cores,
+      coreCount: Math.max(cpu.coreCount, usage.cores.length),
+    };
   }
 
   // ── Kill process ─────────────────────────────────────

@@ -53,6 +53,19 @@ export const CpuStatsSchema = z.object({
 
 export type CpuStatsParsed = z.infer<typeof CpuStatsSchema>;
 
+// ── CPU counters (/proc/stat) — EX8.6 ──────────────────
+// id -1 is the aggregate "cpu" line; busy/total are cumulative jiffies.
+
+export const ProcStatSchema = z.array(
+  z.object({
+    id: z.number().int().min(-1),
+    busy: z.number().nonnegative(),
+    total: z.number().nonnegative(),
+  }),
+);
+
+export type ProcStatParsed = z.infer<typeof ProcStatSchema>;
+
 // ── Network I/O (/proc/net/dev) ─────────────────────────
 
 export const NetworkIoEntrySchema = z.object({

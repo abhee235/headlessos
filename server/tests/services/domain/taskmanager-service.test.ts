@@ -135,6 +135,42 @@ describe('TaskManagerService', () => {
   });
 
   // ── EX8.6: suspend / resume + process detail ──
+  describe('CPU from /proc/stat deltas (EX8.6)', () => {
+    const topCpu = {
+      overallPercent: 0, coreCount: 4, cores: [{ id: 0, percent: 0 }, { id: 2, percent: 0 }],
+      loadAverage: { one: 1, five: 1, fifteen: 1 },
+      processes: { total: 1, running: 1, sleeping: 0, stopped: 0, zombie: 0 }, uptime: '1h',
+    };
+    const stat = (busy: number, total: number) => [
+      { id: -1, busy: busy * 2, total: total * 2 },
+      { id: 0, busy, total },
+      { id: 1, busy, total },
+    ];
+    function runWith(procStat: unknown) {
+      orch.execute.mockImplementation(async (_s: string, _plan: unknown, merge: (m: Map<string, unknown>) => unknown) => ({
+        data: merge(new Map<string, unknown>([['cpu', topCpu], ['proc-stat', procStat]])),
+        steps: [],
+        totalLatencyMs: 1,
+      }));
+      return svc.getSnapshot('s1');
+    }
+
+    it('replaces top percentages with deltas since the previous poll, all cores', async () => {
+      await runWith(stat(100, 1000));               // first sample: since boot
+      const r = await runWith(stat(400, 2000));      // +300 busy of +1000
+      const cpu = r.data!.data.cpu;
+      expect(cpu.overallPercent).toBe(30);
+      expect(cpu.cores).toEqual([{ id: 0, percent: 30 }, { id: 1, percent: 30 }]);
+      expect(cpu.coreCount).toBe(4);                 // nproc from top still wins when larger
+      expect(cpu.loadAverage.one).toBe(1);           // other top fields untouched
+    });
+
+    it('keeps top numbers when /proc/stat is unavailable', async () => {
+      const r = await runWith(undefined);
+      expect(r.data!.data.cpu.cores).toEqual(topCpu.cores);
+    });
+  });
+
   describe('killProcess suspend/resume (EX8.6)', () => {
     it('sends SIGSTOP (19) and SIGCONT (18)', async () => {
       ssh.exec.mockResolvedValue(execOk('', 0));
