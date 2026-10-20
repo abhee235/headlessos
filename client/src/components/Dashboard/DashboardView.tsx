@@ -45,6 +45,33 @@ export function DashboardView({ serverId }: DashboardViewProps) {
     prevNetRef.current = null;
   }, [serverId]);
 
+  // CPU + throughput from the Task Manager endpoint
+  const applyTaskManager = useCallback((res: Awaited<ReturnType<typeof fetchTaskManager>>) => {
+    if (!res.success || !res.data) return;
+    const tm = res.data;
+    setCpu(tm.cpu);
+
+    // Throughput = byte-counter delta / wall time between samples
+    const rx = tm.networkIo.reduce((s, n) => s + n.rxBytes, 0);
+    const tx = tm.networkIo.reduce((s, n) => s + n.txBytes, 0);
+    const at = Date.now();
+    const prev = prevNetRef.current;
+    const secs = prev ? (at - prev.at) / 1000 : 0;
+    // Samples closer than 1s (overlapping loads) would give a spiky rate — keep the
+    // older baseline and wait for the next one.
+    if (!prev || secs >= 1) {
+      if (prev) {
+        const point: NetRatePoint = {
+          time: at,
+          rx: Math.max(0, rx - prev.rx) / secs,
+          tx: Math.max(0, tx - prev.tx) / secs,
+        };
+        setNetHistory((h) => [...h, point].slice(-NET_HISTORY));
+      }
+      prevNetRef.current = { rx, tx, at };
+    }
+  }, []);
+
   const loadData = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
@@ -70,39 +97,24 @@ export function DashboardView({ serverId }: DashboardViewProps) {
       setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
     }
 
-    if (tmResult.status === 'fulfilled' && tmResult.value.success && tmResult.value.data) {
-      const tm = tmResult.value.data;
-      setCpu(tm.cpu);
-
-      // Throughput = byte-counter delta / wall time between samples
-      const rx = tm.networkIo.reduce((s, n) => s + n.rxBytes, 0);
-      const tx = tm.networkIo.reduce((s, n) => s + n.txBytes, 0);
-      const at = Date.now();
-      const prev = prevNetRef.current;
-      const secs = prev ? (at - prev.at) / 1000 : 0;
-      // Samples closer than 1s (overlapping loads) would give a spiky rate — keep the
-      // older baseline and wait for the next one.
-      if (!prev || secs >= 1) {
-        if (prev) {
-          const point: NetRatePoint = {
-            time: at,
-            rx: Math.max(0, rx - prev.rx) / secs,
-            tx: Math.max(0, tx - prev.tx) / secs,
-          };
-          setNetHistory((h) => [...h, point].slice(-NET_HISTORY));
-        }
-        prevNetRef.current = { rx, tx, at };
-      }
-    }
+    if (tmResult.status === 'fulfilled') applyTaskManager(tmResult.value);
 
     setLoading(false);
     setRefreshing(false);
-  }, [serverId]);
+  }, [serverId, applyTaskManager]);
 
-  // Initial load
+  // Initial load, plus two early CPU/network-only samples. Throughput is a
+  // delta between samples and the chart needs two points, so without these
+  // the Network card would wait for the auto-refresh (30s by default).
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    void loadData();
+    const seeds = [3000, 6000].map((ms) =>
+      setTimeout(() => {
+        fetchTaskManager(serverId).then(applyTaskManager).catch(() => {});
+      }, ms),
+    );
+    return () => seeds.forEach(clearTimeout);
+  }, [loadData, serverId, applyTaskManager]);
 
   // Auto-refresh based on preference
   const autoRefreshInterval = usePreferencesStore(s => s.autoRefreshInterval);
