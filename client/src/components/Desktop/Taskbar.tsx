@@ -218,16 +218,13 @@ function SystemTray() {
           aria-expanded={qsOpen}
           title={activeServer ? `${activeServer.name} — ${isConnected ? 'Connected' : 'Disconnected'}` : 'Quick settings'}
         >
-          <span className="flex items-center gap-2">
-            {isConnected ? (
-              <Wifi strokeWidth={1.75} />
-            ) : (
-              <WifiOff strokeWidth={1.75} className="text-label-3" />
-            )}
-            {activeServer && (
-              <span className="max-w-24 truncate text-[13px] font-semibold">{activeServer.name}</span>
-            )}
-          </span>
+          {/* Server name lives in the tooltip, launcher and session switcher;
+              keeping the pill glyph-only stops it colliding with a wide dock. */}
+          {isConnected ? (
+            <Wifi strokeWidth={1.75} />
+          ) : (
+            <WifiOff strokeWidth={1.75} className="text-label-3" />
+          )}
           {showToasts ? <Bell strokeWidth={1.75} /> : <BellOff strokeWidth={1.75} className="text-label-2" />}
           {resolvedTheme === 'dark' ? <Moon strokeWidth={1.75} /> : <Sun strokeWidth={1.75} />}
         </button>
@@ -310,7 +307,7 @@ export function Taskbar() {
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
-            className="glass-heavy shadow-dock absolute bottom-[14px] left-1/2 z-[9999] flex h-[72px] max-w-[calc(100vw-320px)] -translate-x-1/2 items-center gap-2.5 rounded-[30px] pl-2.5 pr-3"
+            className="glass-heavy shadow-dock absolute bottom-[14px] left-1/2 z-[9999] flex h-[72px] max-w-[calc(100vw-560px)] -translate-x-1/2 items-center gap-2.5 rounded-[30px] pl-2.5 pr-3"
             role="toolbar"
             aria-label="Dock"
           >
