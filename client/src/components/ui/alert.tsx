@@ -4,13 +4,14 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const alertVariants = cva(
-  "relative w-full rounded-xl border px-4 py-3 text-sm [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground [&>svg~*]:pl-7",
+  "relative w-full rounded-[20px] border px-5 py-4 text-[13px] [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-5 [&>svg]:top-[18px] [&>svg]:size-[18px] [&>svg]:text-label-2 [&>svg~*]:pl-8",
   {
     variants: {
       variant: {
-        default: "bg-background text-foreground",
+        // EX8.6: settings-style glass section; destructive is a danger tint
+        default: "lumen-section text-foreground",
         destructive:
-          "border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive",
+          "border-danger/30 bg-danger/14 text-danger [&>svg]:text-danger",
       },
     },
     defaultVariants: {
