@@ -19,6 +19,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { LoadingView } from '@/components/ui/loading-view';
 import {
   ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger,
 } from '@/components/ui/context-menu';
@@ -225,7 +226,7 @@ export function ContainerFilesView({ serverId, containerId, containerName }: Pro
 
       {/* Listing */}
       <div className={cn('flex min-h-0 flex-1 flex-col', editor && 'invisible')}>
-        {loading && <div className="px-5 py-4 text-label-2">Loading…</div>}
+        {loading && <LoadingView label="Loading files…" />}
         {error && !loading && (
           <div className="flex items-center gap-3 px-5 py-4 text-danger">
             <span>{error}</span>

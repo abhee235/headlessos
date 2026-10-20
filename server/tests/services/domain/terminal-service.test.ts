@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { EventEmitter } from 'node:events';
 import { ServiceContainer } from '../../../src/services/container.js';
-import { TerminalService } from '../../../src/services/domain/terminal-service.js';
+import { TerminalService, containerShellCommand } from '../../../src/services/domain/terminal-service.js';
 import { BaseService } from '../../../src/services/base-service.js';
 
 // ── Mocks ──────────────────────────────────────────────────────────
@@ -76,6 +76,25 @@ describe('TerminalService', () => {
       await svc.openSession('s1', {}, { onData: vi.fn(), onHint: vi.fn(), onClose: vi.fn(), onError: vi.fn() });
 
       expect(ssh.getShell).toHaveBeenCalledWith('s1', { rows: 24, cols: 80, term: 'xterm-256color' });
+    });
+
+    it('runs docker exec as the pty command for a container shell (EX8.6)', async () => {
+      const shell = makeMockShell();
+      ssh.getShell.mockResolvedValue(shell);
+
+      await svc.openSession(
+        's1',
+        { containerId: 'd9b820d8f084' },
+        { onData: vi.fn(), onHint: vi.fn(), onClose: vi.fn(), onError: vi.fn() },
+      );
+
+      expect(ssh.getShell).toHaveBeenCalledWith('s1', {
+        rows: 24, cols: 80, term: 'xterm-256color',
+        command: containerShellCommand('d9b820d8f084'),
+      });
+      expect(containerShellCommand('d9b820d8f084')).toMatch(/^docker exec -it d9b820d8f084 sh -c /);
+      // Nothing is typed into a login shell
+      expect(shell.write).not.toHaveBeenCalled();
     });
 
     it('propagates error when getShell rejects', async () => {

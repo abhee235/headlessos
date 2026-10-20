@@ -34,6 +34,9 @@ import {
   useLumenTerminalTheme,
 } from './lumen-terminal';
 
+/** Hide the connecting spinner after this long even if the shell prints nothing */
+const READY_FALLBACK_MS = 5000;
+
 /** EX1.11: Hint from backend about parseable terminal output */
 interface VisualizeHint {
   pattern: 'table' | 'json' | 'log' | 'config' | 'list';
@@ -162,8 +165,20 @@ export function TerminalView({ serverId, onVisualize, containerId }: TerminalVie
     ws.binaryType = 'arraybuffer';
     wsRef.current = ws;
 
-    ws.onopen = () => {
+    // The spinner stays up until the shell prints its first byte (a container
+    // shell takes a moment after the socket opens), with a fallback for a
+    // shell that prints nothing.
+    let ready = false;
+    let readyTimer: ReturnType<typeof setTimeout> | undefined;
+    const markReady = () => {
+      if (ready) return;
+      ready = true;
+      clearTimeout(readyTimer);
       setStatus('connected');
+    };
+
+    ws.onopen = () => {
+      readyTimer = setTimeout(markReady, READY_FALLBACK_MS);
 
       // Instead of AttachAddon, handle messages manually to intercept JSON control messages
       ws.onmessage = (event) => {
@@ -189,8 +204,10 @@ export function TerminalView({ serverId, onVisualize, containerId }: TerminalVie
           } catch {
             // Not JSON — write to terminal as normal text
           }
+          markReady();
           term.write(data);
         } else if (data instanceof ArrayBuffer) {
+          markReady();
           term.write(new Uint8Array(data));
         }
       };
@@ -210,11 +227,13 @@ export function TerminalView({ serverId, onVisualize, containerId }: TerminalVie
     };
 
     ws.onerror = () => {
+      clearTimeout(readyTimer);
       setStatus('error');
       term.writeln('\r\n\x1b[31m[Connection error]\x1b[0m');
     };
 
     ws.onclose = () => {
+      clearTimeout(readyTimer);
       setStatus('disconnected');
       term.writeln('\r\n\x1b[33m[Disconnected]\x1b[0m');
     };
@@ -237,6 +256,7 @@ export function TerminalView({ serverId, onVisualize, containerId }: TerminalVie
     resizeObserver.observe(containerRef.current);
 
     return () => {
+      clearTimeout(readyTimer);
       resizeObserver.disconnect();
     };
   }, [serverId, cleanup, fontFamily, fontSize, cursorStyle, scrollback]);
@@ -307,7 +327,10 @@ export function TerminalView({ serverId, onVisualize, containerId }: TerminalVie
             {/* Loading overlay */}
             {status === 'connecting' && (
               <div className="absolute inset-0 z-10 flex items-center justify-center">
-                <LoadingView label="Connecting…" />
+                <LoadingView
+                  label={containerId ? 'Opening container shell…' : 'Connecting…'}
+                  className="text-term-fg/80"
+                />
               </div>
             )}
 

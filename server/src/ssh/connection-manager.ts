@@ -18,6 +18,12 @@ export interface ShellOptions {
   rows?: number;
   cols?: number;
   term?: string;
+  /**
+   * EX8.6: run this command on a pty instead of a login shell (e.g. a
+   * `docker exec`). No MOTD, no echoed command line; the channel closes when
+   * the command exits. Callers must pass a validated command.
+   */
+  command?: string;
 }
 
 interface ServerConnection {
@@ -252,9 +258,16 @@ export class ConnectionManager extends BaseService {
 
   async getShell(serverId: string, options?: ShellOptions): Promise<ClientChannel> {
     const conn = this.requireConnection(serverId);
-    const { rows = 24, cols = 80, term = 'xterm-256color' } = options ?? {};
+    const { rows = 24, cols = 80, term = 'xterm-256color', command } = options ?? {};
 
     return new Promise<ClientChannel>((resolve, reject) => {
+      if (command) {
+        conn.client.exec(command, { pty: { rows, cols, term } }, (err, stream) => {
+          if (err) return reject(err);
+          resolve(stream);
+        });
+        return;
+      }
       conn.client.shell({ rows, cols, term }, (err, stream) => {
         if (err) return reject(err);
         resolve(stream);

@@ -67,18 +67,16 @@ export class TerminalService extends BaseService {
     opts: ShellOptions,
     callbacks: TerminalSessionCallbacks,
   ): Promise<TerminalSession> {
+    // EX7: exec into a container if requested. containerId is a validated hex id
+    // (see routes/terminal.ts). EX8.6: it runs as the pty's command rather than
+    // being typed into a login shell, so the user sees no MOTD or echoed
+    // `docker exec` line, and exiting the container shell ends the session.
     const shell = await this.connectionManager.getShell(serverId, {
       rows: opts.rows ?? 24,
       cols: opts.cols ?? 80,
       term: opts.term ?? 'xterm-256color',
+      ...(opts.containerId ? { command: containerShellCommand(opts.containerId) } : {}),
     });
-
-    // EX7: exec into a container if requested. containerId is a validated hex id
-    // (see routes/terminal.ts); `exec` replaces the shell so exiting the container
-    // shell ends the SSH session cleanly.
-    if (opts.containerId) {
-      shell.write(`exec docker exec -it ${opts.containerId} sh\n`);
-    }
 
     const buffer = new TerminalBuffer();
 
@@ -110,6 +108,11 @@ export class TerminalService extends BaseService {
 
     return createSession(shell, buffer);
   }
+}
+
+/** Prefer bash inside the container, fall back to sh (alpine, busybox) */
+export function containerShellCommand(containerId: string): string {
+  return `docker exec -it ${containerId} sh -c 'command -v bash >/dev/null && exec bash || exec sh'`;
 }
 
 // ── Session factory (pure, no class needed) ───────────────────────

@@ -5,7 +5,7 @@ import { lazy, Suspense } from 'react';
 import { useDesktopStore } from '../../store/window-store';
 import { useAppStore } from '../../store/app-store';
 import { WindowFrame } from './Window';
-import { Skeleton } from '@/components/ui/skeleton';
+import { LoadingView } from '@/components/ui/loading-view';
 
 // ── Lazy-loaded views (M10.10 — code splitting) ─────────
 const DashboardView = lazy(() => import('../Dashboard/DashboardView').then(m => ({ default: m.DashboardView })));
@@ -23,15 +23,9 @@ const UIAgentView = lazy(() => import('../Agent/UIAgentView').then(m => ({ defau
 const ObservatoryView = lazy(() => import('../Observatory/ObservatoryView').then(m => ({ default: m.ObservatoryView })));
 const ContainerFilesView = lazy(() => import('../Docker/ContainerFilesView').then(m => ({ default: m.ContainerFilesView })));
 
+/** Shown while an app's code chunk loads: the branded H spinner */
 function LazyFallback() {
-  return (
-    <div className="flex flex-col gap-3 p-4">
-      <Skeleton className="h-6 w-48" />
-      <Skeleton className="h-4 w-full" />
-      <Skeleton className="h-4 w-3/4" />
-      <Skeleton className="h-32 w-full" />
-    </div>
-  );
+  return <LoadingView />;
 }
 
 function WindowContent({ appId, serverId, windowId, meta }: { appId: string; serverId: string; windowId: string; meta?: Record<string, string> }) {

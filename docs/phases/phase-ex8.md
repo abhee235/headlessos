@@ -100,6 +100,14 @@ Found or asked for during the work; each has tests.
   can print only even cores). Task Manager and the Dashboard's CPU/network poll
   every 2 s; HeadlessOS's own probe commands are hidden from the process list,
   and a selected process that exits stays on its card marked Exited.
+- **Branded loading in every window:** the lazy-chunk fallback in
+  `WindowManager` was a grey skeleton (what a Docker container shell showed
+  first); it is now the H-ring `LoadingView`, as is the container Files listing.
+  The terminal keeps its spinner until the shell prints its first byte (5 s
+  fallback) instead of hiding it when the socket opens. Container shells run
+  `docker exec -it <id> sh -c '…bash || sh'` as the pty command
+  (`getShell({ command })`), so no login banner or echoed `exec docker exec`
+  line, and bash is used when the image has it.
 
 ## Deviations from the handoff text (prototype wins where they differ)
 
