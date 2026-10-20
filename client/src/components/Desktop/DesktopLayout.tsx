@@ -3,7 +3,7 @@
 
 import { useEffect } from 'react';
 import { useAppStore } from '../../store/app-store';
-import { useDesktopStore, DOCK_RESERVE, type SnapZone } from '../../store/window-store';
+import { useDesktopStore, DOCK_RESERVE, TOP_RESERVE, type SnapZone } from '../../store/window-store';
 import { initWindowSessionSync } from '../../store/window-session-sync';
 import { initAppSessionBridge } from '../../store/app-session-bridge';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
@@ -11,6 +11,7 @@ import { useSessionShortcuts } from '../../hooks/useSessionShortcuts';
 import { useAutoHibernate } from '../../hooks/useAutoHibernate';
 import { Desktop } from './Desktop';
 import { Taskbar } from './Taskbar';
+import { MenuBar } from './MenuBar';
 import { HomeHub } from '../HomeHub/HomeHub';
 import { StartMenu } from './StartMenu';
 import { WindowManager } from './WindowManager';
@@ -28,22 +29,24 @@ function SnapPreview({ zone }: { zone: SnapZone }) {
   if (!zone) return null;
 
   const taskbarH = DOCK_RESERVE;
+  const top = TOP_RESERVE;
+  const half = `calc(50% - ${(taskbarH + top) / 2}px)`;
   const style: React.CSSProperties = (() => {
     switch (zone) {
       case 'maximize':
-        return { top: 0, left: 0, right: 0, bottom: taskbarH };
+        return { top, left: 0, right: 0, bottom: taskbarH };
       case 'left':
-        return { top: 0, left: 0, width: '50%', bottom: taskbarH };
+        return { top, left: 0, width: '50%', bottom: taskbarH };
       case 'right':
-        return { top: 0, right: 0, width: '50%', bottom: taskbarH };
+        return { top, right: 0, width: '50%', bottom: taskbarH };
       case 'top-left':
-        return { top: 0, left: 0, width: '50%', height: `calc(50% - ${taskbarH / 2}px)` };
+        return { top, left: 0, width: '50%', height: half };
       case 'top-right':
-        return { top: 0, right: 0, width: '50%', height: `calc(50% - ${taskbarH / 2}px)` };
+        return { top, right: 0, width: '50%', height: half };
       case 'bottom-left':
-        return { bottom: taskbarH, left: 0, width: '50%', height: `calc(50% - ${taskbarH / 2}px)` };
+        return { bottom: taskbarH, left: 0, width: '50%', height: half };
       case 'bottom-right':
-        return { bottom: taskbarH, right: 0, width: '50%', height: `calc(50% - ${taskbarH / 2}px)` };
+        return { bottom: taskbarH, right: 0, width: '50%', height: half };
       default:
         return {};
     }
@@ -99,6 +102,9 @@ export function DesktopLayout() {
 
         {/* Start Menu — pops up above taskbar */}
         <StartMenu />
+
+        {/* EX8.11: top menu bar — tray glyphs, date and time */}
+        <MenuBar />
 
         {/* Taskbar — bottom bar */}
         <Taskbar />

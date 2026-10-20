@@ -174,6 +174,9 @@
   --lumen-lift: 0 30px 60px -24px rgba(0, 0, 0, .45);
   --lumen-blur: blur(44px) saturate(190%);
   --lumen-panel-blur: blur(40px) saturate(180%);
+  /* EX8.11: top menu bar — thin translucent glass over the wallpaper */
+  --lumen-menubar: rgba(255, 255, 255, .3);
+  --lumen-menubar-edge: rgba(16, 30, 38, .08);
   --lumen-icon-filter: brightness(0) opacity(.85);
   --lumen-accent: #6A4FB0;
   --lumen-accent-hi: #8468C8;
@@ -274,6 +277,8 @@
   --lumen-track: rgba(255, 255, 255, .14);
   --lumen-card: linear-gradient(150deg, rgba(255, 255, 255, .10), rgba(255, 255, 255, .03));
   --lumen-panel: linear-gradient(150deg, rgba(120, 120, 128, .30), rgba(40, 40, 46, .34));
+  --lumen-menubar: rgba(8, 10, 14, .16);
+  --lumen-menubar-edge: rgba(255, 255, 255, .09);
   --lumen-lift: 0 30px 60px -20px rgba(0, 0, 0, .7);
   --lumen-icon-filter: brightness(0) invert(1);
   --lumen-accent: #B9A2FF;
@@ -369,6 +374,14 @@ textarea::placeholder {
     border: 1px solid var(--lumen-edge);
   }
   /* Floating shell panel: dock, launcher, quick settings, menus, toasts */
+  /* EX8.11: top menu bar (28px strip; darkens the wallpaper ~14% in dark mode,
+     measured from the Claude Design screen) */
+  .lumen-menubar {
+    background: var(--lumen-menubar);
+    backdrop-filter: blur(30px) saturate(160%);
+    -webkit-backdrop-filter: blur(30px) saturate(160%);
+    box-shadow: 0 1px 0 var(--lumen-menubar-edge);
+  }
   .glass-heavy {
     background: var(--lumen-panel);
     backdrop-filter: var(--lumen-panel-blur);
@@ -467,6 +480,7 @@ textarea::placeholder {
   .animate-slideUpIn,
   .animate-scaleIn,
   .animate-panelIn,
+  .animate-panelDown,
   .animate-toastIn,
   .animate-windowOpen,
   .animate-windowClose {
@@ -484,6 +498,10 @@ textarea::placeholder {
 }
 
 /* Shell panels (launcher, quick settings) rise from the dock */
+@keyframes lu-panel-down {
+  from { opacity: 0; transform: translateY(-10px) scale(.98); }
+  to { opacity: 1; transform: none; }
+}
 @keyframes lu-panel {
   from { opacity: 0; transform: translateY(10px) scale(.98); }
   to { opacity: 1; transform: none; }
@@ -540,6 +558,11 @@ textarea::placeholder {
 
 .animate-panelIn {
   animation: lu-panel .18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* EX8.11: panels hanging from the top menu bar drop in from above */
+.animate-panelDown {
+  animation: lu-panel-down .18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .animate-toastIn {

@@ -4,7 +4,7 @@
 // @see docs/phases/phase-6.md, docs/phases/phase-ex8.md
 
 import { useRef, useCallback, type ReactNode, type MouseEvent as ReactMouseEvent } from 'react';
-import { useDesktopStore, DOCK_RESERVE, type WindowState, type SnapZone } from '../../store/window-store';
+import { useDesktopStore, DOCK_RESERVE, TOP_RESERVE, type WindowState, type SnapZone } from '../../store/window-store';
 import {
   Minus,
   X,
@@ -81,7 +81,7 @@ export function WindowFrame({ win, children }: WindowFrameProps) {
         restoreWindow(win.id);
         // Small delay so restore takes effect
         requestAnimationFrame(() => {
-          moveWindow(win.id, Math.max(0, newX), 0);
+          moveWindow(win.id, Math.max(0, newX), TOP_RESERVE);
         });
       }
       e.preventDefault();
@@ -162,7 +162,7 @@ export function WindowFrame({ win, children }: WindowFrameProps) {
   if (win.minimized) return null;
 
   const style = win.maximized
-    ? { top: 0, left: 0, right: 0, bottom: DOCK_RESERVE, zIndex: win.zIndex }
+    ? { top: TOP_RESERVE, left: 0, right: 0, bottom: DOCK_RESERVE, zIndex: win.zIndex }
     : {
         top: win.y,
         left: win.x,

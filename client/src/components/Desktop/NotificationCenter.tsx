@@ -49,7 +49,7 @@ function MonthCalendar() {
   const today = now.toLocaleDateString([], { day: 'numeric', weekday: 'long' });
 
   return (
-    <div className="glass-heavy shrink-0 rounded-[28px] px-[18px] py-4 animate-panelIn">
+    <div className="glass-heavy shrink-0 rounded-[28px] px-[18px] py-4 animate-panelDown">
       <div className="flex items-baseline justify-between pb-3.5">
         <span className="text-xl leading-[26px] font-semibold tracking-[-0.015em]">{month}</span>
         <span className="text-sm text-label-2">{today}</span>
@@ -174,9 +174,9 @@ export function NotificationCenter() {
   return (
     <div
       ref={panelRef}
-      className="fixed bottom-[92px] right-[14px] top-3 z-[10001] flex w-[360px] max-w-[calc(100vw-28px)] flex-col justify-end gap-3 pointer-events-none"
+      className="fixed bottom-[98px] right-2 top-[37px] z-[10001] flex w-[380px] max-w-[calc(100vw-16px)] flex-col justify-start gap-3 pointer-events-none"
     >
-      <div className="glass-heavy pointer-events-auto flex min-h-[150px] flex-col gap-3 overflow-hidden rounded-[28px] p-4 animate-panelIn">
+      <div className="glass-heavy pointer-events-auto flex min-h-[150px] flex-col gap-3 overflow-hidden rounded-[28px] p-4 animate-panelDown">
       {/* Header */}
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-2">

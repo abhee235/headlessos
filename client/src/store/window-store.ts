@@ -70,6 +70,13 @@ let windowCounter = 0;
  */
 export const DOCK_RESERVE = 98;
 
+/**
+ * EX8.11: Height of the top menu bar (MenuBar.tsx): 28px strip + its 1px edge.
+ * Windows never sit under it: maximized and snapped windows start here and
+ * drags stop at it.
+ */
+export const TOP_RESERVE = 29;
+
 const APP_DEFAULTS: Record<string, { width: number; height: number }> = {
   dashboard: { width: 900, height: 650 },
   files: { width: 850, height: 600 },
@@ -137,7 +144,7 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
       title,
       icon,
       x: Math.max(0, winX),
-      y: Math.max(0, winY),
+      y: Math.max(TOP_RESERVE, winY),
       width: winW,
       height: winH,
       minimized: false,
@@ -232,7 +239,7 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
             screenW - MIN_VISIBLE_X,
           );
           const clampedY = Math.min(
-            Math.max(restored.y, 0),
+            Math.max(restored.y, TOP_RESERVE),
             screenH - TITLE_BAR_H,
           );
           return {
@@ -269,9 +276,9 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
           Math.max(x, -(w.width - MIN_VISIBLE_X)),
           screenW - MIN_VISIBLE_X,
         );
-        // Vertical: top can't go above 0, bottom of title bar must stay in viewport
+        // Vertical: top can't go under the menu bar, title bar must stay above the dock
         const clampedY = Math.min(
-          Math.max(y, 0),
+          Math.max(y, TOP_RESERVE),
           screenH - TITLE_BAR_H,
         );
         return { ...w, x: clampedX, y: clampedY };
@@ -307,21 +314,26 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
         // Save pre-snap dimensions (only if not already snapped/maximized)
         const preSnap = w.preSnap ?? { x: w.x, y: w.y, width: w.width, height: w.height };
 
+        // EX8.11: zones span the area between the menu bar and the dock
+        const T = TOP_RESERVE;
+        const H = screenH - T;
+        const halfW = Math.round(screenW / 2);
+        const halfH = Math.round(H / 2);
         switch (zone) {
           case 'maximize':
             return { ...w, preSnap, maximized: true };
           case 'left':
-            return { ...w, preSnap, maximized: false, x: 0, y: 0, width: Math.round(screenW / 2), height: screenH };
+            return { ...w, preSnap, maximized: false, x: 0, y: T, width: halfW, height: H };
           case 'right':
-            return { ...w, preSnap, maximized: false, x: Math.round(screenW / 2), y: 0, width: Math.round(screenW / 2), height: screenH };
+            return { ...w, preSnap, maximized: false, x: halfW, y: T, width: halfW, height: H };
           case 'top-left':
-            return { ...w, preSnap, maximized: false, x: 0, y: 0, width: Math.round(screenW / 2), height: Math.round(screenH / 2) };
+            return { ...w, preSnap, maximized: false, x: 0, y: T, width: halfW, height: halfH };
           case 'top-right':
-            return { ...w, preSnap, maximized: false, x: Math.round(screenW / 2), y: 0, width: Math.round(screenW / 2), height: Math.round(screenH / 2) };
+            return { ...w, preSnap, maximized: false, x: halfW, y: T, width: halfW, height: halfH };
           case 'bottom-left':
-            return { ...w, preSnap, maximized: false, x: 0, y: Math.round(screenH / 2), width: Math.round(screenW / 2), height: Math.round(screenH / 2) };
+            return { ...w, preSnap, maximized: false, x: 0, y: T + halfH, width: halfW, height: halfH };
           case 'bottom-right':
-            return { ...w, preSnap, maximized: false, x: Math.round(screenW / 2), y: Math.round(screenH / 2), width: Math.round(screenW / 2), height: Math.round(screenH / 2) };
+            return { ...w, preSnap, maximized: false, x: halfW, y: T + halfH, width: halfW, height: halfH };
           default:
             return w;
         }

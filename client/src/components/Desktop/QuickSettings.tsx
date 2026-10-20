@@ -171,7 +171,7 @@ export function QuickSettings({ open, onClose }: { open: boolean; onClose: () =>
   return (
     <div
       ref={panelRef}
-      className="glass-heavy absolute bottom-[92px] right-[14px] z-[10000] flex w-[360px] max-w-[calc(100vw-28px)] flex-col gap-3 rounded-[30px] p-3.5 animate-panelIn"
+      className="glass-heavy absolute right-2 top-[37px] z-[10000] flex w-[380px] max-w-[calc(100vw-16px)] flex-col gap-3 rounded-[30px] p-3.5 animate-panelDown"
       role="dialog"
       aria-label="Quick settings"
     >

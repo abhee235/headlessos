@@ -55,7 +55,7 @@ The design handoff lives outside the repo tree in `Custom OS UI Design/handoff/`
     (CommandPalette), as in the prototype. Show desktop stays on its keyboard
     shortcut, the Quick Settings tile, the Launcher quick action and the dock's
     context menu.
-  - Tray pill = server connection + notifications glyphs + clock. Clicking the glyphs
+  - Tray (top menu bar since EX8.11; was a bottom-right pill) = server connection + notifications glyphs + clock. Clicking the glyphs
     opens **Quick Settings** (`Desktop/QuickSettings.tsx`), the prototype's "Control
     Center". It is named differently because `ControlCenter/` is already the
     server-picker screen. Its tiles are HeadlessOS's real controls: server connection,
@@ -76,6 +76,7 @@ The design handoff lives outside the repo tree in `Custom OS UI Design/handoff/`
 | EX8.8 | Code editor (requested): Monaco in Files and container Files — syntax colouring, Lumen themes, Ctrl/⌘+S | ✅ |
 | EX8.9 | Task Manager: App history, Startup apps, Users, Services pages (prototype `Activity`) | ✅ |
 | EX8.10 | HomeHub (requested): the prototype's smart-home overlay as React, opened from the dock's Home button; 9-dot Launcher glyph | ✅ |
+| EX8.11 | Top menu bar (updated design): the bottom-right tray pill moves to a 28px strip; Quick Settings and notifications hang from the top-right | ✅ |
 
 ## Additions beyond the handoff
 
@@ -197,6 +198,29 @@ player) and `hub-ui.tsx` (card glass, LED, power button, white glyphs).
   sub-pixel weight rendering). The prototype's image slots are empty when served
   locally; HomeHub shows the photos, as Claude Design does.
 
+## EX8.11 — Top menu bar
+
+The updated Claude Design moves the bottom-right tray pill into a thin strip along
+the top. The local handoff predates it, so it was measured from the Claude Design
+screen (2954×771 at DPR 1.5) and HeadlessOS was captured at the same viewport and
+DPR to compare position for position.
+- `Desktop/MenuBar.tsx`: 28px `.lumen-menubar` strip (translucent, ~14% darker
+  than the wallpaper in dark mode, 1px light edge), "HeadlessOS" bold 13px at 14px
+  from the left; on the right a 92×22px glyph pill (three 14px glyphs on a 28px
+  pitch: connection, notifications, theme) that opens Quick Settings, then an
+  accent dot (unread notifications) and "Wed Oct 21 · 01:40 AM" (13px semibold,
+  proportional digits) that open the notification centre, ending 18px from the edge.
+- Quick Settings is 380px wide (the prototype's `min(380, vw − 28)`; it was 360),
+  8px from the right and 37px from the top; the notification centre hangs from the
+  same corner. Both drop in (`lu-panel-down`).
+- `TOP_RESERVE = 29` (strip + edge) in `window-store`: new, moved, restored and
+  snapped windows stay below it; maximized windows and the snap preview start there.
+  Desktop icons start 40px down. The session switcher's accent line and hover zone
+  sit above the strip; its bar drops in below it.
+- Measured against the design: strip height, label start, glyph pitch, pill width,
+  pill-to-dot gap, date start, time end and the panel's edges all within 1px (the
+  clock's width varies with the time shown).
+
 ## Deviations from the handoff text (prototype wins where they differ)
 
 - **Settings row type and light-theme contrast (user review):** the prototype's
@@ -219,8 +243,7 @@ player) and `hub-ui.tsx` (card glass, LED, power button, white glyphs).
 - **Sidebar icons, scrollbars, hover radius (user review):** every `PaneSidebarItem` glyph is `text-accent-text` (the selected one `text-accent-solid`), as in the prototype's sidebars. The sidebar list scrolls with `.scrollbar-on-hover`: the thumb is hidden until the pointer is over the list or focus is inside it (Chromium ignores `:hover::-webkit-scrollbar-thumb`, so the thumb paints the scroller's inherited `border-color`). Menu rows and select options use `rounded-sm` (10px, `--radius-sm`) instead of the handoff's 4px, like sidebar and palette rows; desktop icon hover boxes and Dynamic UI log/tree rows too. Menu glyphs keep the label colour, as in the prototype.
 - **Dock indicator (user review):** no focus ring and no underline; a running app gets a 7px accent dot 5px inside its tile's top-left corner (glowing when focused, 55% when in the background). Glyphs are grid-centred in the plate and tiles are centred in the 72px bar (11px above and below; the tile wrappers are `flex` so no baseline gap pushes them up).
 - **Docker icon (user review):** the Docker app icon is the real Docker whale (`client/public/icons/brands/docker.svg`, Simple Icons path, CC0; Docker blue `#1D63ED`), not the Fluent `package` box, which is now only the archive-file icon. Containers keep the cube glyph. The whale also marks the not-installed state and docker/containerd rows in Task Manager.
-- **Tray pill** is glyph-only (server name in its tooltip) so a wide dock never
-  collides with it.
+- **Tray glyphs** are icon-only (server name in their tooltip); since EX8.11 they live in the top menu bar.
 
 ## Verification
 

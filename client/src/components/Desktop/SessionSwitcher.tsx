@@ -78,7 +78,7 @@ export function SessionSwitcher() {
       {/* B.5: 3px accent strip — always visible, identifies active session */}
       {activeAccent && (
         <div
-          className="fixed left-0 right-0 top-0 z-60 h-0.75 opacity-80 transition-colors [mask-image:linear-gradient(90deg,transparent,#000_25%,#000_75%,transparent)]"
+          className="fixed left-0 right-0 top-0 z-[10002] h-0.75 opacity-80 transition-colors [mask-image:linear-gradient(90deg,transparent,#000_25%,#000_75%,transparent)]"
           style={{ backgroundColor: activeAccent.oklchDark }}
           aria-hidden="true"
         />
@@ -86,7 +86,7 @@ export function SessionSwitcher() {
 
       {/* B.1: 4px hover trigger zone */}
       <div
-        className="fixed left-0 right-0 top-0 z-70 h-1"
+        className="fixed left-0 right-0 top-0 z-[10003] h-1"
         onMouseEnter={() => setHovering(true)}
         aria-hidden="true"
       />
@@ -96,9 +96,9 @@ export function SessionSwitcher() {
         onMouseEnter={() => setHovering(true)}
         onMouseLeave={() => setHovering(false)}
         className={cn(
-          'glass-heavy fixed left-1/2 top-2.5 z-65 max-w-[calc(100vw-28px)] -translate-x-1/2 rounded-[24px]',
+          'glass-heavy fixed left-1/2 top-[38px] z-[10002] max-w-[calc(100vw-28px)] -translate-x-1/2 rounded-[24px]',
           'transition-transform duration-200 ease-out',
-          visible ? 'translate-y-0' : '-translate-y-[calc(100%+16px)]',
+          visible ? 'translate-y-0' : '-translate-y-[calc(100%+48px)]',
         )}
         data-testid="session-switcher"
         role="toolbar"

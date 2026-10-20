@@ -11,19 +11,13 @@ import {
   Monitor,
   House,
   Search,
-  Wifi,
-  WifiOff,
-  Bell,
-  BellOff,
-  Sun,
-  Moon,
   Activity,
   Settings,
   X,
   Pin,
   PinOff,
 } from 'lucide-react';
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -31,16 +25,13 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
-import { useThemeStore } from '../../store/theme-store';
 import { usePreferencesStore } from '../../store/preferences-store';
-import { useNotificationStore } from '../../store/notification-store';
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { AppIcon, RecycleBinIcon } from '@/components/ui/FileIcon';
-import { QuickSettings } from './QuickSettings';
 import { cn } from '@/lib/utils';
 import { eventBus } from '@/lib/event-bus';
 
@@ -150,97 +141,6 @@ function DockTile({
   );
 }
 
-// ─── Tray ────────────────────────────────────────────────────────────────────
-
-function TrayClock({ open, unread, onClick }: { open: boolean; unread: number; onClick: () => void }) {
-  const [time, setTime] = useState(new Date());
-  const dateFormat = usePreferencesStore((s) => s.dateFormat);
-
-  useEffect(() => {
-    const interval = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const timeStr = time.toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: dateFormat === '12h',
-  });
-  const dateStr = time.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
-
-  return (
-    <button
-      className={cn(
-        'relative flex h-12 flex-col items-end justify-center rounded-full px-4 text-foreground transition-colors',
-        open ? 'lumen-well' : 'hover:bg-chip',
-      )}
-      onClick={onClick}
-      aria-label={`Notifications and calendar — ${time.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`}
-      title="Notifications and calendar"
-    >
-      <span className="text-[15px] font-semibold leading-[19px] tabular-nums">{timeStr}</span>
-      <span className="text-xs leading-[15px] text-label-2">{dateStr}</span>
-      {unread > 0 && (
-        <span className="absolute left-[5px] top-1/2 -mt-[3px] h-1.5 w-1.5 rounded-full bg-accent-solid shadow-[0_0_8px_var(--lumen-accent-glow)]" />
-      )}
-    </button>
-  );
-}
-
-function SystemTray() {
-  const [qsOpen, setQsOpen] = useState(false);
-  const { notifications, panelOpen, togglePanel, closePanel } = useNotificationStore();
-  const unread = notifications.filter((n) => !n.read).length;
-  const showToasts = usePreferencesStore((s) => s.showToasts);
-  const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
-  const activeServer = useAppStore((s) => s.servers.find((srv) => srv.id === s.activeServerId));
-  const isConnected = activeServer?.state?.status === 'connected';
-
-  const closeQs = useCallback(() => setQsOpen(false), []);
-
-  return (
-    <>
-      <div
-        className="glass-heavy shadow-dock absolute bottom-[14px] right-[14px] z-[9999] flex h-16 items-center gap-1 rounded-[32px] px-2"
-        data-quick-settings-anchor=""
-      >
-        <button
-          className={cn(
-            'flex h-12 items-center gap-3.5 rounded-full px-4 text-foreground transition-colors [&_svg]:h-[19px] [&_svg]:w-[19px]',
-            qsOpen ? 'lumen-well' : 'hover:bg-chip',
-          )}
-          onClick={() => {
-            closePanel();
-            setQsOpen((v) => !v);
-          }}
-          aria-label="Quick settings"
-          aria-expanded={qsOpen}
-          title={activeServer ? `${activeServer.name} — ${isConnected ? 'Connected' : 'Disconnected'}` : 'Quick settings'}
-        >
-          {/* Server name lives in the tooltip, launcher and session switcher;
-              keeping the pill glyph-only stops it colliding with a wide dock. */}
-          {isConnected ? (
-            <Wifi strokeWidth={1.75} />
-          ) : (
-            <WifiOff strokeWidth={1.75} className="text-label-3" />
-          )}
-          {showToasts ? <Bell strokeWidth={1.75} /> : <BellOff strokeWidth={1.75} className="text-label-2" />}
-          {resolvedTheme === 'dark' ? <Moon strokeWidth={1.75} /> : <Sun strokeWidth={1.75} />}
-        </button>
-        <TrayClock
-          open={panelOpen}
-          unread={unread}
-          onClick={() => {
-            setQsOpen(false);
-            togglePanel();
-          }}
-        />
-      </div>
-      <QuickSettings open={qsOpen} onClose={closeQs} />
-    </>
-  );
-}
-
 // ─── Taskbar ─────────────────────────────────────────────────────────────────
 
 export function Taskbar() {
@@ -308,7 +208,7 @@ export function Taskbar() {
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
-            className="glass-heavy shadow-dock absolute bottom-[14px] left-1/2 z-[9999] flex h-[72px] max-w-[calc(100vw-560px)] -translate-x-1/2 items-center gap-2.5 rounded-[30px] pl-2.5 pr-3"
+            className="glass-heavy shadow-dock absolute bottom-[14px] left-1/2 z-[9999] flex h-[72px] max-w-[calc(100vw-28px)] -translate-x-1/2 items-center gap-2.5 rounded-[30px] pl-2.5 pr-3"
             role="toolbar"
             aria-label="Dock"
           >
@@ -469,8 +369,7 @@ export function Taskbar() {
         </ContextMenuContent>
       </ContextMenu>
 
-      {/* ── Tray pill (bottom-right) ── */}
-      <SystemTray />
+      {/* EX8.11: the tray moved to the top menu bar (MenuBar.tsx) */}
     </>
   );
 }

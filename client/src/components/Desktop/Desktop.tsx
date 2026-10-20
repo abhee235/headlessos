@@ -205,7 +205,7 @@ export function Desktop() {
       <Wallpaper />
 
       {/* Desktop Icons */}
-      <div className="relative z-10 flex h-[calc(100%-96px)] flex-col flex-wrap content-start gap-1 p-3">
+      <div className="relative z-10 flex h-[calc(100%-96px)] flex-col flex-wrap content-start gap-1 p-3 pt-10">
         {sortedIcons.map(icon => (
           <button
             key={icon.id}
