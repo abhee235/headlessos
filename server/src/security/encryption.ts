@@ -2,7 +2,9 @@
 // @see docs/SECURITY.md § Credential Storage
 
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'crypto';
-import { hostname, userInfo } from 'os';
+import { hostname, userInfo, homedir } from 'os';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, chmodSync } from 'fs';
+import { join } from 'path';
 
 const ALGORITHM = 'aes-256-gcm';
 const KEY_LENGTH = 32;    // AES-256
@@ -13,12 +15,43 @@ const SALT = 'headlessos-credential-salt-v1';
 // Prefix for encrypted values to distinguish from plaintext
 const ENCRYPTED_PREFIX = 'enc:';
 
+// M1: a random per-install secret is mixed into the key so the encryption does
+// not depend only on guessable machine facts (hostname + uid). Stored 0600.
+const KEY_FILE = join(homedir(), '.headlessos', 'enc-key');
+let _secretCache: string | null = null;
+
+function getInstallSecret(): string {
+  if (_secretCache) return _secretCache;
+  try {
+    if (existsSync(KEY_FILE)) {
+      const s = readFileSync(KEY_FILE, 'utf8').trim();
+      if (s.length >= 32) { _secretCache = s; return s; }
+    }
+  } catch { /* regenerate below */ }
+  const secret = randomBytes(32).toString('hex');
+  try {
+    const dir = join(homedir(), '.headlessos');
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true, mode: 0o700 });
+    writeFileSync(KEY_FILE, secret, { mode: 0o600 });
+    chmodSync(KEY_FILE, 0o600);
+  } catch { /* fall back to in-memory secret for this process */ }
+  _secretCache = secret;
+  return secret;
+}
+
 /**
- * Derive an encryption key from machine-specific data.
- * Uses os.hostname() + os.userInfo().uid + app salt.
- * This ensures credentials are tied to the specific machine and user.
+ * Current key derivation: random install secret + machine facts + salt.
  */
 function deriveKey(): Buffer {
+  const material = `${getInstallSecret()}:${hostname()}:${userInfo().uid}:${SALT}`;
+  return scryptSync(material, SALT, KEY_LENGTH);
+}
+
+/**
+ * Legacy key derivation (machine facts only). Used as a decrypt fallback so
+ * credentials encrypted before M1 still open; they upgrade on next save.
+ */
+function deriveLegacyKey(): Buffer {
   const machineId = `${hostname()}:${userInfo().uid}:${SALT}`;
   return scryptSync(machineId, SALT, KEY_LENGTH);
 }
@@ -61,17 +94,23 @@ export function decrypt(encryptedStr: string): string {
   }
 
   const [ivHex, authTagHex, ciphertext] = parts;
-
-  const key = deriveKey();
   const iv = Buffer.from(ivHex!, 'hex');
   const authTag = Buffer.from(authTagHex!, 'hex');
-  const decipher = createDecipheriv(ALGORITHM, key, iv, { authTagLength: AUTH_TAG_LENGTH });
-  decipher.setAuthTag(authTag);
 
-  let decrypted = decipher.update(ciphertext!, 'hex', 'utf8');
-  decrypted += decipher.final('utf8');
+  const tryDecrypt = (key: Buffer): string => {
+    const decipher = createDecipheriv(ALGORITHM, key, iv, { authTagLength: AUTH_TAG_LENGTH });
+    decipher.setAuthTag(authTag);
+    let decrypted = decipher.update(ciphertext!, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+  };
 
-  return decrypted;
+  try {
+    return tryDecrypt(deriveKey());
+  } catch {
+    // Legacy fallback: values encrypted before the install-secret was introduced.
+    return tryDecrypt(deriveLegacyKey());
+  }
 }
 
 /**

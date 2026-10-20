@@ -8,7 +8,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useAgentStore, type AgentSessionStatus } from '../store/agent-store';
 import type { AgentEventType, AgentMetaType } from '../components/Agent/AgentPanel';
-import { isElectronProd, BACKEND_PORT } from '../lib/api';
+import { isElectronProd, BACKEND_PORT, withToken } from '../lib/api';
 
 // ── Types ──
 
@@ -80,7 +80,7 @@ export function useUIAgent(serverId: string | null): UseUIAgentReturn {
   // ── WebSocket URL builder ──
   const getWsUrl = useCallback((sId: string) => {
     if (isElectronProd) {
-      return `ws://localhost:${BACKEND_PORT}/ws/ui-agent/${sId}`;
+      return withToken(`ws://localhost:${BACKEND_PORT}/ws/ui-agent/${sId}`);
     }
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     return `${protocol}//${window.location.host}/ws/ui-agent/${sId}`;

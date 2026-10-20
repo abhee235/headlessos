@@ -741,8 +741,11 @@ export async function serverAdminRoutes(
       const { password } = parsed.data;
 
       try {
-        // Use chpasswd via stdin — password never appears in process list
-        const result = await exec(id, `echo '${shellEscape(username)}:${shellEscape(password)}' | sudo chpasswd`, 10_000);
+        // Use chpasswd via stdin — password never appears in process list.
+        // SECURITY: escape the ENTIRE "user:pass" string once. Wrapping
+        // shellEscape() output in extra quotes (echo '...') breaks the quoting
+        // and leaves the password unquoted → command injection.
+        const result = await exec(id, `echo ${shellEscape(`${username}:${password}`)} | sudo chpasswd`, 10_000);
         if (result.exitCode !== 0) {
           reply.code(500);
           return { success: false, error: result.stderr || 'Failed to set password' };

@@ -30,13 +30,22 @@ export async function fileRoutes(
   }
 
   function requireValidPath(path: string | undefined, field = 'path'): string {
-    if (!path || !validatePath(path)) {
+    // validateAndSanitizePath returns the NORMALIZED path (and throws on null
+    // bytes, non-absolute paths, or BLOCKED_PATHS). Operating on the normalized
+    // result — not the raw input — is what makes the blocked-path check and the
+    // absolute-path guarantee actually hold for the SFTP call.
+    // NOTE: by design this still permits any absolute path the SSH account can
+    // reach (this is a file manager); access is bounded by the server's own Unix
+    // permissions, not by the app.
+    try {
+      if (!path) throw new Error('missing path');
+      return validateAndSanitizePath(path);
+    } catch {
       throw Object.assign(
         new Error(`Invalid ${field}: must be an absolute path without traversal`),
         { statusCode: 400 },
       );
     }
-    return path;
   }
 
   // ── GET /api/servers/:id/files?path=/ — list directory ──

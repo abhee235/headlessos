@@ -3,9 +3,17 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useObservatoryStore } from '../store/observatory-store';
-import { BACKEND_ORIGIN } from '../lib/api';
+import { isElectronProd, BACKEND_PORT, withToken } from '../lib/api';
 
-const WS_URL = `${BACKEND_ORIGIN.replace('http://', 'ws://')}/ws/observatory`;
+// Dev: go through the Vite proxy (so the proxy injects the API token).
+// Electron prod: connect directly and carry the token as a query param.
+function observatoryWsUrl(): string {
+  if (isElectronProd) {
+    return withToken(`ws://localhost:${BACKEND_PORT}/ws/observatory`);
+  }
+  const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  return `${proto}://${window.location.host}/ws/observatory`;
+}
 
 export type SocketStatus = 'connecting' | 'connected' | 'disconnected';
 
@@ -33,7 +41,7 @@ export function useObservatorySocket(enabled = true) {
     }
 
     setStatus('connecting');
-    const ws = new WebSocket(WS_URL);
+    const ws = new WebSocket(observatoryWsUrl());
     wsRef.current = ws;
 
     ws.onopen = () => {
