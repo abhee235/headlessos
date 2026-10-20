@@ -5,6 +5,7 @@ import type { FastifyInstance } from 'fastify';
 import type { ConnectionManager } from '../ssh/connection-manager.js';
 import type { ClientChannel } from 'ssh2';
 import { TerminalBuffer } from '../terminal/buffer.js';
+import { validateContainerId } from '../security/validators.js';
 
 export async function terminalRoutes(
   fastify: FastifyInstance,
@@ -14,6 +15,10 @@ export async function terminalRoutes(
 
   fastify.get('/ws/terminal/:serverId', { websocket: true }, (socket, req) => {
     const { serverId } = req.params as { serverId: string };
+    // EX7: optional ?container=<hex id> drops the session straight into that
+    // container via `docker exec -it`. Validated as hex to prevent injection.
+    const containerParam = (req.query as { container?: string } | undefined)?.container;
+    const containerId = containerParam && validateContainerId(containerParam) ? containerParam : null;
     let shell: ClientChannel | null = null;
     const buffer = new TerminalBuffer();
 
@@ -24,6 +29,12 @@ export async function terminalRoutes(
           cols: 80,
           term: 'xterm-256color',
         });
+
+        // EX7: if a container was requested, exec into it so the whole session
+        // lives inside the container (and exiting it ends the session cleanly).
+        if (containerId) {
+          shell.write(`exec docker exec -it ${containerId} sh\n`);
+        }
 
         // SSH → Browser (with buffer capture)
         shell.on('data', (data: Buffer) => {
