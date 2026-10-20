@@ -22,7 +22,9 @@ function Toaster({ ...props }: ToasterProps) {
   return (
     <Sonner
       theme={resolvedTheme}
-      className="toaster group"
+      // Sonner paints toasts from these variables in its own (unlayered) CSS,
+      // so they are overridden here rather than with background utilities.
+      className="toaster group ![--normal-bg:var(--lumen-panel)] ![--normal-border:var(--lumen-edge2)] ![--normal-text:var(--lumen-label)]"
       position={toastPosition}
       offset={{ right: 14, bottom: bottomOffset, top: 14 }}
       gap={14}
