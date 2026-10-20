@@ -139,7 +139,8 @@ export function ProcessDetailCard({ process: p, serverId, cpuHistory, status, bu
         <div className="mt-auto flex gap-2">
           <Button
             variant="secondary"
-            className="h-[38px] flex-1 text-[14px] [&_svg]:size-[18px]"
+            // The prototype's light glass pill, not the darker `secondary` mat
+            className="h-[38px] flex-1 border-edge-2 bg-transparent hover:bg-transparent bg-[linear-gradient(180deg,rgba(255,255,255,.18),rgba(255,255,255,.06))] text-[14px] shadow-[inset_0_1px_0_rgba(255,255,255,.2)]! hover:bg-[linear-gradient(180deg,rgba(255,255,255,.24),rgba(255,255,255,.1))] [&_svg]:size-[18px]"
             disabled={busy || exited}
             onClick={() => onSignal(suspended ? 18 : 19)}
           >
