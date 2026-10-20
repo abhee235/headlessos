@@ -15,13 +15,15 @@ function makeMockShell() {
     stderr: NodeJS.EventEmitter;
     write: ReturnType<typeof vi.fn>;
     end: ReturnType<typeof vi.fn>;
+    close: ReturnType<typeof vi.fn>;
     setWindow: ReturnType<typeof vi.fn>;
   };
   (ee as unknown as { stderr: NodeJS.EventEmitter }).stderr = new EventEmitter();
   (ee as unknown as { write: ReturnType<typeof vi.fn> }).write = vi.fn();
   (ee as unknown as { end: ReturnType<typeof vi.fn> }).end = vi.fn();
+  (ee as unknown as { close: ReturnType<typeof vi.fn> }).close = vi.fn();
   (ee as unknown as { setWindow: ReturnType<typeof vi.fn> }).setWindow = vi.fn();
-  return ee as typeof ee & { stderr: NodeJS.EventEmitter; write: ReturnType<typeof vi.fn>; end: ReturnType<typeof vi.fn>; setWindow: ReturnType<typeof vi.fn> };
+  return ee as typeof ee & { stderr: NodeJS.EventEmitter; write: ReturnType<typeof vi.fn>; end: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn>; setWindow: ReturnType<typeof vi.fn> };
 }
 
 class MockConnectionManager extends BaseService {
@@ -169,6 +171,8 @@ describe('TerminalService', () => {
 
       session.close();
       expect(shell.end).toHaveBeenCalled();
+      // Regression: EOF alone left the pty shell alive and leaked the SSH channel
+      expect(shell.close).toHaveBeenCalled();
     });
 
     it('close() is idempotent — shell.end not called twice', async () => {
@@ -182,6 +186,7 @@ describe('TerminalService', () => {
       session.close();
       session.close();
       expect(shell.end).toHaveBeenCalledTimes(1);
+      expect(shell.close).toHaveBeenCalledTimes(1);
     });
 
     it('write() is a no-op after close()', async () => {

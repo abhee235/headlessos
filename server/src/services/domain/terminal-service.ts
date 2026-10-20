@@ -133,7 +133,13 @@ function createSession(shell: ClientChannel, buffer: TerminalBuffer): TerminalSe
     close(): void {
       if (closed) return;
       closed = true;
+      // end() only sends EOF; with a pty, sshd keeps the interactive shell alive
+      // and the channel stays open. close() sends CHANNEL_CLOSE so sshd hangs up
+      // the shell and frees the session slot (MaxSessions, 10 by default) —
+      // otherwise every closed Terminal window leaks one channel until all
+      // other commands on the connection fail with "Channel open failure".
       shell.end();
+      shell.close();
       buffer.clear();
     },
   };

@@ -213,14 +213,18 @@ export async function dockerRoutes(
 
           socket.on('close', () => {
             if (shell) {
+              // close(), not just end(): see TerminalService — EOF alone leaks the pty channel
               shell.end();
+              shell.close();
               shell = null;
             }
           });
 
           socket.on('error', () => {
             if (shell) {
+              // close(), not just end(): see TerminalService — EOF alone leaks the pty channel
               shell.end();
+              shell.close();
               shell = null;
             }
           });
