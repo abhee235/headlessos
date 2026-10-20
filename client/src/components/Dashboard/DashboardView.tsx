@@ -20,6 +20,9 @@ import { NetworkCard, type NetRatePoint } from './NetworkCard';
 import { ProcessorCard } from './ProcessorCard';
 import { UptimeCard } from './UptimeCard';
 
+/** Live CPU / network refresh period */
+const LIVE_REFRESH_MS = 2000;
+
 interface DashboardViewProps {
   serverId: string;
 }
@@ -103,18 +106,26 @@ export function DashboardView({ serverId }: DashboardViewProps) {
     setRefreshing(false);
   }, [serverId, applyTaskManager]);
 
-  // Initial load, plus two early CPU/network-only samples. Throughput is a
-  // delta between samples and the chart needs two points, so without these
-  // the Network card would wait for the auto-refresh (30s by default).
+  // Initial load
   useEffect(() => {
     void loadData();
-    const seeds = [3000, 6000].map((ms) =>
-      setTimeout(() => {
-        fetchTaskManager(serverId).then(applyTaskManager).catch(() => {});
-      }, ms),
-    );
-    return () => seeds.forEach(clearTimeout);
-  }, [loadData, serverId, applyTaskManager]);
+  }, [loadData]);
+
+  // Live CPU + network every 2 s (one Task Manager call; the server caps
+  // concurrent SSH channels). The window unmounts when minimized, which stops
+  // this. Disks, memory and system info follow the auto-refresh preference.
+  useEffect(() => {
+    let inFlight = false;
+    const interval = setInterval(() => {
+      if (inFlight) return;
+      inFlight = true;
+      fetchTaskManager(serverId)
+        .then(applyTaskManager)
+        .catch(() => {})
+        .finally(() => { inFlight = false; });
+    }, LIVE_REFRESH_MS);
+    return () => clearInterval(interval);
+  }, [serverId, applyTaskManager]);
 
   // Auto-refresh based on preference
   const autoRefreshInterval = usePreferencesStore(s => s.autoRefreshInterval);

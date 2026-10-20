@@ -71,6 +71,22 @@ const STATE_FILTERS: Array<{ id: StateFilter; label: string }> = [
   { id: 'mine', label: 'My processes' },
 ];
 
+/**
+ * Commands HeadlessOS itself runs to fill the Task Manager and Dashboard. ps
+ * sees them (often at 100% CPU, with a new PID every poll), so they are hidden
+ * when they belong to the SSH user we connect as.
+ */
+const PROBE_COMMANDS = new Set([
+  'ps aux', 'top -bn1 -1', 'head -20', 'cat /proc/loadavg', 'nproc', 'free -m',
+  'cat /proc/net/dev', 'cat /proc/diskstats', 'cat /proc/stat', 'df -h',
+  'ip -brief addr', 'uname -a', 'uptime -p', 'cat /etc/os-release',
+]);
+export function isHeadlessProbe(p: ProcessData, sshUser: string | undefined): boolean {
+  if (!sshUser || p.user !== sshUser) return false;
+  const cmd = p.command.trim();
+  return PROBE_COMMANDS.has(cmd) || cmd.startsWith('ps -o nlwp=') || /^(ba)?sh -c (top -bn1|uname -a|ps -o nlwp=)/.test(cmd);
+}
+
 /** CPU history window for the detail card */
 const HISTORY_MS = 60_000;
 
@@ -92,31 +108,37 @@ export function ProcessesTab({ processes, serverId, onRefresh, refreshing, onCon
   const [stateFilter, setStateFilter] = useState<StateFilter>('all');
   const [cpuHistory, setCpuHistory] = useState<Map<number, CpuSample[]>>(() => new Map());
   const username = useAppStore((s) => s.servers.find((srv) => srv.id === serverId)?.username);
+  // The list without HeadlessOS's own monitoring commands
+  const visible = useMemo(() => processes.filter((p) => !isHeadlessProbe(p, username)), [processes, username]);
 
   // One CPU sample per PID per refresh; keep the last 60 s, drop exited PIDs.
   useEffect(() => {
     const now = Date.now();
     setCpuHistory((prev) => {
       const next = new Map<number, CpuSample[]>();
-      for (const p of processes) {
+      for (const p of visible) {
         const kept = (prev.get(p.pid) ?? []).filter((s) => now - s.t <= HISTORY_MS);
         next.set(p.pid, [...kept, { t: now, cpu: p.cpu }]);
       }
       return next;
     });
-  }, [processes]);
+  }, [visible]);
 
-  const selectedProcess = selectedPid !== null ? processes.find((p) => p.pid === selectedPid) : undefined;
-
-  // Close the card when the selected process exits
+  // The selected process as last seen. When it exits the card stays open,
+  // marked Exited, until the user closes it (instead of vanishing mid-read).
+  const liveSelected = selectedPid !== null ? visible.find((p) => p.pid === selectedPid) : undefined;
+  const [lastSeen, setLastSeen] = useState<ProcessData | null>(null);
   useEffect(() => {
-    if (selectedPid !== null && !processes.some((p) => p.pid === selectedPid)) setSelectedPid(null);
-  }, [processes, selectedPid]);
+    if (liveSelected) setLastSeen(liveSelected);
+    else if (selectedPid === null) setLastSeen(null);
+  }, [liveSelected, selectedPid]);
+  const selectedProcess = liveSelected ?? (lastSeen?.pid === selectedPid ? lastSeen : undefined);
+  const selectedExited = !!selectedProcess && !liveSelected;
 
   // Filter + sort
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    let list = processes;
+    let list = visible;
     if (stateFilter === 'running') list = list.filter((p) => p.stat.startsWith('R'));
     else if (stateFilter === 'idle') list = list.filter((p) => /^[SI]/.test(p.stat));
     else if (stateFilter === 'mine' && username) list = list.filter((p) => p.user === username);
@@ -153,7 +175,7 @@ export function ProcessesTab({ processes, serverId, onRefresh, refreshing, onCon
       return sortAsc ? cmp : -cmp;
     });
     return list;
-  }, [processes, search, sortField, sortAsc, stateFilter, username]);
+  }, [visible, search, sortField, sortAsc, stateFilter, username]);
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) {
@@ -234,7 +256,7 @@ export function ProcessesTab({ processes, serverId, onRefresh, refreshing, onCon
               </button>
             )}
             <span className="text-[12px] font-medium tabular-nums text-label-2">
-              {filtered.length} / {processes.length}
+              {filtered.length} / {visible.length}
             </span>
           </div>
         </div>
@@ -266,7 +288,8 @@ export function ProcessesTab({ processes, serverId, onRefresh, refreshing, onCon
           process={selectedProcess}
           serverId={serverId}
           cpuHistory={cpuHistory.get(selectedProcess.pid) ?? []}
-          status={getStatBadge(selectedProcess.stat)}
+          status={selectedExited ? { variant: 'secondary', label: 'Exited' } : getStatBadge(selectedProcess.stat)}
+          exited={selectedExited}
           busy={killing}
           onSignal={(sig) => handleKill(sig, selectedProcess.pid)}
           onClose={() => setSelectedPid(null)}
@@ -396,10 +419,10 @@ export function ProcessesTab({ processes, serverId, onRefresh, refreshing, onCon
 
       {/* ── Status line ── */}
       <div className="flex shrink-0 items-center justify-between px-1.5 pt-2 text-[12px] text-label-3">
-        <span>Processes: {processes.length}</span>
+        <span>Processes: {visible.length}</span>
         <span className="tabular-nums">
-          CPU: {processes.reduce((s, p) => s + p.cpu, 0).toFixed(1)}% ·
-          Memory: {processes.reduce((s, p) => s + p.memory, 0).toFixed(1)}%
+          CPU: {visible.reduce((s, p) => s + p.cpu, 0).toFixed(1)}% ·
+          Memory: {visible.reduce((s, p) => s + p.memory, 0).toFixed(1)}%
         </span>
       </div>
     </div>

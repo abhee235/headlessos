@@ -91,6 +91,15 @@ Found or asked for during the work; each has tests.
   recipes beat Tailwind utilities (now `@layer components`); toasts were opaque.
 - **Terminal default font** is Geist Mono 13px; only the exact old default is
   upgraded for existing users.
+- **Blank metrics fixed (live monitoring):** closed terminals leaked their SSH
+  channel (`end()` only sends EOF), so connections hit sshd's `MaxSessions` and
+  every parallel command failed → zeros. Terminals now `close()` the channel;
+  `ConnectionManager.exec` caps 4 concurrent command channels per connection
+  (`HEADLESS_MAX_EXEC_CHANNELS`) with one retry on "Channel open failure"; CPU %
+  comes from `/proc/stat` deltas (all cores; `top -bn1` averaged since boot and
+  can print only even cores). Task Manager and the Dashboard's CPU/network poll
+  every 2 s; HeadlessOS's own probe commands are hidden from the process list,
+  and a selected process that exits stays on its card marked Exited.
 
 ## Deviations from the handoff text (prototype wins where they differ)
 

@@ -18,6 +18,9 @@ import { ProcessesTab } from './ProcessesTab';
 import { PerformanceTab } from './PerformanceTab';
 import { Meter, SERIES, Sparkline, formatBytesPerSec, formatMb } from './parts';
 
+/** Task Manager live refresh period */
+const LIVE_REFRESH_MS = 2000;
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type TabId = 'processes' | 'performance';
@@ -134,11 +137,12 @@ export function TaskManagerView({ serverId }: TaskManagerViewProps) {
     loadData();
   }, [loadData]);
 
-  // Auto-refresh every 3 seconds (paused while a context menu is open)
+  // Live refresh every 2 seconds (paused while a context menu is open).
+  // The server caps concurrent SSH channels, so this can't exhaust MaxSessions.
   useEffect(() => {
     const interval = setInterval(() => {
       if (!pauseRefreshRef.current) loadData(true);
-    }, 3000);
+    }, LIVE_REFRESH_MS);
     return () => clearInterval(interval);
   }, [loadData]);
 

@@ -22,6 +22,8 @@ interface ProcessDetailCardProps {
   cpuHistory: CpuSample[];
   status: { variant: 'default' | 'success' | 'warning' | 'destructive' | 'secondary' | 'outline'; label: string };
   busy: boolean;
+  /** The process is no longer running; show its last snapshot, actions off */
+  exited?: boolean;
   onSignal: (signal: ProcessSignal) => void;
   onClose: () => void;
 }
@@ -53,13 +55,14 @@ export function shortProcessName(command: string): string {
   return command.split('/').pop()?.split(' ')[0] ?? command;
 }
 
-export function ProcessDetailCard({ process: p, serverId, cpuHistory, status, busy, onSignal, onClose }: ProcessDetailCardProps) {
+export function ProcessDetailCard({ process: p, serverId, cpuHistory, status, busy, exited = false, onSignal, onClose }: ProcessDetailCardProps) {
   const [detail, setDetail] = useState<ProcessDetailData | null>(null);
   const suspended = p.stat.startsWith('T');
 
   // Threads / priority / start time for the selected PID. Re-read on every list
   // refresh (the `p` object changes), so thread counts stay current.
   useEffect(() => {
+    if (exited) return;
     let cancelled = false;
     fetchProcessDetail(serverId, p.pid)
       .then((res) => {
@@ -71,7 +74,7 @@ export function ProcessDetailCard({ process: p, serverId, cpuHistory, status, bu
     return () => {
       cancelled = true;
     };
-  }, [serverId, p]);
+  }, [serverId, p, exited]);
 
   const rows: Array<[string, string]> = [
     ['Memory (RSS)', formatKb(p.rss)],
@@ -98,6 +101,7 @@ export function ProcessDetailCard({ process: p, serverId, cpuHistory, status, bu
               </div>
               <p className="mt-0.5 text-[14px] text-label-2">
                 PID <span className="tabular-nums">{p.pid}</span> · {p.user}
+                {exited && <> · this process has exited</>}
               </p>
             </div>
             <button
@@ -118,13 +122,13 @@ export function ProcessDetailCard({ process: p, serverId, cpuHistory, status, bu
             <Button
               variant="secondary"
               className="h-10 flex-1"
-              disabled={busy}
+              disabled={busy || exited}
               onClick={() => onSignal(suspended ? 18 : 19)}
             >
               {suspended ? <PlayCircle strokeWidth={1.75} /> : <PauseCircle strokeWidth={1.75} />}
               {suspended ? 'Resume' : 'Suspend'}
             </Button>
-            <Button variant="danger" className="h-10 flex-1" disabled={busy} onClick={() => onSignal(15)}>
+            <Button variant="danger" className="h-10 flex-1" disabled={busy || exited} onClick={() => onSignal(15)}>
               <XCircle strokeWidth={1.75} />
               End task
             </Button>

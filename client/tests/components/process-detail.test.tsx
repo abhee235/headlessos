@@ -78,3 +78,19 @@ describe('ProcessDetailCard', () => {
     expect(onClose).toHaveBeenCalled();
   });
 });
+
+describe('isHeadlessProbe', () => {
+  // Imported lazily so the module mocks above don't matter for this pure helper
+  it('hides HeadlessOS monitoring commands run as the SSH user only', async () => {
+    const { isHeadlessProbe } = await import('../../src/components/TaskManager/ProcessesTab');
+    const mk = (command: string, user = 'testuser') => ({ ...proc, command, user });
+    expect(isHeadlessProbe(mk('ps aux'), 'testuser')).toBe(true);
+    expect(isHeadlessProbe(mk('cat /proc/stat'), 'testuser')).toBe(true);
+    expect(isHeadlessProbe(mk('bash -c top -bn1 -1 | head -20 && cat /proc/loadavg && nproc'), 'testuser')).toBe(true);
+    expect(isHeadlessProbe(mk('ps -o nlwp=,ni=,lstart= -p 42'), 'testuser')).toBe(true);
+    // someone else's ps, or a real workload, stays visible
+    expect(isHeadlessProbe(mk('ps aux', 'root'), 'testuser')).toBe(false);
+    expect(isHeadlessProbe(mk('python3 -m http.server'), 'testuser')).toBe(false);
+    expect(isHeadlessProbe(mk('ps aux'), undefined)).toBe(false);
+  });
+});
