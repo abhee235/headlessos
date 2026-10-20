@@ -58,6 +58,8 @@ export function HomeHub() {
 
 function HomeHubOverlay() {
   const close = useDesktopStore((s) => s.closeHomeHub);
+  // EX8.17: opened by the idle timer → any key returns to the desktop
+  const away = useDesktopStore((s) => s.homeHubReason === 'idle');
   const openWindow = useDesktopStore((s) => s.openWindow);
   const toggleStartMenu = useDesktopStore((s) => s.toggleStartMenu);
   const toggleShowDesktop = useDesktopStore((s) => s.toggleShowDesktop);
@@ -84,12 +86,12 @@ function HomeHubOverlay() {
 
   useEffect(() => {
     const onResize = () => setViewport({ w: window.innerWidth, h: window.innerHeight });
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' || away) close(); };
     const tick = setInterval(() => setNow(new Date()), 60_000);
     window.addEventListener('resize', onResize);
     window.addEventListener('keydown', onKey);
     return () => { clearInterval(tick); window.removeEventListener('resize', onResize); window.removeEventListener('keydown', onKey); };
-  }, [close]);
+  }, [close, away]);
 
   useEffect(() => {
     fetchHostInfo().then((r) => { if (r.success && r.data) setUsername(r.data.username); }).catch(() => {});
@@ -140,6 +142,15 @@ function HomeHubOverlay() {
         WebkitBackdropFilter: 'blur(34px) saturate(120%)',
       }}
     >
+      {away && (
+        <div
+          role="status"
+          style={{ position: 'absolute', top: 14, left: '50%', transform: 'translateX(-50%)', zIndex: 1, height: 30, padding: '0 14px', borderRadius: 15, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,.88)', background: 'rgba(20,16,14,.4)', border: '1px solid rgba(255,255,255,.14)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', pointerEvents: 'none' }}
+        >
+          <span style={{ width: 7, height: 7, borderRadius: 999, background: '#F5B83D' }} />
+          Away · press any key to return
+        </div>
+      )}
       <div
         style={{
           position: 'absolute', left: '50%', top: '50%', width: CANVAS_W, height: CANVAS_H,

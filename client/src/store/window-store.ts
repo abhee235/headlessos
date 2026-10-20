@@ -38,6 +38,8 @@ interface DesktopState {
   startMenuOpen: boolean;
   /** EX8.10: HomeHub smart-home overlay (client-only sample) */
   homeHubOpen: boolean;
+  /** EX8.17: why the hub is open — the dock button, or the idle privacy screen */
+  homeHubReason: 'user' | 'idle' | null;
   snapPreview: SnapZone;
 
   // Actions
@@ -55,6 +57,8 @@ interface DesktopState {
   closeStartMenu: () => void;
   toggleHomeHub: () => void;
   closeHomeHub: () => void;
+  /** EX8.17: open the hub as the idle privacy screen (no-op if it is already open) */
+  openHomeHubIdle: () => void;
   toggleShowDesktop: () => void;
   /** EX6-A.7: Bump the internal window-counter past `n` to avoid ID collisions after restoring persisted windows. */
   setCounterFloor: (n: number) => void;
@@ -107,6 +111,7 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
   nextZIndex: 100,
   startMenuOpen: false,
   homeHubOpen: false,
+  homeHubReason: null,
   snapPreview: null,
 
   openWindow: (appId, serverId, title, icon, meta) => {
@@ -363,11 +368,15 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
 
   // EX8.10: one overlay at a time — opening HomeHub closes the launcher
   toggleHomeHub: () => {
-    set(s => ({ homeHubOpen: !s.homeHubOpen, startMenuOpen: false }));
+    set(s => ({ homeHubOpen: !s.homeHubOpen, homeHubReason: s.homeHubOpen ? null : 'user', startMenuOpen: false }));
   },
 
   closeHomeHub: () => {
-    set({ homeHubOpen: false });
+    set({ homeHubOpen: false, homeHubReason: null });
+  },
+
+  openHomeHubIdle: () => {
+    set(s => (s.homeHubOpen ? s : { homeHubOpen: true, homeHubReason: 'idle', startMenuOpen: false }));
   },
 
   closeStartMenu: () => {

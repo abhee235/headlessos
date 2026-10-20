@@ -9,6 +9,7 @@ import { initAppSessionBridge } from '../../store/app-session-bridge';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useSessionShortcuts } from '../../hooks/useSessionShortcuts';
 import { useAutoHibernate } from '../../hooks/useAutoHibernate';
+import { useIdleGlance } from '../../hooks/useIdleGlance';
 import { Desktop } from './Desktop';
 import { Taskbar } from './Taskbar';
 import { MenuBar } from './MenuBar';
@@ -114,6 +115,7 @@ export function DesktopLayout() {
 
   // EX6-D.5: Auto-hibernate inactive background sessions when configured
   useAutoHibernate();
+  useIdleGlance(); // EX8.17: Home hub as the idle privacy screen
 
   return (
     <TooltipProvider delayDuration={400}>

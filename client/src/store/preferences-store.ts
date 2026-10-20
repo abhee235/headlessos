@@ -60,6 +60,8 @@ interface UserPreferences {
   /** EX8.15: display level 0–100 — 50 is the normal look, below dims, above brightens — and the warm night-light tint */
   displayLevel: number;
   nightLight: boolean;
+  /** EX8.17: minutes without input before the Home hub covers the desktop (0 = off) */
+  idleGlanceMinutes: number;
 
   // ── Terminal Settings ──────────────────────────────────────────────────────
   /** Terminal font size in px */
@@ -127,6 +129,7 @@ interface PreferencesState extends UserPreferences {
   setWeatherUnits: (units: WeatherUnits) => void;
   setDisplayLevel: (level: number) => void;
   setNightLight: (on: boolean) => void;
+  setIdleGlanceMinutes: (minutes: number) => void;
   setAccentColorIndex: (index: number) => void;
   setGlassStrength: (strength: GlassStrength) => void;
   setTransparency: (enabled: boolean) => void;
@@ -160,6 +163,8 @@ const DEFAULTS: UserPreferences = {
   weatherUnits: 'celsius',
   displayLevel: 50,
   nightLight: false,
+  // 1 minute while the idle glance is being tried out; a Settings timer follows
+  idleGlanceMinutes: 1,
   // EX8.6: LumenOS terminal type — Geist Mono 13px (bundled via @fontsource)
   terminalFontSize: 13,
   terminalFontFamily: "'Geist Mono Variable', 'Geist Mono', ui-monospace, monospace",
@@ -294,6 +299,12 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => {
       savePreferences({ ...get(), nightLight: on });
     },
 
+    setIdleGlanceMinutes: (minutes) => {
+      const safe = Math.max(0, Math.floor(minutes));
+      set({ idleGlanceMinutes: safe });
+      savePreferences({ ...get(), idleGlanceMinutes: safe });
+    },
+
     setDesktopSortBy: (field) => {
       set({ desktopSortBy: field });
       savePreferences({ ...get(), desktopSortBy: field });
@@ -397,6 +408,7 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => {
         weatherUnits: updated.weatherUnits,
         displayLevel: updated.displayLevel,
         nightLight: updated.nightLight,
+        idleGlanceMinutes: updated.idleGlanceMinutes,
         accentColorIndex: updated.accentColorIndex,
         glassStrength: updated.glassStrength,
         transparency: updated.transparency,

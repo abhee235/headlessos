@@ -82,6 +82,7 @@ The design handoff lives outside the repo tree in `Custom OS UI Design/handoff/`
 | EX8.14 | One segmented/tab look everywhere (requested): the Settings control | ✅ |
 | EX8.15 | HomeHub as a real glance (requested): same layout, cards bound to server and local data | ✅ |
 | EX8.16 | Colour dock tiles (requested experiment): per-app tile colour with a contrasting glyph; Glass kept as a setting | ✅ |
+| EX8.17 | Idle glance (requested): after N idle minutes the Home hub covers the desktop as a privacy screen (1-minute test build; Settings timer next) | ✅ |
 
 ## Additions beyond the handoff
 
@@ -313,6 +314,21 @@ already a coloured squircle (Services, AI Agent, UI Agent, Observatory) fill the
 tile; the Recycle Bin has no tile. Apps without a tile keep the glass plate.
 `dockIconStyle: 'color' | 'glass'` (Settings → Appearance → Dock Icons, default
 Colour) switches back to the EX8.4 plates.
+
+## EX8.17 — Idle glance (privacy screen)
+
+After `idleGlanceMinutes` (preference; 1 minute while the user tests it, 0 = off)
+with no pointer, key, wheel or touch input on the desktop, the Home hub opens in
+**away** mode. It sits above everything with its 34px backdrop blur, so windows
+behind it are unreadable. A key press or a click outside the cards returns to the
+desktop; moving the mouse does not, so the glance stays readable. Screen output
+(terminals, agents) is not activity, as with an OS screensaver. It is a privacy
+screen, not a lock: anyone at the machine can dismiss it. A Settings timer comes
+after the test.
+
+Verified live: no hub after 50 s idle; the away hub (with an "Away · press any key
+to return" pill) at ~60 s over an open Terminal; a mouse move keeps it, a key press
+returns to the desktop. `hooks/useIdleGlance.ts` checks every 5 s; tests use fake timers.
 
 ## Deviations from the handoff text (prototype wins where they differ)
 
