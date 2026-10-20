@@ -2,6 +2,7 @@
 // Two-pass pipeline: classify (fast model) -> generate (structured-output model)
 // @see docs/phases/phase-ex1.md, docs/phases/phase-ex3.md
 
+import type { ZodSchema } from 'zod';
 import type { DynamicView, DesignClassification } from 'headlessos-shared/schemas/dynamic-view';
 import { DynamicViewSchema, DesignClassificationSchema } from 'headlessos-shared/schemas/dynamic-view';
 import type { LLMProvider, ParseResult } from '../llm/provider.js';
@@ -259,7 +260,9 @@ export class DynamicUIGenerator {
         const llmResult = await this.llmProvider!.parseText<DynamicView>({
           rawOutput: cleanOutput,
           command,
-          schema: DynamicViewSchema,
+          // DynamicView === z.infer<typeof DynamicViewSchema>, but TS can't verify a
+          // recursive z.record+union ZodObject is assignable to ZodSchema<DynamicView>.
+          schema: DynamicViewSchema as ZodSchema<DynamicView>,
           systemPrompt: DYNAMIC_UI_SYSTEM_PROMPT,
           userPrompt,
         });
