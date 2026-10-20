@@ -1,4 +1,4 @@
-// shadcn/ui: Separator — horizontal/vertical divider (Radix)
+// shadcn/ui: Separator — LumenOS v3 (EX8.2): 1px --lumen-sep hairline (Radix)
 import * as React from "react";
 import * as SeparatorPrimitive from "@radix-ui/react-separator";
 import { cn } from "@/lib/utils";

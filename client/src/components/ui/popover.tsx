@@ -1,4 +1,4 @@
-// shadcn/ui: Popover — floating content panel (Radix)
+// shadcn/ui: Popover — LumenOS v3 (EX8.2): glass-heavy floating panel, radius 18px
 import * as React from "react";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import { cn } from "@/lib/utils";
@@ -17,11 +17,7 @@ const PopoverContent = React.forwardRef<
       align={align}
       sideOffset={sideOffset}
       className={cn(
-        "z-[9999] w-72 rounded-xl p-4 text-popover-foreground outline-none",
-        "bg-glass backdrop-blur-2xl backdrop-saturate-[1.8]",
-        "border border-glass-border",
-        "shadow-xl shadow-black/[0.08] dark:shadow-black/40",
-        "ring-1 ring-black/[0.04] dark:ring-white/[0.05]",
+        "glass-heavy z-[9999] w-72 rounded-[18px] p-4 outline-none",
         "animate-contextMenuIn",
         className
       )}

@@ -1,19 +1,49 @@
-// M6.1: File Icon — Apple HIG-inspired app icons + file type icons
-// @see docs/phases/phase-6.md
+// M6.1: File Icon — app icons + file type icons
+// EX8.2: LumenOS v3 — app, folder and common file icons are the Fluent SVGs in
+// client/public/icons/fluent (see LICENSE.txt there). Apps with no Fluent
+// counterpart (Services, AI/UI Agent, Observatory) keep the drawn squircles.
+// @see docs/phases/phase-6.md, docs/phases/phase-ex8.md
 
 import type { FileEntryData } from '../../lib/api';
 import {
-  TopSpeedFilled,
-  PulseFilled,
   ServerFilled,
-  SettingsFilled,
-  ShieldFilled,
-  GlobeFilled,
   BotFilled,
   WandFilled,
   EyeFilled,
-  DeleteFilled,
 } from '@fluentui/react-icons';
+
+// ── Fluent SVG icons (client/public/icons/fluent) ──────────────────
+
+export type FluentIconName =
+  | 'activity' | 'audio' | 'browser' | 'calc' | 'desktop' | 'dl' | 'docs' | 'files'
+  | 'folder' | 'home' | 'img' | 'music' | 'notes' | 'package' | 'pdf' | 'photos'
+  | 'pics' | 'serveradmin' | 'settings' | 'sysdash' | 'terminal' | 'trash'
+  | 'trashfull' | 'txt';
+
+/**
+ * URL of a Fluent icon. Relative on purpose: Vite's `base: './'` and the
+ * router-less app mean it resolves next to index.html in dev and under
+ * Electron's file:// build alike.
+ */
+export function fluentIconUrl(name: FluentIconName): string {
+  return `icons/fluent/${name}.svg`;
+}
+
+export function FluentIcon({ name, size, className, style }: {
+  name: FluentIconName; size: number; className?: string; style?: React.CSSProperties;
+}) {
+  return (
+    <img
+      src={fluentIconUrl(name)}
+      width={size}
+      height={size}
+      alt=""
+      draggable={false}
+      className={className}
+      style={{ flexShrink: 0, objectFit: 'contain', ...style }}
+    />
+  );
+}
 
 interface FileIconProps {
   entry?: FileEntryData;
@@ -45,6 +75,8 @@ export function FileIcon({ entry, type, name, size = 'md', className = '', style
 
   const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
   const category = getFileCategory(ext);
+  const fluent = fluentFileIcon(ext, category);
+  if (fluent) return <FluentIcon name={fluent} size={s.icon} className={className} style={style} />;
 
   return <FileSVG size={s.icon} category={category} ext={ext} className={className} style={style} />;
 }
@@ -158,135 +190,27 @@ function AppIconBase({ size, fromColor, toColor, children }: {
 const glyphSize = (size: number) => Math.round(size * 0.79);
 
 export function DashboardIcon({ size = 48 }: { size?: number }) {
-  return (
-    <AppIconBase size={size} fromColor="#60A5FA" toColor="#2563EB">
-      <TopSpeedFilled style={{ color: 'white', fontSize: glyphSize(size) }} />
-    </AppIconBase>
-  );
+  return <FluentIcon name="sysdash" size={size} />;
 }
 
 export function FileExplorerIcon({ size = 48 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none">
-      {/* Back panel */}
-      <path d="M4 14C4 11.79 5.79 10 8 10H17.17C18.23 10 19.24 10.42 20 11.17L22.83 14H40C42.21 14 44 15.79 44 18V38C44 40.21 42.21 42 40 42H8C5.79 42 4 40.21 4 38V14Z" fill="url(#fex-back)" />
-      {/* Front panel */}
-      <path d="M3 21C3 19.34 4.34 18 6 18H42C43.66 18 45 19.34 45 21V38C45 40.76 42.76 43 40 43H8C5.24 43 3 40.76 3 38V21Z" fill="url(#fex-front)" />
-      {/* Gloss strip */}
-      <path d="M3 21C3 19.34 4.34 18 6 18H42C43.66 18 45 19.34 45 21V24H3V21Z" fill="white" fillOpacity="0.22" />
-      {/* Bottom shadow */}
-      <path d="M3 37V38C3 40.76 5.24 43 8 43H40C42.76 43 45 40.76 45 38V37C45 40 42.76 42 40 42H8C5.24 42 3 40 3 37Z" fill="black" fillOpacity="0.1" />
-      <defs>
-        <linearGradient id="fex-back" x1="24" y1="10" x2="24" y2="42" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#d97706" />
-          <stop offset="1" stopColor="#92400e" />
-        </linearGradient>
-        <linearGradient id="fex-front" x1="24" y1="18" x2="24" y2="43" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#fbbf24" />
-          <stop offset="0.5" stopColor="#f59e0b" />
-          <stop offset="1" stopColor="#d97706" />
-        </linearGradient>
-      </defs>
-    </svg>
-  );
+  return <FluentIcon name="files" size={size} />;
 }
 
 export function TerminalIcon({ size = 48 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none">
-      <rect x="2" y="4" width="44" height="40" rx="8" fill="url(#term-bg)" />
-      <rect x="2" y="4" width="44" height="20" rx="8" fill="url(#term-gloss)" />
-      {/* Traffic lights */}
-      <circle cx="11" cy="12" r="2.5" fill="#ff5f57" />
-      <circle cx="18" cy="12" r="2.5" fill="#febc2e" />
-      <circle cx="25" cy="12" r="2.5" fill="#28c840" />
-      {/* Bold chevron prompt */}
-      <path d="M10 22L17 27.5L10 33" stroke="#4ade80" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-      {/* Cursor line */}
-      <rect x="21" y="30" width="14" height="3" rx="1.5" fill="#4ade80" fillOpacity="0.6" />
-      {/* Blinking cursor */}
-      <rect x="37" y="29" width="2.5" height="5" rx="1" fill="#4ade80" fillOpacity="0.9" />
-      <defs>
-        <linearGradient id="term-bg" x1="24" y1="4" x2="24" y2="44" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#232946" />
-          <stop offset="0.5" stopColor="#1a1f3a" />
-          <stop offset="1" stopColor="#0f1225" />
-        </linearGradient>
-        <linearGradient id="term-gloss" x1="24" y1="4" x2="24" y2="24" gradientUnits="userSpaceOnUse">
-          <stop stopColor="white" stopOpacity="0.08" />
-          <stop offset="1" stopColor="white" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-    </svg>
-  );
+  return <FluentIcon name="terminal" size={size} />;
 }
 
 export function ThisPCIcon({ size = 48 }: { size?: number }) {
-  const s = size;
-  const p = (v: number) => (v / 48) * s; // proportional helper
-  return (
-    <svg width={s} height={s} viewBox={`0 0 ${s} ${s}`} fill="none">
-      {/* Screen body */}
-      <rect x={p(7)} y={p(8)} width={p(34)} height={p(22)} rx={p(2.5)}
-        fill="url(#thispc-screen)" stroke="#334155" strokeWidth={p(1.2)} />
-      {/* Screen glass */}
-      <rect x={p(9.5)} y={p(10.5)} width={p(29)} height={p(16.5)} rx={p(1.2)}
-        fill="url(#thispc-glass)" />
-      {/* Gloss highlight */}
-      <rect x={p(9.5)} y={p(10.5)} width={p(29)} height={p(7)} rx={p(1.2)}
-        fill="white" opacity={0.12} />
-      {/* Stand neck */}
-      <rect x={p(20)} y={p(30)} width={p(8)} height={p(5)} rx={p(0.5)}
-        fill="#475569" />
-      {/* Stand base */}
-      <ellipse cx={p(24)} cy={p(37)} rx={p(10)} ry={p(2.2)}
-        fill="#334155" />
-      <ellipse cx={p(24)} cy={p(36.4)} rx={p(10)} ry={p(2.2)}
-        fill="#64748B" />
-      {/* Screen content: small desktop grid dots */}
-      <rect x={p(13)} y={p(14)} width={p(4)} height={p(4)} rx={p(1)} fill="#60A5FA" opacity={0.85} />
-      <rect x={p(19.5)} y={p(14)} width={p(4)} height={p(4)} rx={p(1)} fill="#34D399" opacity={0.85} />
-      <rect x={p(26)} y={p(14)} width={p(4)} height={p(4)} rx={p(1)} fill="#FBBF24" opacity={0.85} />
-      <rect x={p(13)} y={p(20.5)} width={p(4)} height={p(4)} rx={p(1)} fill="#F87171" opacity={0.85} />
-      <rect x={p(19.5)} y={p(20.5)} width={p(4)} height={p(4)} rx={p(1)} fill="#A78BFA" opacity={0.85} />
-      <rect x={p(26)} y={p(20.5)} width={p(4)} height={p(4)} rx={p(1)} fill="#38BDF8" opacity={0.85} />
-      <defs>
-        <linearGradient id="thispc-screen" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#94A3B8" />
-          <stop offset="100%" stopColor="#475569" />
-        </linearGradient>
-        <linearGradient id="thispc-glass" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#1E293B" />
-          <stop offset="100%" stopColor="#0F172A" />
-        </linearGradient>
-      </defs>
-    </svg>
-  );
+  return <FluentIcon name="desktop" size={size} />;
 }
 
 export function DockerIcon({ size = 48 }: { size?: number }) {
-  // Docker Moby logo (simple-icons, CC0). Original viewBox 0 0 24 24,
-  // path bounds ~0,3.4 to 24,19.6 (width 24, height ~16.2). Center it.
-  const scale = (size * 0.85) / 24; // fill 85% of the icon width
-  const pathH = 16.2 * scale;
-  const pathW = 24 * scale;
-  const tx = (size - pathW) / 2;
-  const ty = (size - pathH) / 2 - 3.4 * scale; // offset by path's top y
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} fill="none">
-      <g transform={`translate(${tx.toFixed(1)}, ${ty.toFixed(1)}) scale(${scale.toFixed(3)})`}>
-        <path d="M13.983 11.078h2.119a.186.186 0 00.186-.185V9.006a.186.186 0 00-.186-.186h-2.119a.185.185 0 00-.185.185v1.888c0 .102.083.185.185.185m-2.954-5.43h2.118a.186.186 0 00.186-.186V3.574a.186.186 0 00-.186-.185h-2.118a.185.185 0 00-.185.185v1.888c0 .102.082.185.185.185m0 2.716h2.118a.187.187 0 00.186-.186V6.29a.186.186 0 00-.186-.185h-2.118a.185.185 0 00-.185.185v1.887c0 .102.082.185.185.186m-2.93 0h2.12a.186.186 0 00.184-.186V6.29a.185.185 0 00-.185-.185H8.1a.185.185 0 00-.185.185v1.887c0 .102.083.185.185.186m-2.964 0h2.119a.186.186 0 00.185-.186V6.29a.185.185 0 00-.185-.185H5.136a.186.186 0 00-.186.185v1.887c0 .102.084.185.186.186m5.893 2.715h2.118a.186.186 0 00.186-.185V9.006a.186.186 0 00-.186-.186h-2.118a.185.185 0 00-.185.185v1.888c0 .102.082.185.185.185m-2.93 0h2.12a.185.185 0 00.184-.185V9.006a.185.185 0 00-.184-.186h-2.12a.185.185 0 00-.184.185v1.888c0 .102.083.185.185.185m-2.964 0h2.119a.185.185 0 00.185-.185V9.006a.185.185 0 00-.184-.186h-2.12a.186.186 0 00-.186.186v1.887c0 .102.084.185.186.185m-2.92 0h2.12a.185.185 0 00.184-.185V9.006a.185.185 0 00-.184-.186h-2.12a.185.185 0 00-.184.185v1.888c0 .102.082.185.185.185M23.763 9.89c-.065-.051-.672-.51-1.954-.51-.338.001-.676.03-1.01.087-.248-1.7-1.653-2.53-1.716-2.566l-.344-.199-.226.327c-.284.438-.49.922-.612 1.43-.23.97-.09 1.882.403 2.661-.595.332-1.55.413-1.744.42H.751a.751.751 0 00-.75.748 11.376 11.376 0 00.692 4.062c.545 1.428 1.355 2.48 2.41 3.124 1.18.723 3.1 1.137 5.275 1.137.983.003 1.963-.086 2.93-.266a12.248 12.248 0 003.823-1.389c.98-.567 1.86-1.288 2.61-2.136 1.252-1.418 1.998-2.997 2.553-4.4h.221c1.372 0 2.215-.549 2.68-1.009.309-.293.55-.65.707-1.046l.098-.288Z" fill="#2496ED"/>
-      </g>
-    </svg>
-  );
+  return <FluentIcon name="package" size={size} />;
 }
 
 export function TaskManagerIcon({ size = 48 }: { size?: number }) {
-  return (
-    <AppIconBase size={size} fromColor="#4ADE80" toColor="#16A34A">
-      <PulseFilled style={{ color: 'white', fontSize: glyphSize(size) }} />
-    </AppIconBase>
-  );
+  return <FluentIcon name="activity" size={size} />;
 }
 
 export function ServicesIcon({ size = 48 }: { size?: number }) {
@@ -298,27 +222,15 @@ export function ServicesIcon({ size = 48 }: { size?: number }) {
 }
 
 export function SettingsIcon({ size = 48 }: { size?: number }) {
-  return (
-    <AppIconBase size={size} fromColor="#F0ABFC" toColor="#C026D3">
-      <SettingsFilled style={{ color: 'white', fontSize: glyphSize(size) }} />
-    </AppIconBase>
-  );
+  return <FluentIcon name="settings" size={size} />;
 }
 
 export function ServerAdminIcon({ size = 48 }: { size?: number }) {
-  return (
-    <AppIconBase size={size} fromColor="#34D399" toColor="#059669">
-      <ShieldFilled style={{ color: 'white', fontSize: glyphSize(size) }} />
-    </AppIconBase>
-  );
+  return <FluentIcon name="serveradmin" size={size} />;
 }
 
 export function FleetIcon({ size = 48 }: { size?: number }) {
-  return (
-    <AppIconBase size={size} fromColor="#38BDF8" toColor="#0369A1">
-      <GlobeFilled style={{ color: 'white', fontSize: glyphSize(size) }} />
-    </AppIconBase>
-  );
+  return <FluentIcon name="browser" size={size} />;
 }
 
 export function AgentIcon({ size = 48 }: { size?: number }) {
@@ -345,36 +257,14 @@ export function ObservatoryIcon({ size = 48 }: { size?: number }) {
   );
 }
 
-export function RecycleBinIcon({ size = 48 }: { size?: number }) {
-  return (
-    <AppIconBase size={size} fromColor="#94A3B8" toColor="#475569">
-      <DeleteFilled style={{ color: 'white', fontSize: glyphSize(size) }} />
-    </AppIconBase>
-  );
+export function RecycleBinIcon({ size = 48, full = false }: { size?: number; full?: boolean }) {
+  return <FluentIcon name={full ? 'trashfull' : 'trash'} size={size} />;
 }
 
 // ── Folder SVG (used in File Explorer) ──────────────────
 
 export function FolderSVG({ size, className, style }: { size: number; className?: string; style?: React.CSSProperties }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
-      <path d="M4 14C4 11.79 5.79 10 8 10H17.17C18.23 10 19.24 10.42 20 11.17L22.83 14H40C42.21 14 44 15.79 44 18V38C44 40.21 42.21 42 40 42H8C5.79 42 4 40.21 4 38V14Z" fill="url(#fld-back)" />
-      <path d="M3 21C3 19.34 4.34 18 6 18H42C43.66 18 45 19.34 45 21V38C45 40.76 42.76 43 40 43H8C5.24 43 3 40.76 3 38V21Z" fill="url(#fld-front)" />
-      <path d="M3 21C3 19.34 4.34 18 6 18H42C43.66 18 45 19.34 45 21V24H3V21Z" fill="white" fillOpacity="0.22" />
-      <path d="M3 37V38C3 40.76 5.24 43 8 43H40C42.76 43 45 40.76 45 38V37C45 40 42.76 42 40 42H8C5.24 42 3 40 3 37Z" fill="black" fillOpacity="0.1" />
-      <defs>
-        <linearGradient id="fld-back" x1="24" y1="10" x2="24" y2="42" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#d97706" />
-          <stop offset="1" stopColor="#92400e" />
-        </linearGradient>
-        <linearGradient id="fld-front" x1="24" y1="18" x2="24" y2="43" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#fbbf24" />
-          <stop offset="0.5" stopColor="#f59e0b" />
-          <stop offset="1" stopColor="#d97706" />
-        </linearGradient>
-      </defs>
-    </svg>
-  );
+  return <FluentIcon name="folder" size={size} className={className} style={style} />;
 }
 
 // ── Symlink SVG ─────────────────────────────────────────
@@ -468,6 +358,19 @@ const FILE_COLORS: Record<FileCategory, { body: string; fold: string; badge: str
   executable:  { body: '#fee2e2', fold: '#fca5a5', badge: '#dc2626' },
   generic:     { body: '#f1f5f9', fold: '#e2e8f0', badge: '#64748b' },
 };
+
+// ── Extension → Fluent icon (EX8.2) ─────────────────────
+// Only types with a matching Fluent icon; the rest keep the badge SVG,
+// whose extension label is more useful for code and config files.
+
+function fluentFileIcon(ext: string, category: FileCategory): FluentIconName | null {
+  if (ext === 'pdf') return 'pdf';
+  if (['txt', 'md', 'log', 'rtf'].includes(ext)) return 'txt';
+  if (category === 'image') return 'img';
+  if (category === 'audio') return 'audio';
+  if (category === 'archive') return 'package';
+  return null;
+}
 
 // ── Extension → Category mapping ────────────────────────
 

@@ -1,5 +1,5 @@
-// shadcn/ui: Dialog — Radix-based, Windows 11 style modal
-// Replaces window.confirm() and alert() with proper modal dialogs
+// shadcn/ui: Dialog — Radix-based, LumenOS v3 modal (EX8.2)
+// Window glass, radius 24px, round 28px close control like window chrome.
 
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
@@ -18,7 +18,7 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-[9998] bg-overlay backdrop-blur-sm animate-fadeIn",
+      "fixed inset-0 z-[9998] bg-overlay backdrop-blur-[2px] animate-fadeIn",
       className
     )}
     {...props}
@@ -36,19 +36,15 @@ const DialogContent = React.forwardRef<
       ref={ref}
       className={cn(
         "fixed left-1/2 top-1/2 z-[9999] w-full max-w-md -translate-x-1/2 -translate-y-1/2",
-        "rounded-2xl",
-        "bg-glass backdrop-blur-2xl backdrop-saturate-[1.8]",
-        "border border-glass-border",
-        "ring-1 ring-black/[0.04] dark:ring-white/[0.05]",
-        "p-6 shadow-2xl shadow-black/[0.08] dark:shadow-black/40",
+        "glass shadow-window rounded-[24px] p-6",
         "animate-dialogIn",
         className
       )}
       {...props}
     >
       {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-lg p-1.5 opacity-50 hover:opacity-100 hover:bg-separator transition-all">
-        <X className="h-4 w-4" />
+      <DialogPrimitive.Close className="absolute right-3 top-3 grid h-7 w-7 place-items-center rounded-full bg-fill text-foreground transition-colors hover:bg-[#D2483F] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <X className="h-[18px] w-[18px]" strokeWidth={1.75} />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
@@ -72,7 +68,7 @@ const DialogFooter = ({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
-    className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 mt-6", className)}
+    className={cn("flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-6", className)}
     {...props}
   />
 );
@@ -85,7 +81,7 @@ const DialogTitle = React.forwardRef<
   <DialogPrimitive.Title
     ref={ref}
     className={cn(
-      "text-base font-semibold leading-none tracking-tight text-foreground",
+      "text-[17px] font-bold leading-tight text-foreground",
       className
     )}
     {...props}
@@ -99,7 +95,7 @@ const DialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Description
     ref={ref}
-    className={cn("text-sm text-muted-foreground mt-1.5", className)}
+    className={cn("text-[14px] leading-relaxed text-muted-foreground mt-1.5", className)}
     {...props}
   />
 ));
