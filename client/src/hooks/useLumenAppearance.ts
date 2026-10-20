@@ -5,6 +5,7 @@
 
 import { useEffect } from 'react';
 import { usePreferencesStore } from '../store/preferences-store';
+import { useThemeStore } from '../store/theme-store';
 import { useEffectivePref } from '../store/effective-preferences';
 import { applyLumenAppearance, isDarkWallpaper, resolveAccent } from '../lib/lumen-theme';
 
@@ -13,6 +14,10 @@ export function useLumenAppearance(): void {
   const wallpaperId = useEffectivePref('wallpaperId');
   const glass = usePreferencesStore((s) => s.glassStrength);
   const transparency = usePreferencesStore((s) => s.transparency);
+  // Subscribing creates the (lazy) theme store, which applies the saved
+  // light/dark class — otherwise the lock and Control Center screens stay on
+  // index.html's default `dark` until the desktop first imports the store.
+  useThemeStore((s) => s.resolvedTheme);
 
   useEffect(() => {
     applyLumenAppearance(document.documentElement, {

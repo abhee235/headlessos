@@ -325,74 +325,78 @@ textarea::placeholder {
   color: var(--lumen-label3);
 }
 
-/* ── Surface recipes (EX8.1) ─────────────────────────────── */
-/* Window body */
-.glass {
-  background: linear-gradient(180deg, rgba(255, 255, 255, .14), rgba(255, 255, 255, 0) 42%), var(--lumen-mat);
-  backdrop-filter: var(--lumen-blur);
-  -webkit-backdrop-filter: var(--lumen-blur);
-  border: 1px solid var(--lumen-edge);
-  color: var(--lumen-label);
-}
-/* Inset pane inside a window (sidebars, toolbars) */
-.glass-subtle {
-  background: var(--lumen-mat-thin);
-  border: 1px solid var(--lumen-edge);
-}
-/* Floating shell panel: dock, launcher, quick settings, menus, toasts */
-.glass-heavy {
-  background: var(--lumen-panel);
-  backdrop-filter: var(--lumen-panel-blur);
-  -webkit-backdrop-filter: var(--lumen-panel-blur);
-  border: 1px solid var(--lumen-edge2);
-  box-shadow: inset 0 1px 0 var(--lumen-spec2), var(--lumen-lift);
-  color: var(--lumen-label);
-}
-/* Content card inside panels/dashboards */
-.lumen-card {
-  background: var(--lumen-card);
-  border: 1px solid var(--lumen-edge2);
-  box-shadow: inset 0 1px 0 var(--lumen-spec2);
-}
-/* Settings-style section card inside windows */
-.lumen-section {
-  background: var(--lumen-mat-thin);
-  border: 1px solid var(--lumen-edge);
-  box-shadow: var(--lumen-spec);
-}
-/* Recessed well (dock utility group, segmented controls) */
-.lumen-well {
-  background: var(--lumen-chip);
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, .3), 0 1px 0 rgba(255, 255, 255, .06);
-}
-/* Lit toggle / primary pill / active slider fill */
-.lumen-lit {
-  background: var(--lumen-lit);
-  color: #fff;
-  box-shadow: 0 6px 18px -6px var(--lumen-accent-glow), inset 0 1px 0 rgba(255, 255, 255, .35);
-}
-/* App icon plate (dock + launcher) */
-.lumen-plate {
-  background: linear-gradient(180deg, rgba(255, 255, 255, .2), rgba(255, 255, 255, .06));
-  border: 1px solid var(--lumen-edge2);
-  box-shadow: inset 0 1px 0 var(--lumen-spec2), 0 6px 14px -8px rgba(0, 0, 0, .45);
-}
-/* Raised pill input (launcher search, sign-in password) */
-.lumen-field-raised {
-  background: var(--lumen-mat-thick);
-  border: 1px solid var(--lumen-edge);
-  box-shadow: var(--lumen-spec), var(--lumen-lift);
-}
-/* Monochrome SVG icons that must follow the theme */
-.lumen-icon { filter: var(--lumen-icon-filter); }
-/* Wallpaper scrim (darkens the wallpaper in dark mode) */
-.lumen-scrim { background: var(--lumen-wall-scrim); }
+/* ── Surface recipes (EX8.1) ───────────────────────────────
+   In the components layer so Tailwind utilities on the same element
+   (hover:bg-*, ring-*, shadow-*, border-*) can still override them. */
+@layer components {
+  /* Window body */
+  .glass {
+    background: linear-gradient(180deg, rgba(255, 255, 255, .14), rgba(255, 255, 255, 0) 42%), var(--lumen-mat);
+    backdrop-filter: var(--lumen-blur);
+    -webkit-backdrop-filter: var(--lumen-blur);
+    border: 1px solid var(--lumen-edge);
+    color: var(--lumen-label);
+  }
+  /* Inset pane inside a window (sidebars, toolbars) */
+  .glass-subtle {
+    background: var(--lumen-mat-thin);
+    border: 1px solid var(--lumen-edge);
+  }
+  /* Floating shell panel: dock, launcher, quick settings, menus, toasts */
+  .glass-heavy {
+    background: var(--lumen-panel);
+    backdrop-filter: var(--lumen-panel-blur);
+    -webkit-backdrop-filter: var(--lumen-panel-blur);
+    border: 1px solid var(--lumen-edge2);
+    box-shadow: inset 0 1px 0 var(--lumen-spec2), var(--lumen-lift);
+    color: var(--lumen-label);
+  }
+  /* Content card inside panels/dashboards */
+  .lumen-card {
+    background: var(--lumen-card);
+    border: 1px solid var(--lumen-edge2);
+    box-shadow: inset 0 1px 0 var(--lumen-spec2);
+  }
+  /* Settings-style section card inside windows */
+  .lumen-section {
+    background: var(--lumen-mat-thin);
+    border: 1px solid var(--lumen-edge);
+    box-shadow: var(--lumen-spec);
+  }
+  /* Recessed well (dock utility group, segmented controls) */
+  .lumen-well {
+    background: var(--lumen-chip);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, .3), 0 1px 0 rgba(255, 255, 255, .06);
+  }
+  /* Lit toggle / primary pill / active slider fill */
+  .lumen-lit {
+    background: var(--lumen-lit);
+    color: #fff;
+    box-shadow: 0 6px 18px -6px var(--lumen-accent-glow), inset 0 1px 0 rgba(255, 255, 255, .35);
+  }
+  /* App icon plate (dock + launcher) */
+  .lumen-plate {
+    background: linear-gradient(180deg, rgba(255, 255, 255, .2), rgba(255, 255, 255, .06));
+    border: 1px solid var(--lumen-edge2);
+    box-shadow: inset 0 1px 0 var(--lumen-spec2), 0 6px 14px -8px rgba(0, 0, 0, .45);
+  }
+  /* Raised pill input (launcher search, sign-in password) */
+  .lumen-field-raised {
+    background: var(--lumen-mat-thick);
+    border: 1px solid var(--lumen-edge);
+    box-shadow: var(--lumen-spec), var(--lumen-lift);
+  }
+  /* Monochrome SVG icons that must follow the theme */
+  .lumen-icon { filter: var(--lumen-icon-filter); }
+  /* Wallpaper scrim (darkens the wallpaper in dark mode) */
+  .lumen-scrim { background: var(--lumen-wall-scrim); }
 
-/* ── Shadows ── */
-.shadow-glass { box-shadow: var(--lumen-spec), var(--lumen-lift); }
-.shadow-window { box-shadow: var(--lumen-spec), var(--lumen-lift); }
-.shadow-window-unfocused { box-shadow: var(--lumen-spec), 0 16px 40px -20px rgba(0, 0, 0, .35); }
-.shadow-dock { box-shadow: inset 0 1px 0 var(--lumen-spec2), 0 24px 60px -24px rgba(0, 0, 0, .6); }
+  /* ── Shadows ── */
+  .shadow-glass { box-shadow: var(--lumen-spec), var(--lumen-lift); }
+  .shadow-window { box-shadow: var(--lumen-spec), var(--lumen-lift); }
+  .shadow-window-unfocused { box-shadow: var(--lumen-spec), 0 16px 40px -20px rgba(0, 0, 0, .35); }
+  .shadow-dock { box-shadow: inset 0 1px 0 var(--lumen-spec2), 0 24px 60px -24px rgba(0, 0, 0, .6); }
+}
 
 /* ── EX3-D.3: Widget entrance animations with stagger ── */
 @keyframes widgetEnter {
