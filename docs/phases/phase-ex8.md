@@ -81,6 +81,7 @@ The design handoff lives outside the repo tree in `Custom OS UI Design/handoff/`
 | EX8.13 | Task Manager process detail card re-ported from `Activity.dc.html`: same flex-wrap reflow at every width | ✅ |
 | EX8.14 | One segmented/tab look everywhere (requested): the Settings control | ✅ |
 | EX8.15 | HomeHub as a real glance (requested): same layout, cards bound to server and local data | ✅ |
+| EX8.16 | Colour dock tiles (requested experiment): per-app tile colour with a contrasting glyph; Glass kept as a setting | ✅ |
 
 ## Additions beyond the handoff
 
@@ -297,6 +298,18 @@ the server state (shrinks for long names), users, Delhi weather with a day-first
 date, live CPU / memory / disk dial, recent apps, brightness + night light layers,
 latency, both saved servers, and the photo frame from `~/Pictures` (falls back to the
 wallpapers when the folder is missing).
+
+## EX8.16 — Colour dock tiles
+
+Every dock app sat on the same neutral glass plate. `Desktop/dock-tiles.tsx` gives
+each its own tile, macOS-style, with a glyph that contrasts with it: Files white +
+blue folder, Dashboard dark slate + gauge, Terminal near-black + white `>_`, Docker
+Docker-blue + white whale, Task Manager white + violet chart, Settings grey + white
+gear, Server Admin white + shield, Fleet blue + white globe; apps whose icon is
+already a coloured squircle (Services, AI Agent, UI Agent, Observatory) fill the
+tile; the Recycle Bin has no tile. Apps without a tile keep the glass plate.
+`dockIconStyle: 'color' | 'glass'` (Settings → Appearance → Dock Icons, default
+Colour) switches back to the EX8.4 plates.
 
 ## Deviations from the handoff text (prototype wins where they differ)
 

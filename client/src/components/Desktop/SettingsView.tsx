@@ -560,6 +560,8 @@ function AppearancePage() {
   const setDesktopIconSize = usePreferencesStore((s) => s.setDesktopIconSize);
   const dockPosition = usePreferencesStore((s) => s.dockPosition);
   const setDockPosition = usePreferencesStore((s) => s.setDockPosition);
+  const dockIconStyle = usePreferencesStore((s) => s.dockIconStyle);
+  const setDockIconStyle = usePreferencesStore((s) => s.setDockIconStyle);
   const wallpaperId = useEffectivePref('wallpaperId');
 
   // EX8.1: index 0 (and any legacy out-of-range index) = match wallpaper
@@ -619,6 +621,17 @@ function AppearancePage() {
             options={[
               { value: 'bottom', label: 'Bottom' },
               { value: 'right', label: 'Right' },
+            ]}
+          />
+        </Row>
+        {/* EX8.16: per-app colour tiles or the neutral glass plates */}
+        <Row label="Dock Icons" description="Each app on its own colour tile, or all on glass">
+          <Segmented
+            value={dockIconStyle}
+            onChange={setDockIconStyle}
+            options={[
+              { value: 'color', label: 'Colour' },
+              { value: 'glass', label: 'Glass' },
             ]}
           />
         </Row>

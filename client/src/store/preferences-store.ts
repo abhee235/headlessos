@@ -11,6 +11,8 @@ export type DesktopIconSize = 'small' | 'medium' | 'large';
 export type DesktopSortBy = 'name' | 'type' | 'date';
 /** EX8.12: where the dock sits — centred along the bottom, or centred on the right edge */
 export type DockPosition = 'bottom' | 'right';
+/** EX8.16: dock tiles — per-app colour tiles (macOS-style) or the neutral glass plates */
+export type DockIconStyle = 'color' | 'glass';
 /** EX8.15: city for the HomeHub weather card (Open-Meteo coordinates) */
 export interface WeatherLocation { name: string; latitude: number; longitude: number }
 export type WeatherUnits = 'celsius' | 'fahrenheit';
@@ -51,6 +53,7 @@ interface UserPreferences {
   desktopSortBy: DesktopSortBy;
   /** EX8.12: dock placement (only the dock moves; its panels open where they always do) */
   dockPosition: DockPosition;
+  dockIconStyle: DockIconStyle;
   /** EX8.15: HomeHub weather city (null = not set) and units */
   weatherLocation: WeatherLocation | null;
   weatherUnits: WeatherUnits;
@@ -119,6 +122,7 @@ interface PreferencesState extends UserPreferences {
   setDesktopIconSize: (size: DesktopIconSize) => void;
   setDesktopSortBy: (field: DesktopSortBy) => void;
   setDockPosition: (position: DockPosition) => void;
+  setDockIconStyle: (style: DockIconStyle) => void;
   setWeatherLocation: (location: WeatherLocation | null) => void;
   setWeatherUnits: (units: WeatherUnits) => void;
   setDisplayBrightness: (percent: number) => void;
@@ -151,6 +155,7 @@ const DEFAULTS: UserPreferences = {
   desktopIconSize: 'large',
   desktopSortBy: 'name',
   dockPosition: 'bottom',
+  dockIconStyle: 'color',
   weatherLocation: null,
   weatherUnits: 'celsius',
   displayBrightness: 100,
@@ -261,6 +266,11 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => {
     setDockPosition: (position) => {
       set({ dockPosition: position });
       savePreferences({ ...get(), dockPosition: position });
+    },
+
+    setDockIconStyle: (style) => {
+      set({ dockIconStyle: style });
+      savePreferences({ ...get(), dockIconStyle: style });
     },
 
     setWeatherLocation: (location) => {
@@ -382,6 +392,7 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => {
         desktopIconSize: updated.desktopIconSize,
         desktopSortBy: updated.desktopSortBy,
         dockPosition: updated.dockPosition,
+        dockIconStyle: updated.dockIconStyle,
         weatherLocation: updated.weatherLocation,
         weatherUnits: updated.weatherUnits,
         displayBrightness: updated.displayBrightness,

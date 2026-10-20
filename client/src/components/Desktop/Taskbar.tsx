@@ -32,6 +32,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { AppIcon, RecycleBinIcon } from '@/components/ui/FileIcon';
+import { colourTile } from './dock-tiles';
 import { cn } from '@/lib/utils';
 import { eventBus } from '@/lib/event-bus';
 
@@ -96,6 +97,8 @@ function WellButton({
 /** 50px app plate; an accent dot at its top-left marks a running app (glowing when focused). */
 function DockTile({
   label,
+  appId,
+  bare = false,
   focused = false,
   running = false,
   dimmed = false,
@@ -103,6 +106,10 @@ function DockTile({
   children,
 }: {
   label: string;
+  /** EX8.16: picks the app's colour tile (when the dock style is Colour) */
+  appId?: string;
+  /** No plate at all (Recycle Bin in the Colour style) */
+  bare?: boolean;
   focused?: boolean;
   running?: boolean;
   dimmed?: boolean;
@@ -110,6 +117,9 @@ function DockTile({
   children: React.ReactNode;
 }) {
   const side = useContext(DockSideContext);
+  const style = usePreferencesStore((s) => s.dockIconStyle);
+  const tile = style === 'color' && appId ? colourTile(appId) : null;
+  const noPlate = style === 'color' && bare;
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -124,9 +134,15 @@ function DockTile({
           )}
           onClick={onClick}
         >
-          <span className="lumen-plate absolute inset-0 rounded-[16px]" />
-          <span className="absolute inset-0 grid place-items-center drop-shadow-[0_2px_3px_rgba(0,0,0,.3)] [&>*]:block">
-            {children}
+          {tile ? tile.plate : !noPlate && <span className="lumen-plate absolute inset-0 rounded-[16px]" />}
+          <span
+            className={cn(
+              'absolute inset-0 grid place-items-center [&>*]:block',
+              // Colour tiles carry their own contrast; keep only a hint of lift on the glyph
+              tile ? 'drop-shadow-[0_1px_1px_rgba(0,0,0,.18)]' : 'drop-shadow-[0_2px_3px_rgba(0,0,0,.3)]',
+            )}
+          >
+            {tile ? tile.glyph : children}
           </span>
           {(focused || running) && (
             <span
@@ -164,6 +180,7 @@ export function Taskbar() {
   const { activeServerId } = useAppStore();
   // EX8.12: bottom-centre (default) or right-middle; only the dock moves
   const dockPosition = usePreferencesStore((s) => s.dockPosition);
+  const dockIconStyle = usePreferencesStore((s) => s.dockIconStyle);
   const vertical = dockPosition === 'right';
   const isConnected = useAppStore(
     (s) => s.servers.find((srv) => srv.id === s.activeServerId)?.state?.status === 'connected',
@@ -280,6 +297,7 @@ export function Taskbar() {
                       <div className="flex">
                         <DockTile
                           label={label}
+                          appId={appId}
                           focused={isFocused}
                           running={isOpen}
                           dimmed={!isConnected && !isOpen}
@@ -326,6 +344,7 @@ export function Taskbar() {
                       <div className="flex">
                         <DockTile
                           label={win.title}
+                          appId={win.appId}
                           focused={isFocused}
                           running={!win.minimized}
                           onClick={() =>
@@ -363,8 +382,8 @@ export function Taskbar() {
 
             {/* ── Divider, then Recycle Bin ── */}
             <span className={cn('shrink-0 bg-border', vertical ? 'my-0.5 h-px w-9' : 'mx-0.5 h-9 w-px')} />
-            <DockTile label="Recycle Bin" dimmed={!isConnected} onClick={handleOpenBin}>
-              <RecycleBinIcon size={32} />
+            <DockTile label="Recycle Bin" bare dimmed={!isConnected} onClick={handleOpenBin}>
+              <RecycleBinIcon size={dockIconStyle === 'color' ? 44 : 32} />
             </DockTile>
           </div>
         </ContextMenuTrigger>
