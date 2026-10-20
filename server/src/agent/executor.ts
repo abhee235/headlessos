@@ -14,6 +14,9 @@ import type { ToolContext, AgentTool } from './tools/types.js';
 import { checkGuardrails } from './guardrails.js';
 import { ToolRepetitionDetector } from './safety/tool-repetition-detector.js';
 import type { PlannerHints } from './planner.js';
+// Canonical ReflectionIssue (derived from reflector's Zod schema); re-exported below
+// so existing importers of it from this module keep working and both modules share one type.
+import type { ReflectionIssue } from './reflector.js';
 import type { ChatMessage } from '../llm/provider.js';
 import { withSpan, withSpanGen, setSpanAttributes } from '../observatory/context.js';
 
@@ -695,13 +698,7 @@ Final: generate_schema(...) — complete view with ALL sections filled
   }
 }
 
-// ── Reflection Issue type (shared with reflector) ──
-
-export interface ReflectionIssue {
-  severity: 'critical' | 'minor' | 'suggestion';
-  widget?: string;
-  description: string;
-  fix: string;
-  actualData?: string;
-  didYouMean?: string;
-}
+// ── Reflection Issue type ──
+// Canonical definition lives in reflector.ts (derived from ReflectionIssueSchema).
+// Re-exported so existing importers (tests, callers) keep resolving it from this module.
+export type { ReflectionIssue };

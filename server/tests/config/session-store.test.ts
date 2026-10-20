@@ -153,7 +153,10 @@ describe('SessionStore', () => {
     await expect(store.markHibernated('missing')).resolves.toBeUndefined();
   });
 
-  it('saved file has 0o600 permissions', async () => {
+  // POSIX-only: Node ignores the `mode` option on Windows (NTFS uses ACLs, not
+  // POSIX permission bits), so the file reports 0o666 there. The 0o600 write mode
+  // in session-store.ts still runs; it just has no effect on Windows.
+  it.skipIf(process.platform === 'win32')('saved file has 0o600 permissions', async () => {
     await store.saveSession(createEmptySessionState('srv-1'));
     const { stat } = await import('fs/promises');
     const s = await stat(join(tempDir, 'sessions', 'srv-1.json'));

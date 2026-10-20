@@ -1,0 +1,15 @@
+# Line-ending normalization.
+#
+# Shell scripts and files executed inside Linux/Docker MUST be checked out with
+# LF, even on Windows (where core.autocrlf=true is the default). A CRLF shebang
+# makes the Linux kernel look for "/bin/bash\r", failing with
+# "exec: no such file or directory" — this is what breaks the dev SSH container
+# and the git hooks when the repo is cloned on Windows.
+
+*.sh            text eol=lf
+Dockerfile      text eol=lf
+*.yaml          text eol=lf
+*.yml           text eol=lf
+
+# Git hooks are run through sh and must be LF.
+.githooks/*     text eol=lf

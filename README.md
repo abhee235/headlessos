@@ -121,8 +121,8 @@ headlessOS/
 npm install
 
 # Set up config (API keys, default server)
-cp server/.env.example server/.env
-# Edit server/.env with your OpenAI API key
+cp .env.example .env
+# Edit .env (at the repo root) with your OpenAI API key
 
 # Start development (backend + frontend concurrently)
 npm run dev
