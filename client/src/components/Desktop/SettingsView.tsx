@@ -674,6 +674,7 @@ function AppearancePage() {
 // ─── Terminal Page ──────────────────────────────────────────────────────────
 
 const FONT_FAMILIES = [
+  { label: 'Geist Mono', value: "'Geist Mono Variable', 'Geist Mono', ui-monospace, monospace" },
   { label: 'JetBrains Mono', value: '"JetBrains Mono", monospace' },
   { label: 'Fira Code', value: '"Fira Code", monospace' },
   { label: 'Source Code Pro', value: '"Source Code Pro", monospace' },

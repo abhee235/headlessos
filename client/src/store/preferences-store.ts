@@ -132,8 +132,9 @@ const DEFAULTS: UserPreferences = {
   wallpaperId: DEFAULT_WALLPAPER_ID,
   desktopIconSize: 'large',
   desktopSortBy: 'name',
-  terminalFontSize: 14,
-  terminalFontFamily: '"JetBrains Mono", "Fira Code", "Cascadia Code", monospace',
+  // EX8.6: LumenOS terminal type — Geist Mono 13px (bundled via @fontsource)
+  terminalFontSize: 13,
+  terminalFontFamily: "'Geist Mono Variable', 'Geist Mono', ui-monospace, monospace",
   terminalCursorStyle: 'block',
   terminalScrollback: 5000,
   terminalCopyOnSelect: true,

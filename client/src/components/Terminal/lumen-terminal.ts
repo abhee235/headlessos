@@ -20,15 +20,17 @@ export const LUMEN_TERMINAL_FONT = "'Geist Mono Variable', 'Geist Mono', ui-mono
 export const LUMEN_TERMINAL_FONT_SIZE = 13;
 export const LUMEN_TERMINAL_LINE_HEIGHT = 1.2;
 
-// Mirrors the defaults in store/preferences-store.ts. While the user has not
-// changed them, the Lumen font is used; any explicit choice is honoured.
-const PREF_DEFAULT_FONT_FAMILY = '"JetBrains Mono", "Fira Code", "Cascadia Code", monospace';
-const PREF_DEFAULT_FONT_SIZE = 14;
+// The pre-EX8 store default. New installs default to Geist Mono 13px in the
+// store itself; this only upgrades preferences saved before that, and only the
+// exact old default — any font or size the user picked is honoured.
+const LEGACY_DEFAULT_FONT_FAMILY = '"JetBrains Mono", "Fira Code", "Cascadia Code", monospace';
+const LEGACY_DEFAULT_FONT_SIZE = 14;
 
 export function resolveTerminalFont(fontFamily: string, fontSize: number) {
+  if (fontFamily !== LEGACY_DEFAULT_FONT_FAMILY) return { fontFamily, fontSize };
   return {
-    fontFamily: fontFamily === PREF_DEFAULT_FONT_FAMILY ? LUMEN_TERMINAL_FONT : fontFamily,
-    fontSize: fontSize === PREF_DEFAULT_FONT_SIZE ? LUMEN_TERMINAL_FONT_SIZE : fontSize,
+    fontFamily: LUMEN_TERMINAL_FONT,
+    fontSize: fontSize === LEGACY_DEFAULT_FONT_SIZE ? LUMEN_TERMINAL_FONT_SIZE : fontSize,
   };
 }
 
