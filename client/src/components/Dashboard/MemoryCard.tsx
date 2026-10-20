@@ -1,7 +1,11 @@
 // M2.2: Memory Card — memory usage display
-// @see docs/phases/phase-2.md
+// EX8.6: LumenOS v3 — usage ring + used/total, Swap bar underneath
+// @see docs/phases/phase-2.md, docs/phases/phase-ex8.md
 
 import { MemoryStick } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { cn } from '@/lib/utils';
+import { DashCard, Ring } from './parts';
 
 interface MemoryCardProps {
   memory: {
@@ -24,62 +28,39 @@ export function MemoryCard({ memory }: MemoryCardProps) {
     : 0;
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <div className="flex items-center gap-2 mb-3">
-        <MemoryStick className="w-4 h-4 text-primary" />
-        <h3 className="text-sm font-medium text-card-foreground">Memory</h3>
+    <DashCard icon={MemoryStick} title="Memory" meta={`${formatMb(memory.availableMb)} available`}>
+      {/* RAM */}
+      <div className={cn('flex flex-1 items-center gap-5', memory.swapTotalMb > 0 && 'mb-5')}>
+        <Ring value={usedPercent} size={112} stroke={10} arcClassName="stroke-chart-3">
+          <span className="text-[26px] font-bold leading-none tracking-[-0.02em] tabular-nums text-foreground">
+            {usedPercent}
+            <span className="ml-0.5 text-[14px] font-semibold">%</span>
+          </span>
+          <span className="mt-1 text-[11px] font-semibold uppercase tracking-[.06em] text-label-3">RAM</span>
+        </Ring>
+        <div className="min-w-0">
+          <p className="truncate text-[24px] font-bold leading-tight tracking-[-0.02em] tabular-nums text-foreground">
+            {formatMb(memory.usedMb)}
+          </p>
+          <p className="truncate text-[13px] text-label-2 tabular-nums">
+            of {formatMb(memory.totalMb)} in use
+          </p>
+        </div>
       </div>
 
-      <div className="space-y-3">
-        {/* RAM */}
-        <div>
-          <div className="flex items-center justify-between text-xs mb-1">
-            <span className="text-muted-foreground">RAM</span>
-            <span className="text-foreground font-mono">
-              {formatMb(memory.usedMb)} / {formatMb(memory.totalMb)} ({usedPercent}%)
+      {/* Swap */}
+      {memory.swapTotalMb > 0 && (
+        <div className="border-t border-border pt-4">
+          <div className="mb-2 flex items-center justify-between text-[13px]">
+            <span className="text-label-2">Swap</span>
+            <span className="tabular-nums text-foreground">
+              {formatMb(memory.swapUsedMb)} / {formatMb(memory.swapTotalMb)}
             </span>
           </div>
-          <ProgressBar percent={usedPercent} color="purple" />
+          <Progress value={swapPercent} aria-label="Swap usage" />
         </div>
-
-        {/* Swap */}
-        {memory.swapTotalMb > 0 && (
-          <div>
-            <div className="flex items-center justify-between text-xs mb-1">
-              <span className="text-muted-foreground">Swap</span>
-              <span className="text-foreground font-mono">
-                {formatMb(memory.swapUsedMb)} / {formatMb(memory.swapTotalMb)} ({swapPercent}%)
-              </span>
-            </div>
-            <ProgressBar percent={swapPercent} color="amber" />
-          </div>
-        )}
-
-        {/* Details */}
-        <div className="flex items-center justify-between text-xs pt-1 border-t border-border">
-          <span className="text-muted-foreground">Available</span>
-          <span className="text-muted-foreground font-mono">{formatMb(memory.availableMb)}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ProgressBar({ percent, color }: { percent: number; color: string }) {
-  const barColor =
-    color === 'purple'
-      ? 'bg-primary'
-      : color === 'amber'
-        ? 'bg-warning'
-        : 'bg-primary';
-
-  return (
-    <div className="w-full bg-muted rounded-full h-2">
-      <div
-        className={`h-2 rounded-full transition-all duration-300 ${barColor}`}
-        style={{ width: `${Math.min(percent, 100)}%` }}
-      />
-    </div>
+      )}
+    </DashCard>
   );
 }
 
