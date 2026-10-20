@@ -75,6 +75,23 @@ export abstract class DomainService extends BaseService {
     }
   }
 
+  /**
+   * EX8.9: Runs a command and returns the full ExecResult, never throwing.
+   * A timeout or channel error becomes exit code -1 with the message in
+   * stderr, so one failed probe degrades a page instead of failing it.
+   */
+  protected async execSafe(
+    serverId: string,
+    command: string,
+    timeout = 10_000,
+  ): Promise<ExecResult> {
+    try {
+      return await this.ssh.exec(serverId, command, timeout);
+    } catch (err) {
+      return { stdout: '', stderr: (err as Error)?.message ?? 'exec failed', exitCode: -1, durationMs: 0 };
+    }
+  }
+
   /** Runs a command and returns the full ExecResult. Bubbles errors. */
   protected async exec(
     serverId: string,

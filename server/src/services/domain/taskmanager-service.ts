@@ -24,6 +24,46 @@ import type {
 import type { MemoryInfoParsed } from '../../parsers/schemas/system.js';
 import type { ExecutionPlan } from '../../orchestrator/orchestrator.js';
 import type { StepMeta } from './system-service.js';
+// EX8.9: Users, App history, Startup apps
+import {
+  TaskManagerUsersSchema,
+  AppHistorySchema,
+  StartupSchema,
+  type TaskManagerUsers,
+  type AppHistory,
+  type StartupData,
+  type StartupItem,
+  type InitSystem,
+} from '../../parsers/schemas/taskmanager.js';
+import { parseEtcPasswd } from '../../parsers/deterministic/etc-passwd.js';
+import { parseWho } from '../../parsers/deterministic/who.js';
+import { toAccounts, parseTtyProcessRows, buildSessions } from '../../parsers/deterministic/user-sessions.js';
+import {
+  parseAppProcessRows,
+  parseProcIo,
+  aggregateApps,
+  isIoReadable,
+  parseBootTime,
+} from '../../parsers/deterministic/app-usage.js';
+import { parseListUnitFiles, parseSystemctlShow } from '../../parsers/deterministic/systemctl.js';
+import { parseSystemdAnalyzeTime, parseSystemdBlame } from '../../parsers/deterministic/systemd-analyze.js';
+import { parseRcLinks, parseShortDescriptions, parseInitDList } from '../../parsers/deterministic/sysv-init.js';
+import {
+  CRON_ID_PREFIX,
+  isStartupUnitFile,
+  parseRebootCron,
+  buildCronItems,
+  buildSystemdStartupItems,
+  buildSysvStartupItems,
+  sortStartupItems,
+} from '../../parsers/deterministic/startup-items.js';
+import { validateServiceName } from '../../security/validators.js';
+import {
+  PROBE,
+  buildUnitInfoCommand,
+  buildSysvCommand,
+  buildSystemctlEnableCommand,
+} from './init-system.js';
 
 export interface TaskManagerSnapshot {
   processes: ProcessListParsed;
@@ -217,5 +257,180 @@ export class TaskManagerService extends DomainService {
     const detail = result.exitCode === 0 ? parseProcessDetail(pidNum, result.stdout) : null;
     if (!detail) return fail(`Process ${pidNum} not found`, 404);
     return ok(detail);
+  }
+
+  // ── EX8.9: Users ─────────────────────────────────────
+
+  /**
+   * Accounts from /etc/passwd (read over SFTP — commands containing
+   * `passwd` are on the blocklist, so `getent passwd` cannot run), sessions
+   * from `who`, or from processes with a terminal when utmp is empty.
+   */
+  async getUsers(serverId: string): Promise<ServiceResult<TaskManagerUsers>> {
+    const notConnected = this.checkConnected(serverId);
+    if (notConnected) return notConnected;
+
+    const [passwd, who, tty, me] = await Promise.all([
+      this.readRemoteText(serverId, '/etc/passwd'),
+      this.execSafe(serverId, PROBE.who, 10_000),
+      this.execSafe(serverId, PROBE.ttyProcesses, 10_000),
+      this.execSafe(serverId, PROBE.currentUser, 5_000),
+    ]);
+
+    return ok(TaskManagerUsersSchema.parse({
+      accounts: toAccounts(parseEtcPasswd(passwd)),
+      sessions: buildSessions(
+        who.exitCode === 0 ? parseWho(who.stdout) : [],
+        parseTtyProcessRows(tty.stdout),
+        Date.now(),
+      ),
+      currentUser: me.exitCode === 0 ? me.stdout.trim() : '',
+    }));
+  }
+
+  // ── EX8.9: App history ───────────────────────────────
+
+  async getAppHistory(serverId: string): Promise<ServiceResult<AppHistory>> {
+    const notConnected = this.checkConnected(serverId);
+    if (notConnected) return notConnected;
+
+    const [ps, io, stat, me] = await Promise.all([
+      this.execSafe(serverId, PROBE.appProcesses, 10_000),
+      // grep exits 2 when some io files are unreadable; its stdout is still good
+      this.execSafe(serverId, PROBE.procIo, 10_000),
+      this.execSafe(serverId, PROBE.procStat, 10_000),
+      this.execSafe(serverId, PROBE.currentUser, 5_000),
+    ]);
+
+    const sshUser = me.exitCode === 0 ? me.stdout.trim() : '';
+    const rows = parseAppProcessRows(ps.stdout);
+    const ioMap = parseProcIo(io.stdout);
+
+    return ok(AppHistorySchema.parse({
+      since: parseBootTime(stat.stdout) ?? new Date().toISOString(),
+      ioReadable: isIoReadable(rows, ioMap, sshUser),
+      apps: aggregateApps(rows, ioMap, sshUser),
+    }));
+  }
+
+  // ── EX8.9: Startup apps ──────────────────────────────
+
+  async getStartup(serverId: string): Promise<ServiceResult<StartupData>> {
+    const notConnected = this.checkConnected(serverId);
+    if (notConnected) return notConnected;
+
+    const [pid1, booted, stat, cronSystem, cronUser] = await Promise.all([
+      this.execSafe(serverId, PROBE.pid1, 5_000),
+      this.execSafe(serverId, PROBE.systemdBooted, 5_000),
+      this.execSafe(serverId, PROBE.procStat, 10_000),
+      this.execSafe(serverId, PROBE.cronSystemSpecial, 10_000),
+      // exits 1 with "no crontab for <user>", 127 without cron: both → none
+      this.execSafe(serverId, PROBE.cronUser, 10_000),
+    ]);
+
+    const pid1Comm = pid1.exitCode === 0 ? pid1.stdout.trim() : '';
+    const cronItems = buildCronItems([
+      ...parseRebootCron(cronSystem.stdout, true),
+      ...(cronUser.exitCode === 0 ? parseRebootCron(cronUser.stdout, false) : []),
+    ]);
+
+    let init: InitSystem;
+    let boot: StartupData['boot'] = null;
+    let items: StartupItem[];
+
+    if (booted.exitCode === 0 || pid1Comm === 'systemd') {
+      init = 'systemd';
+      const [files, time, blame] = await Promise.all([
+        this.execSafe(serverId, PROBE.unitFiles, 10_000),
+        this.execSafe(serverId, PROBE.analyzeTime, 10_000),
+        this.execSafe(serverId, PROBE.analyzeBlame, 10_000),
+      ]);
+      const unitFiles = parseListUnitFiles(files.stdout);
+      const infoCmd = buildUnitInfoCommand(unitFiles.filter(isStartupUnitFile).map((u) => u.unit));
+      const info = infoCmd ? await this.execSafe(serverId, infoCmd, 15_000) : null;
+      boot = time.exitCode === 0 ? parseSystemdAnalyzeTime(time.stdout) : null;
+      items = buildSystemdStartupItems(
+        unitFiles,
+        parseSystemdBlame(blame.stdout),
+        info ? parseSystemctlShow(info.stdout) : [],
+      );
+    } else {
+      const [initD, rc2, desc] = await Promise.all([
+        this.execSafe(serverId, PROBE.initD, 5_000),
+        this.execSafe(serverId, PROBE.rc2d, 5_000),
+        this.execSafe(serverId, PROBE.initDescriptions, 10_000),
+      ]);
+      const scripts = initD.exitCode === 0 ? parseInitDList(initD.stdout) : [];
+      init = scripts.length > 0 ? 'sysv' : 'none';
+      items = init === 'sysv'
+        ? buildSysvStartupItems(parseRcLinks(rc2.stdout), parseShortDescriptions(desc.stdout), scripts)
+        : [];
+    }
+
+    return ok(StartupSchema.parse({
+      init,
+      pid1: pid1Comm,
+      bootedAt: parseBootTime(stat.stdout) ?? new Date().toISOString(),
+      boot,
+      items: sortStartupItems([...items, ...cronItems]),
+    }));
+  }
+
+  /**
+   * Enable or disable a startup item. `x.service` ids → `sudo systemctl
+   * enable|disable`; other ids are SysV scripts → `sudo update-rc.d`.
+   * cron `@reboot` items are read-only.
+   */
+  async setStartupItem(serverId: string, item: string, action: string): Promise<ServiceResult<void>> {
+    const notConnected = this.checkConnected(serverId);
+    if (notConnected) return notConnected;
+
+    if (action !== 'enable' && action !== 'disable') {
+      return fail('Action must be enable or disable', 400);
+    }
+    if (typeof item === 'string' && item.startsWith(CRON_ID_PREFIX)) {
+      return fail('@reboot cron entries are read-only; edit the crontab to change them', 400);
+    }
+    if (!validateServiceName(item)) {
+      return fail('Invalid startup item', 400);
+    }
+
+    const command = item.endsWith('.service')
+      ? buildSystemctlEnableCommand(item, action)
+      : buildSysvCommand(item, action);
+    const result = await this.execSafe(serverId, command, 20_000);
+    if (result.exitCode !== 0) {
+      return fail(result.stderr.trim() || `${action} failed with exit code ${result.exitCode}`, 500);
+    }
+    return ok(undefined);
+  }
+
+  // ── helpers ──────────────────────────────────────────
+
+  private checkConnected(serverId: string): ServiceResult<never> | null {
+    try {
+      this.requireConnected(serverId);
+      return null;
+    } catch (err) {
+      const e = err as Error & { statusCode?: number };
+      return fail(e.message ?? 'Not connected', e.statusCode ?? 500);
+    }
+  }
+
+  /** Small world-readable file over SFTP; '' on any error or after 10 s. */
+  private async readRemoteText(serverId: string, path: string): Promise<string> {
+    try {
+      const sftp = await this.ssh.getSftp(serverId);
+      return await new Promise<string>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('SFTP read timed out')), 10_000);
+        sftp.readFile(path, (err, buf) => {
+          clearTimeout(timer);
+          if (err) reject(err);
+          else resolve(buf.toString('utf-8'));
+        });
+      });
+    } catch {
+      return '';
+    }
   }
 }

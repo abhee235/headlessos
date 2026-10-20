@@ -993,6 +993,12 @@ None (all changes to existing files).
 - **Files modified:** `FileExplorer/FileViewer.tsx`, `Docker/ContainerFilesView.tsx`, `client/package.json` (`monaco-editor` 0.57.0, exact)
 - **Verification:** Playwright — TS / JSON / nginx.conf in Files (dark + light), container Files editor, JSON worker flags a trailing comma, modified badge + Save; `vite build` emits the lazy editor chunk and per-language workers
 
+### EX8.9: Task Manager — App history, Startup apps, Users, Services
+- **Status:** ✅ Complete
+- **Files created:** client `TaskManager/{AppHistoryTab,StartupTab,UsersTab,ServicesTab,kit}.tsx`, test `client/tests/components/taskmanager-pages.test.tsx`; server `services/domain/init-system.ts`, `parsers/deterministic/{systemd-analyze,sysv-init,app-usage,user-sessions,startup-items}.ts`, tests `server/tests/parsers/{systemd-analyze,sysv-init,app-usage,user-sessions,startup-items}.test.ts`, `server/tests/services/domain/taskmanager-pages.test.ts`, `server/tests/routes/{taskmanager,services-route}.test.ts`, `server/tests/security/ex89-allowlist.test.ts`
+- **Files modified:** `TaskManager/TaskManagerView.tsx`, `client/src/lib/api.ts`; server `services/domain/{taskmanager-service,systemd-service,base}.ts`, `routes/{taskmanager,services}.ts`, `parsers/deterministic/systemctl.ts`, `parsers/schemas/{taskmanager,services}.ts`, `security/validators.ts`, `tests/services/domain/systemd-service.test.ts`
+- **Verification:** client 593 / server 2154 tests; Playwright of the four pages on the SysV dev box
+
 ## How to Use This File
 
 ### After completing a task:

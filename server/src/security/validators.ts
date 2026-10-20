@@ -125,11 +125,33 @@ export const ALLOWED_COMMANDS = new Map<string, CommandRule>([
   ['systemctl list-units', { pattern: /^systemctl\s+list-units/, risk: 'low' }],
   ['systemctl show', { pattern: /^systemctl\s+show\s+/, risk: 'low' }],
   ['systemctl status', { pattern: /^(sudo\s+)?systemctl\s+status\s+[\w@.-]+$/, risk: 'low' }],
-  ['systemctl start', { pattern: /^(sudo\s+)?systemctl\s+start\s+[\w@.-]+$/, risk: 'high' }],
-  ['systemctl stop', { pattern: /^(sudo\s+)?systemctl\s+stop\s+[\w@.-]+$/, risk: 'high' }],
-  ['systemctl restart', { pattern: /^(sudo\s+)?systemctl\s+restart\s+[\w@.-]+$/, risk: 'high' }],
-  ['systemctl enable', { pattern: /^(sudo\s+)?systemctl\s+enable\s+[\w@.-]+$/, risk: 'high' }],
-  ['systemctl disable', { pattern: /^(sudo\s+)?systemctl\s+disable\s+[\w@.-]+$/, risk: 'high' }],
+  // Unit may be bare or single-quoted (SystemdService / TaskManagerService shell-escape it)
+  ['systemctl start', { pattern: /^(sudo\s+)?systemctl\s+start\s+(?:[\w@.-]+|'[\w@.-]+')$/, risk: 'high' }],
+  ['systemctl stop', { pattern: /^(sudo\s+)?systemctl\s+stop\s+(?:[\w@.-]+|'[\w@.-]+')$/, risk: 'high' }],
+  ['systemctl restart', { pattern: /^(sudo\s+)?systemctl\s+restart\s+(?:[\w@.-]+|'[\w@.-]+')$/, risk: 'high' }],
+  ['systemctl enable', { pattern: /^(sudo\s+)?systemctl\s+enable\s+(?:[\w@.-]+|'[\w@.-]+')$/, risk: 'high' }],
+  ['systemctl disable', { pattern: /^(sudo\s+)?systemctl\s+disable\s+(?:[\w@.-]+|'[\w@.-]+')$/, risk: 'high' }],
+
+  // EX8.9: Task Manager Users / App history / Startup apps / Services. Exact
+  // strings from services/domain/init-system.ts (PROBE + builders). Accounts are
+  // read from /etc/passwd over SFTP: BLOCKED_COMMANDS rejects any command
+  // containing `passwd`, and `reboot` (hence the `^…@` cron grep).
+  ['id -un', { pattern: /^id\s+-un$/, risk: 'none' }],
+  ['ps tty sessions', { pattern: /^ps\s+-eo\s+user:32=,tty=,etimes=$/, risk: 'none' }],
+  ['ps app usage', { pattern: /^ps\s+-eo\s+pid=,ppid=,cputimes=,rss=,user:32=,comm=$/, risk: 'none' }],
+  ['ps pid 1', { pattern: /^ps\s+-o\s+comm=\s+-p\s+1$/, risk: 'none' }],
+  ['proc io', { pattern: /^grep\s+-sE\s+'\^\(read\|write\)_bytes'\s+\/proc\/\[0-9\]\*\/io$/, risk: 'none' }],
+  ['systemd booted', { pattern: /^test\s+-d\s+\/run\/systemd\/system$/, risk: 'none' }],
+  ['cron @ lines', { pattern: /^grep\s+-sh\s+'\^\[\[:space:\]\]\*@'\s+\/etc\/crontab\s+\/etc\/cron\.d\/\*$/, risk: 'none' }],
+  ['systemctl list-unit-files', { pattern: /^systemctl\s+list-unit-files\s+--type=service\s+--no-legend\s+--no-pager$/, risk: 'none' }],
+  ['systemd-analyze', { pattern: /^systemd-analyze\s+(?:time|blame)\s+--no-pager$/, risk: 'none' }],
+  ['systemctl show runtime', { pattern: /^systemctl\s+show\s+--no-pager\s+--property=Id,MainPID,UnitFileState\s+'\*\.service'$/, risk: 'none' }],
+  ['systemctl show unit info', { pattern: /^systemctl\s+show\s+--no-pager\s+--property=Id,Description,ExecStart(?:\s+'[\w@.:-]+\.service'){1,500}$/, risk: 'none' }],
+  ['service --status-all', { pattern: /^service\s+--status-all$/, risk: 'none' }],
+  ['ls init scripts', { pattern: /^ls\s+-1\s+\/etc\/(?:init\.d|rc2\.d)$/, risk: 'none' }],
+  ['init descriptions', { pattern: /^grep\s+-s\s+'\^# Short-Description:'\s+\/etc\/init\.d\/\*$/, risk: 'none' }],
+  ['sysv service', { pattern: /^sudo\s+service\s+'[\w@.-]+'\s+(?:start|stop|restart)$/, risk: 'high' }],
+  ['update-rc.d', { pattern: /^sudo\s+update-rc\.d\s+'[\w@.-]+'\s+(?:enable|disable)$/, risk: 'high' }],
 
   // Process management
   ['kill', { pattern: /^kill\s+-\d{1,2}\s+\d{1,5}$/, risk: 'high' }],

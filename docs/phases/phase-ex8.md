@@ -72,6 +72,7 @@ The design handoff lives outside the repo tree in `Custom OS UI Design/handoff/`
 | EX8.6 | Apps: FileExplorer, SettingsView, TaskManager, Dashboard, Terminal, Docker, Services, ServerAdmin, DynamicUI widgets — fix what steps 1–4 didn't cover | ✅ |
 | EX8.7 | Verify (light/dark, 4 accents, 3 glass levels, transparency off, 1440×900 + 1024×768), tests, docs | ✅ |
 | EX8.8 | Code editor (requested): Monaco in Files and container Files — syntax colouring, Lumen themes, Ctrl/⌘+S | ✅ |
+| EX8.9 | Task Manager: App history, Startup apps, Users, Services pages (prototype `Activity`) | ✅ |
 
 ## Additions beyond the handoff
 
@@ -124,6 +125,55 @@ Found or asked for during the work; each has tests.
   suggestion diagnostics are off (a lone server file has no project); syntax
   errors still show.
 
+## EX8.9 — Task Manager: App history, Startup apps, Users, Services
+
+The prototype's Activity app has four pages HeadlessOS lacked. What a Linux
+server can actually report shapes each one:
+
+| Page | Linux source | What is not available |
+|------|--------------|-----------------------|
+| Services | systemd (`systemctl`), else SysV (`service --status-all`, `/etc/rc2.d`) | — |
+| Startup apps | enabled/disabled systemd unit files + `systemd-analyze` (boot time, per-unit delay); SysV `rc2.d` start links; `@reboot` cron lines | per-app "publisher" (would need a package lookup per binary) |
+| Users | `getent passwd` (accounts, uid, shell), `who` (sessions; fallback: processes with a tty), per-user CPU / memory / process count aggregated from the existing `ps aux` poll | — |
+| App history | per-command totals for **running** processes since boot: CPU time (`ps cputimes`), memory, instances, disk I/O (`/proc/<pid>/io`, readable for the SSH user's own processes, or all as root) | Linux keeps no per-app history of exited programs (only with process accounting, `acct`); per-app network bytes need root tools (nethogs), so there is no Network column |
+
+### API (all `GET` unless noted; under `/api/servers/:id`)
+
+- `taskmanager/users` → `{ accounts: { name, uid, shell, kind: 'admin'|'standard'|'service' }[], sessions: { user, tty, from: string|null, loginAt: string|null }[], currentUser }`.
+  `kind`: uid 0 → admin; uid ≥ 1000 (not 65534) with a login shell → standard; else service.
+- `taskmanager/app-history` → `{ since: ISO (boot time), ioReadable: boolean, apps: { name, cpuSeconds, rssKb, instances, readBytes: number|null, writeBytes: number|null, users: string[] }[] }`,
+  sorted by `cpuSeconds` desc. HeadlessOS's own probe commands (`ps`, `grep`, `cat` run by the SSH user) are left out.
+- `taskmanager/startup` → `{ init: 'systemd'|'sysv'|'none', pid1: string, bootedAt: ISO, boot: { totalMs, firmwareMs|null, loaderMs|null, kernelMs|null, userspaceMs|null } | null, items: StartupItem[] }`;
+  `StartupItem = { id, name, command: string|null, source: 'systemd'|'sysv'|'cron', enabled, delayMs: number|null, impact: 'high'|'medium'|'low'|null, toggleable }`.
+  Impact from the unit's `systemd-analyze blame` time: ≥ 1 s high, ≥ 300 ms medium, else low. systemd items are `enabled`/`disabled` `.service` unit files (no static, masked or template units).
+- `POST taskmanager/startup/:id/:action` (`enable`|`disable`) → `sudo systemctl enable|disable <unit>` or `sudo update-rc.d <name> enable|disable`. cron items are read-only.
+- `services` (existing) gains per service `startup: 'automatic'|'manual'|'disabled'|null` and `pid: number|null`, and the response gains `init: 'systemd'|'sysv'|'none'`.
+  systemd: `enabled*` → automatic, `disabled`/`static`/`indirect` → manual, `masked` → disabled. SysV: an `S??name` link in `/etc/rc2.d` → automatic, else manual; `[ + ]` → active, `[ - ]` → inactive.
+  `POST services/:name/:action` uses `sudo service <name> start|stop|restart` on SysV hosts.
+
+All commands are read-only except the two `POST`s, which already require sudo and are
+confirmed in the UI. Each command is an exact allowlist pattern in `security/validators.ts`.
+
+### UI
+
+Four new `PaneSidebar` items after Performance (prototype order): App history, Startup apps,
+Users, Services. Stat tiles + one table card per page, as in the prototype.
+- **App history:** tiles "Tracking since" (boot), "CPU time" (total across apps), "Disk I/O", "Running apps"; table App · CPU time · Memory · Disk · Instances with inline bars; footnote on what Linux can and cannot report.
+- **Startup apps:** tiles "Last boot time" (systemd-analyze, or "Up since" without systemd), "Enabled n of m", "High impact"; table Name (+ command) · Source · Impact · Delay · On (switch, confirmed).
+- **Users:** a card per user with processes: avatar, name, kind ("Administrator", "Standard user · you", "Service account"), Active/Idle/Service badge, CPU and memory bars, "n processes · pts/0 since 14:02". No Sign out (it would kill the user's sessions, including HeadlessOS's own).
+- **Services:** search + All / Running / Stopped; table Service (+ description) · PID · Status · Startup · Action. Stop and Start are confirmed; stopping `ssh`/`sshd` warns that it can cut this connection.
+
+### Backend notes
+
+- **Accounts** are read from `/etc/passwd` over SFTP, not `getent passwd`: `BLOCKED_COMMANDS` rejects any command containing `passwd` in every policy mode. NSS/LDAP accounts are therefore not listed.
+- **cron** lines come from `grep -sh '^[[:space:]]*@' /etc/crontab /etc/cron.d/*` plus `crontab -l` (the SSH user's), filtered to `@reboot` in the parser; the blocklist also rejects the word `reboot`.
+- **Startup ids:** systemd → unit name (`ssh.service`), SysV → script name (`ssh`), cron → `@reboot#<n>`. `POST startup/:item/:action` picks `systemctl` for `*.service`, `update-rc.d` otherwise, and returns 400 for `@reboot#…`. `name` is the unit Description / SysV `Short-Description`, falling back to the id without `.service`.
+- **init detection:** `systemd` when `/run/systemd/system` exists (sd_booted) or PID 1 is `systemd`; else `sysv` when `/etc/init.d` has scripts; else `none`. `systemctl list-unit-files` works without systemd as PID 1, so it is not used as the signal. `services` falls back to SysV only when systemctl reports it cannot run (not booted with systemd, no bus, not installed); `POST services/:name/:action` tries `sudo systemctl` first and retries with `sudo service` / `sudo update-rc.d` on the same signal.
+- **SysV startup items** are the scripts linked into `/etc/rc2.d` (`S??` enabled, `K??` only disabled); rcS-only scripts (procps, hwclock.sh) are not startup apps. SysV services report `pid: null`.
+- **Boot:** `bootedAt`/`since` come from `btime` in `/proc/stat` (the server's clock). `systemd-analyze time` `(initrd)` is folded into `kernelMs`. systemd items get `delayMs` from `blame` (null if the unit did not start this boot); `enabled-runtime` units are shown as enabled but not toggleable.
+- **Sessions:** `loginAt` is now − the age of the oldest process on that tty (`who` prints a zone-less wall-clock time); null when no process is on it. With an empty utmp (containers), each terminal with processes is one session.
+- **ioReadable** is true when the SSH user is root or `/proc/<pid>/io` was readable for at least one process it does not own. Kernel threads (pid 2 and its children) are left out of App history, as are `ps`/`grep`/`cat`/`id` run by the SSH user.
+
 ## Deviations from the handoff text (prototype wins where they differ)
 
 - **Settings row type and light-theme contrast (user review):** the prototype's
@@ -149,7 +199,12 @@ Found or asked for during the work; each has tests.
 ## Verification
 
 - `npx tsc --noEmit` clean for client and server.
-- Client 564 tests, server 2010 tests (+1 skipped) passing.
+- Client 564 tests, server 2010 tests (+1 skipped) passing at EX8.7; after EX8.9,
+  client 593 and server 2154 (+1 skipped).
+- EX8.9 Playwright on the SysV dev box: all four pages render live data (App history
+  totals, 3 SysV start links + container notice, user cards, 5 SysV services); the
+  systemd paths are covered by parser and route tests only. No start/stop/enable/
+  disable was run against the box.
 - Playwright side-by-side: 13 screens × dark/light, Claude Design prototype vs
   localhost at 1440×900 (lock, sign-in, desktop, launcher, quick settings,
   notifications, context menu, Files, Settings, Terminal, System, Activity,

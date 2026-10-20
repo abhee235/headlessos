@@ -1,10 +1,11 @@
 // M7.1: Task Manager — main container with sidebar navigation and tab views
 // EX8.6: LumenOS v3 restyle — PaneSidebar with pinned CPU / Memory / Disk meters,
 // summary tiles above the process table.
+// EX8.9: App history, Startup apps, Users and Services pages.
 // @see docs/phases/phase-7.md, docs/phases/phase-ex8.md
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Activity, AlertCircle, List, type LucideIcon } from 'lucide-react';
+import { Activity, AlertCircle, Cog, History, List, Rocket, Users, type LucideIcon } from 'lucide-react';
 import { LoadingView } from '@/components/ui/loading-view';
 import { Button } from '@/components/ui/button';
 import { PaneSidebar, PaneSidebarItem } from '@/components/ui/pane-sidebar';
@@ -16,6 +17,11 @@ import { fetchTaskManager } from '../../lib/api';
 import { DisconnectedState } from '@/components/ui/disconnected-state';
 import { ProcessesTab } from './ProcessesTab';
 import { PerformanceTab } from './PerformanceTab';
+import { AppHistoryTab } from './AppHistoryTab';
+import { StartupTab } from './StartupTab';
+import { UsersTab } from './UsersTab';
+import { ServicesTab } from './ServicesTab';
+import { useAppStore } from '../../store/app-store';
 import { Meter, SERIES, Sparkline, formatBytesPerSec, formatMb } from './parts';
 
 /** Task Manager live refresh period */
@@ -23,7 +29,7 @@ const LIVE_REFRESH_MS = 2000;
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type TabId = 'processes' | 'performance';
+type TabId = 'processes' | 'performance' | 'app-history' | 'startup' | 'users' | 'services';
 
 interface SidebarEntry {
   id: TabId;
@@ -34,6 +40,10 @@ interface SidebarEntry {
 const TABS: SidebarEntry[] = [
   { id: 'processes', label: 'Processes', icon: List },
   { id: 'performance', label: 'Performance', icon: Activity },
+  { id: 'app-history', label: 'App history', icon: History },
+  { id: 'startup', label: 'Startup apps', icon: Rocket },
+  { id: 'users', label: 'Users', icon: Users },
+  { id: 'services', label: 'Services', icon: Cog },
 ];
 
 // ─── Task Manager View ──────────────────────────────────────────────────────
@@ -44,6 +54,7 @@ interface TaskManagerViewProps {
 
 export function TaskManagerView({ serverId }: TaskManagerViewProps) {
   const [tab, setTab] = useState<TabId>('processes');
+  const sshUser = useAppStore((s) => s.servers.find((srv) => srv.id === serverId)?.username);
   const [data, setData] = useState<TaskManagerData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -262,6 +273,17 @@ export function TaskManagerView({ serverId }: TaskManagerViewProps) {
             </div>
           </>
         )}
+        {tab === 'app-history' && <AppHistoryTab serverId={serverId} />}
+        {tab === 'startup' && <StartupTab serverId={serverId} />}
+        {tab === 'users' && (
+          <UsersTab
+            serverId={serverId}
+            processes={data.processes}
+            totalMemMb={data.memory.totalMb}
+            currentUser={sshUser}
+          />
+        )}
+        {tab === 'services' && <ServicesTab serverId={serverId} />}
         {tab === 'performance' && (
           <PerformanceTab
             cpu={data.cpu}

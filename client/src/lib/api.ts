@@ -605,6 +605,98 @@ export async function fetchProcessDetail(
   );
 }
 
+// ── Task Manager: users, app history, startup (EX8.9) ──
+
+export interface TaskManagerAccount {
+  name: string;
+  uid: number;
+  shell: string;
+  kind: 'admin' | 'standard' | 'service';
+}
+
+export interface TaskManagerSession {
+  user: string;
+  tty: string;
+  from: string | null;
+  /** ISO timestamp, when known */
+  loginAt: string | null;
+}
+
+export interface TaskManagerUsersData {
+  accounts: TaskManagerAccount[];
+  sessions: TaskManagerSession[];
+  currentUser: string;
+}
+
+export interface AppUsageData {
+  name: string;
+  cpuSeconds: number;
+  rssKb: number;
+  instances: number;
+  readBytes: number | null;
+  writeBytes: number | null;
+  users: string[];
+}
+
+export interface AppHistoryData {
+  /** ISO boot time — totals are for running processes since then */
+  since: string;
+  /** false when /proc/<pid>/io was unreadable for other users' processes */
+  ioReadable: boolean;
+  apps: AppUsageData[];
+}
+
+export interface StartupItemData {
+  id: string;
+  name: string;
+  command: string | null;
+  source: 'systemd' | 'sysv' | 'cron';
+  enabled: boolean;
+  delayMs: number | null;
+  impact: 'high' | 'medium' | 'low' | null;
+  toggleable: boolean;
+}
+
+export interface StartupData {
+  init: 'systemd' | 'sysv' | 'none';
+  /** PID 1's command — 'systemd', 'init', or a container entrypoint */
+  pid1: string;
+  bootedAt: string;
+  boot: {
+    totalMs: number;
+    firmwareMs: number | null;
+    loaderMs: number | null;
+    kernelMs: number | null;
+    userspaceMs: number | null;
+  } | null;
+  items: StartupItemData[];
+}
+
+type Envelope<T> = { success: boolean; data?: T; error?: string };
+
+export async function fetchTaskManagerUsers(serverId: string): Promise<Envelope<TaskManagerUsersData>> {
+  return request<Envelope<TaskManagerUsersData>>(`/servers/${serverId}/taskmanager/users`);
+}
+
+export async function fetchAppHistory(serverId: string): Promise<Envelope<AppHistoryData>> {
+  return request<Envelope<AppHistoryData>>(`/servers/${serverId}/taskmanager/app-history`);
+}
+
+export async function fetchStartupItems(serverId: string): Promise<Envelope<StartupData>> {
+  return request<Envelope<StartupData>>(`/servers/${serverId}/taskmanager/startup`);
+}
+
+export async function setStartupItem(
+  serverId: string,
+  itemId: string,
+  action: 'enable' | 'disable',
+): Promise<{ success: boolean; error?: string }> {
+  return request<{ success: boolean; error?: string }>(
+    `/servers/${serverId}/taskmanager/startup/${encodeURIComponent(itemId)}/${action}`,
+    { method: 'POST' },
+  );
+}
+
 // ── Docker ──────────────────────────────────────────────
 
 export interface DockerContainerData {
@@ -740,12 +832,18 @@ export interface ServiceData {
   activeState: 'active' | 'inactive' | 'failed' | 'activating' | 'deactivating';
   subState: string;
   description: string;
+  /** EX8.9: boot behaviour — enabled → automatic, disabled/static → manual, masked → disabled */
+  startup?: 'automatic' | 'manual' | 'disabled' | null;
+  /** EX8.9: main PID while running */
+  pid?: number | null;
 }
 
 export interface ServicesResponse {
   success: boolean;
   data?: ServiceData[];
   systemdAvailable?: boolean;
+  /** EX8.9: which init system answered (SysV fallback when there is no systemd) */
+  init?: 'systemd' | 'sysv' | 'none';
   error?: string;
 }
 
