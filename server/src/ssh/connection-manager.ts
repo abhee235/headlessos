@@ -28,6 +28,36 @@ interface ServerConnection {
 }
 
 const DEFAULT_EXEC_TIMEOUT = 30_000;
+
+// EX8.6: sshd allows MaxSessions (10 by default) channels per connection, and
+// terminals + SFTP hold some of them. Parallel command plans (dashboard, task
+// manager, admin pages) could open more at once and fail with "Channel open
+// failure", which surfaced as blank metrics. Commands now wait for one of a
+// few exec slots per connection, and retry once if the server still refuses.
+const MAX_EXEC_CHANNELS = Math.max(1, Number(process.env.HEADLESS_MAX_EXEC_CHANNELS) || 4);
+const CHANNEL_RETRY_DELAY_MS = 250;
+
+interface ExecGate { active: number; waiters: Array<() => void> }
+const execGates = new WeakMap<object, ExecGate>();
+
+async function acquireExecSlot(key: object): Promise<() => void> {
+  let gate = execGates.get(key);
+  if (!gate) { gate = { active: 0, waiters: [] }; execGates.set(key, gate); }
+  const g = gate;
+  if (g.active < MAX_EXEC_CHANNELS) g.active++;
+  else await new Promise<void>((resolve) => g.waiters.push(resolve)); // slot handed over on release
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    const next = g.waiters.shift();
+    if (next) next(); else g.active--;
+  };
+}
+
+function isChannelOpenFailure(err: unknown): boolean {
+  return err instanceof Error && /channel open failure/i.test(err.message);
+}
 const RETRY_DELAYS = [1000, 2000, 4000];
 
 export class ConnectionManager extends BaseService {
@@ -163,6 +193,21 @@ export class ConnectionManager extends BaseService {
     }
 
     const conn = this.requireConnection(serverId);
+    const release = await acquireExecSlot(conn.client);
+    try {
+      try {
+        return await this.execOnce(conn.client, command, timeout);
+      } catch (err) {
+        if (!isChannelOpenFailure(err)) throw err;
+        await new Promise((r) => setTimeout(r, CHANNEL_RETRY_DELAY_MS));
+        return await this.execOnce(conn.client, command, timeout);
+      }
+    } finally {
+      release();
+    }
+  }
+
+  private execOnce(client: Client, command: string, timeout: number): Promise<ExecResult> {
     const start = Date.now();
 
     return new Promise<ExecResult>((resolve, reject) => {
@@ -170,7 +215,7 @@ export class ConnectionManager extends BaseService {
         reject(new Error(`Command timed out after ${timeout}ms: ${command}`));
       }, timeout);
 
-      conn.client.exec(command, (err, stream) => {
+      client.exec(command, (err, stream) => {
         if (err) {
           clearTimeout(timer);
           return reject(err);
