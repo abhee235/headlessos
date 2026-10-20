@@ -1,27 +1,29 @@
 // M8.5: Cron Section — cron job CRUD management
-// @see docs/phases/phase-8.md
+// EX8.6: LumenOS v3 — section header, glass form panel, crontab table cards, empty state.
+// @see docs/phases/phase-8.md, docs/phases/phase-ex8.md
 
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshCw, AlertCircle, Clock, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Clock, CalendarClock, Plus, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Table,
   TableBody,
-  TableCell,
-  TableHead,
   TableHeader,
-  TableRow,
 } from '@/components/ui/table';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { fetchCronInfo, addCronJob, deleteCronJob, editCronJob } from '@/lib/api';
 import type { CronInfo } from '@/lib/api';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
 import { Spinner } from '@/components/ui/spinner';
 import { LoadingView } from '@/components/ui/loading-view';
+import {
+  SectionBody, SectionHeader, RefreshButton, TableCard, CardHeading, HeadRow, Th, Tr, Td,
+  MonoChip, RoundIconButton, Panel, PanelTitle, FIELD_LABEL, EmptyState, ErrorState,
+} from './admin-ui';
 
 // ── Schedule presets ──────────────────────────────────────────────
 const PRESETS: { label: string; value: string }[] = [
@@ -198,54 +200,45 @@ export function CronSection({ serverId }: { serverId: string }) {
   }
 
   if (error || !data) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 text-foreground/40 gap-3">
-        <AlertCircle size={24} />
-        <p className="text-sm">{error || 'No data'}</p>
-        <Button variant="outline" size="sm" onClick={load}>Retry</Button>
-      </div>
-    );
+    return <ErrorState message={error || 'No data'} onRetry={load} />;
   }
 
   const isFormValid = form.schedule.trim() && form.command.trim();
 
   return (
-    <div className="@container p-6 space-y-4">
+    <SectionBody>
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <Clock size={22} className="text-primary" />
-          <h2 className="text-xl font-bold text-foreground">Scheduled Jobs</h2>
-          <span className="text-xs tabular-nums text-foreground/50 bg-foreground/5 px-2 py-0.5 rounded-full">{data.jobs.length}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="default"
-            size="sm"
-            className="h-8 gap-1.5 text-xs font-medium border-border/50"
-            onClick={() => { closeForm(); setShowForm(true); }}
-            disabled={busy}
-          >
-            <Plus size={14} /> Add Job
-          </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground/30 hover:text-foreground" onClick={load} title="Refresh" disabled={busy}>
-            <RefreshCw size={16} />
-          </Button>
-        </div>
-      </div>
+      <SectionHeader
+        icon={Clock}
+        title="Scheduled jobs"
+        badge={<Badge variant="secondary" className="tabular-nums">{data.jobs.length}</Badge>}
+        subtitle={`crontab · ${userJobs.length} user · ${systemJobs.length} system`}
+        actions={
+          <>
+            <Button
+              variant="default"
+              onClick={() => { closeForm(); setShowForm(true); }}
+              disabled={busy}
+            >
+              <Plus strokeWidth={1.75} /> Add job
+            </Button>
+            <RefreshButton onClick={load} disabled={busy} />
+          </>
+        }
+      />
 
       {/* Add/Edit form */}
       {showForm && (
-        <div className="rounded-lg p-4 space-y-3 bg-muted/20">
-          <h3 className="text-sm font-medium text-foreground/70">
+        <Panel>
+          <PanelTitle>
             {editIndex !== null ? 'Edit Cron Job' : 'Add Cron Job'}
-          </h3>
+          </PanelTitle>
 
           {/* Preset */}
-          <div className="space-y-1">
-            <Label className="text-xs text-foreground/60">Schedule Preset</Label>
+          <div className="space-y-1.5">
+            <Label className={FIELD_LABEL}>Schedule Preset</Label>
             <Select value={form.preset} onValueChange={handlePreset}>
-              <SelectTrigger className="w-64 h-8 text-xs shadow-none">
+              <SelectTrigger className="w-72">
                 <SelectValue placeholder="Select a preset…" />
               </SelectTrigger>
               <SelectContent>
@@ -259,162 +252,155 @@ export function CronSection({ serverId }: { serverId: string }) {
           </div>
 
           {/* Schedule */}
-          <div className="space-y-1">
-            <Label className="text-xs text-foreground/60">Schedule (cron expression)</Label>
+          <div className="space-y-1.5">
+            <Label className={FIELD_LABEL}>Schedule (cron expression)</Label>
             <Input
               value={form.schedule}
               onChange={e => setForm(f => ({ ...f, schedule: e.target.value, preset: '' }))}
               placeholder="* * * * *  or  @hourly"
-              className="font-mono h-8 text-xs shadow-none"
+              className="font-mono"
             />
             {form.schedule && (
-              <p className="text-xs text-foreground/40">
+              <p className="px-1 text-[12px] text-label-3">
                 → {humanReadableSchedule(form.schedule.trim())}
               </p>
             )}
           </div>
 
           {/* Command */}
-          <div className="space-y-1">
-            <Label className="text-xs text-foreground/60">Command</Label>
+          <div className="space-y-1.5">
+            <Label className={FIELD_LABEL}>Command</Label>
             <Input
               value={form.command}
               onChange={e => setForm(f => ({ ...f, command: e.target.value }))}
               placeholder="/usr/bin/myscript.sh --flag"
-              className="font-mono h-8 text-xs shadow-none"
+              className="font-mono"
             />
           </div>
 
           {/* Description */}
-          <div className="space-y-1">
-            <Label className="text-xs text-foreground/60">Description (optional)</Label>
+          <div className="space-y-1.5">
+            <Label className={FIELD_LABEL}>Description (optional)</Label>
             <Input
               value={form.description}
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
               placeholder="Backup database nightly"
-              className="h-8 text-xs shadow-none"
             />
           </div>
 
           {/* Actions */}
           <div className="flex items-center gap-2 pt-1">
             <Button size="sm" onClick={handleSubmit} disabled={busy || !isFormValid}>
-              {busy && <Spinner size={14} className="mr-1" />}
+              {busy && <Spinner size={14} />}
               {editIndex !== null ? 'Update' : 'Add'}
             </Button>
             <Button variant="ghost" size="sm" onClick={closeForm} disabled={busy}>
               Cancel
             </Button>
           </div>
-        </div>
+        </Panel>
       )}
 
       {/* User crontab jobs */}
       {userJobs.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-sm font-medium text-foreground/60">User Crontab</h3>
+        <TableCard>
+          <CardHeading title="User crontab" count={userJobs.length} />
           <Table>
             <TableHeader>
-              <TableRow className="hover:bg-transparent border-0">
-                <TableHead className="w-44 text-xs font-medium text-foreground/40 h-9">Schedule</TableHead>
-                <TableHead className="text-xs font-medium text-foreground/40 h-9">Command</TableHead>
-                <TableHead className="w-40 text-xs font-medium text-foreground/40 h-9">Description</TableHead>
-                <TableHead className="w-20 text-right text-xs font-medium text-foreground/40 h-9">Actions</TableHead>
-              </TableRow>
+              <HeadRow>
+                <Th className="w-52">Schedule</Th>
+                <Th>Command</Th>
+                <Th className="w-44">Description</Th>
+                <Th className="w-24 text-right">Actions</Th>
+              </HeadRow>
             </TableHeader>
             <TableBody>
               {userJobs.map((job, i) => (
-                <TableRow key={`user-${i}`} className="border-0 hover:bg-muted/20 group">
-                  <TableCell>
-                    <code className="text-xs bg-muted/30 px-1.5 py-0.5 rounded font-mono">
-                      {job.schedule}
-                    </code>
-                    <p className="text-xs text-foreground/40 mt-0.5">
+                <Tr key={`user-${i}`}>
+                  <Td>
+                    <MonoChip>{job.schedule}</MonoChip>
+                    <p className="mt-1 text-[12px] text-label-3">
                       {humanReadableSchedule(job.schedule)}
                     </p>
-                  </TableCell>
-                  <TableCell className="font-mono text-xs max-w-md truncate" title={job.command}>
-                    {job.command}
-                  </TableCell>
-                  <TableCell className="text-xs text-foreground/50">
+                  </Td>
+                  <Td className="font-mono text-[13px] text-foreground" title={job.command}>
+                    <div className="max-w-md truncate">{job.command}</div>
+                  </Td>
+                  <Td className="text-label-2">
                     {job.description || '—'}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
+                  </Td>
+                  <Td className="text-right">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <RoundIconButton
                         onClick={() => openEdit(i)}
                         disabled={busy}
                         title="Edit"
                       >
-                        <Pencil size={14} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-foreground/30 hover:text-destructive"
+                        <Pencil strokeWidth={1.75} />
+                      </RoundIconButton>
+                      <RoundIconButton
+                        tone="danger"
                         onClick={() => setDeleteIndex(i)}
                         disabled={busy}
                         title="Delete"
                       >
-                        <Trash2 size={14} />
-                      </Button>
+                        <Trash2 strokeWidth={1.75} />
+                      </RoundIconButton>
                     </div>
-                  </TableCell>
-                </TableRow>
+                  </Td>
+                </Tr>
               ))}
             </TableBody>
           </Table>
-        </div>
+        </TableCard>
       )}
 
       {/* System crontab jobs (read-only) */}
       {systemJobs.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-sm font-medium text-foreground/60">System Crontab (read-only)</h3>
+        <TableCard>
+          <CardHeading title="System crontab" count={systemJobs.length} caption="read-only" />
           <Table>
             <TableHeader>
-              <TableRow className="hover:bg-transparent border-0">
-                <TableHead className="w-44 text-xs font-medium text-foreground/40 h-9">Schedule</TableHead>
-                <TableHead className="text-xs font-medium text-foreground/40 h-9">Command</TableHead>
-                <TableHead className="w-40 text-xs font-medium text-foreground/40 h-9">Description</TableHead>
-              </TableRow>
+              <HeadRow>
+                <Th className="w-52">Schedule</Th>
+                <Th>Command</Th>
+                <Th className="w-44">Description</Th>
+              </HeadRow>
             </TableHeader>
             <TableBody>
               {systemJobs.map((job, i) => (
-                <TableRow key={`sys-${i}`} className="border-0 hover:bg-muted/20 group">
-                  <TableCell>
-                    <code className="text-xs bg-muted/30 px-1.5 py-0.5 rounded font-mono">
-                      {job.schedule}
-                    </code>
-                    <p className="text-xs text-foreground/40 mt-0.5">
+                <Tr key={`sys-${i}`}>
+                  <Td>
+                    <MonoChip>{job.schedule}</MonoChip>
+                    <p className="mt-1 text-[12px] text-label-3">
                       {humanReadableSchedule(job.schedule)}
                     </p>
-                  </TableCell>
-                  <TableCell className="font-mono text-xs max-w-md truncate" title={job.command}>
-                    {job.command}
-                  </TableCell>
-                  <TableCell className="text-xs text-foreground/50">
+                  </Td>
+                  <Td className="font-mono text-[13px] text-foreground" title={job.command}>
+                    <div className="max-w-md truncate">{job.command}</div>
+                  </Td>
+                  <Td className="text-label-2">
                     {job.description || '—'}
-                  </TableCell>
-                </TableRow>
+                  </Td>
+                </Tr>
               ))}
             </TableBody>
           </Table>
-        </div>
+        </TableCard>
       )}
 
       {/* Empty state */}
       {data.jobs.length === 0 && !showForm && (
-        <div className="flex flex-col items-center justify-center py-12 text-foreground/30">
-          <Clock size={32} className="text-foreground/20 mb-2" />
-          <p className="text-sm text-foreground/30">No cron jobs found</p>
-          <Button variant="outline" size="sm" className="mt-3" onClick={() => setShowForm(true)}>
-            <Plus size={14} className="mr-1" /> Add your first cron job
-          </Button>
-        </div>
+        <EmptyState
+          icon={CalendarClock}
+          title="No cron jobs found"
+          description="Schedule backups, cleanups or reports to run automatically."
+          action={
+            <Button onClick={() => setShowForm(true)}>
+              <Plus strokeWidth={1.75} /> Add your first cron job
+            </Button>
+          }
+        />
       )}
 
       {/* Delete confirmation */}
@@ -431,6 +417,6 @@ export function CronSection({ serverId }: { serverId: string }) {
         variant="destructive"
         onConfirm={() => { void handleDelete(); }}
       />
-    </div>
+    </SectionBody>
   );
 }

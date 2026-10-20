@@ -1,16 +1,15 @@
 // M8.3: Web Server Section — nginx sites, config test, SSL certificates + site management
-// @see docs/phases/phase-8.md
+// EX8.6: LumenOS v3 — section header with glass pill actions, sites/SSL table cards, empty states.
+// @see docs/phases/phase-8.md, docs/phases/phase-ex8.md
 
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshCw, AlertCircle, Globe, CheckCircle2, XCircle, Lock, Power, RotateCw, Eye, FileText } from 'lucide-react';
+import { Globe, CheckCircle2, XCircle, Lock, Power, RotateCw, Eye, FileText, Ban, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
-  TableCell,
-  TableHead,
   TableHeader,
-  TableRow,
 } from '@/components/ui/table';
 import {
   Dialog,
@@ -19,7 +18,6 @@ import {
   DialogHeader,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { cn } from '@/lib/utils';
 import {
   fetchWebServerInfo,
   enableNginxSite,
@@ -33,6 +31,10 @@ import type { WebServerInfo } from '@/lib/api';
 import { toast } from 'sonner';
 import { Spinner } from '@/components/ui/spinner';
 import { LoadingView } from '@/components/ui/loading-view';
+import {
+  SectionBody, SectionHeader, RefreshButton, TableCard, CardHeading, HeadRow, Th, Tr, Td,
+  EmptyRow, EmptyState, ErrorState,
+} from './admin-ui';
 
 export function WebServerSection({ serverId }: { serverId: string }) {
   const [data, setData] = useState<WebServerInfo | null>(null);
@@ -174,222 +176,203 @@ export function WebServerSection({ serverId }: { serverId: string }) {
   }
 
   if (error || !data) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 text-foreground/40 gap-3">
-        <AlertCircle size={24} />
-        <span className="text-sm">{error || 'No data'}</span>
-        <Button variant="outline" size="sm" onClick={load}>Retry</Button>
-      </div>
-    );
+    return <ErrorState message={error || 'No data'} onRetry={load} />;
   }
 
   if (!data.available) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-foreground/40 gap-3">
-        <Globe size={32} className="opacity-40" />
-        <span className="text-sm">{data.message || 'Nginx is not installed'}</span>
-        <span className="text-xs">Install with: <code className="bg-muted px-1.5 py-0.5 rounded">sudo apt install nginx</code></span>
-      </div>
+      <SectionBody>
+        <SectionHeader icon={Globe} title="Web server" badge={<Badge variant="secondary">Not installed</Badge>} />
+        <EmptyState
+          icon={Globe}
+          title={data.message || 'Nginx is not installed'}
+          description="Install with:"
+          code="sudo apt install nginx"
+        />
+      </SectionBody>
     );
   }
 
+  const enabledCount = data.sites.filter((s) => s.enabled).length;
+
   return (
-    <div className="@container p-6 space-y-4">
+    <SectionBody>
       {/* Header + Actions */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Globe size={22} className="text-primary" />
-          <h2 className="text-xl font-bold text-foreground">Web Server (Nginx)</h2>
-          {testResult && (
-            <span className={cn(
-              'inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium',
-              testResult.success
-                ? 'bg-emerald-500/10 text-emerald-600'
-                : 'bg-red-500/10 text-red-600'
-            )}>
-              {testResult.success ? 'Config OK' : 'Config Error'}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 text-xs"
-            onClick={handleTestConfig}
-            disabled={busy || testing}
-            title="Test configuration"
-          >
-            {testing ? <Spinner size={14} className="mr-1" /> : <FileText size={14} className="mr-1" />}
-            Test
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 text-xs"
-            onClick={handleReload}
-            disabled={busy}
-            title="Reload nginx"
-          >
-            <RotateCw size={14} className="mr-1" />
-            Reload
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 text-xs"
-            onClick={handleRestart}
-            disabled={busy}
-            title="Restart nginx"
-          >
-            <Power size={14} className="mr-1" />
-            Restart
-          </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground/30 hover:text-foreground" onClick={load} disabled={busy}>
-            <RefreshCw size={16} className={cn(busy && 'animate-spin')} />
-          </Button>
-        </div>
-      </div>
+      <SectionHeader
+        icon={Globe}
+        title="Web server"
+        badge={testResult && (
+          <Badge variant={testResult.success ? 'success' : 'destructive'}>
+            {testResult.success ? 'Config OK' : 'Config Error'}
+          </Badge>
+        )}
+        subtitle={`nginx · ${enabledCount} of ${data.sites.length} sites enabled`}
+        actions={
+          <>
+            <Button
+              variant="secondary"
+              onClick={handleTestConfig}
+              disabled={busy || testing}
+              title="Test configuration"
+            >
+              {testing ? <Spinner size={14} /> : <FileText strokeWidth={1.75} />}
+              Test
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={handleReload}
+              disabled={busy}
+              title="Reload nginx"
+            >
+              <RotateCw strokeWidth={1.75} />
+              Reload
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={handleRestart}
+              disabled={busy}
+              title="Restart nginx"
+            >
+              <Power strokeWidth={1.75} />
+              Restart
+            </Button>
+            <RefreshButton onClick={load} disabled={busy} spinning={busy} />
+          </>
+        }
+      />
 
       {/* Config Test Error Output */}
       {testResult && !testResult.success && (
-        <div className="p-3 bg-red-500/5 rounded-lg text-sm">
-          <div className="flex items-center gap-1.5 mb-1 text-red-600 font-medium">
-            <XCircle size={14} />
+        <div className="rounded-[16px] border border-danger/30 bg-danger/10 p-4 text-[13px]">
+          <div className="mb-1.5 flex items-center gap-1.5 font-semibold text-danger">
+            <XCircle size={15} strokeWidth={1.75} />
             Config Test Failed
           </div>
-          <pre className="text-xs font-mono whitespace-pre-wrap text-foreground/40">{testResult.output}</pre>
+          <pre className="whitespace-pre-wrap font-mono text-[12px] text-label-2">{testResult.output}</pre>
         </div>
       )}
 
       {/* Sites */}
-      <div>
-        <h3 className="text-sm font-medium text-foreground/60 mb-2">
-          Sites
-          <span className="inline-flex items-center ml-1.5 px-1.5 py-0.5 rounded-full text-[11px] font-medium bg-foreground/5 text-foreground/40">
-            {data.sites.length}
-          </span>
-        </h3>
+      <TableCard>
+        <CardHeading title="Sites" count={data.sites.length} />
         <Table>
           <TableHeader>
-            <TableRow className="hover:bg-transparent border-0">
-              <TableHead className="text-xs font-medium text-foreground/40 h-9">Site Name</TableHead>
-              <TableHead className="w-24 text-xs font-medium text-foreground/40 h-9">Status</TableHead>
-              <TableHead className="w-40 text-right text-xs font-medium text-foreground/40 h-9">Actions</TableHead>
-            </TableRow>
+            <HeadRow>
+              <Th>Site name</Th>
+              <Th className="w-32">Status</Th>
+              <Th className="w-56 text-right">Actions</Th>
+            </HeadRow>
           </TableHeader>
           <TableBody>
             {data.sites.map((s) => (
-              <TableRow key={s.name} className="border-0 hover:bg-muted/20 group">
-                <TableCell className="font-mono text-xs">{s.name}</TableCell>
-                <TableCell>
+              <Tr key={s.name}>
+                <Td className="font-mono font-semibold text-foreground">{s.name}</Td>
+                <Td>
                   {s.enabled ? (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-600">
-                      <CheckCircle2 size={12} className="mr-1" />
+                    <Badge variant="success">
+                      <CheckCircle2 size={12} strokeWidth={2} />
                       Enabled
-                    </span>
+                    </Badge>
                   ) : (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-foreground/5 text-foreground/40">
-                      Disabled
-                    </span>
+                    <Badge variant="secondary">Disabled</Badge>
                   )}
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-1">
+                </Td>
+                <Td className="text-right">
+                  <div className="flex items-center justify-end gap-1.5">
                     <Button
-                      variant="ghost"
+                      variant="secondary"
                       size="sm"
                       onClick={() => handleViewConfig(s.name)}
                       title="View config"
-                      className="text-xs"
                     >
-                      <Eye size={14} className="mr-1" />
+                      <Eye strokeWidth={1.75} />
                       Config
                     </Button>
                     <Button
-                      variant="outline"
+                      variant={s.enabled ? 'destructive' : 'secondary'}
                       size="sm"
-                      className="h-8 text-xs"
                       onClick={() => handleToggleSite(s.name, s.enabled)}
                       disabled={busy}
                     >
+                      {s.enabled ? <Ban strokeWidth={1.75} /> : <CheckCircle2 strokeWidth={1.75} />}
                       {s.enabled ? 'Disable' : 'Enable'}
                     </Button>
                   </div>
-                </TableCell>
-              </TableRow>
+                </Td>
+              </Tr>
             ))}
             {data.sites.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={3} className="text-center text-foreground/30 py-12 text-sm">No sites found</TableCell>
-              </TableRow>
+              <EmptyRow colSpan={3}>No sites found</EmptyRow>
             )}
           </TableBody>
         </Table>
-      </div>
+      </TableCard>
 
       {/* SSL Certificates */}
-      <div>
-        <h3 className="text-sm font-medium text-foreground/60 mb-2">
-          <Lock size={14} className="inline mr-1" />
-          SSL Certificates
-        </h3>
-        {data.sslCertificates.length > 0 ? (
+      {data.sslCertificates.length > 0 ? (
+        <TableCard>
+          <CardHeading title="SSL certificates" icon={Lock} count={data.sslCertificates.length} />
           <Table>
             <TableHeader>
-              <TableRow className="hover:bg-transparent border-0">
-                <TableHead className="text-xs font-medium text-foreground/40 h-9">Domain</TableHead>
-                <TableHead className="text-xs font-medium text-foreground/40 h-9">Issuer</TableHead>
-                <TableHead className="text-xs font-medium text-foreground/40 h-9">Expiry</TableHead>
-                <TableHead className="w-28 text-xs font-medium text-foreground/40 h-9">Days Left</TableHead>
-              </TableRow>
+              <HeadRow>
+                <Th>Domain</Th>
+                <Th>Issuer</Th>
+                <Th>Expiry</Th>
+                <Th className="w-28">Days left</Th>
+              </HeadRow>
             </TableHeader>
             <TableBody>
               {data.sslCertificates.map((cert) => (
-                <TableRow key={cert.domain} className="border-0 hover:bg-muted/20 group">
-                  <TableCell className="font-mono text-xs">{cert.domain}</TableCell>
-                  <TableCell className="text-xs">{cert.issuer}</TableCell>
-                  <TableCell className="text-xs">{cert.expiry}</TableCell>
-                  <TableCell>
-                    <span className={cn(
-                      'inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium',
-                      cert.daysRemaining > 30
-                        ? 'bg-emerald-500/10 text-emerald-600'
-                        : cert.daysRemaining > 7
-                          ? 'bg-amber-500/10 text-amber-600'
-                          : 'bg-red-500/10 text-red-600'
-                    )}>
+                <Tr key={cert.domain}>
+                  <Td className="font-mono font-semibold text-foreground">{cert.domain}</Td>
+                  <Td className="text-label-2">{cert.issuer}</Td>
+                  <Td className="text-label-2">{cert.expiry}</Td>
+                  <Td>
+                    <Badge
+                      variant={
+                        cert.daysRemaining > 30
+                          ? 'success'
+                          : cert.daysRemaining > 7
+                            ? 'warning'
+                            : 'destructive'
+                      }
+                      className="tabular-nums"
+                    >
                       {cert.daysRemaining}d
-                    </span>
-                  </TableCell>
-                </TableRow>
+                    </Badge>
+                  </Td>
+                </Tr>
               ))}
             </TableBody>
           </Table>
-        ) : (
-          <p className="text-foreground/30 py-12 text-sm text-center">No SSL certificates found (certbot not installed or no certs issued)</p>
-        )}
-      </div>
+        </TableCard>
+      ) : (
+        <EmptyState
+          icon={ShieldCheck}
+          title="No SSL certificates found"
+          description="certbot not installed or no certs issued"
+        />
+      )}
 
       {/* Config Viewer Dialog */}
       <Dialog open={configSite !== null} onOpenChange={(open) => { if (!open) setConfigSite(null); }}>
-        <DialogContent className="max-w-2xl max-h-[70vh]">
+        <DialogContent className="max-h-[70vh] max-w-2xl">
           <DialogHeader>
             <DialogTitle className="font-mono text-sm">{configSite}</DialogTitle>
             <DialogDescription>Nginx site configuration (read-only)</DialogDescription>
           </DialogHeader>
           {configLoading ? (
-            <div className="flex items-center justify-center h-32 text-foreground/40">
-              <Spinner className="mr-2" size={16} />
+            <div className="flex h-32 items-center justify-center gap-2 text-[13px] text-label-3">
+              <Spinner size={16} />
               Loading config…
             </div>
           ) : (
-            <pre className="text-xs font-mono whitespace-pre-wrap bg-muted/20 p-4 rounded-lg overflow-auto max-h-[50vh]">
+            <pre className="max-h-[50vh] overflow-auto whitespace-pre-wrap rounded-[14px] border border-edge bg-paper p-4 font-mono text-[12px] text-foreground">
               {configContent}
             </pre>
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </SectionBody>
   );
 }

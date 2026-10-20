@@ -1,10 +1,11 @@
 // M3.6: Services Manager — systemd service management with status/logs viewer
-// @see docs/phases/phase-3.md
+// EX8.6: LumenOS v3 — lit segmented state filter, pill search, glass table card, paper detail pane.
+// @see docs/phases/phase-3.md, docs/phases/phase-ex8.md
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePreferencesStore } from '../../store/preferences-store';
 import {
-  Server, Play, Square, RotateCcw, Power, PowerOff, RefreshCw, AlertCircle, FileText, Search, X, Circle, CheckCircle2, XCircle } from 'lucide-react';
+  Server, Play, Square, RotateCcw, Power, PowerOff, AlertCircle, FileText, X, Circle, CheckCircle2, XCircle } from 'lucide-react';
 import type { ServiceData, ServicesResponse } from '../../lib/api';
 import {
   fetchServices,
@@ -13,6 +14,7 @@ import {
   fetchServiceStatus,
 } from '../../lib/api';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -24,20 +26,24 @@ import { toast } from 'sonner';
 import { DisconnectedState } from '@/components/ui/disconnected-state';
 import { Spinner } from '@/components/ui/spinner';
 import { LoadingView } from '@/components/ui/loading-view';
+import { cn } from '@/lib/utils';
+import {
+  SegmentButtons, SearchField, TableCard, CountChip, RoundIconButton, EmptyState,
+} from '@/components/ServerAdmin/admin-ui';
 
 // ─── State indicator ─────────────────────────────────────────────────────────
 
 function ActiveStateIcon({ state }: { state: string }) {
   switch (state) {
     case 'active':
-      return <CheckCircle2 size={13} className="text-success" />;
+      return <CheckCircle2 size={15} strokeWidth={1.75} className="text-success" />;
     case 'failed':
-      return <XCircle size={13} className="text-destructive" />;
+      return <XCircle size={15} strokeWidth={1.75} className="text-destructive" />;
     case 'activating':
     case 'deactivating':
-      return <Spinner size={13} className="text-warning" />;
+      return <Spinner size={15} className="text-warning" />;
     default:
-      return <Circle size={13} className="text-muted-foreground" />;
+      return <Circle size={15} strokeWidth={1.75} className="text-label-3" />;
   }
 }
 
@@ -52,7 +58,7 @@ function ActiveStateBadge({ state }: { state: string }) {
           : 'secondary';
 
   return (
-    <Badge variant={variant as 'success' | 'destructive' | 'warning' | 'secondary'} className="text-[10px] px-1.5 py-0">
+    <Badge variant={variant as 'success' | 'destructive' | 'warning' | 'secondary'}>
       {state}
     </Badge>
   );
@@ -101,29 +107,26 @@ function DetailPanel({
   }, [content]);
 
   return (
-    <div className="flex flex-col h-full border-t border-border">
-      <div className="flex items-center justify-between px-3 py-1.5 bg-sidebar border-b border-border">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <FileText size={12} />
-          <span>
+    <TableCard className="flex h-full flex-col">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-2">
+        <div className="flex min-w-0 items-center gap-2 text-[13px] text-label-2">
+          <FileText size={15} strokeWidth={1.75} className="shrink-0" />
+          <span className="truncate">
             {mode === 'status' ? 'Status' : 'Logs'}:{' '}
-            <span className="text-foreground font-medium">{serviceName}</span>
+            <span className="font-semibold text-foreground">{serviceName}</span>
           </span>
         </div>
-        <button
-          onClick={onClose}
-          className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
-        >
-          <X size={14} />
-        </button>
+        <RoundIconButton onClick={onClose} className="h-7 w-7" aria-label="Close">
+          <X strokeWidth={1.75} />
+        </RoundIconButton>
       </div>
       <pre
         ref={contentRef}
-        className="flex-1 overflow-auto p-2 text-[11px] font-mono leading-relaxed text-foreground bg-background whitespace-pre-wrap"
+        className="flex-1 overflow-auto whitespace-pre-wrap bg-paper px-4 py-3 font-mono text-[12px] leading-relaxed text-foreground"
       >
         {loading ? 'Loading…' : content || 'No data available'}
       </pre>
-    </div>
+    </TableCard>
   );
 }
 
@@ -234,7 +237,7 @@ export function ServicesView({ serverId }: ServicesViewProps) {
   // ── Loading state ──
   if (loading) {
     return (
-      <div className="h-full bg-background">
+      <div className="h-full">
         <LoadingView label="Loading services…" />
       </div>
     );
@@ -243,14 +246,13 @@ export function ServicesView({ serverId }: ServicesViewProps) {
   // ── systemd not available ──
   if (!systemdAvailable) {
     return (
-      <div className="flex items-center justify-center h-full bg-background">
-        <div className="text-center">
-          <Server className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-40" />
-          <p className="text-sm text-muted-foreground mb-1">systemd not available</p>
-          <p className="text-xs text-muted-foreground/60">
-            This server may not use systemd as its init system
-          </p>
-        </div>
+      <div className="flex h-full items-center justify-center px-4 pb-4">
+        <EmptyState
+          icon={Server}
+          title="systemd not available"
+          description="This server may not use systemd as its init system"
+          className="w-full max-w-lg"
+        />
       </div>
     );
   }
@@ -270,75 +272,62 @@ export function ServicesView({ serverId }: ServicesViewProps) {
   // ── Error state ──
   if (error) {
     return (
-      <div className="flex items-center justify-center h-full bg-background">
-        <div className="text-center">
-          <AlertCircle className="w-8 h-8 text-destructive mx-auto mb-2" />
-          <p className="text-sm text-destructive mb-3">{error}</p>
-          <button
-            onClick={() => loadData()}
-            className="px-3 py-1.5 text-xs bg-secondary hover:bg-accent text-foreground rounded-md"
-          >
-            Retry
-          </button>
-        </div>
+      <div className="flex h-full items-center justify-center px-4 pb-4">
+        <EmptyState
+          icon={AlertCircle}
+          title={<span className="text-danger">{error}</span>}
+          className="w-full max-w-lg"
+          action={
+            <Button variant="secondary" size="sm" onClick={() => loadData()}>
+              Retry
+            </Button>
+          }
+        />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex h-full flex-col gap-3 px-4 pb-4">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="text-xs font-medium text-foreground">
-            Services ({services.length})
-          </span>
-          {refreshing && <Spinner size={12} className="text-muted-foreground" />}
+          <div className="flex items-center gap-2">
+            <span className="text-[17px] font-bold text-foreground">Services</span>
+            <CountChip>{services.length}</CountChip>
+          </div>
+          {refreshing && <Spinner size={14} className="text-label-3" />}
 
           {/* State filter pills */}
-          <div className="flex items-center gap-1">
-            {(['all', 'active', 'inactive', 'failed'] as const).map((state) => (
-              <button
-                key={state}
-                onClick={() => setFilterState(state)}
-                className={`
-                  px-2 py-0.5 text-[10px] rounded-full transition-colors
-                  ${
-                    filterState === state
-                      ? 'bg-primary/15 text-primary font-medium'
-                      : 'text-muted-foreground hover:bg-accent'
-                  }
-                `}
-              >
-                {state} ({counts[state]})
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="relative">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Filter…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-6 pr-2 py-1 text-xs bg-secondary border border-border rounded-md w-44 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          <SegmentButtons
+            value={filterState}
+            onChange={setFilterState}
+            items={(['all', 'active', 'inactive', 'failed'] as const).map((state) => ({
+              value: state,
+              label: state.charAt(0).toUpperCase() + state.slice(1),
+              count: counts[state],
+            }))}
           />
         </div>
+
+        <SearchField
+          placeholder="Filter…"
+          value={search}
+          onValueChange={setSearch}
+        />
       </div>
 
       {/* Content area */}
-      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-        <div className={detailTarget ? 'flex-1 min-h-0 overflow-auto' : 'flex-1 overflow-auto'}>
-          <table className="w-full text-xs">
-            <thead className="sticky top-0 bg-sidebar z-10">
-              <tr className="text-left text-muted-foreground">
-                <th className="px-3 py-1.5 font-medium w-6"></th>
-                <th className="px-3 py-1.5 font-medium">Service</th>
-                <th className="px-3 py-1.5 font-medium">State</th>
-                <th className="px-3 py-1.5 font-medium">Sub-state</th>
-                <th className="px-3 py-1.5 font-medium">Description</th>
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+        <TableCard className="min-h-0 overflow-auto">
+          <table className="w-full text-[14px]">
+            <thead className="sticky top-0 z-10 bg-mat backdrop-blur-xl">
+              <tr className="border-b border-border text-left text-[13px] text-label-2">
+                <th className="h-11 w-10 pl-5 pr-1 font-semibold"></th>
+                <th className="h-11 w-[30%] px-3 font-semibold">Service</th>
+                <th className="h-11 w-36 px-3 font-semibold">State</th>
+                <th className="h-11 w-36 px-3 font-semibold">Sub-state</th>
+                <th className="h-11 px-3 pr-5 font-semibold">Description</th>
               </tr>
             </thead>
             <tbody>
@@ -346,25 +335,25 @@ export function ServicesView({ serverId }: ServicesViewProps) {
                 <ContextMenu key={svc.name} onOpenChange={(open) => { pauseRefreshRef.current = open; }}>
                   <ContextMenuTrigger asChild>
                     <tr
-                      className={`
-                        border-b border-border/50 hover:bg-accent/50 cursor-default
-                        ${actionBusy === svc.name ? 'opacity-50' : ''}
-                      `}
+                      className={cn(
+                        'h-12 cursor-default border-b border-border transition-colors duration-150 last:border-0 hover:bg-fill data-[state=open]:bg-accent-soft',
+                        actionBusy === svc.name && 'opacity-50',
+                      )}
                     >
-                      <td className="px-3 py-1.5">
+                      <td className="pl-5 pr-1">
                         <ActiveStateIcon state={svc.activeState} />
                       </td>
-                      <td className="px-3 py-1.5 font-medium text-foreground max-w-[200px] truncate">
-                        {svc.name}
+                      <td className="px-3 font-semibold text-foreground">
+                        <div className="max-w-[240px] truncate">{svc.name}</div>
                       </td>
-                      <td className="px-3 py-1.5">
+                      <td className="px-3">
                         <ActiveStateBadge state={svc.activeState} />
                       </td>
-                      <td className="px-3 py-1.5 text-muted-foreground">
+                      <td className="px-3 text-label-2">
                         {svc.subState}
                       </td>
-                      <td className="px-3 py-1.5 text-muted-foreground max-w-[300px] truncate">
-                        {svc.description}
+                      <td className="px-3 pr-5 text-label-2">
+                        <div className="max-w-[420px] truncate">{svc.description}</div>
                       </td>
                     </tr>
                   </ContextMenuTrigger>
@@ -409,18 +398,18 @@ export function ServicesView({ serverId }: ServicesViewProps) {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-3 py-8 text-center text-muted-foreground text-xs">
+                  <td colSpan={5} className="px-3 py-12 text-center text-[13px] text-label-3">
                     {search || filterState !== 'all' ? 'No services match filter' : 'No services found'}
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
-        </div>
+        </TableCard>
 
         {/* Detail panel */}
         {detailTarget && (
-          <div className="h-[35%] min-h-[130px] shrink-0">
+          <div className="mt-auto h-[35%] min-h-[130px] shrink-0">
             <DetailPanel
               serverId={serverId}
               serviceName={detailTarget.name}
