@@ -1,5 +1,6 @@
 // EX2.2: validate_schema tool (LOCAL tier)
-// @see docs/phases/phase-ex2.md — EX2.2
+// EX10.5: the schema is a JSON object (a string still works, repaired when broken)
+// @see docs/phases/phase-ex2.md — EX2.2, docs/phases/phase-ex10.md §6
 //
 // Acts as an inline "linter" (from Aider's auto-lint pattern):
 // validates a JSON object against DynamicViewSchema and returns
@@ -8,9 +9,10 @@
 import { z } from 'zod';
 import { DynamicViewSchema } from 'headlessos-shared/schemas/dynamic-view';
 import type { AgentTool, ToolContext, ToolResult } from './types.js';
+import { readViewArg, viewArgSchema } from './view-arg.js';
 
 const ValidateSchemaParams = z.object({
-  schema: z.string().describe('JSON string to validate against DynamicViewSchema'),
+  schema: viewArgSchema('The view to check against DynamicViewSchema, as a JSON object'),
 });
 
 export const validateSchemaTool: AgentTool = {
@@ -23,17 +25,10 @@ export const validateSchemaTool: AgentTool = {
     try {
       const args = ValidateSchemaParams.parse(rawArgs);
 
-      // Parse the JSON string first
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(args.schema);
-      } catch {
-        return {
-          success: false,
-          output: '',
-          error: 'Invalid JSON: could not parse the schema string. Check for syntax errors.',
-        };
-      }
+      // EX10.5: an object, or a string that parses (or can be repaired)
+      const arg = readViewArg(args.schema, 'schema');
+      if (!arg.ok) return { success: false, output: '', error: arg.error };
+      const parsed = arg.value;
 
       // Validate against DynamicViewSchema
       const result = DynamicViewSchema.safeParse(parsed);

@@ -1126,6 +1126,15 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-ex10.md` ("EX10.4 — as built")
 - **Verification:** server 2351 passed (+2 skipped), client 648, both typechecks clean; Playwright measurements in the phase doc
 
+### EX10.5: View tools
+- **Status:** ✅ Complete
+- **Date:** 2026-10-22
+- **Files created:** `server/src/agent/tools/view-arg.ts`, `server/tests/agent/tools/view-arg.test.ts`
+- **Files modified:** `server/src/agent/tools/{update-view,generate-schema,validate-schema}.ts`, `server/src/agent/executor.ts` (tool message without metadata; prompts ask for objects; example call fixed)
+- **Docs:** `docs/phases/phase-ex10.md` ("EX10.5 — as built")
+- **Tests modified:** `server/tests/agent/tools/{tools,update-view}.test.ts`
+- **Verification:** server 2360 passed (+2 skipped), `tsc -p server` clean
+
 ## How to Use This File
 
 ### After completing a task:

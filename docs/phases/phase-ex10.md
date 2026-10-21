@@ -252,7 +252,7 @@ default rate: they show no cost.
 | EX10.2 | Context plan + context manager (layered compaction, calibration, length/overflow handling, events) in the shared loop; EX9.4 trimming and EX2.13 context manager retired | ✅ |
 | EX10.3 | Window tiers for both agents' system prompts; offered actions, result caps and reviewer input from the plan | ✅ |
 | EX10.4 | UI Agent executor on the context manager; cut-off handling; stop with the last good view and an honest reason | ✅ |
-| EX10.5 | View tools: object or string, JSON repair, error position, no echo of the view, short outputs | ⬜ |
+| EX10.5 | View tools: object or string, JSON repair, error position, no echo of the view, short outputs | ✅ |
 | EX10.6 | Tool input for every tool: `jsonSchema7`, nulls dropped, one-line errors | ⬜ |
 | EX10.7 | Trace cost keeps the span's own cost; no default price | ⬜ |
 | EX10.8 | Action selection favours request words; `cpu_usage`, `network_traffic`; actions reuse deterministic parsers | ⬜ |
@@ -408,6 +408,35 @@ styles, at a 520 px column, without signing in or touching any store. Both cards
 wide, 18 px radius, 16 px / 12 px padding, 16 px icon centred on the title (0 px), 8 px
 icon → title, 6 px between lines, 16.7 px right inset. A long reason wraps onto two
 lines (32 px) with the same insets. Session files: unchanged.
+
+## EX10.5 — View tools (as built)
+
+`server/src/agent/tools/view-arg.ts`:
+- `viewArgSchema` — an object first, a string still accepted.
+- `readViewArg(value, name)` — an object as is; a string parsed, else `repairJson`
+  (EX9.3: trailing commas, bare keys, single quotes, a cut-off end), else an error.
+- `jsonErrorAt` — "Invalid JSON in view at character 3121 (… "stack" "children" …). Fix
+  that spot and send the view again as a JSON object, not a string."
+- `viewCounts` — counts sections and widgets, through grids and tabs.
+
+All three view tools use it.
+- `update_view` answers "View updated: 2 sections, 3 widgets. Gather the next section, or
+  call generate_schema when every section is filled." It adds a note when the JSON had to
+  be repaired.
+- `generate_schema` answers "Schema accepted: …" instead of echoing the whole schema.
+- `partialView` / `schema` stay in `metadata`.
+
+**The executor** sends the model `{ success, output, error? }` only. No `metadata` reaches
+the model (view, schema, action ids, commands, exit codes). The grep_output cache and the
+UI events keep the raw output.
+
+**Prompts.** "Pass view JSON as a STRING" and "update_view() accepts partial/incomplete
+JSON" are gone. They now say "as a JSON object, not a string" and "accepts a view whose
+sections are still empty — generate_schema() needs every section filled and valid". The
+progressive example shows `update_view({"view": {…}})`. Its old double-stringified form
+never had its placeholders filled in.
+
+Strings still work, so the fake-mode scenarios (which send strings) pass unchanged.
 
 ## Inspiration (read-only sibling repos)
 

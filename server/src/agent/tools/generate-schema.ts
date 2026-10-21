@@ -1,5 +1,6 @@
 // EX2.2: generate_schema tool (LOCAL tier)
-// @see docs/phases/phase-ex2.md — EX2.2
+// EX10.5: the schema is a JSON object (a string still works); the answer does not echo it
+// @see docs/phases/phase-ex2.md — EX2.2, docs/phases/phase-ex10.md §6
 //
 // The "terminal tool" — when the agent calls this, it signals
 // that the final DynamicViewSchema has been produced. The executor
@@ -8,10 +9,11 @@
 import { z } from 'zod';
 import { DynamicViewSchema } from 'headlessos-shared/schemas/dynamic-view';
 import type { AgentTool, ToolContext, ToolResult } from './types.js';
+import { describeCounts, readViewArg, viewArgSchema, viewCounts } from './view-arg.js';
 
 const GenerateSchemaParams = z.object({
-  schema: z.string().describe(
-    'The FINAL complete DynamicViewSchema as a JSON string. Must be valid against DynamicViewSchema. ' +
+  schema: viewArgSchema(
+    'The FINAL complete DynamicViewSchema view as a JSON object. Must be valid against DynamicViewSchema. ' +
     'This MUST contain ALL data from all sections — it is the complete, finished view. ' +
     'Call this ONLY after all update_view() calls and all data gathering is done.'
   ),
@@ -32,17 +34,10 @@ export const generateSchemaTool: AgentTool = {
     try {
       const args = GenerateSchemaParams.parse(rawArgs);
 
-      // Parse JSON
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(args.schema);
-      } catch {
-        return {
-          success: false,
-          output: '',
-          error: 'Invalid JSON: could not parse the schema string. Use validate_schema to check for issues.',
-        };
-      }
+      // EX10.5: an object, or a string that parses (or can be repaired)
+      const arg = readViewArg(args.schema, 'schema');
+      if (!arg.ok) return { success: false, output: '', error: arg.error };
+      const parsed = arg.value;
 
       // Final validation against DynamicViewSchema
       const result = DynamicViewSchema.safeParse(parsed);
@@ -68,7 +63,7 @@ export const generateSchemaTool: AgentTool = {
       // IMPORTANT: metadata.schema MUST be set for the executor to detect completion
       return {
         success: true,
-        output: JSON.stringify(result.data),
+        output: `Schema accepted: ${describeCounts(viewCounts(result.data))}.`,
         metadata: {
           title: (result.data as Record<string, unknown>).title,
           isTerminalTool: true,
