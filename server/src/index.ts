@@ -45,6 +45,10 @@ import { allParsers } from "./parsers/deterministic/index.js";
 import { OutputCache } from "./cache/output-cache.js";
 import { LLMUsageTracker } from "./llm/usage-tracker.js";
 import { InvestigationAgent } from "./agent/investigation-agent.js";
+import { ActionAudit } from "./agent/actions/audit.js";
+import { ApprovalGate } from "./agent/actions/approvals.js";
+import { ActionRunner, type ServerIdentity } from "./agent/actions/runner.js";
+import { actionRoutes } from "./routes/actions.js";
 import { DynamicUIGenerator } from "./dynamic-ui/generator.js";
 import { DynamicUIDiskCache } from "./cache/dynamic-ui-cache.js";
 import { ModelRouter } from "./llm/model-router.js";
@@ -121,7 +125,18 @@ async function main(): Promise<void> {
   initObservatory(traceStore);
   // EX6-D.7: Persist ended traces to disk + retention sweep (30 days / 10k cap)
   const tracePersistence = new TracePersistence("trace-persistence");
-  const investigationAgent = new InvestigationAgent(connectionManager, null);
+  // EX9.2: one approval gate + append-only audit for agents and view buttons
+  const actionAudit = new ActionAudit();
+  const approvalGate = new ApprovalGate({ audit: actionAudit });
+  const describeServer = (id: string): ServerIdentity | undefined => {
+    const server = configStore.findServer(id);
+    return server ? { name: server.name, host: server.host, username: server.username } : undefined;
+  };
+  const investigationAgent = new InvestigationAgent(connectionManager, null, {
+    approvals: approvalGate,
+    audit: actionAudit,
+    describeServer,
+  });
   const diskCache = new DynamicUIDiskCache();
   await diskCache.init();
   const appStore = new AppStore();
@@ -380,7 +395,7 @@ async function main(): Promise<void> {
   // When a server is disconnected (e.g. after dev server restart), attempt to
   // reconnect transparently using stored credentials before the route handler runs.
   const dataRoutePattern =
-    /^\/api\/servers\/([^/]+)\/(docker|system|files|taskmanager|services|terminal|serveradmin|dynamic-ui)/;
+    /^\/api\/servers\/([^/]+)\/(docker|system|files|taskmanager|services|terminal|serveradmin|dynamic-ui|actions)/;
 
   app.addHook("preHandler", async (req) => {
     const match = req.url.match(dataRoutePattern);
@@ -458,6 +473,13 @@ async function main(): Promise<void> {
   await app.register(agentRoutes, {
     connectionManager,
     agent: investigationAgent,
+    approvals: approvalGate,
+  });
+  // EX9.2: generated view buttons run catalog actions; changes need an approval
+  await app.register(actionRoutes, {
+    connectionManager,
+    runner: new ActionRunner({ ssh: connectionManager, approvals: approvalGate, audit: actionAudit, describeServer }),
+    approvals: approvalGate,
   });
   await app.register(dynamicUIRoutes, {
     connectionManager,
@@ -513,6 +535,9 @@ async function main(): Promise<void> {
     } catch (err) {
       console.warn("[shutdown] Session hibernation error:", err);
     }
+
+    // EX9.2: unanswered approvals resolve as deny (and are logged) before SSH goes away
+    approvalGate.dispose();
 
     // Disconnect all SSH connections so app.close() doesn't hang on open handles
     const connectedIds = connectionManager.getConnectedServerIds();

@@ -1039,6 +1039,16 @@ None (all changes to existing files).
 - **Tests modified:** `tests/agent/{command-allowlist,guardrails,executor,fake-llm-e2e,agent-spans,investigation-progress,ui-agent-sandbox}.test.ts`, `tests/agent/tools/tools.test.ts`, `tests/agent/{helpers/mock-ssh,scenarios/system-overview}.ts`, `tests/routes/security-regressions.test.ts` (H2 rewritten for actions); client `tests/components/agent-progress.test.tsx`
 - **Verification:** server 2203 passed (+1 skipped), client 624, both typechecks clean
 
+### EX9.2: Approvals for change actions
+- **Status:** ✅ Complete
+- **Date:** 2026-10-22
+- **Files created:** `server/src/agent/actions/{approvals,audit}.ts`, `server/src/agent/actions/catalog/changes.ts`, `server/src/routes/actions.ts`; client `components/Agent/ApprovalCard.tsx`, `components/DynamicUI/view-actions.tsx`
+- **Files modified:** server `agent/actions/{runner,params,types,tools,catalog/index,catalog/define}.ts`, `agent/investigation-agent.ts`, `agent/tools/types.ts`, `agent/executor.ts` (row-button prompt), `routes/{agent,dynamic-ui}.ts`, `config/store.ts` (`findServer`), `index.ts` (gate, audit, routes, shutdown); shared `schemas/dynamic-view.ts` (`WidgetActionRefSchema`, `command` optional); client `lib/api.ts`, `components/Agent/AgentView.tsx`, `components/DynamicUI/widgets/TableWidget.tsx`
+- **Docs:** `docs/phases/phase-ex9.md` ("EX9.2 — as built"), `docs/API_SPEC.md` (Agent Actions & Approvals)
+- **Tests created:** `server/tests/agent/actions/{approvals-audit,runner-change}.test.ts`, `server/tests/routes/view-actions.test.ts`, `client/tests/components/approvals.test.tsx`
+- **Tests modified:** `server/tests/agent/actions/{catalog,runner}.test.ts`, `server/tests/agent/investigation-agent.test.ts`, `server/tests/parsers/dynamic-view-schema.test.ts`
+- **Verification:** server 2257 passed (+2 skipped: the 0o600 file-mode checks on Windows), client 639, both typechecks clean; Playwright measurements in the phase doc
+
 ## How to Use This File
 
 ### After completing a task:

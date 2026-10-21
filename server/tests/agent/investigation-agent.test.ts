@@ -5,6 +5,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { InvestigationAgent } from '../../src/agent/investigation-agent.js';
 import { CommandPolicy } from '../../src/services/policy/command-policy.js';
 import { currentAgentScope } from '../../src/services/policy/agent-scope.js';
+import { ApprovalGate } from '../../src/agent/actions/approvals.js';
 
 type Thought = { thought: string; action: string | null; params: string | null; answer: string | null; decision: 'run_action' | 'answer' };
 
@@ -114,5 +115,77 @@ describe('InvestigationAgent (EX9.1)', () => {
     const result = await new InvestigationAgent(policedSsh() as never, null).investigate('srv', 'q');
     expect(result.status).toBe('error');
     expect(result.answer).toContain('API key');
+  });
+});
+
+describe('InvestigationAgent changes (EX9.2)', () => {
+  const RESTART = act('service_restart', '{"unit":"nginx","reason":"nginx is inactive since 09:12"}', 'restart it');
+
+  function changeAgent(thoughts: Thought[], answerWith: (gate: ApprovalGate, approvalId: string, agent: InvestigationAgent) => void) {
+    const ssh = policedSsh('ok');
+    const gate = new ApprovalGate();
+    const llm = scripted(thoughts);
+    const agent = new InvestigationAgent(ssh as never, llm as never, {
+      approvals: gate,
+      describeServer: () => ({ name: 'web-1', host: '10.0.0.5', username: 'deploy' }),
+    });
+    const events: Array<Record<string, unknown>> = [];
+    agent.events.on('step:sess-change-1', (e: Record<string, unknown>) => {
+      events.push(e);
+      if (e.kind === 'approval') answerWith(gate, (e.request as { approvalId: string }).approvalId, agent);
+    });
+    return { ssh, gate, llm, agent, events };
+  }
+
+  it('offers change actions only when readOnly is false', async () => {
+    const readOnly = scripted([answer('ok')]);
+    await new InvestigationAgent(policedSsh() as never, readOnly as never).investigate('srv', 'nginx is down');
+    expect(readOnly.parseText.mock.calls[0]![0].systemPrompt).not.toContain('service_restart(');
+
+    const changes = scripted([answer('ok')]);
+    await new InvestigationAgent(policedSsh() as never, changes as never).investigate('srv', 'nginx is down', { readOnly: false });
+    const system = changes.parseText.mock.calls[0]![0].systemPrompt as string;
+    expect(system).toContain('- service_restart(unit: systemd unit, e.g. nginx or nginx.service; reason: why this change is needed');
+    expect(system).toContain('[changes the server]');
+    expect(system).toContain('If the owner declines, that is final for this run');
+  });
+
+  it('runs a change only after the owner allows it, and streams the card with the step', async () => {
+    const t = changeAgent([RESTART, answer('restarted')], (gate, id) => gate.resolve(id, 'allow'));
+    const result = await t.agent.investigate('srv', 'nginx is down', { readOnly: false, sessionId: 'sess-change-1' });
+
+    expect(t.ssh.seen).toEqual(['sudo -n systemctl restart -- nginx']);
+    const card = t.events.find((e) => e.kind === 'approval')!;
+    expect(card).toMatchObject({
+      step: 1,
+      request: { command: 'sudo -n systemctl restart -- nginx', serverName: 'web-1', loginUser: 'deploy', reason: 'nginx is inactive since 09:12' },
+    });
+    expect(t.events.find((e) => e.kind === 'approval_resolved')).toMatchObject({ step: 1, decision: 'allow', by: 'owner' });
+    expect(result.steps[0]).toMatchObject({ action: 'service_restart', approval: { decision: 'allow', by: 'owner' } });
+  });
+
+  it('does not run a denied change and tells the model not to retry', async () => {
+    const t = changeAgent([RESTART, answer('owner declined')], (gate, id) => gate.resolve(id, 'deny'));
+    const result = await t.agent.investigate('srv', 'nginx is down', { readOnly: false, sessionId: 'sess-change-1' });
+    expect(t.ssh.exec).not.toHaveBeenCalled();
+    expect(result.steps[0]!.approval).toMatchObject({ decision: 'deny', by: 'owner' });
+    expect(result.steps[0]!.output).toMatch(/declined this change.*do not retry/i);
+  });
+
+  it('Stop while a card is waiting denies it and ends the run', async () => {
+    const t = changeAgent([RESTART, answer('never reached')], (_gate, _id, agent) => agent.abort('sess-change-1'));
+    const result = await t.agent.investigate('srv', 'nginx is down', { readOnly: false, sessionId: 'sess-change-1' });
+    expect(t.ssh.exec).not.toHaveBeenCalled();
+    expect(result.steps[0]!.approval).toMatchObject({ decision: 'deny', by: 'stop' });
+    expect(result.status).toBe('aborted');
+    expect(t.gate.pending()).toEqual([]);
+  });
+
+  it('refuses change actions in a read-only run even if the model names one', async () => {
+    const t = changeAgent([RESTART, answer('ok')], (gate, id) => gate.resolve(id, 'allow'));
+    const result = await t.agent.investigate('srv', 'nginx is down', { sessionId: 'sess-change-1' });
+    expect(t.ssh.exec).not.toHaveBeenCalled();
+    expect(t.events.some((e) => e.kind === 'approval')).toBe(false);
+    expect(result.steps[0]!.output).toContain('read-only');
   });
 });

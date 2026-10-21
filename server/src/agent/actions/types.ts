@@ -80,8 +80,12 @@ export interface ActionRunResult {
   durationMs: number;
   /** short, model-facing reason when ok is false */
   error?: string;
+  /** EX9.2: set for change actions — what the owner decided */
+  approval?: { approvalId: string; decision: 'allow' | 'deny'; by: 'owner' | 'stop' | 'timeout' };
 }
 
 export const DEFAULT_MAX_OUTPUT = 64 * 1024;
 export const MAX_STDERR = 4 * 1024;
 export const MAX_TIMEOUT_MS = 60_000;
+/** EX9.2: change actions may run longer (package installs) */
+export const MAX_CHANGE_TIMEOUT_MS = 600_000;

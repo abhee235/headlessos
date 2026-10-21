@@ -27,6 +27,11 @@ export class ConfigStore extends BaseService {
     return [...this.servers];
   }
 
+  /** EX9.2: sync lookup (servers load at construct) — approval cards name the server and login user */
+  findServer(id: string): ServerConfig | undefined {
+    return this.servers.find((s) => s.id === id);
+  }
+
   async getServer(id: string): Promise<ServerConfig | undefined> {
     return this.servers.find(s => s.id === id);
   }

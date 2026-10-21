@@ -4,17 +4,20 @@
 import type { FastifyInstance } from 'fastify';
 import type { ConnectionManager } from '../ssh/connection-manager.js';
 import type { InvestigationAgent } from '../agent/investigation-agent.js';
+import type { ApprovalGate } from '../agent/actions/approvals.js';
 
 interface AgentRouteOpts {
   connectionManager: ConnectionManager;
   agent: InvestigationAgent;
+  /** EX9.2: the owner answers approval cards here */
+  approvals?: ApprovalGate;
 }
 
 export async function agentRoutes(
   fastify: FastifyInstance,
   opts: AgentRouteOpts,
 ): Promise<void> {
-  const { connectionManager, agent } = opts;
+  const { connectionManager, agent, approvals } = opts;
 
   function requireConnected(serverId: string): void {
     const state = connectionManager.getState(serverId);
@@ -51,7 +54,8 @@ export async function agentRoutes(
       try {
         const result = await agent.investigate(id, question.trim(), {
           maxSteps: Math.min(maxSteps ?? 10, 15),
-          readOnly: readOnly ?? true,
+          // EX9.2: only an explicit false offers change actions (each asks the owner first)
+          readOnly: readOnly !== false,
           // EX8.24: lets the client watch /ws/agent/:id/:sessionId while it runs
           ...(typeof sessionId === 'string' ? { sessionId } : {}),
         });
@@ -77,6 +81,28 @@ export async function agentRoutes(
       const { sessionId } = req.params;
       agent.abort(sessionId);
       return { success: true };
+    },
+  );
+
+  // ── POST /api/servers/:id/agent/approvals/:approvalId (EX9.2) ──
+
+  fastify.post<{
+    Params: { id: string; approvalId: string };
+    Body: { decision?: unknown };
+  }>(
+    '/api/servers/:id/agent/approvals/:approvalId',
+    async (req, reply) => {
+      const decision = req.body?.decision;
+      if (decision !== 'allow' && decision !== 'deny') {
+        reply.code(400);
+        return { success: false, error: 'decision must be "allow" or "deny"' };
+      }
+      const outcome = approvals?.resolve(req.params.approvalId, decision, req.params.id) ?? null;
+      if (!outcome) {
+        reply.code(404);
+        return { success: false, error: 'No such pending approval (it may have expired or been answered)' };
+      }
+      return { success: true, ...outcome };
     },
   );
 

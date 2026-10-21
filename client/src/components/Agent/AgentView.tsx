@@ -1,15 +1,18 @@
 // M11.5 + M11.6: AI Agent View — ReAct investigation with live progress
 // EX8.6: Lumen glass — step bubbles, result card, pill composer
 // EX8.24: steps stream in while it runs (the M11.6 socket, now reachable); Stop works
-// @see docs/DECISIONS.md (ADR-013, ADR-014)
+// EX9.2: "Allow changes (asks first)" — change actions wait on an ApprovalCard
+// @see docs/DECISIONS.md (ADR-013, ADR-014, ADR-024)
 
 import { useState, useRef, useEffect } from 'react';
 import {
   Bot, Send, Square, Terminal, Brain, CheckCircle2, XCircle, AlertTriangle, Clock, ChevronDown, ChevronRight, Copy, Zap } from 'lucide-react';
 import {
-  abortAgentInvestigation, agentProgressWsUrl, startAgentInvestigation,
-  type AgentProgressEvent, type AgentResult, type AgentStep,
+  abortAgentInvestigation, agentProgressWsUrl, answerAgentApproval, startAgentInvestigation,
+  type AgentProgressEvent, type AgentResult, type AgentStep, type ApprovalRequest,
 } from '../../lib/api';
+import { Switch } from '@/components/ui/switch';
+import { ApprovalCard, type ApprovalStatus } from './ApprovalCard';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -132,13 +135,13 @@ function StepCard({ step }: { step: AgentStep }) {
 
 // ── EX8.24: the step being worked on right now ─────────
 
-function PendingStepCard({ step, thought, command }: { step: number; thought?: string; command?: string }) {
+function PendingStepCard({ step, thought, command, waiting }: { step: number; thought?: string; command?: string; waiting?: boolean }) {
   return (
     <div className={cn(BUBBLE_CLASS, 'flex items-center gap-2 px-3.5 py-2.5')} aria-live="polite">
       <Spinner className="h-4 w-4 shrink-0 text-accent-solid" />
       <span className="shrink-0 font-mono text-xs text-label-3">Step {step}</span>
       <span className="flex-1 truncate text-[13px] text-label-2">
-        {command ? 'Running command…' : thought ? `${thought.slice(0, 80)}${thought.length > 80 ? '…' : ''}` : 'Thinking…'}
+        {waiting ? 'Waiting for your approval…' : command ? 'Running command…' : thought ? `${thought.slice(0, 80)}${thought.length > 80 ? '…' : ''}` : 'Thinking…'}
       </span>
       {command && (
         <Badge variant="secondary" className="shrink-0 font-mono text-[10px]">
@@ -222,6 +225,20 @@ interface AgentViewProps {
   serverId: string;
 }
 
+/** EX9.2: an approval card as the view tracks it */
+interface ApprovalEntry {
+  step: number;
+  request: ApprovalRequest;
+  status: ApprovalStatus;
+  busy: boolean;
+}
+
+const STATUS_FROM: Record<'owner' | 'stop' | 'timeout', (d: 'allow' | 'deny') => ApprovalStatus> = {
+  owner: (d) => (d === 'allow' ? 'allowed' : 'denied'),
+  stop: () => 'stopped',
+  timeout: () => 'expired',
+};
+
 export function AgentView({ serverId }: AgentViewProps) {
   const [question, setQuestion] = useState('');
   const [running, setRunning] = useState(false);
@@ -232,6 +249,9 @@ export function AgentView({ serverId }: AgentViewProps) {
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [stopping, setStopping] = useState(false);
+  // EX9.2: changes are off unless the owner turns them on; each one still asks
+  const [allowChanges, setAllowChanges] = useState(false);
+  const [approvals, setApprovals] = useState<Record<string, ApprovalEntry>>({});
   const sessionRef = useRef<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -240,7 +260,7 @@ export function AgentView({ serverId }: AgentViewProps) {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [result?.steps.length, liveSteps.length, pending?.step, pending?.command]);
+  }, [result?.steps.length, liveSteps.length, pending?.step, pending?.command, Object.keys(approvals).length]);
 
   // Elapsed seconds while running
   useEffect(() => {
@@ -256,6 +276,26 @@ export function AgentView({ serverId }: AgentViewProps) {
       setLiveSteps((prev) => [...prev.filter((x) => x.stepNumber !== e.data.stepNumber), e.data]);
       // the next step starts thinking straight away
       setPending({ step: e.data.stepNumber + 1 });
+    } else if (e.kind === 'approval') {
+      setApprovals((prev) => ({ ...prev, [e.request.approvalId]: { step: e.step, request: e.request, status: 'pending', busy: false } }));
+    } else if (e.kind === 'approval_resolved') {
+      setApprovals((prev) => {
+        const entry = prev[e.approvalId];
+        return entry ? { ...prev, [e.approvalId]: { ...entry, status: STATUS_FROM[e.by](e.decision), busy: false } } : prev;
+      });
+    }
+  };
+
+  const decide = async (approvalId: string, decision: 'allow' | 'deny') => {
+    setApprovals((prev) => (prev[approvalId] ? { ...prev, [approvalId]: { ...prev[approvalId]!, busy: true } } : prev));
+    try {
+      await answerAgentApproval(serverId, approvalId, decision);
+      setApprovals((prev) => (prev[approvalId]
+        ? { ...prev, [approvalId]: { ...prev[approvalId]!, status: decision === 'allow' ? 'allowed' : 'denied', busy: false } }
+        : prev));
+    } catch (err) {
+      setApprovals((prev) => (prev[approvalId] ? { ...prev, [approvalId]: { ...prev[approvalId]!, busy: false } } : prev));
+      toast.error(err instanceof Error ? err.message : 'Could not send your answer');
     }
   };
 
@@ -266,6 +306,7 @@ export function AgentView({ serverId }: AgentViewProps) {
     setRunning(true);
     setResult(null);
     setLiveSteps([]);
+    setApprovals({});
     setPending({ step: 1 });
     setStopping(false);
     setStartedAt(Date.now());
@@ -278,7 +319,7 @@ export function AgentView({ serverId }: AgentViewProps) {
     try {
       const res = await startAgentInvestigation(serverId, finalQuestion, {
         maxSteps: 10,
-        readOnly: true,
+        readOnly: !allowChanges,
         sessionId,
       });
 
@@ -294,6 +335,9 @@ export function AgentView({ serverId }: AgentViewProps) {
       sessionRef.current = null;
       setPending(null);
       setRunning(false);
+      // a card the run never heard back about cannot be answered any more
+      setApprovals((prev) => Object.fromEntries(Object.entries(prev).map(([id, a]) =>
+        [id, a.status === 'pending' ? { ...a, status: 'stopped' as const, busy: false } : a])));
     }
   };
 
@@ -306,6 +350,19 @@ export function AgentView({ serverId }: AgentViewProps) {
   };
 
   const steps = result ? result.steps : liveSteps;
+  const approvalList = Object.values(approvals);
+  const cardsFor = (step: number) => approvalList.filter((a) => a.step === step);
+  const loose = approvalList.filter((a) => !steps.some((s) => s.stepNumber === a.step));
+  const waiting = approvalList.some((a) => a.status === 'pending');
+  const renderCard = (a: ApprovalEntry) => (
+    <ApprovalCard
+      key={a.request.approvalId}
+      request={a.request}
+      status={a.status}
+      busy={a.busy}
+      onDecide={(d) => void decide(a.request.approvalId, d)}
+    />
+  );
 
   return (
     <div className="flex flex-col h-full">
@@ -341,14 +398,18 @@ export function AgentView({ serverId }: AgentViewProps) {
           )}
 
           {/* Steps: live while running, then the final list */}
-          {(steps.length > 0 || (running && pending)) && (
+          {(steps.length > 0 || approvalList.length > 0 || (running && pending)) && (
             <div className="space-y-2">
               <SectionLabel>Investigation Steps</SectionLabel>
               {steps.map(step => (
-                <StepCard key={step.stepNumber} step={step} />
+                <div key={step.stepNumber} className="space-y-2">
+                  {cardsFor(step.stepNumber).map(renderCard)}
+                  <StepCard step={step} />
+                </div>
               ))}
+              {loose.map(renderCard)}
               {running && pending && !result && (
-                <PendingStepCard step={pending.step} thought={pending.thought} command={pending.command} />
+                <PendingStepCard step={pending.step} thought={pending.thought} command={pending.command} waiting={waiting} />
               )}
             </div>
           )}
@@ -410,9 +471,22 @@ export function AgentView({ serverId }: AgentViewProps) {
             </Button>
           )}
         </Composer>
-        <p className="mt-2 px-4 text-[11px] text-label-3">
-          Read-only mode — the agent can only run diagnostic commands. Max 10 steps per investigation.
-        </p>
+        <div className="mt-2 flex items-center gap-3 px-4">
+          <label className="flex shrink-0 cursor-pointer items-center gap-2 text-xs text-label-2">
+            <Switch
+              checked={allowChanges}
+              onCheckedChange={setAllowChanges}
+              disabled={running}
+              aria-label="Allow changes (asks first)"
+            />
+            Allow changes (asks first)
+          </label>
+          <p className="min-w-0 truncate text-[11px] text-label-3">
+            {allowChanges
+              ? 'Each change shows you the exact command and waits for Allow. Max 10 steps.'
+              : 'Read-only — the agent can only run diagnostic actions. Max 10 steps.'}
+          </p>
+        </div>
       </div>
     </div>
   );

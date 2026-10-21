@@ -148,6 +148,15 @@ export async function dynamicUIRoutes(
       // Validate the resolved command against the allowlist
       const rule = validateCommand(resolvedCommand);
 
+      // EX9.2 (ADR-024): a button carrying free-form command text may only read.
+      // Changes go through catalog actions and the owner's approval (/actions/preview).
+      if (rule.risk === 'medium' || rule.risk === 'high') {
+        return reply.status(403).send({
+          success: false,
+          error: 'This button was generated before actions existed and would change the server. Regenerate the view to get an approvable action.',
+        });
+      }
+
       // Execute the command (15s timeout for actions)
       const result = await connectionManager.exec(serverId, resolvedCommand, 15000);
 

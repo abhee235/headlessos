@@ -74,16 +74,40 @@ const EXPECTED: Record<string, [params: Record<string, unknown>, command: string
   cli_help: [{ program: 'restic', subcommands: ['backup'] }, 'restic backup --help'],
   cli_version: [{ program: 'restic' }, 'restic --version'],
   cli_manual: [{ program: 'restic' }, 'man -P cat restic'],
+  // EX9.2: change actions (the runner adds a required reason)
+  service_start: [{ unit: 'nginx', reason: 'site is down' }, 'sudo -n systemctl start -- nginx'],
+  service_stop: [{ unit: 'nginx', reason: 'stop it' }, 'sudo -n systemctl stop -- nginx'],
+  service_restart: [{ unit: 'nginx', reason: 'stuck workers' }, 'sudo -n systemctl restart -- nginx'],
+  service_reload: [{ unit: 'nginx', reason: 'new config' }, 'sudo -n systemctl reload -- nginx'],
+  container_start: [{ container: 'web-1', reason: 'exited' }, 'docker start -- web-1'],
+  container_stop: [{ container: 'web-1', reason: 'runaway' }, 'docker stop -- web-1'],
+  container_restart: [{ container: 'web-1', reason: 'leaking' }, 'docker restart -- web-1'],
+  nginx_reload: [{ reason: 'config test passed' }, 'sudo -n nginx -s reload'],
+  process_signal: [{ pid: 4321, signal: 'HUP', reason: 'reopen logs' }, 'kill -s HUP 4321'],
+  package_install: [{ name: 'htop', reason: 'needed' }, 'sudo -n apt-get install -y htop'],
+  packages_refresh: [{ reason: 'stale lists' }, 'sudo -n apt-get update'],
 };
 
 const runner = new ActionRunner({ ssh: {} as never });
 
 describe('seeded catalog', () => {
-  it('has 40–60 actions, all read-only (EX9.1)', () => {
+  it('has 40–60 read actions (EX9.1) and the change actions of EX9.2', () => {
     const catalog = getDefaultCatalog();
-    expect(catalog.size).toBeGreaterThanOrEqual(40);
-    expect(catalog.size).toBeLessThanOrEqual(60);
-    expect(catalog.list({ risk: 'change' })).toEqual([]);
+    const reads = catalog.list({ risk: 'read' });
+    expect(reads.length).toBeGreaterThanOrEqual(40);
+    expect(reads.length).toBeLessThanOrEqual(60);
+    expect(catalog.list({ risk: 'change' }).map((a) => a.id).sort()).toEqual([
+      'container_restart', 'container_start', 'container_stop', 'nginx_reload', 'package_install',
+      'packages_refresh', 'process_signal', 'service_reload', 'service_restart', 'service_start', 'service_stop',
+    ]);
+  });
+
+  it('change actions require a reason the owner reads', () => {
+    const v = runner.validate('service_restart', { unit: 'nginx' });
+    expect(v.ok).toBe(false);
+    expect((v as { error: string }).error).toContain('reason: required');
+    expect((runner.validate('service_restart', { unit: 'nginx', reason: 'x' }) as { error: string }).error)
+      .toContain('expected a short reason');
   });
 
   it('has an expected command for every action, and no stale entries', () => {
@@ -116,7 +140,7 @@ describe('seeded catalog', () => {
   it('every action works with only its required params (defaults fill the rest)', () => {
     for (const def of ALL_ACTIONS) {
       const required = Object.fromEntries(
-        Object.entries(EXPECTED[def.id]![0]).filter(([k]) => !(def.params.shape as Record<string, z.ZodTypeAny>)[k]!.isOptional()),
+        Object.entries(EXPECTED[def.id]![0]).filter(([k]) => k === 'reason' || !(def.params.shape as Record<string, z.ZodTypeAny>)[k]!.isOptional()),
       );
       expect(runner.validate(def.id, required).ok, def.id).toBe(true);
     }

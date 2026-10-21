@@ -2,13 +2,14 @@
 // @see docs/phases/phase-ex9.md §1
 
 import { z } from 'zod';
-import { ACTION_CATEGORIES, MAX_TIMEOUT_MS, type ActionDef } from '../types.js';
+import { ACTION_CATEGORIES, MAX_CHANGE_TIMEOUT_MS, MAX_TIMEOUT_MS, type ActionDef } from '../types.js';
 import { SYSTEM_ACTIONS } from './system.js';
 import { NETWORK_ACTIONS } from './network.js';
 import { SERVICE_ACTIONS } from './services.js';
 import { DOCKER_ACTIONS } from './docker.js';
 import { ADMIN_ACTIONS } from './admin.js';
 import { FILE_ACTIONS } from './files.js';
+import { CHANGE_ACTIONS } from './changes.js';
 
 const ACTION_ID = /^[a-z][a-z0-9_]{2,47}$/;
 /** Program/verb pairs a read action must never build (spot list, catalog-load check). */
@@ -69,7 +70,10 @@ function checkAction(def: ActionDef): void {
   if (!ACTION_CATEGORIES.includes(def.category)) throw new CatalogError(`${where}: unknown category ${def.category}`);
   if (!(def.params instanceof z.ZodObject)) throw new CatalogError(`${where}: params must be a z.object`);
   if (def.params._def.unknownKeys !== 'strict') throw new CatalogError(`${where}: params must be .strict()`);
-  if (!(def.timeoutMs > 0 && def.timeoutMs <= MAX_TIMEOUT_MS)) throw new CatalogError(`${where}: timeout out of range`);
+  const maxTimeout = def.risk === 'change' ? MAX_CHANGE_TIMEOUT_MS : MAX_TIMEOUT_MS;
+  if (!(def.timeoutMs > 0 && def.timeoutMs <= maxTimeout)) throw new CatalogError(`${where}: timeout out of range`);
+  if (def.risk === 'change' && def.run.kind !== 'exec') throw new CatalogError(`${where}: change actions run commands`);
+  if (def.risk === 'change' && 'reason' in (def.params.shape as object)) throw new CatalogError(`${where}: "reason" is added by the runner`);
   if (!(def.maxOutputBytes > 0 && def.maxOutputBytes <= 1024 * 1024)) throw new CatalogError(`${where}: output cap out of range`);
   if (def.risk === 'read' && def.run.kind === 'exec') {
     // Cheap guard for parameterless reads; tests build every action with sample params.
@@ -99,7 +103,7 @@ function editDistance(a: string, b: string): number {
   return dp[a.length]![b.length]!;
 }
 
-/** Every seeded action (EX9.1: read only; EX9.2 adds change actions). */
+/** Every seeded action: reads (EX9.1) and changes that need the owner's approval (EX9.2). */
 export const ALL_ACTIONS: ActionDef[] = [
   ...SYSTEM_ACTIONS,
   ...NETWORK_ACTIONS,
@@ -107,6 +111,7 @@ export const ALL_ACTIONS: ActionDef[] = [
   ...DOCKER_ACTIONS,
   ...ADMIN_ACTIONS,
   ...FILE_ACTIONS,
+  ...CHANGE_ACTIONS,
 ] as ActionDef[];
 
 let defaultCatalog: ActionCatalog | null = null;

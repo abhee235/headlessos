@@ -332,7 +332,7 @@ run → runner.run(change action) → approvals.request(...)  ──► event ap
 |---------|------|--------|
 | EX9.0 | Remove `exec_write_command` and `sftp_write` from `ALL_AGENT_TOOLS` (UI Agent can no longer change servers) | ✅ |
 | EX9.1 | Action catalog (40–60 read actions), param validators, quoting, runner, agent scope + CommandPolicy enforcement, action tools + selection; both agents on the runner; free-form read allowlist and `exec_command`/`sftp_read`/`sandbox_exec` retired | ✅ |
-| EX9.2 | Change actions + ApprovalGate + audit log + ApprovalCard; Stop denies pending; investigation agent "Allow changes (asks first)"; generated view buttons through preview/run | ⬜ |
+| EX9.2 | Change actions + ApprovalGate + audit log + ApprovalCard; Stop denies pending; investigation agent "Allow changes (asks first)"; generated view buttons through preview/run | ✅ |
 | EX9.3 | Shared agent loop with typed events; OllamaProvider; Settings → AI provider choice; weak-model input handling (repair, prose calls, aliases, coercion, short errors) | ⬜ |
 | EX9.4 | Loop guard, context trimming, exec/output caps, benchmark script + fake-provider test | ⬜ |
 | EX9.5 | (Optional) agent login per server, untrusted-data marking, secret redaction | ⬜ |
@@ -379,6 +379,68 @@ Bad params, malformed JSON and unknown ids come back to the model as short error
 ("…: expected …, you sent …"; "No such action: x. Closest: …") without touching SSH.
 Progress events carry `action` and the server-built `command`; the client accepts
 `decision: 'run_action'`.
+
+## EX9.2 — Approvals (as built)
+
+**11 change actions** (`catalog/changes.ts`): `service_start | stop | restart | reload`,
+`container_start | stop | restart`, `nginx_reload`, `process_signal`, `package_install`,
+`packages_refresh` — the write operations the classic apps already offer. Each takes a
+required `reason` (3–200 chars) that the runner adds (`params.ts` `callParams`). Change
+actions may run up to 600 s (package installs); reads stay at ≤ 60 s.
+
+**Runner** (`runner.ts`): a change action needs three things — the run option
+`allowChange: true` (otherwise refused outright, no card: a read-only run never asks),
+an `ApprovalGate`, and the owner's allow. It parks on `gate.request()`, sends
+`approval_required` / `approval_resolved` through `onApproval`, runs only on allow and
+appends a `ran` audit line. An aborted signal cancels the run's approvals. Denials come
+back to the model as directive text (`denialMessage`). `runApproved(ticket)` runs a view
+button's staged command once; it re-builds from the recorded params and refuses if the
+result differs from the recorded command. Strings that plainly mean a number or a
+boolean (`"10"`, `"true"`) are read as such — table cells are text.
+
+**Gate** (`approvals.ts`): parked approvals (agents) and staged ones (view buttons),
+10-minute expiry, `cancelRun()` for Stop, `dispose()` on shutdown (pending → deny,
+logged). Tickets are tracked in a `WeakSet`, so a copied ticket does not redeem.
+
+**Audit** (`audit.ts`): `~/.headlessos/audit/actions.jsonl`, chained `appendFile`
+writes, rename past 10 MB, never throws. File modes 0o600/0o700 apply on POSIX; Windows
+ignores them.
+
+**Investigation agent:** `readOnly: false` (AgentView's "Allow changes (asks first)"
+switch, off by default) adds the 11 change actions to the prompt, marked
+`[changes the server]`, with rules: investigate first, give a specific reason, one change
+at a time, a decline is final. Approval cards stream on the progress socket with their
+step; the owner answers through `POST /api/servers/:id/agent/approvals/:approvalId`.
+Stop calls `gate.cancelRun(sessionId)`.
+
+**Client:** `components/Agent/ApprovalCard.tsx` — inline in AgentView (bubble surface),
+`variant="bare"` inside a dialog for view buttons. Pending: "Allow this change?", the
+command in a monospace block, Server (name and host), Runs as (login user), Reason,
+Deny / Allow once (focused; Enter allows, Esc denies). Settled: one line ("You allowed",
+"You denied", "Stopped before an answer", "Not answered in time"). A card the run never
+heard back about turns "Stopped" when the run ends.
+
+**Generated views:** `WidgetActionSchema` gains `action: { id, params }` (params may
+hold `{column}` placeholders); `command` is optional (legacy) and a button needs one of
+the two. The executor prompt lists the change actions a button may name.
+`components/DynamicUI/view-actions.tsx` (`useViewAction`) previews; a read runs at once,
+a change opens the approval dialog; Allow runs `{ approvalId }`, Deny drops it; Esc / the
+dialog's close button also deny, once. The legacy `/dynamic-ui/execute-action` route
+(table `command` buttons and form `commandTemplate` submits) now refuses classic rules
+of risk `medium`/`high` with 403.
+
+**Wiring:** `index.ts` builds one `ActionAudit` + `ApprovalGate`, a `describeServer` from
+the new sync `ConfigStore.findServer()`, passes them to the investigation agent and the
+new `routes/actions.ts` plugin, and adds `actions` to the auto-reconnect route pattern.
+
+**Verified in Playwright** (1440×900, signed in to Local Ubuntu Dev): AgentView footer —
+switch 46×28, switch/label/hint centres within 0.1 px, label→hint 12 px, composer→row
+8 px, row→footer bottom 16 px, 16 px inset like the old hint line, no truncation in either
+state. View-button dialog (a probe view naming `service_reload` for a unit that does not
+exist; only Deny was clicked) — card inset 24.7 px on all sides, 12 px between header,
+command, details and buttons, Deny→Allow 8 px, Allow flush right, the dialog's close
+button 20 px clear of the title, Allow focused; the audit log got `asked` then
+`answered deny`, no `ran`. Session files unchanged apart from `lastActiveAt`/`nextZIndex`.
 
 ## Inspiration (read-only sibling repos)
 
