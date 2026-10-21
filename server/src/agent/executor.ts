@@ -550,14 +550,14 @@ ${reflectionIssues.map((issue, i) => `${i + 1}. [${issue.severity}] ${issue.desc
 
 The user is asking you to build a management UI for a CLI tool. Follow this structured discovery pattern:
 
-### Phase 1: Discovery
-1. **Check binary exists**: \`which <tool>\` or \`command -v <tool>\`
+### Phase 1: Discovery (cli_* actions — they run in the sandbox when one is active)
+1. **Check binary exists**: \`cli_locate({ program: "<tool>" })\`
    - If not found, tell the user via an alert widget: "Tool <tool> is not installed on this server"
-2. **Get version**: \`<tool> --version\` (or \`<tool> version\`)
+2. **Get version**: \`cli_version({ program: "<tool>" })\`
    - Show as a key-value pair in the Overview section
-3. **Parse top-level help**: \`<tool> --help\` (or \`<tool> -h\` or \`<tool> help\`)
+3. **Parse top-level help**: \`cli_help({ program: "<tool>" })\` (or \`cli_manual\` for the man page)
    - Identify available subcommands and global flags
-4. **Iterate key subcommands**: \`<tool> <subcmd> --help\` for each important subcommand
+4. **Iterate key subcommands**: \`cli_help({ program: "<tool>", subcommands: ["<subcmd>"] })\` for each important subcommand
    - Parse available flags and options for each subcommand
    - Focus on the most useful subcommands (typically 3-6)
 
@@ -589,7 +589,7 @@ For action subcommands, create form widgets with \`commandTemplate\`:
 
 ### Meta Fields
 Set \`meta.tool\` to the CLI tool name (e.g. "restic") — this enables the "Save as App" feature.
-Set \`meta.command\` to the primary discovery command used.
+Set \`meta.command\` to the primary discovery command (e.g. "restic --help").
 `;
   }
 
