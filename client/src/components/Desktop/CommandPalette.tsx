@@ -1,9 +1,11 @@
 // M9.5 + EX1.9: Command Palette — Ctrl+K searchable launcher with Dynamic UI generation
-// @see docs/phases/phase-9.md, docs/phases/phase-ex1.md
+// EX8.4: LumenOS v3 — glass-heavy 30px panel, Fluent app icons; also opened by
+// the dock's Search button via the `palette:toggle` event.
+// @see docs/phases/phase-9.md, docs/phases/phase-ex1.md, docs/phases/phase-ex8.md
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  LayoutDashboard, FolderOpen, Terminal, Box, Server, Activity, Settings, Shield, Search, Moon, Sun, Monitor, Keyboard, Image, Paintbrush, Bell, Info, Wand2, Sparkles } from 'lucide-react';
+  Terminal, Settings, Moon, Sun, Monitor, Keyboard, Image, Paintbrush, Bell, Info, Wand2, Sparkles, LayoutGrid } from 'lucide-react';
 import {
   Command,
   CommandEmpty,
@@ -14,7 +16,7 @@ import {
   CommandSeparator,
   CommandShortcut,
 } from '@/components/ui/command';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { useAppStore } from '../../store/app-store';
 import { useDesktopStore } from '../../store/window-store';
 import { useThemeStore } from '../../store/theme-store';
@@ -26,19 +28,8 @@ import {
 } from '../../lib/api';
 import { DynamicAppWindow } from '../DynamicUI';
 import { getLucideIcon } from '../DynamicUI/widgets/icon-helper';
-
-// ── Icon Map ────────────────────────────────────────────
-
-const ICON_MAP: Record<string, React.ReactNode> = {
-  LayoutDashboard: <LayoutDashboard size={16} />,
-  FolderOpen: <FolderOpen size={16} />,
-  Terminal: <Terminal size={16} />,
-  Box: <Box size={16} />,
-  Server: <Server size={16} />,
-  Activity: <Activity size={16} />,
-  Settings: <Settings size={16} />,
-  Shield: <Shield size={16} />,
-};
+import { AppIcon } from '@/components/ui/FileIcon';
+import { eventBus } from '../../lib/event-bus';
 
 // ── Command Palette Component ───────────────────────────
 
@@ -50,7 +41,7 @@ export function CommandPalette() {
   const [dynamicUILoading, setDynamicUILoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const openTab = useAppStore(s => s.openTab);
+  const openWindow = useDesktopStore(s => s.openWindow);
   const activeServerId = useAppStore(s => s.activeServerId);
   const servers = useAppStore(s => s.servers);
   const theme = useThemeStore(s => s.theme);
@@ -90,17 +81,24 @@ export function CommandPalette() {
       }
     };
     window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    // EX8.4: the dock's Search button
+    const off = eventBus.on('palette:toggle', () => setOpen(prev => !prev));
+    return () => {
+      window.removeEventListener('keydown', handler);
+      off();
+    };
   }, []);
 
-  const launchApp = useCallback((appId: string) => {
+  // Opens a desktop window. (It used to call the legacy tab store's openTab,
+  // which windows replaced, so picking an app did nothing.)
+  const launchApp = useCallback((appId: string, meta?: Record<string, string>) => {
     if (!activeServerId) return;
     const app = APPS.find(a => a.id === appId);
     if (app) {
-      openTab(app, activeServerId);
+      openWindow(app.id, activeServerId, app.name, app.id, meta);
     }
     setOpen(false);
-  }, [activeServerId, openTab]);
+  }, [activeServerId, openWindow]);
 
   const runAction = useCallback((action: () => void) => {
     action();
@@ -171,13 +169,14 @@ export function CommandPalette() {
   return (
   <>
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="overflow-hidden p-0 max-w-lg top-[20%] translate-y-0 rounded-xl border-border shadow-2xl">
-        <Command className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground">
+      <DialogContent className="glass-heavy top-[18%] max-w-[640px] translate-y-0 overflow-hidden rounded-[30px] p-0 [&>button:last-child]:hidden">
+        <DialogTitle className="sr-only">Command palette</DialogTitle>
+        <Command>
           <CommandInput
             placeholder="Search apps, actions, dynamic UI…"
             onValueChange={setSearchQuery}
           />
-          <CommandList className="max-h-[320px]">
+          <CommandList className="max-h-[360px]">
             <CommandEmpty>No results found.</CommandEmpty>
 
             {/* ── Apps ── */}
@@ -189,9 +188,9 @@ export function CommandPalette() {
                     value={`app-${app.id}-${app.name}`}
                     onSelect={() => launchApp(app.id)}
                   >
-                    {ICON_MAP[app.icon] ?? <Search size={16} />}
-                    <span>{app.name}</span>
-                    <span className="ml-auto text-xs text-muted-foreground">{app.description}</span>
+                    <AppIcon appId={app.id} size={20} />
+                    <span className="shrink-0 font-semibold">{app.name}</span>
+                    <span className="ml-auto truncate pl-4 text-xs text-label-3">{app.description}</span>
                   </CommandItem>
                 ))}
               </CommandGroup>
@@ -212,7 +211,7 @@ export function CommandPalette() {
                       >
                         {IconComp ? <IconComp size={16} /> : <Sparkles size={16} />}
                         <span>{app.name}</span>
-                        <span className="ml-auto text-xs text-muted-foreground">{app.cliTool}</span>
+                        <span className="ml-auto truncate pl-4 font-mono text-xs text-label-3">{app.cliTool}</span>
                       </CommandItem>
                     );
                   })}
@@ -228,8 +227,8 @@ export function CommandPalette() {
                 value="action-toggle-start-menu"
                 onSelect={() => runAction(toggleStartMenu)}
               >
-                <Monitor size={16} />
-                <span>Toggle Start Menu</span>
+                <LayoutGrid size={16} />
+                <span>Toggle Launcher</span>
                 <CommandShortcut>Ctrl+Space</CommandShortcut>
               </CommandItem>
 
@@ -279,7 +278,7 @@ export function CommandPalette() {
                     key={item.page}
                     value={`settings-${item.page}-${item.label}`}
                     onSelect={() => {
-                      launchApp('settings');
+                      launchApp('settings', { initialPage: item.page });
                     }}
                   >
                     {item.icon}
@@ -302,7 +301,7 @@ export function CommandPalette() {
                     >
                       <Wand2 size={16} />
                       <span>{template.name}</span>
-                      <span className="ml-auto text-xs text-muted-foreground">
+                      <span className="ml-auto truncate pl-4 text-xs text-label-3">
                         {template.tags.slice(0, 2).join(', ')}
                       </span>
                     </CommandItem>
@@ -314,7 +313,7 @@ export function CommandPalette() {
                     >
                       <Sparkles size={16} />
                       <span>Generate UI for &quot;{searchQuery}&quot;</span>
-                      <span className="ml-auto text-xs text-muted-foreground">AI</span>
+                      <span className="ml-auto rounded-[6px] border border-accent-solid/30 bg-accent-solid/14 px-1.5 text-[11px] font-semibold text-accent-text">AI</span>
                     </CommandItem>
                   )}
                 </CommandGroup>
@@ -332,7 +331,7 @@ export function CommandPalette() {
                   >
                     <Sparkles size={16} />
                     <span>Generate Dynamic UI for &quot;{searchQuery}&quot;</span>
-                    <span className="ml-auto text-xs text-muted-foreground">AI</span>
+                    <span className="ml-auto rounded-[6px] border border-accent-solid/30 bg-accent-solid/14 px-1.5 text-[11px] font-semibold text-accent-text">AI</span>
                   </CommandItem>
                 </CommandGroup>
               </>

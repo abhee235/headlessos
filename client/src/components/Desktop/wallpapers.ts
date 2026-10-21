@@ -230,7 +230,8 @@ export function getDefaultWallpaper(): GradientWallpaper {
   return BUILTIN_WALLPAPERS[0];
 }
 
-export const DEFAULT_WALLPAPER_ID = 'builtin:celestial';
+/** EX8.1: LumenOS default — the "Dusk" photo shipped in server/assets/wallpapers/system/ */
+export const DEFAULT_WALLPAPER_ID = 'system:dusk.jpg';
 
 // ─── API Helpers ─────────────────────────────────────────────────────────────
 

@@ -9,6 +9,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { ConnectionManager } from '../ssh/connection-manager.js';
 import type { ModelRouter } from '../llm/model-router.js';
+import { NO_KEY_MESSAGE } from '../llm/model-router.js';
 import type { TemplateRegistry } from '../dynamic-ui/template-registry.js';
 import type { SandboxManager } from '../agent/sandbox-manager.js';
 import { UIAgent, type UIAgentEvent } from '../agent/ui-agent.js';
@@ -148,6 +149,12 @@ export async function agentUIRoutes(
       function handleGenerate(msg: ClientMessage): void {
         if (!msg.prompt) {
           sendError(msg.requestId, 'Missing prompt');
+          return;
+        }
+
+        // EX8.21: the route is always registered; without a key, say how to add one
+        if (modelRouter.hasApiKey?.() === false) {
+          sendError(msg.requestId, NO_KEY_MESSAGE);
           return;
         }
 

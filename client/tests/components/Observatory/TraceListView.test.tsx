@@ -99,8 +99,8 @@ describe('TraceListView', () => {
     render(<TraceListView />);
     // RefreshCw icon is in a button - find it by role
     const buttons = screen.getAllByRole('button');
-    // The refresh button is a ghost button with RefreshCw icon
-    const refreshBtn = buttons.find(b => b.querySelector('.lucide-refresh-cw'));
+    // The refresh button is a ghost button with the clockwise RotateCw icon
+    const refreshBtn = buttons.find(b => b.querySelector('.lucide-rotate-cw'));
     expect(refreshBtn).toBeTruthy();
     fireEvent.click(refreshBtn!);
     expect(mockFetchTraces).toHaveBeenCalled();

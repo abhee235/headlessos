@@ -1,7 +1,9 @@
 // M7.2: Server Admin View — main shell with sidebar navigation
-// @see docs/phases/phase-7.md
+// EX8.6: LumenOS v3 — PaneSidebar with the eight sections and a host card pinned at the bottom.
+// @see docs/phases/phase-7.md, docs/phases/phase-ex8.md
 
 import { useState } from 'react';
+import type { LucideIcon } from 'lucide-react';
 import {
   Network,
   Shield,
@@ -13,6 +15,8 @@ import {
   HardDrive,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PaneSidebar, PaneSidebarItem } from '@/components/ui/pane-sidebar';
+import { useAppStore } from '../../store/app-store';
 import { NetworkSection } from './NetworkSection';
 import { FirewallSection } from './FirewallSection';
 import { SecuritySection } from './SecuritySection';
@@ -35,16 +39,16 @@ type SectionId =
 interface SidebarItem {
   id: SectionId;
   label: string;
-  icon: React.ElementType;
+  icon: LucideIcon;
 }
 
 const SECTIONS: SidebarItem[] = [
   { id: 'network', label: 'Network', icon: Network },
   { id: 'firewall', label: 'Firewall', icon: Shield },
   { id: 'security', label: 'Security', icon: Lock },
-  { id: 'webserver', label: 'Web Server', icon: Globe },
+  { id: 'webserver', label: 'Web server', icon: Globe },
   { id: 'packages', label: 'Packages', icon: Package },
-  { id: 'cron', label: 'Cron Jobs', icon: Clock },
+  { id: 'cron', label: 'Cron jobs', icon: Clock },
   { id: 'logs', label: 'Logs', icon: ScrollText },
   { id: 'storage', label: 'Storage', icon: HardDrive },
 ];
@@ -70,41 +74,53 @@ function SectionContent({ section, serverId }: { section: SectionId; serverId: s
   }
 }
 
+/** Host card pinned under the section list: status dot, server name, user@host */
+function HostCard({ serverId }: { serverId: string }) {
+  const server = useAppStore((s) => s.servers.find((x) => x.id === serverId));
+  const status = server?.state?.status;
+  const dot =
+    status === 'connected'
+      ? 'bg-success'
+      : status === 'connecting'
+        ? 'bg-warning'
+        : status === 'error'
+          ? 'bg-destructive'
+          : 'bg-label-3';
+
+  return (
+    <div className="flex items-center gap-2.5 pb-0.5" title={status ?? undefined}>
+      <span className={cn('h-2 w-2 shrink-0 rounded-full', dot)} />
+      <div className="min-w-0">
+        <div className="truncate font-mono text-[13px] font-semibold text-foreground">{server?.name ?? serverId}</div>
+        {server && (
+          <div className="truncate text-[11px] text-label-2">
+            {server.username}@{server.host}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function ServerAdminView({ serverId }: { serverId: string }) {
   const [activeSection, setActiveSection] = useState<SectionId>('network');
 
   return (
     <div className="flex h-full">
-      {/* Sidebar — Apple Finder inspired */}
-      <nav className="w-[200px] shrink-0 border-r border-border/40 overflow-y-auto pt-1.5">
-        <div className="px-4 pt-2.5 pb-1.5 text-[11px] font-semibold text-foreground/50 tracking-wide">
-          Server Admin
-        </div>
-        <div className="px-3 pb-2">
-          {SECTIONS.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeSection === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveSection(item.id)}
-                className={cn(
-                  'flex items-center gap-2 w-full px-2.5 py-2 text-[13px] rounded-md transition-colors outline-none',
-                  isActive
-                    ? 'bg-primary/15 text-primary font-medium'
-                    : 'text-foreground hover:bg-accent/50',
-                )}
-              >
-                <Icon size={20} strokeWidth={1.6} className={cn('shrink-0', isActive && 'text-primary')} />
-                {item.label}
-              </button>
-            );
-          })}
-        </div>
-      </nav>
+      <PaneSidebar width={200} aria-label="Server Admin" footer={<HostCard serverId={serverId} />}>
+        {SECTIONS.map((item) => (
+          <PaneSidebarItem
+            key={item.id}
+            icon={item.icon}
+            label={item.label}
+            active={activeSection === item.id}
+            onClick={() => setActiveSection(item.id)}
+          />
+        ))}
+      </PaneSidebar>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto">
+      <div className="min-w-0 flex-1 overflow-auto">
         <SectionContent section={activeSection} serverId={serverId} />
       </div>
     </div>

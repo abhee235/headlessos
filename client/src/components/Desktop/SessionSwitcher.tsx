@@ -1,4 +1,5 @@
 // EX6-B.1 + B.5: SessionSwitcher — hover-reveal Citrix-style top bar
+// EX8.4: LumenOS v3 — a floating glass-heavy pill that drops in from the top edge.
 // @see docs/phases/phase-ex6.md
 
 import { useEffect, useMemo, useState } from 'react';
@@ -77,7 +78,7 @@ export function SessionSwitcher() {
       {/* B.5: 3px accent strip — always visible, identifies active session */}
       {activeAccent && (
         <div
-          className="fixed left-0 right-0 top-0 z-60 h-0.75 transition-colors"
+          className="fixed left-0 right-0 top-0 z-[10002] h-0.75 opacity-80 transition-colors [mask-image:linear-gradient(90deg,transparent,#000_25%,#000_75%,transparent)]"
           style={{ backgroundColor: activeAccent.oklchDark }}
           aria-hidden="true"
         />
@@ -85,7 +86,7 @@ export function SessionSwitcher() {
 
       {/* B.1: 4px hover trigger zone */}
       <div
-        className="fixed left-0 right-0 top-0 z-70 h-1"
+        className="fixed left-0 right-0 top-0 z-[10003] h-1"
         onMouseEnter={() => setHovering(true)}
         aria-hidden="true"
       />
@@ -95,15 +96,15 @@ export function SessionSwitcher() {
         onMouseEnter={() => setHovering(true)}
         onMouseLeave={() => setHovering(false)}
         className={cn(
-          'fixed left-0 right-0 top-0 z-65 border-b border-border bg-background/85 backdrop-blur-md',
+          'glass-heavy fixed left-1/2 top-[38px] z-[10002] max-w-[calc(100vw-28px)] -translate-x-1/2 rounded-[24px]',
           'transition-transform duration-200 ease-out',
-          visible ? 'translate-y-0' : '-translate-y-full',
+          visible ? 'translate-y-0' : '-translate-y-[calc(100%+48px)]',
         )}
         data-testid="session-switcher"
         role="toolbar"
         aria-label="Sessions"
       >
-        <div className="flex items-center gap-2 overflow-x-auto px-3 py-2">
+        <div className="flex items-center gap-2 overflow-x-auto p-2">
           {orderedServers.map((server) => (
             <SessionTile
               key={server.id}
@@ -118,11 +119,11 @@ export function SessionSwitcher() {
               <Button
                 size="sm"
                 variant="ghost"
-                className="ml-1 h-9 w-9 flex-none p-0"
+                className="ml-1 h-9 w-9 flex-none rounded-full p-0"
                 onClick={goToLogin}
                 aria-label="Add or connect server"
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="h-4 w-4" strokeWidth={1.75} />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">Connect another server</TooltipContent>
@@ -134,7 +135,7 @@ export function SessionSwitcher() {
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-9 w-9 p-0"
+                  className="h-9 w-9 rounded-full p-0"
                   onClick={() => {
                     const next = !pinned;
                     setPinned(next);

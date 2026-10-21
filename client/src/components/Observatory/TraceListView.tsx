@@ -1,4 +1,5 @@
 // EX4-D.2: Trace List View — Phoenix-style trace table
+// EX8.6: Lumen list view — segmented filters, card-framed table, sticky 11px header, 34px rows
 // @see docs/phases/phase-ex4.md
 
 import { useObservatoryStore } from '../../store/observatory-store';
@@ -6,17 +7,18 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { RefreshCw, Trash2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { RotateCw, Trash2 } from 'lucide-react';
 import { SpanStatusIcon } from './SpanKindIcon';
 import { formatTokens, formatCost, formatLatency, getStatusColor } from './constants';
 import type { TraceTrigger, SpanStatus } from 'headlessos-shared/schemas/observatory';
+import { SEGMENT_WELL, segmentItemClass } from '@/components/ui/segmented';
 
 // ── Helpers ──
 
@@ -40,6 +42,13 @@ const TRIGGER_VARIANTS: Record<string, 'default' | 'secondary' | 'outline'> = {
 };
 
 const TRIGGER_LABELS: string[] = ['ui-agent', 'dynamic-ui', 'investigation-agent', 'api', 'manual'];
+
+/** Segmented filter well + its pill segments */
+// EX8.14: filters use the shared segmented look (ui/segmented.tsx)
+const FILTER_WELL_CLASS = SEGMENT_WELL;
+/** List-view header / cell recipes */
+const HEAD_CLASS = 'sticky top-0 z-[1] h-[34px] bg-mat-thick px-3 text-[11px] font-bold uppercase tracking-[.06em] text-label-3 first:pl-4 last:pr-4';
+const CELL_CLASS = 'h-[34px] px-3 py-1.5 first:pl-4 last:pr-4';
 const STATUS_LABELS: SpanStatus[] = ['OK', 'ERROR', 'RUNNING'];
 
 export function TraceListView() {
@@ -58,134 +67,133 @@ export function TraceListView() {
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-[rgb(var(--border))]">
-        <span className="text-sm font-medium text-[rgb(var(--foreground))]">
+      <div className="flex shrink-0 flex-wrap items-center gap-2 px-4 pb-3">
+        <span className="mr-2 text-[15px] font-bold text-foreground">
           Traces ({totalTraces})
         </span>
 
         {/* Trigger filter */}
-        <div className="flex gap-1 ml-4">
-          <Button
-            size="sm"
-            variant={filters.trigger ? 'ghost' : 'secondary'}
-            className="h-6 text-xs"
+        <div className={FILTER_WELL_CLASS}>
+          <button
+            type="button"
+            aria-pressed={!filters.trigger}
+            className={segmentItemClass(!filters.trigger)}
             onClick={() => setFilter({ trigger: undefined })}
           >
             All
-          </Button>
+          </button>
           {TRIGGER_LABELS.map((t) => (
-            <Button
+            <button
               key={t}
-              size="sm"
-              variant={filters.trigger === t ? 'secondary' : 'ghost'}
-              className="h-6 text-xs"
+              type="button"
+              aria-pressed={filters.trigger === t}
+              className={segmentItemClass(filters.trigger === t)}
               onClick={() => setFilter({ trigger: t as TraceTrigger })}
             >
               {t}
-            </Button>
+            </button>
           ))}
         </div>
 
         {/* Status filter — with SpanStatusIcon */}
-        <div className="flex gap-1 ml-2">
+        <div className={FILTER_WELL_CLASS}>
           {STATUS_LABELS.map((s) => (
-            <Button
+            <button
               key={s}
-              size="sm"
-              variant={filters.status === s ? 'secondary' : 'ghost'}
-              className="h-6 text-xs"
+              type="button"
+              aria-pressed={filters.status === s}
+              className={segmentItemClass(filters.status === s, 'gap-1.5')}
               onClick={() =>
                 setFilter({ status: filters.status === s ? undefined : s })
               }
             >
-              <SpanStatusIcon status={s} size={10} />
-              <span className="ml-1">{s}</span>
-            </Button>
+              <SpanStatusIcon status={s} size={12} />
+              <span>{s}</span>
+            </button>
           ))}
         </div>
 
         <div className="flex-1" />
 
-        <Button size="sm" variant="ghost" className="h-7" onClick={fetchTraces}>
-          <RefreshCw className="w-3.5 h-3.5" />
+        <Button size="icon" variant="ghost" onClick={fetchTraces}>
+          <RotateCw strokeWidth={1.75} />
         </Button>
-        <Button size="sm" variant="ghost" className="h-7 text-destructive" onClick={clearTraces}>
-          <Trash2 className="w-3.5 h-3.5" />
+        <Button size="icon" variant="ghost" className="text-destructive" onClick={clearTraces}>
+          <Trash2 strokeWidth={1.75} />
         </Button>
       </div>
 
       {/* Content */}
       {loading && traces.length === 0 ? (
-        <div className="p-4 space-y-2">
+        <div className="space-y-2 px-4 pb-4">
           {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-10 w-full" />
+            <Skeleton key={i} className="h-[34px] w-full rounded-[10px]" />
           ))}
         </div>
       ) : error ? (
-        <div className="flex items-center justify-center h-full text-[rgb(var(--destructive))] text-sm">
+        <div className="flex h-full items-center justify-center px-4 pb-4 text-sm text-danger">
           {error}
         </div>
       ) : traces.length === 0 ? (
-        <div className="flex items-center justify-center h-full text-[rgb(var(--muted-foreground))] text-sm">
+        <div className="flex h-full items-center justify-center px-4 pb-4 text-sm text-label-2">
           No traces yet. Generate a Dynamic UI or run an agent to see traces here.
         </div>
       ) : (
-        <div className="flex-1 overflow-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-10" />
-                <TableHead>Name</TableHead>
-                <TableHead className="w-28">Trigger</TableHead>
-                <TableHead className="w-16 text-right">Spans</TableHead>
-                <TableHead className="w-20 text-right">Tokens</TableHead>
-                <TableHead className="w-20 text-right">Cost</TableHead>
-                <TableHead className="w-20 text-right">Latency</TableHead>
-                <TableHead className="w-20 text-right">Time</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {traces.map((trace) => (
-                <TableRow
-                  key={trace.traceId}
-                  className="cursor-pointer hover:bg-[rgb(var(--accent))]/50"
-                  onClick={() => selectTrace(trace.traceId)}
-                >
-                  <TableCell>
-                    <SpanStatusIcon status={trace.status} size={14} />
-                  </TableCell>
-                  <TableCell className="font-medium text-sm">
-                    {trace.name}
-                  </TableCell>
-                  <TableCell>
-                    {trace.trigger && (
-                      <Badge
-                        variant={TRIGGER_VARIANTS[trace.trigger] ?? 'outline'}
-                        className="text-xs"
-                      >
-                        {trace.trigger}
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right text-xs text-[rgb(var(--muted-foreground))]">
-                    {trace.totalSpans}
-                  </TableCell>
-                  <TableCell className="text-right text-xs font-mono">
-                    {formatTokens(trace.totalTokens)}
-                  </TableCell>
-                  <TableCell className="text-right text-xs font-mono">
-                    {formatCost(trace.totalCostUsd)}
-                  </TableCell>
-                  <TableCell className="text-right text-xs font-mono">
-                    {formatLatency(trace.latencyMs)}
-                  </TableCell>
-                  <TableCell className="text-right text-xs text-[rgb(var(--muted-foreground))]">
-                    {formatTimeAgo(trace.startTime)}
-                  </TableCell>
+        <div className="mx-4 mb-3 min-h-0 flex-1 overflow-hidden rounded-[20px] border border-edge-2 bg-mat-thin">
+          <div className="h-full overflow-auto">
+            <table className="w-full caption-bottom text-[13px]">
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className={cn(HEAD_CLASS, 'w-10')} />
+                  <TableHead className={HEAD_CLASS}>Name</TableHead>
+                  <TableHead className={cn(HEAD_CLASS, 'w-28')}>Trigger</TableHead>
+                  <TableHead className={cn(HEAD_CLASS, 'w-16 text-right')}>Spans</TableHead>
+                  <TableHead className={cn(HEAD_CLASS, 'w-20 text-right')}>Tokens</TableHead>
+                  <TableHead className={cn(HEAD_CLASS, 'w-20 text-right')}>Cost</TableHead>
+                  <TableHead className={cn(HEAD_CLASS, 'w-20 text-right')}>Latency</TableHead>
+                  <TableHead className={cn(HEAD_CLASS, 'w-20 text-right')}>Time</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {traces.map((trace) => (
+                  <TableRow
+                    key={trace.traceId}
+                    className="cursor-pointer transition-colors duration-150 hover:bg-fill active:bg-fill-2"
+                    onClick={() => selectTrace(trace.traceId)}
+                  >
+                    <TableCell className={CELL_CLASS}>
+                      <SpanStatusIcon status={trace.status} size={14} />
+                    </TableCell>
+                    <TableCell className={cn(CELL_CLASS, 'font-semibold')}>
+                      {trace.name}
+                    </TableCell>
+                    <TableCell className={CELL_CLASS}>
+                      {trace.trigger && (
+                        <Badge variant={TRIGGER_VARIANTS[trace.trigger] ?? 'outline'} className="whitespace-nowrap">
+                          {trace.trigger}
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className={cn(CELL_CLASS, 'text-right text-xs text-label-2')}>
+                      {trace.totalSpans}
+                    </TableCell>
+                    <TableCell className={cn(CELL_CLASS, 'text-right font-mono text-xs')}>
+                      {formatTokens(trace.totalTokens)}
+                    </TableCell>
+                    <TableCell className={cn(CELL_CLASS, 'text-right font-mono text-xs')}>
+                      {formatCost(trace.totalCostUsd)}
+                    </TableCell>
+                    <TableCell className={cn(CELL_CLASS, 'text-right font-mono text-xs')}>
+                      {formatLatency(trace.latencyMs)}
+                    </TableCell>
+                    <TableCell className={cn(CELL_CLASS, 'text-right text-xs text-label-2')}>
+                      {formatTimeAgo(trace.startTime)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </table>
+          </div>
         </div>
       )}
     </div>

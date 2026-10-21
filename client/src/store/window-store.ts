@@ -2,7 +2,7 @@
 // @see docs/phases/phase-2.md
 
 import { create } from 'zustand';
-import { usePreferencesStore } from './preferences-store';
+import { usePreferencesStore, type DockPosition } from './preferences-store';
 
 export type SnapZone = 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'maximize' | null;
 
@@ -36,6 +36,10 @@ interface DesktopState {
   windows: WindowState[];
   nextZIndex: number;
   startMenuOpen: boolean;
+  /** EX8.10: HomeHub smart-home overlay (client-only sample) */
+  homeHubOpen: boolean;
+  /** EX8.17: why the hub is open — the dock button, or the idle privacy screen */
+  homeHubReason: 'user' | 'idle' | null;
   snapPreview: SnapZone;
 
   // Actions
@@ -51,6 +55,10 @@ interface DesktopState {
   setSnapPreview: (zone: SnapZone) => void;
   toggleStartMenu: () => void;
   closeStartMenu: () => void;
+  toggleHomeHub: () => void;
+  closeHomeHub: () => void;
+  /** EX8.17: open the hub as the idle privacy screen (no-op if it is already open) */
+  openHomeHubIdle: () => void;
   toggleShowDesktop: () => void;
   /** EX6-A.7: Bump the internal window-counter past `n` to avoid ID collisions after restoring persisted windows. */
   setCounterFloor: (n: number) => void;
@@ -59,15 +67,41 @@ interface DesktopState {
 let windowCounter = 0;
 
 // Default sizes for different apps
+/**
+ * EX8.3: Space kept clear at the bottom of the screen for the floating dock
+ * (14px gap + 72px dock + 12px breathing room). Maximized and snapped windows
+ * stop here.
+ */
+export const DOCK_RESERVE = 98;
+
+/**
+ * EX8.11: Height of the top menu bar (MenuBar.tsx): 28px strip + its 1px edge.
+ * Windows never sit under it: maximized and snapped windows start here and
+ * drags stop at it.
+ */
+export const TOP_RESERVE = 29;
+
+/** EX8.12: space windows keep clear for the dock at its current placement */
+export interface DockInsets { bottom: number; right: number }
+
+export function dockInsets(position: DockPosition = usePreferencesStore.getState().dockPosition): DockInsets {
+  return position === 'right' ? { bottom: 0, right: DOCK_RESERVE } : { bottom: DOCK_RESERVE, right: 0 };
+}
+
+/** Reactive dockInsets() for components (maximized windows, snap preview) */
+export function useDockInsets(): DockInsets {
+  return dockInsets(usePreferencesStore((s) => s.dockPosition));
+}
+
 const APP_DEFAULTS: Record<string, { width: number; height: number }> = {
-  dashboard: { width: 900, height: 650 },
-  files: { width: 850, height: 600 },
+  dashboard: { width: 1100, height: 850 },
+  files: { width: 950, height: 700 },
   terminal: { width: 800, height: 500 },
-  settings: { width: 860, height: 580 },
-  taskmanager: { width: 1000, height: 650 },
+  settings: { width: 900, height: 750 },
+  taskmanager: { width: 1100, height: 750 },
   docker: { width: 950, height: 600 },
   services: { width: 900, height: 600 },
-  serveradmin: { width: 1000, height: 650 },
+  serveradmin: { width: 1100, height: 850 },
   'dynamic-ui': { width: 900, height: 650 },
   observatory: { width: 1100, height: 700 },
 };
@@ -76,6 +110,8 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
   windows: [],
   nextZIndex: 100,
   startMenuOpen: false,
+  homeHubOpen: false,
+  homeHubReason: null,
   snapPreview: null,
 
   openWindow: (appId, serverId, title, icon, meta) => {
@@ -110,8 +146,8 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
     const newZ = state.nextZIndex;
 
     // Clamp initial position & size to viewport
-    const taskbarH = 56;
-    const screenW = window.innerWidth;
+    const { bottom: taskbarH, right: dockRight } = dockInsets();
+    const screenW = window.innerWidth - dockRight;
     const screenH = window.innerHeight - taskbarH;
     const winW = Math.min(defaults.width, screenW - 40);
     const winH = Math.min(defaults.height, screenH - 40);
@@ -125,7 +161,7 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
       title,
       icon,
       x: Math.max(0, winX),
-      y: Math.max(0, winY),
+      y: Math.max(TOP_RESERVE, winY),
       width: winW,
       height: winH,
       minimized: false,
@@ -204,8 +240,8 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
   restoreWindow: (id) => {
     set(s => {
       const newZ = s.nextZIndex;
-      const taskbarH = 56;
-      const screenW = window.innerWidth;
+      const { bottom: taskbarH, right: dockRight } = dockInsets();
+      const screenW = window.innerWidth - dockRight;
       const screenH = window.innerHeight - taskbarH;
       const TITLE_BAR_H = 40;
       const MIN_VISIBLE_X = 100;
@@ -220,7 +256,7 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
             screenW - MIN_VISIBLE_X,
           );
           const clampedY = Math.min(
-            Math.max(restored.y, 0),
+            Math.max(restored.y, TOP_RESERVE),
             screenH - TITLE_BAR_H,
           );
           return {
@@ -243,8 +279,8 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
 
   moveWindow: (id, x, y) => {
     // Clamp position so the window title bar is always reachable
-    const taskbarH = 56;
-    const screenW = window.innerWidth;
+    const { bottom: taskbarH, right: dockRight } = dockInsets();
+    const screenW = window.innerWidth - dockRight;
     const screenH = window.innerHeight - taskbarH;
     const TITLE_BAR_H = 40;
     const MIN_VISIBLE_X = 100; // at least 100px visible horizontally
@@ -257,9 +293,9 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
           Math.max(x, -(w.width - MIN_VISIBLE_X)),
           screenW - MIN_VISIBLE_X,
         );
-        // Vertical: top can't go above 0, bottom of title bar must stay in viewport
+        // Vertical: top can't go under the menu bar, title bar must stay above the dock
         const clampedY = Math.min(
-          Math.max(y, 0),
+          Math.max(y, TOP_RESERVE),
           screenH - TITLE_BAR_H,
         );
         return { ...w, x: clampedX, y: clampedY };
@@ -268,8 +304,8 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
   },
 
   resizeWindow: (id, width, height) => {
-    const taskbarH = 56;
-    const screenW = window.innerWidth;
+    const { bottom: taskbarH, right: dockRight } = dockInsets();
+    const screenW = window.innerWidth - dockRight;
     const screenH = window.innerHeight - taskbarH;
     set(s => ({
       windows: s.windows.map(w => {
@@ -284,8 +320,8 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
 
   snapWindow: (id, zone) => {
     if (!zone) return;
-    const taskbarH = 56;
-    const screenW = window.innerWidth;
+    const { bottom: taskbarH, right: dockRight } = dockInsets();
+    const screenW = window.innerWidth - dockRight;
     const screenH = window.innerHeight - taskbarH;
 
     set(s => ({
@@ -295,21 +331,26 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
         // Save pre-snap dimensions (only if not already snapped/maximized)
         const preSnap = w.preSnap ?? { x: w.x, y: w.y, width: w.width, height: w.height };
 
+        // EX8.11: zones span the area between the menu bar and the dock
+        const T = TOP_RESERVE;
+        const H = screenH - T;
+        const halfW = Math.round(screenW / 2);
+        const halfH = Math.round(H / 2);
         switch (zone) {
           case 'maximize':
             return { ...w, preSnap, maximized: true };
           case 'left':
-            return { ...w, preSnap, maximized: false, x: 0, y: 0, width: Math.round(screenW / 2), height: screenH };
+            return { ...w, preSnap, maximized: false, x: 0, y: T, width: halfW, height: H };
           case 'right':
-            return { ...w, preSnap, maximized: false, x: Math.round(screenW / 2), y: 0, width: Math.round(screenW / 2), height: screenH };
+            return { ...w, preSnap, maximized: false, x: halfW, y: T, width: halfW, height: H };
           case 'top-left':
-            return { ...w, preSnap, maximized: false, x: 0, y: 0, width: Math.round(screenW / 2), height: Math.round(screenH / 2) };
+            return { ...w, preSnap, maximized: false, x: 0, y: T, width: halfW, height: halfH };
           case 'top-right':
-            return { ...w, preSnap, maximized: false, x: Math.round(screenW / 2), y: 0, width: Math.round(screenW / 2), height: Math.round(screenH / 2) };
+            return { ...w, preSnap, maximized: false, x: halfW, y: T, width: halfW, height: halfH };
           case 'bottom-left':
-            return { ...w, preSnap, maximized: false, x: 0, y: Math.round(screenH / 2), width: Math.round(screenW / 2), height: Math.round(screenH / 2) };
+            return { ...w, preSnap, maximized: false, x: 0, y: T + halfH, width: halfW, height: halfH };
           case 'bottom-right':
-            return { ...w, preSnap, maximized: false, x: Math.round(screenW / 2), y: Math.round(screenH / 2), width: Math.round(screenW / 2), height: Math.round(screenH / 2) };
+            return { ...w, preSnap, maximized: false, x: halfW, y: T + halfH, width: halfW, height: halfH };
           default:
             return w;
         }
@@ -323,6 +364,19 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
 
   toggleStartMenu: () => {
     set(s => ({ startMenuOpen: !s.startMenuOpen }));
+  },
+
+  // EX8.10: one overlay at a time — opening HomeHub closes the launcher
+  toggleHomeHub: () => {
+    set(s => ({ homeHubOpen: !s.homeHubOpen, homeHubReason: s.homeHubOpen ? null : 'user', startMenuOpen: false }));
+  },
+
+  closeHomeHub: () => {
+    set({ homeHubOpen: false, homeHubReason: null });
+  },
+
+  openHomeHubIdle: () => {
+    set(s => (s.homeHubOpen ? s : { homeHubOpen: true, homeHubReason: 'idle', startMenuOpen: false }));
   },
 
   closeStartMenu: () => {

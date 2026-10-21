@@ -29,7 +29,7 @@ npm run build:dist:win               # also :mac / :linux. CI release builds on 
 
 No linter or formatter is configured.
 
-**Running without an API key or a server:** set `LLM_PROVIDER=fake`. It only takes effect when `OPENAI_API_KEY` is unset or still the `sk-your-key-here` placeholder. It wires a scripted `FakeLLMProvider` and a `FakeSSHProxy`, and seeds a `fake-server` entry, so the UI Agent pipeline runs end to end. Classic apps (Dashboard, Files, etc.) still use the real SSH manager. With no key and no fake mode, parsing is deterministic-only and the UI Agent WebSocket is not registered.
+**Running without an API key or a server:** set `LLM_PROVIDER=fake`. It only takes effect when `OPENAI_API_KEY` is unset or still the `sk-your-key-here` placeholder. It wires a scripted `FakeLLMProvider` and a `FakeSSHProxy`, and seeds a `fake-server` entry, so the UI Agent pipeline runs end to end. Classic apps (Dashboard, Files, etc.) still use the real SSH manager. With no key and no fake mode, parsing is deterministic-only until a key is saved in Settings → AI: that key (encrypted in `~/.headlessos/llm.json`, loaded before `.env` at startup) reaches parsing, the investigation agent, Dynamic UI and the UI Agent's model router at runtime, and the UI Agent WebSocket is always registered (it answers "not configured" without a key).
 
 **Real SSH target:** `cd dev && docker compose up -d` serves `127.0.0.1:2222` with user `testuser` / password `testpass`. `dev/vm.sh` (Lima) and the Chrome command in AGENTS.md §16 are macOS-only.
 
@@ -43,7 +43,7 @@ No linter or formatter is configured.
 - **Auto-reconnect:** a `preHandler` hook reconnects disconnected servers for URLs matching `dataRoutePattern` (`/api/servers/:id/(docker|system|files|…)`). Add any new per-server route prefix to that regex.
 - **Binding and ports:** the server binds `127.0.0.1`. With `PORT=0` it prints `HEADLESSOS_PORT:<n>`, which `electron/main.js` parses. The client (`lib/api.ts`) reads that port from `window.electronAPI.serverPort` under `file://`, and otherwise uses the Vite proxy.
 - **Module resolution:** ESM with Node16 resolution, so server relative imports need a `.js` extension. Shared code is imported as `headlessos-shared` or `headlessos-shared/schemas/<name>`.
-- **Persistent state** lives in `~/.headlessos/`: `servers.json`, `sessions/<id>.json`, `dynamic-ui-cache/`, `observatory/traces/`. Passwords are AES-GCM encrypted with a key derived from hostname + uid (`security/encryption.ts`), so stored credentials don't move between machines.
+- **Persistent state** lives in `~/.headlessos/`: `servers.json`, `llm.json` (Settings → AI key, encrypted), `sessions/<id>.json`, `dynamic-ui-cache/`, `observatory/traces/`. Passwords are AES-GCM encrypted with a key derived from hostname + uid (`security/encryption.ts`), so stored credentials don't move between machines.
 
 ### Path 1: classic apps (Dashboard, Files, Docker, Services, Task Manager, Server Admin)
 A route calls `orchestrator.execute(plan)` or `connectionManager.exec()`, then `pipeline.parse(command, raw, schema, serverId)`. The pipeline tries the cache, then a deterministic parser, then the LLM, then validates with Zod.

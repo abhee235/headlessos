@@ -1,7 +1,8 @@
 // M3.1-M3.3: Docker Manager — container/image management with log viewer
-// @see docs/phases/phase-3.md
+// EX8.6: LumenOS v3 look — PaneSidebar, Lumen header, card tables, badges
+// @see docs/phases/phase-3.md, docs/phases/phase-ex8.md
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { isValidElement, useCallback, useEffect, useRef, useState } from 'react';
 import { usePreferencesStore } from '../../store/preferences-store';
 import {
   Box,
@@ -12,18 +13,17 @@ import {
   Pause,
   PlayCircle,
   Trash2,
-  RefreshCw,
+  RotateCw,
   AlertCircle,
   FileText,
   Info,
   Search,
   X,
   Download,
-  FolderOpen,
-  SquareTerminal,
+  MoreHorizontal,
+  type LucideIcon,
 } from 'lucide-react';
 import { useDesktopStore } from '../../store/window-store';
-import { Spinner } from '@/components/ui/spinner';
 import { LoadingView } from '@/components/ui/loading-view';
 import type {
   DockerContainerData,
@@ -49,6 +49,14 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { PaneSidebar, PaneSidebarItem } from '@/components/ui/pane-sidebar';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { DisconnectedState } from '@/components/ui/disconnected-state';
@@ -64,6 +72,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DockerInstallTerminal } from './DockerInstallTerminal';
+import { AppIcon } from '@/components/ui/FileIcon';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -72,7 +81,7 @@ type TabId = 'containers' | 'images';
 interface SidebarEntry {
   id: TabId;
   label: string;
-  icon: React.ElementType;
+  icon: LucideIcon | React.ReactElement;
 }
 
 const TABS: SidebarEntry[] = [
@@ -82,20 +91,165 @@ const TABS: SidebarEntry[] = [
 
 // ─── State badge helper ──────────────────────────────────────────────────────
 
-function StateBadge({ state }: { state: string }) {
-  const variant =
-    state === 'running'
-      ? 'success'
-      : state === 'paused'
-        ? 'warning'
-        : state === 'dead' || state === 'exited'
-          ? 'secondary'
-          : 'outline';
+type BadgeVariant = 'success' | 'warning' | 'secondary' | 'destructive' | 'outline';
 
+function stateVariant(state: string): BadgeVariant {
+  if (state === 'running') return 'success';
+  if (state === 'paused' || state === 'restarting') return 'warning';
+  if (state === 'dead') return 'destructive';
+  if (state === 'exited') return 'secondary';
+  return 'outline';
+}
+
+function StateBadge({ state }: { state: string }) {
   return (
-    <Badge variant={variant as 'success' | 'warning' | 'secondary' | 'outline'} className="text-[10px] px-1.5 py-0">
+    <Badge variant={stateVariant(state)} className="capitalize">
       {state}
     </Badge>
+  );
+}
+
+// ─── Shared Lumen pieces (header, filter field, table, row menu) ─────────────
+
+/** Secondary metadata: images, ids, ports */
+const MONO_META = 'font-mono text-[12px] text-label-2';
+/** Column templates. Header and rows share them; the header sits outside the scroller. */
+const CONTAINER_COLS =
+  'grid grid-cols-[minmax(150px,1.1fr)_minmax(140px,1fr)_104px_minmax(130px,1fr)_minmax(150px,1.2fr)_36px] items-center gap-x-3 px-4';
+const IMAGE_COLS =
+  'grid grid-cols-[minmax(160px,1.4fr)_minmax(90px,.6fr)_116px_84px_minmax(170px,1fr)_36px] items-center gap-x-3 px-4';
+const CELL = 'min-w-0 truncate';
+
+function rowClass(selected: boolean, busy: boolean) {
+  return cn(
+    'border-b border-border last:border-b-0 cursor-default text-[13px] transition-colors duration-150',
+    selected ? 'bg-accent-soft' : 'hover:bg-fill',
+    busy && 'opacity-50',
+  );
+}
+
+function SectionHeader({
+  icon: Icon,
+  title,
+  subtitle,
+  search,
+  onSearch,
+  onRefresh,
+  refreshing,
+}: {
+  icon: LucideIcon | React.ReactElement;
+  title: string;
+  subtitle: string;
+  search: string;
+  onSearch: (value: string) => void;
+  onRefresh: () => void;
+  refreshing: boolean;
+}) {
+  return (
+    <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-3 pb-4">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-[12px] border border-edge bg-mat shadow-[var(--lumen-spec)]">
+          {isValidElement(Icon) ? Icon : <Icon className="size-5 text-label-2" strokeWidth={1.75} />}
+        </div>
+        <div className="min-w-0">
+          <h2 className="truncate text-[24px] font-bold leading-7 tracking-[-0.02em] text-foreground">{title}</h2>
+          <p className="truncate text-[12px] text-label-2">{subtitle}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="relative">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 size-[17px] -translate-y-1/2 text-label-3"
+            strokeWidth={1.75}
+          />
+          <Input
+            type="text"
+            placeholder="Filter…"
+            value={search}
+            onChange={(e) => onSearch(e.target.value)}
+            className="w-56 pl-9"
+          />
+        </div>
+        <Button variant="secondary" onClick={onRefresh}>
+          <RotateCw className={cn(refreshing && 'animate-spin')} strokeWidth={1.75} />
+          Refresh
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * List card: hugs its rows and scrolls inside once it reaches the window height.
+ * The 11px uppercase header stays outside the scroller (a sticky header would paint
+ * a band on the translucent card); both reserve the scrollbar gutter so columns align.
+ */
+function TableCard({
+  label,
+  cols,
+  columns,
+  children,
+}: {
+  label: string;
+  cols: string;
+  columns: string[];
+  children: React.ReactNode;
+}) {
+  return (
+    <div role="table" aria-label={label} className="lumen-card flex min-h-0 flex-col overflow-hidden rounded-[20px]">
+      <div role="rowgroup" className="shrink-0 overflow-hidden border-b border-border [scrollbar-gutter:stable]">
+        <div role="row" className={cn(cols, 'h-[34px] text-[11px] font-bold uppercase tracking-[.06em] text-label-3')}>
+          {columns.map((c) => (
+            <div key={c} role="columnheader" className={CELL}>{c}</div>
+          ))}
+          <div role="columnheader"><span className="sr-only">Actions</span></div>
+        </div>
+      </div>
+      <div role="rowgroup" className="min-h-0 overflow-y-auto [scrollbar-gutter:stable]">{children}</div>
+    </div>
+  );
+}
+
+function EmptyRow({ children }: { children: React.ReactNode }) {
+  return (
+    <div role="row" className="px-4 py-10 text-center text-[13px] text-label-2">
+      <div role="cell">{children}</div>
+    </div>
+  );
+}
+
+/** Row menus render the same items as a right-click menu and from the "…" button. */
+interface MenuKit {
+  Item: React.ComponentType<{ onClick?: () => void; danger?: boolean; children?: React.ReactNode }>;
+  Separator: React.ComponentType;
+}
+const CONTEXT_KIT: MenuKit = { Item: ContextMenuItem, Separator: ContextMenuSeparator };
+const DROPDOWN_KIT: MenuKit = { Item: DropdownMenuItem, Separator: DropdownMenuSeparator };
+
+function RowMenuButton({
+  label,
+  onOpenChange,
+  children,
+}: {
+  label: string;
+  onOpenChange: (open: boolean) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <DropdownMenu onOpenChange={onOpenChange}>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="bg-fill hover:bg-fill-2"
+          aria-label={label}
+          title={label}
+        >
+          <MoreHorizontal strokeWidth={1.75} />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">{children}</DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -147,22 +301,25 @@ function LogViewer({
   }, [logs]);
 
   return (
-    <div className="flex flex-col h-full border-t border-border">
-      <div className="flex items-center justify-between px-3 py-1.5 bg-sidebar border-b border-border">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <FileText size={12} />
-          <span>Logs: <span className="text-foreground font-medium">{containerName}</span></span>
+    <div className="lumen-card flex h-full flex-col gap-2 overflow-hidden rounded-[20px] p-2">
+      <div className="flex h-[30px] shrink-0 items-center justify-between gap-2 pl-2">
+        <div className="flex min-w-0 items-center gap-2 text-[12px] text-label-2">
+          <FileText className="size-4 shrink-0 text-label-3" strokeWidth={1.75} />
+          <span className="truncate">Logs: <span className="font-semibold text-foreground">{containerName}</span></span>
         </div>
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={onClose}
-          className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+          aria-label="Close logs"
+          title="Close logs"
         >
-          <X size={14} />
-        </button>
+          <X strokeWidth={1.75} />
+        </Button>
       </div>
       <pre
         ref={logRef}
-        className="flex-1 overflow-auto p-2 text-[11px] font-mono leading-relaxed text-foreground bg-background whitespace-pre-wrap"
+        className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap rounded-[14px] bg-paper px-4 py-3 font-mono text-[12px] leading-relaxed text-foreground"
       >
         {loading ? 'Loading logs…' : logs || 'No logs available'}
       </pre>
@@ -189,6 +346,7 @@ function ContainersTab({
 }) {
   const [search, setSearch] = useState('');
   const [actionBusy, setActionBusy] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const openWindow = useDesktopStore((s) => s.openWindow);
 
   const filtered = containers.filter(
@@ -235,134 +393,120 @@ function ContainersTab({
     }
   };
 
-  return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-foreground">
-            Containers ({containers.length})
-          </span>
-          {refreshing && <Spinner size={12} className="text-muted-foreground" />}
-        </div>
-        <div className="relative">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Filter…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-6 pr-2 py-1 text-xs bg-secondary border border-border rounded-md w-40 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          />
-        </div>
-      </div>
+  const running = containers.filter((c) => c.state === 'running').length;
 
-      {/* Table */}
-      <div className="flex-1 overflow-auto">
-        <table className="w-full text-xs">
-          <thead className="sticky top-0 bg-sidebar z-10">
-            <tr className="text-left text-muted-foreground">
-              <th className="px-3 py-1.5 font-medium">Name</th>
-              <th className="px-3 py-1.5 font-medium">Image</th>
-              <th className="px-3 py-1.5 font-medium">State</th>
-              <th className="px-3 py-1.5 font-medium">Status</th>
-              <th className="px-3 py-1.5 font-medium">Ports</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((c) => (
-              <ContextMenu key={c.id} onOpenChange={onContextMenuOpenChange}>
-                <ContextMenuTrigger asChild>
-                  <tr
-                    className={`
-                      border-b border-border/50 hover:bg-accent/50 cursor-default
-                      ${actionBusy === c.id ? 'opacity-50' : ''}
-                    `}
-                  >
-                    <td className="px-3 py-1.5 font-medium text-foreground max-w-[180px] truncate">
-                      {c.name}
-                    </td>
-                    <td className="px-3 py-1.5 text-muted-foreground max-w-[200px] truncate">
-                      {c.image}
-                    </td>
-                    <td className="px-3 py-1.5">
-                      <StateBadge state={c.state} />
-                    </td>
-                    <td className="px-3 py-1.5 text-muted-foreground max-w-[200px] truncate">
-                      {c.status}
-                    </td>
-                    <td className="px-3 py-1.5 text-muted-foreground max-w-[180px] truncate">
-                      {c.ports || '—'}
-                    </td>
-                  </tr>
-                </ContextMenuTrigger>
-                <ContextMenuContent className="w-52">
-                  {c.state === 'running' && (
-                    <>
-                      <ContextMenuItem onClick={() => handleAction(c.id, 'stop')}>
-                        <Square className="w-4 h-4 mr-2 opacity-60" />
-                        Stop
-                      </ContextMenuItem>
-                      <ContextMenuItem onClick={() => handleAction(c.id, 'restart')}>
-                        <RotateCcw className="w-4 h-4 mr-2 opacity-60" />
-                        Restart
-                      </ContextMenuItem>
-                      <ContextMenuItem onClick={() => handleAction(c.id, 'pause')}>
-                        <Pause className="w-4 h-4 mr-2 opacity-60" />
-                        Pause
-                      </ContextMenuItem>
-                    </>
-                  )}
-                  {c.state === 'paused' && (
-                    <ContextMenuItem onClick={() => handleAction(c.id, 'unpause')}>
-                      <PlayCircle className="w-4 h-4 mr-2 opacity-60" />
-                      Unpause
-                    </ContextMenuItem>
-                  )}
-                  {(c.state === 'exited' || c.state === 'dead') && (
-                    <ContextMenuItem onClick={() => handleAction(c.id, 'start')}>
-                      <Play className="w-4 h-4 mr-2 opacity-60" />
-                      Start
-                    </ContextMenuItem>
-                  )}
-                  <ContextMenuSeparator />
-                  <ContextMenuItem onClick={() => onViewLogs(c.id, c.name)}>
-                    <FileText className="w-4 h-4 mr-2 opacity-60" />
-                    View Logs
-                  </ContextMenuItem>
-                  {c.state === 'running' && (
-                    <>
-                      <ContextMenuItem onClick={() => openWindow('container-files', serverId, `Files — ${c.name}`, 'FolderOpen', { containerId: c.id, containerName: c.name })}>
-                        <FolderOpen className="w-4 h-4 mr-2 opacity-60" />
-                        Open Files
-                      </ContextMenuItem>
-                      <ContextMenuItem onClick={() => openWindow('container-shell', serverId, `Shell — ${c.name}`, 'SquareTerminal', { containerId: c.id, containerName: c.name })}>
-                        <SquareTerminal className="w-4 h-4 mr-2 opacity-60" />
-                        Open Shell
-                      </ContextMenuItem>
-                    </>
-                  )}
-                  <ContextMenuSeparator />
-                  <ContextMenuItem
-                    className="text-destructive"
-                    onClick={() => handleRemove(c.id, c.state === 'running')}
-                  >
-                    <Trash2 className="w-4 h-4 mr-2 opacity-60" />
-                    {c.state === 'running' ? 'Force Remove' : 'Remove'}
-                  </ContextMenuItem>
-                </ContextMenuContent>
-              </ContextMenu>
-            ))}
-            {filtered.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-3 py-8 text-center text-muted-foreground text-xs">
-                  {search ? 'No containers match filter' : 'No containers found'}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+  const renderMenu = ({ Item, Separator }: MenuKit, c: DockerContainerData) => (
+    <>
+      {c.state === 'running' && (
+        <>
+          <Item onClick={() => handleAction(c.id, 'stop')}>
+            <Square strokeWidth={1.75} />
+            Stop
+          </Item>
+          <Item onClick={() => handleAction(c.id, 'restart')}>
+            <RotateCcw strokeWidth={1.75} />
+            Restart
+          </Item>
+          <Item onClick={() => handleAction(c.id, 'pause')}>
+            <Pause strokeWidth={1.75} />
+            Pause
+          </Item>
+        </>
+      )}
+      {c.state === 'paused' && (
+        <Item onClick={() => handleAction(c.id, 'unpause')}>
+          <PlayCircle strokeWidth={1.75} />
+          Unpause
+        </Item>
+      )}
+      {(c.state === 'exited' || c.state === 'dead') && (
+        <Item onClick={() => handleAction(c.id, 'start')}>
+          <Play strokeWidth={1.75} />
+          Start
+        </Item>
+      )}
+      <Separator />
+      <Item onClick={() => onViewLogs(c.id, c.name)}>
+        <FileText strokeWidth={1.75} />
+        View Logs
+      </Item>
+      {c.state === 'running' && (
+        <>
+          <Item onClick={() => openWindow('container-files', serverId, `Files — ${c.name}`, 'FolderOpen', { containerId: c.id, containerName: c.name })}>
+            <AppIcon appId="container-files" size={17} />
+            Open Files
+          </Item>
+          <Item onClick={() => openWindow('container-shell', serverId, `Shell — ${c.name}`, 'SquareTerminal', { containerId: c.id, containerName: c.name })}>
+            <AppIcon appId="container-shell" size={17} />
+            Open Shell
+          </Item>
+        </>
+      )}
+      <Separator />
+      <Item danger onClick={() => handleRemove(c.id, c.state === 'running')}>
+        <Trash2 strokeWidth={1.75} />
+        {c.state === 'running' ? 'Force Remove' : 'Remove'}
+      </Item>
+    </>
+  );
+
+  return (
+    <div className="flex h-full flex-col">
+      <SectionHeader
+        icon={Box}
+        title="Containers"
+        subtitle={`${containers.length} ${containers.length === 1 ? 'container' : 'containers'} · ${running} running`}
+        search={search}
+        onSearch={setSearch}
+        onRefresh={onRefresh}
+        refreshing={refreshing}
+      />
+
+      <TableCard label="Containers" cols={CONTAINER_COLS} columns={['Name', 'Image', 'State', 'Status', 'Ports']}>
+        {filtered.map((c) => (
+          <ContextMenu key={c.id} onOpenChange={onContextMenuOpenChange}>
+            <ContextMenuTrigger asChild>
+              <div
+                role="row"
+                aria-selected={selectedId === c.id}
+                className={cn(CONTAINER_COLS, 'h-[52px]', rowClass(selectedId === c.id, actionBusy === c.id))}
+                onClick={() => setSelectedId(c.id)}
+                onContextMenu={() => setSelectedId(c.id)}
+              >
+                <div role="cell" className="min-w-0">
+                  <div className={cn('truncate font-semibold', selectedId === c.id ? 'text-accent-text' : 'text-foreground')}>
+                    {c.name}
+                  </div>
+                  <div className="truncate font-mono text-[11px] text-label-3">{c.id.substring(0, 12)}</div>
+                </div>
+                <div role="cell" className={cn(CELL, MONO_META)}>
+                  {c.image}
+                </div>
+                <div role="cell" className="min-w-0">
+                  <StateBadge state={c.state} />
+                </div>
+                <div role="cell" className={cn(CELL, 'text-[12px] text-label-2')}>
+                  {c.status}
+                </div>
+                <div role="cell" className={cn(CELL, MONO_META)} title={c.ports || undefined}>
+                  {c.ports || '—'}
+                </div>
+                <div role="cell" className="flex justify-end">
+                  <RowMenuButton label={`Actions for ${c.name}`} onOpenChange={onContextMenuOpenChange}>
+                    {renderMenu(DROPDOWN_KIT, c)}
+                  </RowMenuButton>
+                </div>
+              </div>
+            </ContextMenuTrigger>
+            <ContextMenuContent>{renderMenu(CONTEXT_KIT, c)}</ContextMenuContent>
+          </ContextMenu>
+        ))}
+        {filtered.length === 0 && (
+          <EmptyRow>
+            {search ? 'No containers match filter' : 'No containers found'}
+          </EmptyRow>
+        )}
+      </TableCard>
     </div>
   );
 }
@@ -385,6 +529,7 @@ function ImagesTab({
   const [search, setSearch] = useState('');
   const [actionBusy, setActionBusy] = useState<string | null>(null);
   const [runDialogImage, setRunDialogImage] = useState<DockerImageData | null>(null);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
   const filtered = images.filter(
     (img) =>
@@ -410,8 +555,26 @@ function ImagesTab({
     }
   };
 
+  const renderMenu = ({ Item, Separator }: MenuKit, img: DockerImageData) => (
+    <>
+      <Item onClick={() => setRunDialogImage(img)}>
+        <Play strokeWidth={1.75} />
+        Run Image
+      </Item>
+      <Separator />
+      <Item danger onClick={() => handleRemove(img.id, false)}>
+        <Trash2 strokeWidth={1.75} />
+        Remove Image
+      </Item>
+      <Item danger onClick={() => handleRemove(img.id, true)}>
+        <Trash2 strokeWidth={1.75} />
+        Force Remove
+      </Item>
+    </>
+  );
+
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full flex-col">
       <RunImageDialog
         open={!!runDialogImage}
         onOpenChange={(open) => { if (!open) setRunDialogImage(null); }}
@@ -420,96 +583,60 @@ function ImagesTab({
         onCreated={onRefresh}
       />
 
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-foreground">
-            Images ({images.length})
-          </span>
-          {refreshing && <Spinner size={12} className="text-muted-foreground" />}
-        </div>
-        <div className="relative">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Filter…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-6 pr-2 py-1 text-xs bg-secondary border border-border rounded-md w-40 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          />
-        </div>
-      </div>
+      <SectionHeader
+        icon={Image}
+        title="Images"
+        subtitle={`${images.length} ${images.length === 1 ? 'image' : 'images'}`}
+        search={search}
+        onSearch={setSearch}
+        onRefresh={onRefresh}
+        refreshing={refreshing}
+      />
 
-      {/* Table */}
-      <div className="flex-1 overflow-auto">
-        <table className="w-full text-xs">
-          <thead className="sticky top-0 bg-sidebar z-10">
-            <tr className="text-left text-muted-foreground">
-              <th className="px-3 py-1.5 font-medium">Repository</th>
-              <th className="px-3 py-1.5 font-medium">Tag</th>
-              <th className="px-3 py-1.5 font-medium">ID</th>
-              <th className="px-3 py-1.5 font-medium">Size</th>
-              <th className="px-3 py-1.5 font-medium">Created</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((img) => (
-              <ContextMenu key={img.id + img.tag} onOpenChange={onContextMenuOpenChange}>
-                <ContextMenuTrigger asChild>
-                  <tr
-                    className={`
-                      border-b border-border/50 hover:bg-accent/50 cursor-default
-                      ${actionBusy === img.id ? 'opacity-50' : ''}
-                    `}
+      <TableCard label="Images" cols={IMAGE_COLS} columns={['Repository', 'Tag', 'ID', 'Size', 'Created']}>
+        {filtered.map((img) => {
+          const rowKey = img.id + img.tag;
+          return (
+            <ContextMenu key={rowKey} onOpenChange={onContextMenuOpenChange}>
+              <ContextMenuTrigger asChild>
+                <div
+                  role="row"
+                  aria-selected={selectedKey === rowKey}
+                  className={cn(IMAGE_COLS, 'h-[44px]', rowClass(selectedKey === rowKey, actionBusy === img.id))}
+                  onClick={() => setSelectedKey(rowKey)}
+                  onContextMenu={() => setSelectedKey(rowKey)}
+                >
+                  <div
+                    role="cell"
+                    className={cn(CELL, 'font-semibold', selectedKey === rowKey ? 'text-accent-text' : 'text-foreground')}
                   >
-                    <td className="px-3 py-1.5 font-medium text-foreground max-w-[200px] truncate">
-                      {img.repository}
-                    </td>
-                    <td className="px-3 py-1.5 text-muted-foreground">{img.tag}</td>
-                    <td className="px-3 py-1.5 text-muted-foreground font-mono">
-                      {img.id.substring(0, 12)}
-                    </td>
-                    <td className="px-3 py-1.5 text-muted-foreground">{img.size}</td>
-                    <td className="px-3 py-1.5 text-muted-foreground max-w-[160px] truncate">
-                      {img.created}
-                    </td>
-                  </tr>
-                </ContextMenuTrigger>
-                <ContextMenuContent className="w-48">
-                  <ContextMenuItem
-                    onClick={() => setRunDialogImage(img)}
-                  >
-                    <Play className="w-4 h-4 mr-2 opacity-60" />
-                    Run Image
-                  </ContextMenuItem>
-                  <ContextMenuSeparator />
-                  <ContextMenuItem
-                    className="text-destructive"
-                    onClick={() => handleRemove(img.id, false)}
-                  >
-                    <Trash2 className="w-4 h-4 mr-2 opacity-60" />
-                    Remove Image
-                  </ContextMenuItem>
-                  <ContextMenuItem
-                    className="text-destructive"
-                    onClick={() => handleRemove(img.id, true)}
-                  >
-                    <Trash2 className="w-4 h-4 mr-2 opacity-60" />
-                    Force Remove
-                  </ContextMenuItem>
-                </ContextMenuContent>
-              </ContextMenu>
-            ))}
-            {filtered.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-3 py-8 text-center text-muted-foreground text-xs">
-                  {search ? 'No images match filter' : 'No images found'}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+                    {img.repository}
+                  </div>
+                  <div role="cell" className={cn(CELL, MONO_META)}>{img.tag}</div>
+                  <div role="cell" className={cn(CELL, MONO_META)}>
+                    {img.id.substring(0, 12)}
+                  </div>
+                  <div role="cell" className={cn(CELL, 'text-[12px] text-label-2 tabular-nums')}>{img.size}</div>
+                  <div role="cell" className={cn(CELL, 'text-[12px] text-label-2')}>
+                    {img.created}
+                  </div>
+                  <div role="cell" className="flex justify-end">
+                    <RowMenuButton label={`Actions for ${img.repository}`} onOpenChange={onContextMenuOpenChange}>
+                      {renderMenu(DROPDOWN_KIT, img)}
+                    </RowMenuButton>
+                  </div>
+                </div>
+              </ContextMenuTrigger>
+              <ContextMenuContent>{renderMenu(CONTEXT_KIT, img)}</ContextMenuContent>
+            </ContextMenu>
+          );
+        })}
+        {filtered.length === 0 && (
+          <EmptyRow>
+            {search ? 'No images match filter' : 'No images found'}
+          </EmptyRow>
+        )}
+      </TableCard>
     </div>
   );
 }
@@ -578,69 +705,68 @@ function RunImageDialog({ open, onOpenChange, image, serverId, onCreated }: RunI
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-sm">
-            <Play className="w-4 h-4" />
+          <DialogTitle className="flex items-center gap-2">
+            <Play className="size-[18px] text-accent-solid" strokeWidth={1.75} />
             Run Image
           </DialogTitle>
-          <DialogDescription className="text-xs">
-            Create and start a new container from <span className="font-mono font-medium">{imageRef}</span>
+          <DialogDescription className="text-[13px]">
+            Create and start a new container from <span className="font-mono font-medium text-foreground">{imageRef}</span>
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-3 py-2">
+        <div className="mt-5 grid gap-4">
           <div className="grid gap-1.5">
-            <Label htmlFor="container-name" className="text-xs">Container Name</Label>
+            <Label htmlFor="container-name" className="px-1 text-[12px] font-semibold text-label-2">Container Name</Label>
             <Input
               id="container-name"
               placeholder="my-container (optional)"
               value={containerName}
               onChange={(e) => setContainerName(e.target.value)}
-              className="h-8 text-xs"
             />
           </div>
 
           <div className="grid gap-1.5">
-            <Label htmlFor="ports" className="text-xs">Port Mappings</Label>
+            <Label htmlFor="ports" className="px-1 text-[12px] font-semibold text-label-2">Port Mappings</Label>
             <Input
               id="ports"
               placeholder="8080:80, 3306:3306 (optional)"
               value={portsStr}
               onChange={(e) => setPortsStr(e.target.value)}
-              className="h-8 text-xs font-mono"
+              className="font-mono"
             />
-            <p className="text-[10px] text-muted-foreground">host:container, comma-separated</p>
+            <p className="px-1 text-[12px] text-label-3">host:container, comma-separated</p>
           </div>
 
           <div className="grid gap-1.5">
-            <Label htmlFor="env" className="text-xs">Environment Variables</Label>
+            <Label htmlFor="env" className="px-1 text-[12px] font-semibold text-label-2">Environment Variables</Label>
             <Input
               id="env"
               placeholder="KEY=value, FOO=bar (optional)"
               value={envStr}
               onChange={(e) => setEnvStr(e.target.value)}
-              className="h-8 text-xs font-mono"
+              className="font-mono"
             />
           </div>
 
           <div className="grid gap-1.5">
-            <Label htmlFor="volumes" className="text-xs">Volume Mounts</Label>
+            <Label htmlFor="volumes" className="px-1 text-[12px] font-semibold text-label-2">Volume Mounts</Label>
             <Input
               id="volumes"
               placeholder="/host/path:/container/path (optional)"
               value={volumesStr}
               onChange={(e) => setVolumesStr(e.target.value)}
-              className="h-8 text-xs font-mono"
+              className="font-mono"
             />
           </div>
 
           <div className="grid gap-1.5">
-            <Label htmlFor="command" className="text-xs">Command Override</Label>
+            <Label htmlFor="command" className="px-1 text-[12px] font-semibold text-label-2">Command Override</Label>
             <Input
               id="command"
               placeholder="Override default CMD (optional)"
               value={command}
               onChange={(e) => setCommand(e.target.value)}
-              className="h-8 text-xs font-mono"
+              className="font-mono"
             />
           </div>
         </div>
@@ -648,19 +774,16 @@ function RunImageDialog({ open, onOpenChange, image, serverId, onCreated }: RunI
         <DialogFooter>
           <Button
             variant="secondary"
-            size="sm"
             onClick={() => onOpenChange(false)}
             disabled={running}
           >
             Cancel
           </Button>
           <Button
-            size="sm"
             onClick={handleRun}
             disabled={running}
-            className="gap-1.5"
           >
-            {running ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
+            {running ? <RotateCw className="animate-spin" strokeWidth={1.75} /> : <Play strokeWidth={1.75} />}
             {running ? 'Creating…' : 'Run'}
           </Button>
         </DialogFooter>
@@ -744,7 +867,7 @@ export function DockerView({ serverId }: DockerViewProps) {
   // ── Loading state ──
   if (loading) {
     return (
-      <div className="h-full bg-background">
+      <div className="h-full">
         <LoadingView label="Loading Docker…" />
       </div>
     );
@@ -755,7 +878,7 @@ export function DockerView({ serverId }: DockerViewProps) {
     // Show installer terminal when user clicks Install
     if (showInstaller) {
       return (
-        <div className="flex flex-col h-full bg-background">
+        <div className="flex h-full flex-col">
           <DockerInstallTerminal
             serverId={serverId}
             onClose={() => setShowInstaller(false)}
@@ -771,22 +894,21 @@ export function DockerView({ serverId }: DockerViewProps) {
     }
 
     return (
-      <div className="flex items-center justify-center h-full bg-background">
-        <div className="text-center max-w-sm">
-          <Box className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-40" />
-          <p className="text-sm font-medium text-foreground mb-1">Docker is not installed</p>
-          <p className="text-xs text-muted-foreground mb-5">
+      <div className="flex h-full items-center justify-center px-6 pb-6">
+        <div className="max-w-sm text-center">
+          <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-[18px] border border-edge bg-mat shadow-[var(--lumen-spec)]">
+            <AppIcon appId="docker" size={40} />
+          </div>
+          <p className="mb-1.5 text-[17px] font-bold text-foreground">Docker is not installed</p>
+          <p className="mb-5 text-[13px] leading-relaxed text-label-2">
             Install Docker on this server to manage containers and images.
-            The official install script from <span className="font-mono">get.docker.com</span> will be used.
+            The official install script from <span className="font-mono text-foreground">get.docker.com</span> will be used.
           </p>
-          <Button
-            onClick={() => setShowInstaller(true)}
-            className="gap-2"
-          >
-            <Download className="h-4 w-4" />
+          <Button onClick={() => setShowInstaller(true)}>
+            <Download strokeWidth={1.75} />
             Install Docker
           </Button>
-          <p className="text-[11px] text-muted-foreground/50 mt-3">
+          <p className="mt-3 text-[12px] text-label-3">
             Requires sudo privileges on the server
           </p>
         </div>
@@ -800,64 +922,64 @@ export function DockerView({ serverId }: DockerViewProps) {
 
   if (isDisconnected) {
     return (
-      <DisconnectedState
-        serverId={serverId}
-        onReconnected={() => loadData()}
-        message="The SSH connection to this server was lost. Reconnect to manage Docker containers."
-      />
+      // The shared DisconnectedState paints bg-background; let the window glass show instead.
+      <div className="h-full [&>div]:bg-transparent">
+        <DisconnectedState
+          serverId={serverId}
+          onReconnected={() => loadData()}
+          message="The SSH connection to this server was lost. Reconnect to manage Docker containers."
+        />
+      </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-full bg-background">
-        <div className="text-center">
-          <AlertCircle className="w-8 h-8 text-destructive mx-auto mb-2" />
-          <p className="text-sm text-destructive mb-3">{error}</p>
-          <button
-            onClick={() => loadData()}
-            className="px-3 py-1.5 text-xs bg-secondary hover:bg-accent text-foreground rounded-md"
-          >
+      <div className="flex h-full items-center justify-center px-6 pb-6">
+        <div className="max-w-sm text-center">
+          <AlertCircle className="mx-auto mb-3 size-8 text-danger" strokeWidth={1.75} />
+          <p className="mb-4 text-[13px] text-danger">{error}</p>
+          <Button variant="secondary" size="sm" onClick={() => loadData()}>
             Retry
-          </button>
+          </Button>
         </div>
       </div>
     );
   }
 
+  const runningCount = containers.filter((c) => c.state === 'running').length;
+  const pausedCount = containers.filter((c) => c.state === 'paused').length;
+  const stoppedCount = containers.length - runningCount - pausedCount;
+
   return (
-    <div className="flex h-full bg-background">
-      {/* ── Sidebar — Finder-inspired ── */}
-      <nav className="w-50 shrink-0 border-r border-border/40 overflow-y-auto pt-1.5">
-        <div className="px-4 pt-2.5 pb-1.5 text-[11px] font-semibold text-foreground/50 tracking-wide">
-          Docker
-        </div>
-        <div className="px-3 pb-2">
-          {TABS.map((entry) => {
-            const Icon = entry.icon;
-            const isActive = tab === entry.id;
-            return (
-              <button
-                key={entry.id}
-                onClick={() => setTab(entry.id)}
-                className={cn(
-                  'flex items-center gap-2 w-full px-2.5 py-2 text-[13px] rounded-md transition-colors outline-none',
-                  isActive
-                    ? 'bg-primary/15 text-primary font-medium'
-                    : 'text-foreground hover:bg-accent/50',
-                )}
-              >
-                <Icon size={20} strokeWidth={1.6} className={cn('shrink-0', isActive && 'text-primary')} />
-                {entry.label}
-              </button>
-            );
-          })}
-        </div>
-      </nav>
+    <div className="flex h-full">
+      {/* ── Sidebar ── */}
+      <PaneSidebar
+        width={200}
+        aria-label="Docker"
+        footer={
+          <div className="flex flex-col gap-1.5 pb-0.5 text-[12px] text-label-2">
+            <SummaryRow dotClass="bg-success" label="Running" value={runningCount} />
+            {pausedCount > 0 && <SummaryRow dotClass="bg-warning" label="Paused" value={pausedCount} />}
+            <SummaryRow dotClass="bg-label-3" label="Stopped" value={stoppedCount} />
+          </div>
+        }
+      >
+        {TABS.map((entry) => (
+          <PaneSidebarItem
+            key={entry.id}
+            icon={entry.icon}
+            label={entry.label}
+            active={tab === entry.id}
+            badge={entry.id === 'containers' ? containers.length : images.length}
+            onClick={() => setTab(entry.id)}
+          />
+        ))}
+      </PaneSidebar>
 
       {/* ── Content area ── */}
-      <div className="flex-1 min-w-0 overflow-hidden flex flex-col">
-        <div className={logTarget ? 'flex-1 min-h-0 overflow-hidden' : 'flex-1 overflow-hidden'}>
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden px-4 pb-2">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {tab === 'containers' && (
             <ContainersTab
               containers={containers}
@@ -881,7 +1003,7 @@ export function DockerView({ serverId }: DockerViewProps) {
 
         {/* Log viewer panel */}
         {logTarget && (
-          <div className="h-[40%] min-h-[150px] shrink-0">
+          <div className="mt-3 h-[40%] min-h-[150px] shrink-0">
             <LogViewer
               serverId={serverId}
               containerId={logTarget.id}
@@ -891,6 +1013,16 @@ export function DockerView({ serverId }: DockerViewProps) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function SummaryRow({ dotClass, label, value }: { dotClass: string; label: string; value: number }) {
+  return (
+    <div className="flex items-center gap-2 px-1">
+      <span className={cn('size-2 shrink-0 rounded-full', dotClass)} />
+      <span className="flex-1 truncate">{label}</span>
+      <span className="font-semibold tabular-nums text-foreground">{value}</span>
     </div>
   );
 }

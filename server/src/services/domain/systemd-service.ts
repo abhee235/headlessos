@@ -6,7 +6,28 @@
 
 import { DomainService, ok, fail, type ServiceResult } from './base.js';
 import { validateServiceName, shellEscape } from '../../security/validators.js';
-import { parseSystemctlListUnits } from '../../parsers/deterministic/systemctl.js';
+import {
+  parseSystemctlListUnits,
+  parseSystemctlShow,
+  unitFileStateToStartup,
+} from '../../parsers/deterministic/systemctl.js';
+import {
+  parseServiceStatusAll,
+  parseRcLinks,
+  parseShortDescriptions,
+  buildSysvServices,
+} from '../../parsers/deterministic/sysv-init.js';
+import type { ServiceListParsed } from '../../parsers/schemas/services.js';
+import type { InitSystem } from '../../parsers/schemas/taskmanager.js';
+import { PROBE, NO_SYSTEMD_RE, buildSysvCommand } from './init-system.js';
+
+export interface ServiceListResult {
+  services: ServiceListParsed;
+  /** true only when systemd answered (kept for the pre-EX8.9 client) */
+  systemdAvailable: boolean;
+  /** EX8.9 */
+  init: InitSystem;
+}
 
 const VALID_ACTIONS = ['start', 'stop', 'restart', 'enable', 'disable'] as const;
 type ServiceAction = (typeof VALID_ACTIONS)[number];
@@ -20,29 +41,62 @@ export class SystemdService extends DomainService {
 
   // ── List all services ─────────────────────────────────
 
-  async listServices(
-    serverId: string,
-  ): Promise<ServiceResult<{ services: ReturnType<typeof parseSystemctlListUnits>; systemdAvailable: boolean }>> {
+  /**
+   * systemd: `list-units` merged with `MainPID` / `UnitFileState` from
+   * `systemctl show`. EX8.9: without systemd (containers, SysV hosts) the list
+   * comes from `service --status-all` + /etc/rc2.d start links; `init` says
+   * which answered ('none' when neither exists).
+   */
+  async listServices(serverId: string): Promise<ServiceResult<ServiceListResult>> {
     try { this.requireConnected(serverId); } catch (err) {
       const e = err as Error & { statusCode?: number };
       return fail(e.message ?? 'Not connected', e.statusCode ?? 500);
     }
 
-    const result = await this.exec(
-      serverId,
-      'systemctl list-units --type=service --all --no-pager --no-legend',
-      10_000,
-    );
+    const [result, runtime] = await Promise.all([
+      this.exec(serverId, PROBE.listUnits, 10_000),
+      this.execSafe(serverId, PROBE.serviceRuntime, 10_000),
+    ]);
 
     if (result.exitCode !== 0 && !result.stdout.trim()) {
       const errMsg = result.stderr.trim();
-      if (errMsg.includes('not found') || errMsg.includes('command not found')) {
-        return ok({ services: [], systemdAvailable: false });
+      if (errMsg.includes('not found') || NO_SYSTEMD_RE.test(errMsg)) {
+        return ok(await this.listSysvServices(serverId));
       }
       return fail(errMsg || 'Failed to list services', 500);
     }
 
-    return ok({ services: parseSystemctlListUnits(result.stdout), systemdAvailable: true });
+    const byId = new Map(
+      (runtime.exitCode === 0 ? parseSystemctlShow(runtime.stdout) : [])
+        .filter((b) => b.Id)
+        .map((b) => [b.Id!.replace(/\.service$/, ''), b]),
+    );
+    const services = parseSystemctlListUnits(result.stdout).map((s) => {
+      const info = byId.get(s.name);
+      const pid = Number.parseInt(info?.MainPID ?? '', 10);
+      return {
+        ...s,
+        startup: unitFileStateToStartup(info?.UnitFileState),
+        pid: Number.isInteger(pid) && pid > 0 ? pid : null,
+      };
+    });
+    return ok({ services, systemdAvailable: true, init: 'systemd' });
+  }
+
+  private async listSysvServices(serverId: string): Promise<ServiceListResult> {
+    const [status, rc2, desc] = await Promise.all([
+      this.execSafe(serverId, PROBE.serviceStatusAll, 20_000),
+      this.execSafe(serverId, PROBE.rc2d, 5_000),
+      this.execSafe(serverId, PROBE.initDescriptions, 10_000),
+    ]);
+    // `[ ? ]` lines go to stderr on some sysvinit-utils versions
+    const statuses = parseServiceStatusAll(`${status.stdout}\n${status.stderr}`);
+    if (statuses.length === 0) return { services: [], systemdAvailable: false, init: 'none' };
+    return {
+      services: buildSysvServices(statuses, parseRcLinks(rc2.stdout), parseShortDescriptions(desc.stdout)),
+      systemdAvailable: false,
+      init: 'sysv',
+    };
   }
 
   // ── Control a service (start / stop / restart / enable / disable) ──
@@ -68,11 +122,16 @@ export class SystemdService extends DomainService {
     }
 
     const unit = normaliseUnit(serviceName);
-    const result = await this.exec(
+    let result = await this.exec(
       serverId,
       `sudo systemctl ${action as ServiceAction} ${shellEscape(unit)}`,
       15_000,
     );
+
+    // EX8.9: no systemd as PID 1 (or no systemctl) → SysV `service` / `update-rc.d`
+    if (result.exitCode !== 0 && NO_SYSTEMD_RE.test(result.stderr)) {
+      result = await this.exec(serverId, buildSysvCommand(serviceName, action as ServiceAction), 15_000);
+    }
 
     if (result.exitCode !== 0) {
       return fail(

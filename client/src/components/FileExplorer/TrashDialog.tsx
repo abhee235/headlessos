@@ -1,5 +1,6 @@
 // Trash / Recycle Bin Dialog — view and restore trashed files
 // Files are moved to /tmp/.headlessos-trash/ on the server
+// EX8.6: LumenOS v3 — relies on the glass Dialog; inner rows use tokens only.
 
 import { useState, useCallback, useEffect } from 'react';
 import {
@@ -127,47 +128,47 @@ export function TrashDialog({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-lg p-0 gap-0 overflow-hidden">
-          <DialogHeader className="p-4 pb-2">
-            <DialogTitle className="text-sm font-medium flex items-center gap-2">
-              <Trash2 className="w-4 h-4" />
+          <DialogHeader className="px-5 pt-5 pb-3">
+            <DialogTitle className="flex items-center gap-2 text-[15px]">
+              <Trash2 className="h-[18px] w-[18px] text-accent-solid" strokeWidth={1.75} />
               Recycle Bin
               {items.length > 0 && (
-                <Badge variant="secondary" className="text-[10px] ml-1">
+                <Badge variant="secondary" className="ml-1">
                   {items.length}
                 </Badge>
               )}
             </DialogTitle>
           </DialogHeader>
 
-          <div className="border-t border-border/30">
+          <div className="border-t border-border">
             {loading && (
-              <div className="flex items-center justify-center py-12 gap-2 text-muted-foreground">
-                <Spinner className="w-4 h-4" />
-                <span className="text-xs">Loading trash...</span>
+              <div className="flex items-center justify-center gap-2 py-12 text-muted-foreground">
+                <Spinner className="h-4 w-4" />
+                <span className="text-[13px]">Loading trash...</span>
               </div>
             )}
 
             {error && !loading && (
-              <div className="flex items-center justify-center py-12 gap-2 text-destructive">
-                <AlertCircle className="w-4 h-4" />
-                <span className="text-xs">{error}</span>
+              <div className="flex items-center justify-center gap-2 py-12 text-danger">
+                <AlertCircle className="h-4 w-4" strokeWidth={1.75} />
+                <span className="text-[13px]">{error}</span>
               </div>
             )}
 
             {!loading && !error && items.length === 0 && (
               <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                <Trash2 className="w-8 h-8 mb-2 opacity-20" />
-                <span className="text-xs">Recycle Bin is empty</span>
+                <Trash2 className="mb-2 h-8 w-8 text-label-3 opacity-60" strokeWidth={1.25} />
+                <span className="text-[13px]">Recycle Bin is empty</span>
               </div>
             )}
 
             {!loading && items.length > 0 && (
               <ScrollArea className="max-h-88">
-                <div className="py-1">
+                <div className="flex flex-col gap-px p-2">
                   {items.map(item => (
                     <div
                       key={item.name}
-                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-accent/30 transition-colors group"
+                      className="group flex items-center gap-3 rounded-[10px] px-3 py-2 transition-colors duration-150 hover:bg-fill"
                     >
                       <div className="shrink-0 w-5 h-5 flex items-center justify-center opacity-60">
                         {item.isDirectory ? (
@@ -177,8 +178,8 @@ export function TrashDialog({
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm truncate">{item.originalName}</div>
-                        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                        <div className="truncate text-[13px] font-medium text-foreground">{item.originalName}</div>
+                        <div className="flex items-center gap-2 text-[11px] text-label-3">
                           <span>Deleted {formatDate(item.trashedAt)}</span>
                           {item.size !== undefined && item.size > 0 && (
                             <>
@@ -192,11 +193,11 @@ export function TrashDialog({
                         <button
                           onClick={() => handleRestore(item)}
                           disabled={actionLoading === item.name}
-                          className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                          className="grid h-7 w-7 place-items-center rounded-full text-label-2 transition-colors duration-150 hover:bg-fill-2 hover:text-foreground"
                           title="Restore to /tmp/"
                         >
                           {actionLoading === item.name ? (
-                            <Spinner className="w-3.5 h-3.5" />
+                            <Spinner className="h-4 w-4" />
                           ) : (
                             <RotateCcw className="w-3.5 h-3.5" />
                           )}
@@ -204,7 +205,7 @@ export function TrashDialog({
                         <button
                           onClick={() => handleDeletePermanently(item)}
                           disabled={actionLoading === item.name}
-                          className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                          className="grid h-7 w-7 place-items-center rounded-full text-label-2 transition-colors duration-150 hover:bg-danger/12 hover:text-danger"
                           title="Delete permanently"
                         >
                           <XIcon className="w-3.5 h-3.5" />
@@ -218,18 +219,17 @@ export function TrashDialog({
           </div>
 
           {items.length > 0 && (
-            <DialogFooter className="p-3 border-t border-border/20 mt-0">
+            <DialogFooter className="mt-0 border-t border-border px-4 py-3">
               <Button
                 variant="destructive"
                 size="sm"
                 onClick={() => setConfirmEmpty(true)}
                 disabled={actionLoading === '__empty__'}
-                className="text-xs"
               >
                 {actionLoading === '__empty__' ? (
-                  <Spinner className="w-3.5 h-3.5mr-1.5" />
+                  <Spinner className="h-4 w-4" />
                 ) : (
-                  <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                  <Trash2 strokeWidth={1.75} />
                 )}
                 Empty Recycle Bin
               </Button>

@@ -1,4 +1,5 @@
 // EX4-E.4: Span Detail Panel — Phoenix-style tabbed detail view
+// EX8.6: Lumen glass — bubbles for I/O cards, bg-paper JSON panes, segmented tabs
 // @see docs/phases/phase-ex4.md
 
 import { useObservatoryStore } from '../../store/observatory-store';
@@ -17,6 +18,16 @@ import {
 } from './constants';
 import type { Span } from 'headlessos-shared/schemas/observatory';
 import { useState, useCallback } from 'react';
+import { cn } from '@/lib/utils';
+
+/** Neutral I/O card (input side) */
+const IO_CARD_CLASS = 'overflow-hidden rounded-[18px] border border-edge bg-mat-thin';
+/** I/O card header row */
+const IO_HEAD_CLASS = 'flex items-center gap-2 border-b px-3.5 py-2';
+/** 11px uppercase card heading */
+const IO_LABEL_CLASS = 'text-[11px] font-bold uppercase tracking-[.06em]';
+/** Muted italic empty hint */
+const EMPTY_CLASS = 'text-xs italic text-label-3';
 
 /* ---------- Sub-components ---------- */
 
@@ -32,7 +43,7 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={handleCopy}
-      className="p-1 rounded text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))] hover:bg-[rgb(var(--accent))]/30 transition-colors"
+      className="grid h-6 w-6 place-items-center rounded-full text-label-2 transition-colors duration-150 hover:bg-fill hover:text-foreground"
       title="Copy"
     >
       {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
@@ -43,7 +54,7 @@ function CopyButton({ text }: { text: string }) {
 function JsonBlock({ data, label }: { data: unknown; label: string }) {
   if (data === null || data === undefined) {
     return (
-      <div className="text-xs text-[rgb(var(--muted-foreground))] p-4 italic">
+      <div className={cn(EMPTY_CLASS, 'p-4')}>
         No {label} data
       </div>
     );
@@ -51,7 +62,7 @@ function JsonBlock({ data, label }: { data: unknown; label: string }) {
   const json = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
   return (
     <div className="relative group">
-      <pre className="text-xs font-mono bg-[rgb(var(--muted))]/20 rounded-lg p-4 overflow-auto max-h-[500px] whitespace-pre-wrap break-words text-[rgb(var(--foreground))]">
+      <pre className="max-h-[500px] overflow-auto whitespace-pre-wrap break-words rounded-[14px] border border-edge bg-paper px-4 py-3 font-mono text-xs text-foreground">
         {json}
       </pre>
       <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -66,15 +77,15 @@ function ChatMessage({ role, content, tokens }: { role: string; content: string;
   const roleStyle = getRoleStyle(role);
   const json = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
   return (
-    <div className={`rounded-lg border ${roleStyle.border} ${roleStyle.bg} overflow-hidden`}>
+    <div className={cn('overflow-hidden rounded-[18px] border', roleStyle.border, roleStyle.bg)}>
       {/* Role header */}
-      <div className="flex items-center justify-between px-3 py-1.5 border-b border-inherit">
-        <span className="text-[11px] font-semibold text-[rgb(var(--muted-foreground))] uppercase tracking-wide">
+      <div className={cn('flex items-center justify-between py-1.5 pl-3.5 pr-1.5 border-b', roleStyle.border)}>
+        <span className={cn(IO_LABEL_CLASS, 'text-label-2')}>
           {role}
         </span>
         <div className="flex items-center gap-2">
           {tokens !== undefined && tokens > 0 && (
-            <span className="text-[10px] font-mono text-[rgb(var(--muted-foreground))]">
+            <span className="font-mono text-[10px] text-label-3">
               {formatTokens(tokens)} tokens
             </span>
           )}
@@ -82,8 +93,8 @@ function ChatMessage({ role, content, tokens }: { role: string; content: string;
         </div>
       </div>
       {/* Content */}
-      <div className="p-3 text-[13px] leading-relaxed whitespace-pre-wrap break-words text-[rgb(var(--foreground))]">
-        {json || <span className="italic text-[rgb(var(--muted-foreground))]">Empty</span>}
+      <div className="whitespace-pre-wrap break-words px-3.5 py-3 text-[13px] leading-relaxed text-foreground">
+        {json || <span className="italic text-label-3">Empty</span>}
       </div>
     </div>
   );
@@ -96,10 +107,10 @@ function ToolCallBlock({ input, output }: { input: unknown; output: unknown }) {
   return (
     <div className="space-y-3">
       {hasInput && (
-        <div className="rounded-lg border border-[rgb(var(--border))]/30 bg-zinc-800/50 overflow-hidden">
-          <div className="flex items-center gap-2 px-3 py-1.5 border-b border-[rgb(var(--border))]/30">
+        <div className={IO_CARD_CLASS}>
+          <div className={cn(IO_HEAD_CLASS, 'border-border')}>
             <SpanKindIcon kind="TOOL" variant="outline" size={16} />
-            <span className="text-[11px] font-semibold text-[rgb(var(--muted-foreground))] uppercase tracking-wide">Input</span>
+            <span className={cn(IO_LABEL_CLASS, 'text-label-2')}>Input</span>
           </div>
           <div className="p-3">
             <JsonBlock data={input} label="tool input" />
@@ -107,9 +118,9 @@ function ToolCallBlock({ input, output }: { input: unknown; output: unknown }) {
         </div>
       )}
       {hasOutput && (
-        <div className={`rounded-lg border ${OUTPUT_CARD_STYLE.border} ${OUTPUT_CARD_STYLE.bg} overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-3 py-1.5 border-b ${OUTPUT_CARD_STYLE.border}`}>
-            <span className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wide">Output</span>
+        <div className={cn('overflow-hidden rounded-[18px] border', OUTPUT_CARD_STYLE.border, OUTPUT_CARD_STYLE.bg)}>
+          <div className={cn(IO_HEAD_CLASS, OUTPUT_CARD_STYLE.border)}>
+            <span className={cn(IO_LABEL_CLASS, 'text-success')}>Output</span>
           </div>
           <div className="p-3">
             <JsonBlock data={output} label="tool result" />
@@ -123,11 +134,11 @@ function ToolCallBlock({ input, output }: { input: unknown; output: unknown }) {
 /** Attribute row */
 function AttrRow({ label, value }: { label: string; value: string | number | boolean | null | undefined }) {
   return (
-    <div className="flex items-start border-b border-[rgb(var(--border))]/30 last:border-b-0">
-      <span className="text-xs font-mono text-[rgb(var(--muted-foreground))] py-2 px-3 w-1/3 flex-shrink-0 bg-[rgb(var(--muted))]/15">
+    <div className="flex items-start border-b border-border last:border-b-0">
+      <span className="w-1/3 flex-shrink-0 bg-fill px-3.5 py-2 font-mono text-xs text-label-2">
         {label}
       </span>
-      <span className="text-xs font-mono text-[rgb(var(--foreground))] py-2 px-3 flex-1 break-all">
+      <span className="flex-1 break-all px-3.5 py-2 font-mono text-xs text-foreground">
         {value === null || value === undefined ? '—' : String(value)}
       </span>
     </div>
@@ -146,32 +157,32 @@ function AgentIOContent({ span }: { span: Span }) {
   return (
     <div className="space-y-4 p-4">
       {/* Input card — neutral */}
-      <div className="rounded-lg border border-[rgb(var(--border))]/30 bg-zinc-800/50 overflow-hidden">
-        <div className="flex items-center gap-2 px-3 py-1.5 border-b border-[rgb(var(--border))]/30">
+      <div className={IO_CARD_CLASS}>
+        <div className={cn(IO_HEAD_CLASS, 'border-border')}>
           <SpanKindIcon kind="AGENT" variant="outline" size={16} />
-          <span className="text-[11px] font-semibold text-[rgb(var(--muted-foreground))] uppercase tracking-wide">
+          <span className={cn(IO_LABEL_CLASS, 'text-label-2')}>
             Input
           </span>
         </div>
         <div className="p-3">
           {inputStr ? (
-            <div className="text-[13px] leading-relaxed whitespace-pre-wrap break-words text-[rgb(var(--foreground))]">
+            <div className="whitespace-pre-wrap break-words text-[13px] leading-relaxed text-foreground">
               {inputStr}
             </div>
           ) : (
-            <div className="text-xs text-[rgb(var(--muted-foreground))] italic">No input recorded</div>
+            <div className={EMPTY_CLASS}>No input recorded</div>
           )}
         </div>
       </div>
 
       <div className="flex justify-center">
-        <ArrowRight className="w-4 h-4 text-[rgb(var(--muted-foreground))]/30" />
+        <ArrowRight className="h-4 w-4 rotate-90 text-label-3" strokeWidth={1.75} />
       </div>
 
       {/* Output card — green */}
-      <div className={`rounded-lg border ${OUTPUT_CARD_STYLE.border} ${OUTPUT_CARD_STYLE.bg} overflow-hidden`}>
-        <div className={`flex items-center gap-2 px-3 py-1.5 border-b ${OUTPUT_CARD_STYLE.border}`}>
-          <span className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wide">
+      <div className={cn('overflow-hidden rounded-[18px] border', OUTPUT_CARD_STYLE.border, OUTPUT_CARD_STYLE.bg)}>
+        <div className={cn(IO_HEAD_CLASS, OUTPUT_CARD_STYLE.border)}>
+          <span className={cn(IO_LABEL_CLASS, 'text-success')}>
             Output
           </span>
         </div>
@@ -179,29 +190,29 @@ function AgentIOContent({ span }: { span: Span }) {
           {outputData != null ? (
             <JsonBlock data={outputData} label="output" />
           ) : (
-            <div className="text-xs text-[rgb(var(--muted-foreground))] italic">No output recorded</div>
+            <div className={EMPTY_CLASS}>No output recorded</div>
           )}
         </div>
       </div>
 
       {/* Cumulative stats if available */}
       {span.cumulative && (
-        <div className="rounded-lg border border-[rgb(var(--border))]/30 p-3 bg-[rgb(var(--muted))]/10">
-          <div className="text-[10px] font-semibold text-[rgb(var(--muted-foreground))] uppercase tracking-wide mb-2">
+        <div className="lumen-card rounded-[20px] px-4 py-3.5">
+          <div className={cn(IO_LABEL_CLASS, 'mb-2.5 text-label-3')}>
             Cumulative Stats
           </div>
           <div className="grid grid-cols-3 gap-3 text-xs">
             <div>
-              <div className="text-[rgb(var(--muted-foreground))]">Spans</div>
-              <div className="font-mono font-bold text-[rgb(var(--foreground))]">{span.cumulative.spanCount}</div>
+              <div className="text-label-2">Spans</div>
+              <div className="mt-0.5 font-mono text-lg font-bold tracking-[-0.02em] text-foreground">{span.cumulative.spanCount}</div>
             </div>
             <div>
-              <div className="text-[rgb(var(--muted-foreground))]">Tokens</div>
-              <div className="font-mono font-bold text-[rgb(var(--foreground))]">{formatTokens(span.cumulative.tokenUsage.totalTokens)}</div>
+              <div className="text-label-2">Tokens</div>
+              <div className="mt-0.5 font-mono text-lg font-bold tracking-[-0.02em] text-foreground">{formatTokens(span.cumulative.tokenUsage.totalTokens)}</div>
             </div>
             <div>
-              <div className="text-[rgb(var(--muted-foreground))]">Cost</div>
-              <div className="font-mono font-bold text-[rgb(var(--foreground))]">${span.cumulative.costUsd.toFixed(4)}</div>
+              <div className="text-label-2">Cost</div>
+              <div className="mt-0.5 font-mono text-lg font-bold tracking-[-0.02em] text-foreground">${span.cumulative.costUsd.toFixed(4)}</div>
             </div>
           </div>
         </div>
@@ -218,36 +229,36 @@ function ChainIOContent({ span }: { span: Span }) {
   return (
     <div className="space-y-4 p-4">
       {/* Input card — neutral */}
-      <div className="rounded-lg border border-[rgb(var(--border))]/30 bg-zinc-800/50 overflow-hidden">
-        <div className="flex items-center gap-2 px-3 py-1.5 border-b border-[rgb(var(--border))]/30">
+      <div className={IO_CARD_CLASS}>
+        <div className={cn(IO_HEAD_CLASS, 'border-border')}>
           <SpanKindIcon kind="CHAIN" variant="outline" size={16} />
-          <span className="text-[11px] font-semibold text-[rgb(var(--muted-foreground))] uppercase tracking-wide">
+          <span className={cn(IO_LABEL_CLASS, 'text-label-2')}>
             Input
           </span>
         </div>
         <div className="p-3">
           {inputData != null ? (
             typeof inputData === 'string' ? (
-              <div className="text-[13px] leading-relaxed whitespace-pre-wrap break-words text-[rgb(var(--foreground))]">
+              <div className="whitespace-pre-wrap break-words text-[13px] leading-relaxed text-foreground">
                 {inputData}
               </div>
             ) : (
               <JsonBlock data={inputData} label="input" />
             )
           ) : (
-            <div className="text-xs text-[rgb(var(--muted-foreground))] italic">No input recorded</div>
+            <div className={EMPTY_CLASS}>No input recorded</div>
           )}
         </div>
       </div>
 
       <div className="flex justify-center">
-        <ArrowRight className="w-4 h-4 text-[rgb(var(--muted-foreground))]/30" />
+        <ArrowRight className="h-4 w-4 rotate-90 text-label-3" strokeWidth={1.75} />
       </div>
 
       {/* Output card — green */}
-      <div className={`rounded-lg border ${OUTPUT_CARD_STYLE.border} ${OUTPUT_CARD_STYLE.bg} overflow-hidden`}>
-        <div className={`flex items-center gap-2 px-3 py-1.5 border-b ${OUTPUT_CARD_STYLE.border}`}>
-          <span className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wide">
+      <div className={cn('overflow-hidden rounded-[18px] border', OUTPUT_CARD_STYLE.border, OUTPUT_CARD_STYLE.bg)}>
+        <div className={cn(IO_HEAD_CLASS, OUTPUT_CARD_STYLE.border)}>
+          <span className={cn(IO_LABEL_CLASS, 'text-success')}>
             Output
           </span>
         </div>
@@ -255,7 +266,7 @@ function ChainIOContent({ span }: { span: Span }) {
           {outputData != null ? (
             <JsonBlock data={outputData} label="output" />
           ) : (
-            <div className="text-xs text-[rgb(var(--muted-foreground))] italic">No output recorded</div>
+            <div className={EMPTY_CLASS}>No output recorded</div>
           )}
         </div>
       </div>
@@ -283,25 +294,25 @@ function IOTabContent({ span }: { span: Span }) {
       <div className="space-y-4 p-4">
         {/* Model & Cost header bar */}
         {span.model && (
-          <div className="flex items-center gap-3 p-2.5 rounded-lg bg-[rgb(var(--muted))]/15 border border-[rgb(var(--border))]/30">
+          <div className="flex items-center gap-3 rounded-[14px] border border-edge bg-mat-thin px-3 py-2">
             <SpanKindIcon kind="LLM" variant="outline" size={16} />
             <Badge variant="secondary" className="text-xs font-mono">{span.model}</Badge>
             {span.modelRole && (
-              <span className="text-[11px] text-[rgb(var(--muted-foreground))]">{span.modelRole}</span>
+              <span className="text-[11px] text-label-2">{span.modelRole}</span>
             )}
             {span.tokenUsage && (
               <div className="flex items-center gap-1.5 ml-auto">
-                <span className="text-[11px] font-mono" style={{ color: 'rgba(254, 119, 99, 1)' }}>
+                <span className="font-mono text-[11px] text-chart-4">
                   ↑{formatTokens(span.tokenUsage.inputTokens)}
                 </span>
-                <span className="text-[11px] text-[rgb(var(--muted-foreground))]">/</span>
-                <span className="text-[11px] font-mono" style={{ color: 'rgba(98, 104, 239, 1)' }}>
+                <span className="text-[11px] text-label-3">/</span>
+                <span className="font-mono text-[11px] text-chart-1">
                   ↓{formatTokens(span.tokenUsage.outputTokens)}
                 </span>
                 {span.costUsd !== null && span.costUsd > 0 && (
                   <>
-                    <span className="text-[11px] text-[rgb(var(--muted-foreground))]">·</span>
-                    <span className="text-[11px] font-mono text-[rgb(var(--muted-foreground))]">
+                    <span className="text-[11px] text-label-3">·</span>
+                    <span className="font-mono text-[11px] text-label-2">
                       ${span.costUsd.toFixed(4)}
                     </span>
                   </>
@@ -311,18 +322,18 @@ function IOTabContent({ span }: { span: Span }) {
           </div>
         )}
 
-        {/* Token usage bar — Phoenix colors: prompt=salmon, completion=purple */}
+        {/* Token usage bar — prompt = chart-4, completion = chart-1 */}
         {span.tokenUsage && span.tokenUsage.totalTokens > 0 && (
-          <div className="flex rounded-full overflow-hidden h-1.5 bg-[rgb(var(--muted))]/30">
-            <div style={{ width: `${(span.tokenUsage.inputTokens / span.tokenUsage.totalTokens) * 100}%`, backgroundColor: 'rgba(254, 119, 99, 1)' }} className="h-full" />
-            <div style={{ width: `${(span.tokenUsage.outputTokens / span.tokenUsage.totalTokens) * 100}%`, backgroundColor: 'rgba(98, 104, 239, 1)' }} className="h-full" />
+          <div className="flex h-1.5 overflow-hidden rounded-full bg-chip">
+            <div style={{ width: `${(span.tokenUsage.inputTokens / span.tokenUsage.totalTokens) * 100}%` }} className="h-full bg-chart-4" />
+            <div style={{ width: `${(span.tokenUsage.outputTokens / span.tokenUsage.totalTokens) * 100}%` }} className="h-full bg-chart-1" />
           </div>
         )}
 
         {/* Chat messages with Phoenix role-based card colors */}
         <ChatMessage role="user" content={inputStr ?? ''} tokens={span.tokenUsage?.inputTokens} />
         <div className="flex justify-center">
-          <ArrowRight className="w-4 h-4 text-[rgb(var(--muted-foreground))]/30" />
+          <ArrowRight className="h-4 w-4 rotate-90 text-label-3" strokeWidth={1.75} />
         </div>
         <ChatMessage role="assistant" content={outputStr ?? ''} tokens={span.tokenUsage?.outputTokens} />
       </div>
@@ -341,19 +352,19 @@ function IOTabContent({ span }: { span: Span }) {
   // Default: input + output blocks with Phoenix styling
   return (
     <div className="p-4 space-y-4">
-      <div className="rounded-lg border border-[rgb(var(--border))]/30 bg-zinc-800/50 overflow-hidden">
-        <div className="flex items-center gap-2 px-3 py-1.5 border-b border-[rgb(var(--border))]/20 bg-zinc-800/60">
+      <div className={IO_CARD_CLASS}>
+        <div className={cn(IO_HEAD_CLASS, 'border-border')}>
           <SpanKindIcon kind={span.kind} variant="outline" size={14} />
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-[rgb(var(--muted-foreground))]">Input</span>
+          <span className={cn(IO_LABEL_CLASS, 'text-label-2')}>Input</span>
         </div>
         <div className="p-3">
           <JsonBlock data={span.input} label="input" />
         </div>
       </div>
-      <div className={`rounded-lg border overflow-hidden ${OUTPUT_CARD_STYLE}`}>
-        <div className="flex items-center gap-2 px-3 py-1.5 border-b border-emerald-500/20 bg-emerald-950/40">
-          <ArrowRight className="w-3.5 h-3.5 text-emerald-400" />
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-emerald-300">Output</span>
+      <div className={cn('overflow-hidden rounded-[18px] border', OUTPUT_CARD_STYLE.border, OUTPUT_CARD_STYLE.bg)}>
+        <div className={cn(IO_HEAD_CLASS, OUTPUT_CARD_STYLE.border)}>
+          <ArrowRight className="h-3.5 w-3.5 text-success" strokeWidth={1.75} />
+          <span className={cn(IO_LABEL_CLASS, 'text-success')}>Output</span>
         </div>
         <div className="p-3">
           <JsonBlock data={span.output} label="output" />
@@ -396,7 +407,7 @@ function AttributesTabContent({ span }: { span: Span }) {
   }
 
   return (
-    <div className="rounded-lg border border-[rgb(var(--border))]/30 overflow-hidden m-4">
+    <div className="m-4 overflow-hidden rounded-[18px] border border-edge bg-mat-thin">
       {entries.map(([key, val]) => (
         <AttrRow key={key} label={key} value={val} />
       ))}
@@ -412,10 +423,10 @@ export function SpanDetailPanel() {
 
   if (!selectedSpanId) {
     return (
-      <div className="flex items-center justify-center h-full text-[rgb(var(--muted-foreground))] text-sm">
-        <div className="text-center space-y-2">
+      <div className="flex h-full items-center justify-center text-sm text-label-2">
+        <div className="flex flex-col items-center space-y-2 text-center">
           <SpanKindIcon kind="CHAIN" variant="outline" size={32} />
-          <div className="opacity-50">Select a span to view details</div>
+          <div className="text-label-3">Select a span to view details</div>
         </div>
       </div>
     );
@@ -423,7 +434,7 @@ export function SpanDetailPanel() {
 
   if (!span) {
     return (
-      <div className="flex items-center justify-center h-full text-[rgb(var(--muted-foreground))] text-sm">
+      <div className="flex h-full items-center justify-center text-sm text-label-2">
         Loading span detail...
       </div>
     );
@@ -434,15 +445,15 @@ export function SpanDetailPanel() {
   return (
     <div className="flex flex-col h-full">
       {/* ── Phoenix-style Span header ── */}
-      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[rgb(var(--border))]/50 flex-shrink-0">
+      <div className="flex flex-shrink-0 items-center gap-2 px-4 pb-2.5 pt-1">
         <span style={{ color: kindColor }}>
           <SpanKindIcon kind={span.kind} variant="fill" size={18} />
         </span>
-        <span className="text-sm font-semibold text-[rgb(var(--foreground))] truncate">{span.name}</span>
+        <span className="truncate text-[15px] font-bold text-foreground">{span.name}</span>
         <SpanKindToken kind={span.kind} size="S" />
         <SpanStatusIcon status={span.status} size={14} />
 
-        <div className="ml-auto flex items-center gap-3 text-[11px] text-[rgb(var(--muted-foreground))]">
+        <div className="ml-auto flex items-center gap-3 text-[11px] text-label-2">
           <span className="flex items-center gap-1">
             <Clock className="w-3 h-3" />
             {formatLatency(span.latencyMs)}
@@ -463,38 +474,25 @@ export function SpanDetailPanel() {
 
       {/* ── Error banner ── */}
       {span.error && (
-        <div className="flex items-start gap-2 px-4 py-2 bg-red-500/10 border-b border-red-500/20 text-[13px] text-red-400">
-          <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+        <div className="mx-4 mb-2.5 flex items-start gap-2.5 rounded-[14px] border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-[13px] text-danger">
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" strokeWidth={1.75} />
           <pre className="font-mono text-xs whitespace-pre-wrap break-words">{span.error}</pre>
         </div>
       )}
 
       {/* ── Tab content — kind-colored active indicator ── */}
       <Tabs defaultValue="io" className="flex-1 flex flex-col min-h-0">
-        <div className="flex-shrink-0 border-b border-[rgb(var(--border))]/50 px-4">
-          <TabsList className="h-8 bg-transparent p-0 gap-0">
+        <div className="flex-shrink-0 border-b border-border px-4 pb-2.5">
+          <TabsList>
             {(['io', 'attributes', 'json'] as const).map((tab) => (
-              <TabsTrigger
-                key={tab}
-                value={tab}
-                className="text-xs h-8 rounded-none border-b-2 border-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-                style={{ '--tw-border-opacity': 1 } as React.CSSProperties}
-                data-kind-color={kindColor}
-              >
+              <TabsTrigger key={tab} value={tab}>
                 {tab === 'io' ? 'Inputs / Outputs' : tab === 'attributes' ? 'Attributes' : 'JSON'}
               </TabsTrigger>
             ))}
           </TabsList>
         </div>
 
-        {/* Inject kind-colored active tab indicator */}
-        <style>{`
-          [data-kind-color][data-state="active"] {
-            border-bottom-color: ${kindColor} !important;
-          }
-        `}</style>
-
-        <ScrollArea className="flex-1">
+        <ScrollArea className="min-h-0 flex-1">
           <TabsContent value="io" className="mt-0 data-[state=inactive]:hidden">
             <IOTabContent span={span} />
           </TabsContent>

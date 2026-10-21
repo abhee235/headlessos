@@ -1,5 +1,4 @@
-// shadcn/ui: Tooltip — Radix-based, Windows 11 style
-// Clean tooltip for toolbar buttons, taskbar items, etc.
+// shadcn/ui: Tooltip — LumenOS v3 (EX8.2): small glass-heavy chip
 
 import * as React from "react";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
@@ -18,11 +17,8 @@ const TooltipContent = React.forwardRef<
       ref={ref}
       sideOffset={sideOffset}
       className={cn(
-        "z-[9999] overflow-hidden rounded-lg px-3 py-1.5 text-xs",
-        "bg-popover/95 backdrop-blur-xl text-popover-foreground",
-        "shadow-lg shadow-black/20",
-        "border border-white/[0.06]",
-        "animate-in fade-in-0 zoom-in-95",
+        "glass-heavy z-[9999] overflow-hidden rounded-[10px] px-2.5 py-1 text-xs font-medium",
+        "animate-contextMenuIn",
         className
       )}
       {...props}

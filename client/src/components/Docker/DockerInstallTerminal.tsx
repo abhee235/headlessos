@@ -1,5 +1,6 @@
 // Docker Install Terminal — xterm.js terminal for Docker installation via SSH
 // Uses the same xterm.js pattern as TerminalView but connects to /ws/docker-install/:serverId
+// EX8.6: LumenOS v3 look — same inset paper pane + token theme as TerminalView
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
@@ -7,8 +8,20 @@ import { FitAddon } from '@xterm/addon-fit';
 import { AttachAddon } from '@xterm/addon-attach';
 import { dockerInstallWsUrl } from '../../lib/api';
 import { Button } from '../ui/button';
-import { X, RotateCcw } from 'lucide-react';
+import { Badge } from '../ui/badge';
+import { X, RotateCcw, Play } from 'lucide-react';
 import '@xterm/xterm/css/xterm.css';
+import {
+  LUMEN_TERMINAL_FONT,
+  LUMEN_TERMINAL_FONT_SIZE,
+  LUMEN_TERMINAL_LINE_HEIGHT,
+  TERMINAL_HOST_CLASS,
+  TERMINAL_PADDING_CLASS,
+  TERMINAL_PANE_CLASS,
+  getLumenTerminalTheme,
+  refitWhenFontReady,
+  useLumenTerminalTheme,
+} from '../Terminal/lumen-terminal';
 
 interface DockerInstallTerminalProps {
   serverId: string;
@@ -44,30 +57,11 @@ export function DockerInstallTerminal({
     if (!containerRef.current) return;
 
     const term = new Terminal({
-      theme: {
-        background: '#09090b',
-        foreground: '#d4d4d8',
-        cursor: '#60a5fa',
-        selectionBackground: '#3f3f4680',
-        black: '#27272a',
-        red: '#f87171',
-        green: '#4ade80',
-        yellow: '#facc15',
-        blue: '#60a5fa',
-        magenta: '#c084fc',
-        cyan: '#22d3ee',
-        white: '#e4e4e7',
-        brightBlack: '#52525b',
-        brightRed: '#fca5a5',
-        brightGreen: '#86efac',
-        brightYellow: '#fde68a',
-        brightBlue: '#93c5fd',
-        brightMagenta: '#d8b4fe',
-        brightCyan: '#67e8f9',
-        brightWhite: '#fafafa',
-      },
-      fontFamily: '"JetBrains Mono", "Fira Code", "Cascadia Code", monospace',
-      fontSize: 13,
+      theme: getLumenTerminalTheme(),
+      fontFamily: LUMEN_TERMINAL_FONT,
+      fontSize: LUMEN_TERMINAL_FONT_SIZE,
+      lineHeight: LUMEN_TERMINAL_LINE_HEIGHT,
+      allowTransparency: true,
       cursorBlink: true,
       allowProposedApi: true,
       scrollback: 5000,
@@ -80,6 +74,7 @@ export function DockerInstallTerminal({
     requestAnimationFrame(() => {
       fitAddon.fit();
     });
+    refitWhenFontReady(term, () => fitAddon.fit());
 
     termRef.current = term;
     fitRef.current = fitAddon;
@@ -135,6 +130,9 @@ export function DockerInstallTerminal({
     };
   }, [serverId, cleanup]);
 
+  // Follow the colour scheme / accent like TerminalView
+  useLumenTerminalTheme(termRef);
+
   const startInstall = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       setInstalling(true);
@@ -153,32 +151,43 @@ export function DockerInstallTerminal({
   }, [cleanup, onInstallComplete]);
 
   return (
-    <div className="flex flex-col h-full bg-background">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-chrome">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-foreground">
-            Docker Installation
-          </span>
-          {installing && !finished && (
-            <span className="text-xs text-warning animate-pulse">
-              Installing...
+    <div className="flex h-full flex-col">
+      {/* Header */}
+      <div className="flex shrink-0 items-start justify-between gap-4 px-4 pb-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2.5">
+            <span className="text-[17px] font-bold leading-6 text-foreground">
+              Docker Installation
             </span>
-          )}
-          {finished && (
-            <span className="text-xs text-success">
-              Process finished
-            </span>
+            {installing && !finished && (
+              <Badge variant="warning" className="animate-pulse">
+                Installing...
+              </Badge>
+            )}
+            {finished && (
+              <Badge variant="success">
+                Process finished
+              </Badge>
+            )}
+          </div>
+          {/* Info line */}
+          {!installing && !finished && (
+            <p className="mt-0.5 text-[12px] leading-[18px] text-label-2">
+              This will run the official Docker install script from{' '}
+              <span className="font-mono text-foreground">get.docker.com</span>
+              . The server user must have <span className="font-mono text-foreground">sudo</span> privileges.
+              You may be prompted for a password.
+            </p>
           )}
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1.5">
           {!installing && !finished && (
             <Button
               size="sm"
               variant="default"
               onClick={startInstall}
-              className="h-7 text-xs"
             >
+              <Play strokeWidth={1.75} />
               Start Installation
             </Button>
           )}
@@ -187,43 +196,31 @@ export function DockerInstallTerminal({
               size="sm"
               variant="default"
               onClick={handleDoneAndRefresh}
-              className="h-7 text-xs gap-1"
             >
-              <RotateCcw className="h-3 w-3" />
+              <RotateCcw strokeWidth={1.75} />
               Done — Reload Docker
             </Button>
           )}
           <Button
-            size="sm"
+            size="icon"
             variant="ghost"
             onClick={handleClose}
-            className="h-7 w-7 p-0"
+            title="Close"
+            aria-label="Close installer"
           >
-            <X className="h-4 w-4" />
+            <X strokeWidth={1.75} />
           </Button>
         </div>
       </div>
 
       {/* Terminal area */}
-      <div className="flex-1 min-h-0">
-        <div
-          ref={containerRef}
-          className="w-full h-full"
-          style={{ padding: '4px' }}
-        />
-      </div>
-
-      {/* Info bar */}
-      {!installing && !finished && (
-        <div className="px-3 py-2 border-t border-border bg-chrome">
-          <p className="text-xs text-muted-foreground">
-            This will run the official Docker install script from{' '}
-            <span className="font-mono text-foreground">get.docker.com</span>
-            . The server user must have <span className="font-mono text-foreground">sudo</span> privileges.
-            You may be prompted for a password.
-          </p>
+      <div className="mx-2 mb-2 flex min-h-0 flex-1">
+        <div className={`${TERMINAL_PANE_CLASS} flex-1`}>
+          <div className={TERMINAL_PADDING_CLASS}>
+            <div ref={containerRef} className={TERMINAL_HOST_CLASS} />
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

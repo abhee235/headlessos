@@ -3,6 +3,7 @@
 
 import { lazy, Suspense } from 'react';
 import { useAppStore } from './store/app-store';
+import { useLumenAppearance } from './hooks/useLumenAppearance';
 
 // Lazy-loaded screens (M10.10 — keep initial bundle small)
 const LockScreen = lazy(() => import('./components/Login/LockScreen').then(m => ({ default: m.LockScreen })));
@@ -19,6 +20,7 @@ function AppFallback() {
 
 export function App() {
   const screen = useAppStore(s => s.screen);
+  useLumenAppearance();
 
   return (
     <Suspense fallback={<AppFallback />}>

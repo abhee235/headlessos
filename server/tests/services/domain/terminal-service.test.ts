@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { EventEmitter } from 'node:events';
 import { ServiceContainer } from '../../../src/services/container.js';
-import { TerminalService } from '../../../src/services/domain/terminal-service.js';
+import { TerminalService, containerShellCommand } from '../../../src/services/domain/terminal-service.js';
 import { BaseService } from '../../../src/services/base-service.js';
 
 // ── Mocks ──────────────────────────────────────────────────────────
@@ -15,13 +15,15 @@ function makeMockShell() {
     stderr: NodeJS.EventEmitter;
     write: ReturnType<typeof vi.fn>;
     end: ReturnType<typeof vi.fn>;
+    close: ReturnType<typeof vi.fn>;
     setWindow: ReturnType<typeof vi.fn>;
   };
   (ee as unknown as { stderr: NodeJS.EventEmitter }).stderr = new EventEmitter();
   (ee as unknown as { write: ReturnType<typeof vi.fn> }).write = vi.fn();
   (ee as unknown as { end: ReturnType<typeof vi.fn> }).end = vi.fn();
+  (ee as unknown as { close: ReturnType<typeof vi.fn> }).close = vi.fn();
   (ee as unknown as { setWindow: ReturnType<typeof vi.fn> }).setWindow = vi.fn();
-  return ee as typeof ee & { stderr: NodeJS.EventEmitter; write: ReturnType<typeof vi.fn>; end: ReturnType<typeof vi.fn>; setWindow: ReturnType<typeof vi.fn> };
+  return ee as typeof ee & { stderr: NodeJS.EventEmitter; write: ReturnType<typeof vi.fn>; end: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn>; setWindow: ReturnType<typeof vi.fn> };
 }
 
 class MockConnectionManager extends BaseService {
@@ -74,6 +76,25 @@ describe('TerminalService', () => {
       await svc.openSession('s1', {}, { onData: vi.fn(), onHint: vi.fn(), onClose: vi.fn(), onError: vi.fn() });
 
       expect(ssh.getShell).toHaveBeenCalledWith('s1', { rows: 24, cols: 80, term: 'xterm-256color' });
+    });
+
+    it('runs docker exec as the pty command for a container shell (EX8.6)', async () => {
+      const shell = makeMockShell();
+      ssh.getShell.mockResolvedValue(shell);
+
+      await svc.openSession(
+        's1',
+        { containerId: 'd9b820d8f084' },
+        { onData: vi.fn(), onHint: vi.fn(), onClose: vi.fn(), onError: vi.fn() },
+      );
+
+      expect(ssh.getShell).toHaveBeenCalledWith('s1', {
+        rows: 24, cols: 80, term: 'xterm-256color',
+        command: containerShellCommand('d9b820d8f084'),
+      });
+      expect(containerShellCommand('d9b820d8f084')).toMatch(/^docker exec -it d9b820d8f084 sh -c /);
+      // Nothing is typed into a login shell
+      expect(shell.write).not.toHaveBeenCalled();
     });
 
     it('propagates error when getShell rejects', async () => {
@@ -169,6 +190,8 @@ describe('TerminalService', () => {
 
       session.close();
       expect(shell.end).toHaveBeenCalled();
+      // Regression: EOF alone left the pty shell alive and leaked the SSH channel
+      expect(shell.close).toHaveBeenCalled();
     });
 
     it('close() is idempotent — shell.end not called twice', async () => {
@@ -182,6 +205,7 @@ describe('TerminalService', () => {
       session.close();
       session.close();
       expect(shell.end).toHaveBeenCalledTimes(1);
+      expect(shell.close).toHaveBeenCalledTimes(1);
     });
 
     it('write() is a no-op after close()', async () => {

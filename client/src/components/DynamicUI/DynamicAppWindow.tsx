@@ -1,6 +1,7 @@
 // EX1.3 + EX1.12 + EX1.13 + EX3-D.1: DynamicAppWindow — wraps DynamicViewRenderer in AppWindow overlay
 // Window chrome always includes a sidebar (lifted from LLM layout) for consistent navigation.
 // EX3-D.1: Enhanced with loading → skeleton → progressive → complete states.
+// EX8.6: Lumen toolbar pills, bg-paper JSON pane, token colours.
 // @see docs/phases/phase-ex1.md, docs/phases/phase-ex3.md
 
 import { useState, useMemo } from 'react';
@@ -17,6 +18,8 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Code2, RotateCcw, Pin, Save, Copy, Maximize2 } from 'lucide-react';
 import { getLucideIcon } from './widgets/icon-helper';
+import { PANE_CLASS } from './widgets/widget-card';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 /** EX3-D.1: Generation phase for progressive states */
@@ -117,9 +120,8 @@ export function DynamicAppWindow({
             size="sm"
             onClick={onRegenerate}
             disabled={loading}
-            className="h-7 text-xs"
           >
-            <RotateCcw className="w-3.5 h-3.5 mr-1" />
+            <RotateCcw strokeWidth={1.75} />
             Regenerate
           </Button>
         )}
@@ -128,10 +130,9 @@ export function DynamicAppWindow({
           variant="ghost"
           size="sm"
           onClick={handleCopyJson}
-          className="h-7 text-xs"
           title="Copy view schema as JSON"
         >
-          <Copy className="w-3.5 h-3.5 mr-1" />
+          <Copy strokeWidth={1.75} />
           Copy JSON
         </Button>
         {/* Toggle JSON/Preview */}
@@ -139,9 +140,8 @@ export function DynamicAppWindow({
           variant={showJson ? 'secondary' : 'ghost'}
           size="sm"
           onClick={() => setShowJson(!showJson)}
-          className="h-7 text-xs"
         >
-          <Code2 className="w-3.5 h-3.5 mr-1" />
+          <Code2 strokeWidth={1.75} />
           {showJson ? 'Preview' : 'JSON'}
         </Button>
         {/* Pin as desktop window */}
@@ -156,10 +156,9 @@ export function DynamicAppWindow({
                 onClose();
               }
             }}
-            className="h-7 text-xs"
             title="Open as desktop window"
           >
-            <Pin className="w-3.5 h-3.5 mr-1" />
+            <Pin strokeWidth={1.75} />
             Pin
           </Button>
         )}
@@ -169,11 +168,10 @@ export function DynamicAppWindow({
             variant="ghost"
             size="sm"
             onClick={() => setShowSaveDialog(true)}
-            className="h-7 text-xs"
             title="Save as reusable app"
             data-testid="save-as-app-button"
           >
-            <Save className="w-3.5 h-3.5 mr-1" />
+            <Save strokeWidth={1.75} />
             Save as App
           </Button>
         )}
@@ -185,7 +183,7 @@ export function DynamicAppWindow({
           {phase === 'loading' ? (
             <SkeletonBody />
           ) : showJson ? (
-            <pre className="overflow-auto rounded-md bg-muted p-3 text-xs font-mono leading-relaxed max-h-full">
+            <pre className={cn(PANE_CLASS, 'max-h-full overflow-auto px-4 py-3 text-xs leading-relaxed')}>
               <code>{JSON.stringify(view, null, 2)}</code>
             </pre>
           ) : (
@@ -196,13 +194,13 @@ export function DynamicAppWindow({
 
       {/* Footer: generation stats */}
       <AppWindow.Footer>
-        <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+        <div className="flex min-w-0 items-center gap-3 text-xs text-label-2">
           {loading && (
-            <span className="text-emerald-500 animate-pulse">
+            <span className="animate-pulse font-medium text-accent-text">
               {phase === 'loading' ? 'Preparing…' : phase === 'skeleton' ? 'Building layout…' : 'Populating widgets…'}
             </span>
           )}
-          {meta?.command && <span>Command: {meta.command}</span>}
+          {meta?.command && <span className="truncate">Command: {meta.command}</span>}
           {meta?.templateId && <span>Template: {meta.templateId}</span>}
           {meta?.generatedAt && (
             <span>Generated: {new Date(meta.generatedAt).toLocaleTimeString()}</span>
@@ -237,21 +235,21 @@ export function DynamicAppWindow({
 /** EX3-D.1: Skeleton placeholder during loading phase */
 function SkeletonBody() {
   return (
-    <div className="p-4 space-y-4 animate-in fade-in duration-300">
+    <div className="space-y-4 animate-in fade-in duration-300">
       {/* Stat card skeletons */}
-      <div className="grid grid-cols-3 gap-3">
-        <Skeleton className="h-[72px] rounded-lg" />
-        <Skeleton className="h-[72px] rounded-lg" />
-        <Skeleton className="h-[72px] rounded-lg" />
+      <div className="grid grid-cols-3 gap-4">
+        <Skeleton className="h-24 rounded-[22px]" />
+        <Skeleton className="h-24 rounded-[22px]" />
+        <Skeleton className="h-24 rounded-[22px]" />
       </div>
       {/* Table skeleton */}
       <div className="space-y-2">
-        <Skeleton className="h-4 w-32" />
-        <Skeleton className="h-8 w-full" />
-        <Skeleton className="h-8 w-full" />
-        <Skeleton className="h-8 w-full" />
-        <Skeleton className="h-8 w-full" />
-        <Skeleton className="h-8 w-[80%]" />
+        <Skeleton className="h-4 w-32 rounded-full" />
+        <Skeleton className="h-[34px] w-full rounded-[10px]" />
+        <Skeleton className="h-[34px] w-full rounded-[10px]" />
+        <Skeleton className="h-[34px] w-full rounded-[10px]" />
+        <Skeleton className="h-[34px] w-full rounded-[10px]" />
+        <Skeleton className="h-[34px] w-[80%] rounded-[10px]" />
       </div>
     </div>
   );

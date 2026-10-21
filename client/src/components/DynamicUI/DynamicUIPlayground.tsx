@@ -1,4 +1,5 @@
 // EX1.4: JSON Playground — split-pane dev tool for testing dynamic UI schemas
+// EX8.6: Lumen panes — bg-paper editor, 11px pane headings, glass shows through
 // @see docs/phases/phase-ex1.md
 
 import { useState, useMemo, useCallback } from 'react';
@@ -20,6 +21,11 @@ import {
 } from '@/components/ui/select';
 import { AlertCircle, CheckCircle2, Code2, Download, Upload } from 'lucide-react';
 import { EXAMPLE_VIEWS } from './playground-examples';
+import { GROUP_LABEL_CLASS, PANE_CLASS } from './widgets/widget-card';
+import { cn } from '@/lib/utils';
+
+/** Small heading row above each pane */
+const PANE_HEADING_CLASS = 'flex h-7 shrink-0 items-center px-1';
 
 interface DynamicUIPlaygroundProps {
   open: boolean;
@@ -90,7 +96,7 @@ export function DynamicUIPlayground({ open, onOpenChange }: DynamicUIPlaygroundP
       <AppWindow.Toolbar>
         <div className="flex items-center gap-2 flex-1">
           <Select value={selectedExample} onValueChange={handleExampleChange}>
-            <SelectTrigger className="h-7 w-[180px] text-xs">
+            <SelectTrigger className="w-[200px]">
               <SelectValue placeholder="Load example…" />
             </SelectTrigger>
             <SelectContent>
@@ -102,12 +108,12 @@ export function DynamicUIPlayground({ open, onOpenChange }: DynamicUIPlaygroundP
             </SelectContent>
           </Select>
           <div className="flex-1" />
-          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleImport}>
-            <Upload className="w-3.5 h-3.5 mr-1" />
+          <Button variant="ghost" size="sm" onClick={handleImport}>
+            <Upload strokeWidth={1.75} />
             Import
           </Button>
-          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleExport}>
-            <Download className="w-3.5 h-3.5 mr-1" />
+          <Button variant="ghost" size="sm" onClick={handleExport}>
+            <Download strokeWidth={1.75} />
             Export
           </Button>
         </div>
@@ -117,14 +123,14 @@ export function DynamicUIPlayground({ open, onOpenChange }: DynamicUIPlaygroundP
         <ResizablePanelGroup orientation="horizontal" className="h-full">
           {/* Left pane: JSON editor */}
           <ResizablePanel defaultSize="45%" minSize="25%">
-            <div className="h-full flex flex-col">
-              <div className="px-3 py-1.5 text-[11px] font-medium text-muted-foreground border-b border-border/40 bg-muted/30">
+            <div className="flex h-full flex-col pb-3 pl-3 pr-2">
+              <div className={cn(PANE_HEADING_CLASS, GROUP_LABEL_CLASS)}>
                 JSON Schema
               </div>
               <Textarea
                 value={jsonText}
                 onChange={(e) => setJsonText(e.target.value)}
-                className="flex-1 rounded-none border-0 resize-none font-mono text-xs leading-relaxed focus-visible:ring-0 bg-background"
+                className={cn(PANE_CLASS, 'flex-1 resize-none px-3.5 py-3 text-xs leading-relaxed shadow-none focus-visible:border-accent-solid/50 focus-visible:ring-0 md:text-xs')}
                 spellCheck={false}
                 data-testid="json-editor"
               />
@@ -135,20 +141,20 @@ export function DynamicUIPlayground({ open, onOpenChange }: DynamicUIPlaygroundP
 
           {/* Right pane: Live preview */}
           <ResizablePanel defaultSize="55%" minSize="25%">
-            <div className="h-full flex flex-col">
-              <div className="px-3 py-1.5 text-[11px] font-medium text-muted-foreground border-b border-border/40 bg-muted/30">
+            <div className="flex h-full min-w-0 flex-col">
+              <div className={cn(PANE_HEADING_CLASS, GROUP_LABEL_CLASS, 'pl-4')}>
                 Live Preview
               </div>
-              <ScrollArea className="flex-1">
-                <div className="p-4">
+              <ScrollArea className="min-h-0 flex-1">
+                <div className="px-4 pb-4">
                   {parseResult.valid && parseResult.view ? (
                     <DynamicViewRenderer view={parseResult.view} />
                   ) : (
-                    <div className="flex items-start gap-2 p-3 rounded-md bg-destructive/10 text-destructive text-xs">
-                      <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-                      <div>
-                        <p className="font-medium mb-1">Validation Error</p>
-                        <p className="font-mono text-[11px] break-all">{parseResult.error}</p>
+                    <div className="flex items-start gap-3 rounded-[20px] border border-danger/30 bg-danger/10 px-4 py-3.5 text-xs text-danger">
+                      <AlertCircle className="mt-0.5 h-[18px] w-[18px] shrink-0" strokeWidth={1.75} />
+                      <div className="min-w-0">
+                        <p className="mb-1 text-[13px] font-semibold">Validation Error</p>
+                        <p className="break-all font-mono text-[11px] text-label-2">{parseResult.error}</p>
                       </div>
                     </div>
                   )}
@@ -172,7 +178,7 @@ export function DynamicUIPlayground({ open, onOpenChange }: DynamicUIPlaygroundP
               <span>Invalid</span>
             </>
           )}
-          <Badge variant="outline" className="text-[10px] h-4.5">
+          <Badge variant="secondary">
             Widgets: {parseResult.widgetCount}
           </Badge>
         </div>

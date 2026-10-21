@@ -1,0 +1,1 @@
+Fluent UI System Icons by Microsoft (https://github.com/microsoft/fluentui-system-icons), MIT License.

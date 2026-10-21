@@ -958,6 +958,59 @@ None (all changes to existing files).
 
 ---
 
+## EX8: LumenOS v3 Design System
+
+> Glass redesign from the Claude Design handoff (`Custom OS UI Design/handoff/`). Spec: [phase-ex8.md](phases/phase-ex8.md).
+
+### EX8.1: Tokens + appearance plumbing
+- **Status:** ✅ Complete
+- **Files created:** `client/src/lib/lumen-theme.ts`, `client/src/hooks/useLumenAppearance.ts`, `client/tests/lib/lumen-theme.test.ts`, `client/public/icons/fluent/*` (+ LICENSE.txt), six wallpapers in `server/assets/wallpapers/system/`
+- **Files modified:** `client/src/styles.css` (Lumen layer, presets, surfaces in `@layer components`), `store/preferences-store.ts` (`glassStrength`, `transparency`; `accentColorIndex` → `LUMEN_ACCENTS`), `store/theme-store.ts`, `App.tsx`, `Desktop/Wallpaper.tsx`, `Desktop/wallpapers.ts` (default Dusk), `client/package.json` (@fontsource)
+
+### EX8.2–EX8.3: Primitives + window chrome
+- **Status:** ✅ Complete
+- **Files created:** `ui/menu-styles.tsx`, `ui/pane-sidebar.tsx`, `lib/format-shortcut.ts` (+ test)
+- **Files modified:** all styled `ui/` primitives, `ui/FileIcon.tsx` (Fluent icons, `AppIcon`), `ui/app-window.tsx`, `Desktop/Window.tsx`, `store/window-store.ts` (`DOCK_RESERVE`), `Desktop/DesktopLayout.tsx`
+
+### EX8.4–EX8.5: Shell, lock and sign-in
+- **Status:** ✅ Complete
+- **Files created:** `Desktop/QuickSettings.tsx`
+- **Files modified:** `Desktop/{Taskbar,StartMenu,NotificationCenter,CommandPalette,Desktop,SessionSwitcher,SessionTile,WindowManager}.tsx`, `ui/sonner.tsx`, `lib/event-bus.ts` (`palette:toggle`), `Login/*`, `ControlCenter/*`; test `tests/components/CommandPalette.test.tsx` (+2)
+
+### EX8.6: Apps
+- **Status:** ✅ Complete
+- **Files created:** `TaskManager/{parts,ProcessDetailCard}.tsx`, `Dashboard/{parts,ProcessorCard}.tsx`, `ServerAdmin/admin-ui.tsx`, `DynamicUI/widgets/widget-card.tsx`, `Agent/agent-ui.tsx`, `Terminal/lumen-terminal.ts`, `server/src/terminal/control.ts`; tests `client/tests/components/{process-detail,lumen-terminal}.test.tsx`, `server/tests/terminal/control.test.ts`
+- **Files modified:** every app folder (FileExplorer, Settings, TaskManager, Dashboard, Terminal, Docker, Services, ServerAdmin, DynamicUI, Agent, Observatory, Fleet); `server/src/routes/{taskmanager,terminal}.ts`, `server/src/services/domain/taskmanager-service.ts`, `server/src/security/validators.ts`, `server/tests/services/domain/taskmanager-service.test.ts`
+
+### EX8.7: Verification
+- **Status:** ✅ Complete
+- **Verification:** client 564 / server 2010 tests passing, both typechecks clean; Playwright side-by-side vs the prototype (13 screens × 2 themes at 1440×900, plus 1024×768); docs: `UI_DESIGN.md` §5–8, AGENTS.md §19 tokens
+- **Commits:** branch `feat/lumen-v3-design` (`feat|fix(EX8.n): …`)
+
+### EX8.8: Code editor (Monaco)
+- **Status:** ✅ Complete
+- **Files created:** `client/src/components/ui/{code-editor,code-editor-impl}.tsx`, `client/src/lib/{code-language,monaco-setup}.ts`, `client/src/monaco-workers.d.ts`; tests `client/tests/lib/code-language.test.ts`, `client/tests/components/code-editor.test.tsx`
+- **Files modified:** `FileExplorer/FileViewer.tsx`, `Docker/ContainerFilesView.tsx`, `client/package.json` (`monaco-editor` 0.57.0, exact)
+- **Verification:** Playwright — TS / JSON / nginx.conf in Files (dark + light), container Files editor, JSON worker flags a trailing comma, modified badge + Save; `vite build` emits the lazy editor chunk and per-language workers
+
+### EX8.9: Task Manager — App history, Startup apps, Users, Services
+- **Status:** ✅ Complete
+- **Files created:** client `TaskManager/{AppHistoryTab,StartupTab,UsersTab,ServicesTab,kit}.tsx`, test `client/tests/components/taskmanager-pages.test.tsx`; server `services/domain/init-system.ts`, `parsers/deterministic/{systemd-analyze,sysv-init,app-usage,user-sessions,startup-items}.ts`, tests `server/tests/parsers/{systemd-analyze,sysv-init,app-usage,user-sessions,startup-items}.test.ts`, `server/tests/services/domain/taskmanager-pages.test.ts`, `server/tests/routes/{taskmanager,services-route}.test.ts`, `server/tests/security/ex89-allowlist.test.ts`
+- **Files modified:** `TaskManager/TaskManagerView.tsx`, `client/src/lib/api.ts`; server `services/domain/{taskmanager-service,systemd-service,base}.ts`, `routes/{taskmanager,services}.ts`, `parsers/deterministic/systemctl.ts`, `parsers/schemas/{taskmanager,services}.ts`, `security/validators.ts`, `tests/services/domain/systemd-service.test.ts`
+- **Verification:** client 593 / server 2154 tests; Playwright of the four pages on the SysV dev box
+
+### EX8.10: HomeHub
+- **Status:** ✅ Complete
+- **Files created:** `client/src/components/HomeHub/{HomeHub,cards,hub-ui}.tsx`, `client/public/icons/hub/*` (34 SVG + LICENSE), `client/public/hub/*.jpg`, test `client/tests/components/home-hub.test.tsx`
+- **Files modified:** `store/window-store.ts` (`homeHubOpen`, `toggleHomeHub`, `closeHomeHub`), `Desktop/Taskbar.tsx` (well: Launcher `Grip` · Home `House` · Search), `Desktop/DesktopLayout.tsx`, `styles.css` (keyframes)
+- **Verification:** pixel diff vs the prototype per card; Playwright interactions (gauge drag 18°→24°, power, play, rooms, Escape and backdrop close)
+
+### EX8.15: HomeHub glance
+- **Status:** ✅ Complete
+- **Files created:** `server/src/routes/glance.ts`, `server/tests/routes/glance.test.ts`, `client/src/components/HomeHub/glance.tsx`, `client/src/components/Desktop/WeatherCityPicker.tsx`
+- **Files modified:** `server/src/index.ts`, `HomeHub/{HomeHub,cards,hub-ui}.tsx`, `Desktop/{DesktopLayout,SettingsView}.tsx`, `lib/api.ts`, `store/preferences-store.ts`, `client/tests/components/home-hub.test.tsx`
+- **Verification:** client 611 / server 2159 tests; Playwright of every card on the dev box
+
 ## How to Use This File
 
 ### After completing a task:

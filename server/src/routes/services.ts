@@ -21,7 +21,12 @@ export async function servicesRoutes(
     async (req, reply) => {
       const r = await systemdService.listServices(req.params.id);
       if (!r.ok) { reply.code(r.statusCode ?? 500); return { success: false, error: r.error }; }
-      return { success: true, data: r.data!.services, systemdAvailable: r.data!.systemdAvailable };
+      return {
+        success: true,
+        data: r.data!.services,
+        systemdAvailable: r.data!.systemdAvailable,
+        init: r.data!.init, // EX8.9
+      };
     },
   );
 

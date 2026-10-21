@@ -1,5 +1,6 @@
 // File Properties Dialog — Windows 11-style properties overlay
 // Shows complete file/folder metadata fetched via SFTP stat
+// EX8.6: LumenOS v3 — relies on the glass AppWindow; inner text uses tokens only.
 
 import { useState, useEffect } from 'react';
 import { Info, FileText, Folder, Link2, HardDrive } from 'lucide-react';
@@ -71,7 +72,7 @@ export function FileProperties({
         {loading ? (
           <LoadingSkeleton />
         ) : error ? (
-          <div className="flex items-center justify-center h-full text-sm text-destructive">
+          <div className="flex h-full items-center justify-center text-[13px] text-danger">
             {error}
           </div>
         ) : stat ? (
@@ -86,10 +87,10 @@ export function FileProperties({
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-foreground truncate">
+                <p className="truncate text-[15px] font-bold text-foreground">
                   {stat.name}
                 </p>
-                <p className="text-xs text-muted-foreground truncate">
+                <p className="truncate text-xs text-muted-foreground">
                   {getFileTypeDescription(stat)}
                 </p>
               </div>
@@ -129,8 +130,8 @@ export function FileProperties({
           </div>
         ) : null}
       </AppWindow.Body>
-      <AppWindow.Footer className="justify-end gap-2 py-3 px-4">
-        <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+      <AppWindow.Footer className="justify-end gap-2 px-4 py-3">
+        <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)}>
           Close
         </Button>
       </AppWindow.Footer>
@@ -151,9 +152,9 @@ function PropertyRow({
 }) {
   return (
     <div className="flex items-start gap-2 text-[13px]">
-      {Icon && <Icon className="w-3.5 h-3.5 mt-0.5 shrink-0 text-muted-foreground opacity-70" />}
-      <span className="shrink-0 w-24 text-muted-foreground">{label}:</span>
-      <span className="text-foreground break-all min-w-0 select-text">{value}</span>
+      {Icon && <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-label-3" />}
+      <span className="w-24 shrink-0 text-muted-foreground">{label}:</span>
+      <span className="min-w-0 select-text break-all text-foreground">{value}</span>
     </div>
   );
 }
@@ -162,7 +163,7 @@ function LoadingSkeleton() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <Skeleton className="w-10 h-10 rounded" />
+        <Skeleton className="h-10 w-10 rounded-[10px]" />
         <div className="flex-1 space-y-2">
           <Skeleton className="h-4 w-40" />
           <Skeleton className="h-3 w-24" />

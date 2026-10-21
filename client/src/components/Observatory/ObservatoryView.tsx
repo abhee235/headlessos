@@ -1,4 +1,5 @@
 // EX4-D.1: Observatory View — main entry point
+// EX8.6: transparent on the window glass, token status colours
 // @see docs/phases/phase-ex4.md
 
 import { useEffect } from 'react';
@@ -31,32 +32,32 @@ export function ObservatoryView() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-[rgb(var(--background))]">
+    <div className="flex h-full flex-col">
       {/* Stats panel at top */}
       <StatsPanel />
 
       {/* Trace list fills remaining space */}
-      <div className="flex-1 overflow-hidden">
+      <div className="min-h-0 flex-1 overflow-hidden">
         <TraceListView />
       </div>
 
       {/* WS status indicator */}
-      <div className="flex items-center gap-1.5 px-3 py-1 border-t border-[rgb(var(--border))] text-xs text-[rgb(var(--muted-foreground))]">
+      <div className="flex min-h-9 shrink-0 items-center gap-1.5 border-t border-border px-4 py-1.5 text-xs text-label-2">
         {status === 'connected' && (
           <>
-            <Wifi className="w-3 h-3 text-emerald-500" />
+            <Wifi className="h-3.5 w-3.5 text-success" strokeWidth={1.75} />
             <span>Live</span>
           </>
         )}
         {status === 'connecting' && (
           <>
-            <Spinner className="w-3 h-3" />
+            <Spinner className="h-[18px] w-[18px] text-accent-solid" />
             <span>Connecting...</span>
           </>
         )}
         {status === 'disconnected' && (
           <>
-            <WifiOff className="w-3 h-3 text-red-500" />
+            <WifiOff className="h-3.5 w-3.5 text-danger" strokeWidth={1.75} />
             <span>Disconnected</span>
           </>
         )}

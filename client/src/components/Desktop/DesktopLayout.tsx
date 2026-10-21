@@ -3,14 +3,19 @@
 
 import { useEffect } from 'react';
 import { useAppStore } from '../../store/app-store';
-import { useDesktopStore, type SnapZone } from '../../store/window-store';
+import { useDesktopStore, TOP_RESERVE, useDockInsets, type SnapZone } from '../../store/window-store';
 import { initWindowSessionSync } from '../../store/window-session-sync';
 import { initAppSessionBridge } from '../../store/app-session-bridge';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useSessionShortcuts } from '../../hooks/useSessionShortcuts';
 import { useAutoHibernate } from '../../hooks/useAutoHibernate';
+import { useIdleGlance } from '../../hooks/useIdleGlance';
 import { Desktop } from './Desktop';
 import { Taskbar } from './Taskbar';
+import { MenuBar } from './MenuBar';
+import { HomeHub } from '../HomeHub/HomeHub';
+import { usePreferencesStore } from '../../store/preferences-store';
+import { displayBrightness } from '../../lib/display-level';
 import { StartMenu } from './StartMenu';
 import { WindowManager } from './WindowManager';
 import { CommandPalette } from './CommandPalette';
@@ -23,26 +28,53 @@ import { Toaster } from '@/components/ui/sonner';
 
 // ── Snap Preview Overlay ────────────────────────────────
 
+// ── EX8.15: Display level + night light (Home hub → Display) ──
+// Layers over everything, so the hub changes too while its slider is dragged.
+
+function DisplayFilter() {
+  const level = usePreferencesStore((s) => s.displayLevel);
+  const night = usePreferencesStore((s) => s.nightLight);
+  const b = displayBrightness(level);
+  return (
+    <>
+      {night && (
+        <div aria-hidden className="pointer-events-none fixed inset-0 z-[10080] mix-blend-multiply" style={{ background: 'rgba(255,164,82,.24)' }} />
+      )}
+      {level !== 50 && (
+        <div
+          aria-hidden
+          data-testid="display-level"
+          className="pointer-events-none fixed inset-0 z-[10081]"
+          style={{ backdropFilter: `brightness(${b.toFixed(3)})`, WebkitBackdropFilter: `brightness(${b.toFixed(3)})` }}
+        />
+      )}
+    </>
+  );
+}
+
 function SnapPreview({ zone }: { zone: SnapZone }) {
+  const { bottom: taskbarH, right } = useDockInsets();
   if (!zone) return null;
 
-  const taskbarH = 56;
+  const top = TOP_RESERVE;
+  const half = `calc(50% - ${(taskbarH + top) / 2}px)`;
+  const halfW = `calc(50% - ${right / 2}px)`;
   const style: React.CSSProperties = (() => {
     switch (zone) {
       case 'maximize':
-        return { top: 0, left: 0, right: 0, bottom: taskbarH };
+        return { top, left: 0, right, bottom: taskbarH };
       case 'left':
-        return { top: 0, left: 0, width: '50%', bottom: taskbarH };
+        return { top, left: 0, width: halfW, bottom: taskbarH };
       case 'right':
-        return { top: 0, right: 0, width: '50%', bottom: taskbarH };
+        return { top, right, width: halfW, bottom: taskbarH };
       case 'top-left':
-        return { top: 0, left: 0, width: '50%', height: `calc(50% - ${taskbarH / 2}px)` };
+        return { top, left: 0, width: halfW, height: half };
       case 'top-right':
-        return { top: 0, right: 0, width: '50%', height: `calc(50% - ${taskbarH / 2}px)` };
+        return { top, right, width: halfW, height: half };
       case 'bottom-left':
-        return { bottom: taskbarH, left: 0, width: '50%', height: `calc(50% - ${taskbarH / 2}px)` };
+        return { bottom: taskbarH, left: 0, width: halfW, height: half };
       case 'bottom-right':
-        return { bottom: taskbarH, right: 0, width: '50%', height: `calc(50% - ${taskbarH / 2}px)` };
+        return { bottom: taskbarH, right, width: halfW, height: half };
       default:
         return {};
     }
@@ -50,7 +82,7 @@ function SnapPreview({ zone }: { zone: SnapZone }) {
 
   return (
     <div
-      className="fixed z-[9999] pointer-events-none rounded-2xl border-2 border-primary/40 bg-primary/10 backdrop-blur-sm transition-all duration-150 ease-out"
+      className="fixed z-[9999] pointer-events-none m-2 rounded-[24px] border-2 border-accent-solid/45 bg-accent-soft backdrop-blur-sm transition-all duration-150 ease-out"
       style={style}
     />
   );
@@ -83,6 +115,7 @@ export function DesktopLayout() {
 
   // EX6-D.5: Auto-hibernate inactive background sessions when configured
   useAutoHibernate();
+  useIdleGlance(); // EX8.17: Home hub as the idle privacy screen
 
   return (
     <TooltipProvider delayDuration={400}>
@@ -99,8 +132,17 @@ export function DesktopLayout() {
         {/* Start Menu — pops up above taskbar */}
         <StartMenu />
 
+        {/* EX8.11: top menu bar — tray glyphs, date and time */}
+        <MenuBar />
+
         {/* Taskbar — bottom bar */}
         <Taskbar />
+
+        {/* EX8.10: HomeHub smart-home overlay (dock Home button) — above the dock */}
+        <HomeHub />
+
+        {/* EX8.15: brightness / night light layers */}
+        <DisplayFilter />
 
         {/* Snap zone preview */}
         <SnapPreview zone={snapPreview} />

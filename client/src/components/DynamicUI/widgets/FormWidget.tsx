@@ -1,10 +1,10 @@
 // EX1.15: FormWidget — renders editable form fields from schema
+// EX8.6: Lumen card, pill fields, 11px group labels
 // @see docs/phases/phase-ex1.md
 
 import { useState, useCallback, useMemo } from 'react';
 import type { z } from 'zod';
 import type { FormWidgetSchema, FormFieldSchema } from 'headlessos-shared/schemas/dynamic-view';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,6 +17,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
+import { GROUP_LABEL_CLASS, TEXTAREA_FIELD_CLASS, WidgetCard } from './widget-card';
 
 type FormWidgetType = z.infer<typeof FormWidgetSchema>;
 type FormField = z.infer<typeof FormFieldSchema>;
@@ -146,44 +148,37 @@ export function FormWidget({ widget, onSubmit }: FormWidgetProps) {
   }, [fields, groups]);
 
   return (
-    <Card>
-      {title && (
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        </CardHeader>
-      )}
-      <CardContent className={title ? 'pt-0' : 'pt-4'}>
-        <div className="space-y-6">
-          {groupedFields.map((group, groupIdx) => (
-            <div key={groupIdx}>
-              {group.label && (
-                <h4 className="mb-3 text-sm font-medium text-muted-foreground">
-                  {group.label}
-                </h4>
-              )}
-              <div className="space-y-4">
-                {group.fields.map((field) => (
-                  <FieldRenderer
-                    key={field.key}
-                    field={field}
-                    value={values[field.key] ?? ''}
-                    error={submitted ? errors[field.key] : undefined}
-                    readOnly={readOnly}
-                    onChange={(v) => setValue(field.key, v)}
-                  />
-                ))}
-              </div>
+    <WidgetCard title={title}>
+      <div className="space-y-6">
+        {groupedFields.map((group, groupIdx) => (
+          <div key={groupIdx}>
+            {group.label && (
+              <h4 className={cn('mb-3', GROUP_LABEL_CLASS)}>
+                {group.label}
+              </h4>
+            )}
+            <div className="space-y-4">
+              {group.fields.map((field) => (
+                <FieldRenderer
+                  key={field.key}
+                  field={field}
+                  value={values[field.key] ?? ''}
+                  error={submitted ? errors[field.key] : undefined}
+                  readOnly={readOnly}
+                  onChange={(v) => setValue(field.key, v)}
+                />
+              ))}
             </div>
-          ))}
+          </div>
+        ))}
 
-          {!readOnly && (
-            <Button onClick={handleSubmit} size="sm">
-              {submitLabel}
-            </Button>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+        {!readOnly && (
+          <Button onClick={handleSubmit} size="sm" className="px-4">
+            {submitLabel}
+          </Button>
+        )}
+      </div>
+    </WidgetCard>
   );
 }
 
@@ -206,9 +201,9 @@ function FieldRenderer({
 
   return (
     <div className="space-y-1.5">
-      <Label htmlFor={id} className="text-xs">
+      <Label htmlFor={id} className="text-xs font-semibold text-label-2">
         {field.label}
-        {field.required && <span className="ml-0.5 text-destructive">*</span>}
+        {field.required && <span className="ml-0.5 text-danger">*</span>}
       </Label>
 
       {field.type === 'boolean' ? (
@@ -220,7 +215,7 @@ function FieldRenderer({
             disabled={readOnly}
           />
           {field.description && (
-            <span className="text-xs text-muted-foreground">{field.description}</span>
+            <span className="text-xs text-label-3">{field.description}</span>
           )}
         </div>
       ) : field.type === 'select' ? (
@@ -229,12 +224,12 @@ function FieldRenderer({
           onValueChange={(v) => onChange(v)}
           disabled={readOnly}
         >
-          <SelectTrigger id={id} className="h-8 text-xs">
+          <SelectTrigger id={id}>
             <SelectValue placeholder={field.placeholder ?? 'Select...'} />
           </SelectTrigger>
           <SelectContent>
             {(field.options ?? []).map((opt) => (
-              <SelectItem key={opt.value} value={opt.value} className="text-xs">
+              <SelectItem key={opt.value} value={opt.value}>
                 {opt.label}
               </SelectItem>
             ))}
@@ -247,7 +242,7 @@ function FieldRenderer({
           placeholder={field.placeholder ?? undefined}
           onChange={(e) => onChange(e.target.value)}
           disabled={readOnly}
-          className="text-xs min-h-[80px]"
+          className={cn(TEXTAREA_FIELD_CLASS, 'min-h-[80px]')}
         />
       ) : field.type === 'number' ? (
         <Input
@@ -257,7 +252,6 @@ function FieldRenderer({
           placeholder={field.placeholder ?? undefined}
           onChange={(e) => onChange(e.target.value === '' ? '' : Number(e.target.value))}
           disabled={readOnly}
-          className="h-8 text-xs"
           min={field.min ?? undefined}
           max={field.max ?? undefined}
         />
@@ -270,16 +264,15 @@ function FieldRenderer({
           placeholder={field.placeholder ?? undefined}
           onChange={(e) => onChange(e.target.value)}
           disabled={readOnly}
-          className="h-8 text-xs"
         />
       )}
 
       {field.type !== 'boolean' && field.description && (
-        <p className="text-xs text-muted-foreground">{field.description}</p>
+        <p className="text-xs text-label-3">{field.description}</p>
       )}
 
       {error && (
-        <p className="text-xs text-destructive">{error}</p>
+        <p className="text-xs text-danger">{error}</p>
       )}
     </div>
   );

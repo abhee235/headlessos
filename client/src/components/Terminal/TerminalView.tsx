@@ -2,16 +2,16 @@
 // M7.1: Reads terminal preferences from preferences-store
 // M5.6b: Loading state, context menu, reconnect UI, theme-aware colors
 // EX1.11: Terminal buffer capture + "Visualize" button
-// @see docs/phases/phase-1.md, docs/phases/phase-ex1.md
+// EX8.6: LumenOS v3 look — inset paper pane, Geist Mono, token-driven xterm theme
+// @see docs/phases/phase-1.md, docs/phases/phase-ex1.md, docs/phases/phase-ex8.md
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { terminalWsUrl } from '../../lib/api';
 import { usePreferencesStore } from '../../store/preferences-store';
-import { useThemeStore } from '../../store/theme-store';
 import { toast } from 'sonner';
-import { WifiOff, RefreshCw, Copy, ClipboardPaste, Trash2, MousePointerClick, Sparkles } from 'lucide-react';
+import { WifiOff, RotateCw, Copy, ClipboardPaste, Trash2, MousePointerClick, Sparkles } from 'lucide-react';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -21,8 +21,21 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import '@xterm/xterm/css/xterm.css';
-import { Spinner } from '@/components/ui/spinner';
 import { LoadingView } from '@/components/ui/loading-view';
+import { Button } from '@/components/ui/button';
+import {
+  TERMINAL_HOST_CLASS,
+  TERMINAL_PADDING_CLASS,
+  TERMINAL_PANE_CLASS,
+  LUMEN_TERMINAL_LINE_HEIGHT,
+  getLumenTerminalTheme,
+  refitWhenFontReady,
+  resolveTerminalFont,
+  useLumenTerminalTheme,
+} from './lumen-terminal';
+
+/** Hide the connecting spinner after this long even if the shell prints nothing */
+const READY_FALLBACK_MS = 5000;
 
 /** EX1.11: Hint from backend about parseable terminal output */
 interface VisualizeHint {
@@ -34,52 +47,6 @@ interface VisualizeHint {
 }
 
 type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
-
-const DARK_THEME = {
-  background: '#09090b', // zinc-950
-  foreground: '#d4d4d8', // zinc-300
-  cursor: '#60a5fa',     // blue-400
-  selectionBackground: '#3f3f4680',
-  black: '#27272a',
-  red: '#f87171',
-  green: '#4ade80',
-  yellow: '#facc15',
-  blue: '#60a5fa',
-  magenta: '#c084fc',
-  cyan: '#22d3ee',
-  white: '#e4e4e7',
-  brightBlack: '#52525b',
-  brightRed: '#fca5a5',
-  brightGreen: '#86efac',
-  brightYellow: '#fde68a',
-  brightBlue: '#93c5fd',
-  brightMagenta: '#d8b4fe',
-  brightCyan: '#67e8f9',
-  brightWhite: '#fafafa',
-};
-
-const LIGHT_THEME = {
-  background: '#fafafa',  // zinc-50
-  foreground: '#18181b',  // zinc-900
-  cursor: '#2563eb',      // blue-600
-  selectionBackground: '#93c5fd80',
-  black: '#18181b',
-  red: '#dc2626',
-  green: '#16a34a',
-  yellow: '#ca8a04',
-  blue: '#2563eb',
-  magenta: '#9333ea',
-  cyan: '#0891b2',
-  white: '#f4f4f5',
-  brightBlack: '#71717a',
-  brightRed: '#ef4444',
-  brightGreen: '#22c55e',
-  brightYellow: '#eab308',
-  brightBlue: '#3b82f6',
-  brightMagenta: '#a855f7',
-  brightCyan: '#06b6d4',
-  brightWhite: '#ffffff',
-};
 
 interface TerminalViewProps {
   serverId: string;
@@ -106,7 +73,6 @@ export function TerminalView({ serverId, onVisualize, containerId }: TerminalVie
   const cursorStyle = usePreferencesStore((s) => s.terminalCursorStyle);
   const scrollback = usePreferencesStore((s) => s.terminalScrollback);
   const copyOnSelect = usePreferencesStore((s) => s.terminalCopyOnSelect);
-  const theme = useThemeStore((s) => s.resolvedTheme);
 
   const copyOnSelectRef = useRef(copyOnSelect);
   useEffect(() => {
@@ -130,25 +96,23 @@ export function TerminalView({ serverId, onVisualize, containerId }: TerminalVie
     fitRef.current = null;
   }, []);
 
-  // Theme-aware: update terminal colors when theme changes
-  useEffect(() => {
-    const term = termRef.current;
-    if (!term) return;
-    term.options.theme = theme === 'dark' ? DARK_THEME : LIGHT_THEME;
-  }, [theme]);
+  // Theme-aware: re-read the Lumen tokens when the scheme or accent changes
+  useLumenTerminalTheme(termRef);
 
   // Live-update terminal options when preferences change (without reconnecting)
   useEffect(() => {
     const term = termRef.current;
     if (!term) return;
-    term.options.fontSize = fontSize;
-    term.options.fontFamily = fontFamily;
+    const font = resolveTerminalFont(fontFamily, fontSize);
+    term.options.fontSize = font.fontSize;
+    term.options.fontFamily = font.fontFamily;
     term.options.cursorStyle = cursorStyle;
     term.options.scrollback = scrollback === -1 ? 999999 : scrollback;
     // Refit after font change
     requestAnimationFrame(() => {
       fitRef.current?.fit();
     });
+    refitWhenFontReady(term, () => fitRef.current?.fit());
   }, [fontSize, fontFamily, cursorStyle, scrollback]);
 
   const connect = useCallback(() => {
@@ -157,13 +121,15 @@ export function TerminalView({ serverId, onVisualize, containerId }: TerminalVie
     cleanup();
     setStatus('connecting');
 
-    const termTheme = theme === 'dark' ? DARK_THEME : LIGHT_THEME;
+    const font = resolveTerminalFont(fontFamily, fontSize);
 
     // Create terminal
     const term = new Terminal({
-      theme: termTheme,
-      fontFamily,
-      fontSize,
+      theme: getLumenTerminalTheme(),
+      fontFamily: font.fontFamily,
+      fontSize: font.fontSize,
+      lineHeight: LUMEN_TERMINAL_LINE_HEIGHT,
+      allowTransparency: true,
       cursorStyle,
       cursorBlink: true,
       scrollback: scrollback === -1 ? 999999 : scrollback,
@@ -178,6 +144,7 @@ export function TerminalView({ serverId, onVisualize, containerId }: TerminalVie
     requestAnimationFrame(() => {
       fitAddon.fit();
     });
+    refitWhenFontReady(term, () => fitAddon.fit());
 
     // Copy-on-select: auto-copy selected text to clipboard
     term.onSelectionChange(() => {
@@ -198,8 +165,20 @@ export function TerminalView({ serverId, onVisualize, containerId }: TerminalVie
     ws.binaryType = 'arraybuffer';
     wsRef.current = ws;
 
-    ws.onopen = () => {
+    // The spinner stays up until the shell prints its first byte (a container
+    // shell takes a moment after the socket opens), with a fallback for a
+    // shell that prints nothing.
+    let ready = false;
+    let readyTimer: ReturnType<typeof setTimeout> | undefined;
+    const markReady = () => {
+      if (ready) return;
+      ready = true;
+      clearTimeout(readyTimer);
       setStatus('connected');
+    };
+
+    ws.onopen = () => {
+      readyTimer = setTimeout(markReady, READY_FALLBACK_MS);
 
       // Instead of AttachAddon, handle messages manually to intercept JSON control messages
       ws.onmessage = (event) => {
@@ -225,8 +204,10 @@ export function TerminalView({ serverId, onVisualize, containerId }: TerminalVie
           } catch {
             // Not JSON — write to terminal as normal text
           }
+          markReady();
           term.write(data);
         } else if (data instanceof ArrayBuffer) {
+          markReady();
           term.write(new Uint8Array(data));
         }
       };
@@ -246,11 +227,13 @@ export function TerminalView({ serverId, onVisualize, containerId }: TerminalVie
     };
 
     ws.onerror = () => {
+      clearTimeout(readyTimer);
       setStatus('error');
       term.writeln('\r\n\x1b[31m[Connection error]\x1b[0m');
     };
 
     ws.onclose = () => {
+      clearTimeout(readyTimer);
       setStatus('disconnected');
       term.writeln('\r\n\x1b[33m[Disconnected]\x1b[0m');
     };
@@ -273,9 +256,10 @@ export function TerminalView({ serverId, onVisualize, containerId }: TerminalVie
     resizeObserver.observe(containerRef.current);
 
     return () => {
+      clearTimeout(readyTimer);
       resizeObserver.disconnect();
     };
-  }, [serverId, cleanup, theme, fontFamily, fontSize, cursorStyle, scrollback]);
+  }, [serverId, cleanup, fontFamily, fontSize, cursorStyle, scrollback]);
 
   useEffect(() => {
     const cleanupResize = connect();
@@ -331,91 +315,95 @@ export function TerminalView({ serverId, onVisualize, containerId }: TerminalVie
   const isDisconnected = status === 'disconnected' || status === 'error';
 
   return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>
-        <div className="relative w-full h-full">
-          {/* Terminal container */}
-          <div
-            ref={containerRef}
-            className="w-full h-full"
-            style={{ padding: '0 4px' }}
-          />
-
-          {/* Loading overlay */}
-          {status === 'connecting' && (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-10">
-              <LoadingView label="Connecting…" />
+    <div className="h-full w-full px-2 pb-2">
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div className={`${TERMINAL_PANE_CLASS} h-full w-full`}>
+            {/* Terminal container */}
+            <div className={TERMINAL_PADDING_CLASS}>
+              <div ref={containerRef} className={TERMINAL_HOST_CLASS} />
             </div>
-          )}
 
-          {/* Disconnected banner */}
+            {/* Loading overlay */}
+            {status === 'connecting' && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center">
+                <LoadingView
+                  label={containerId ? 'Opening container shell…' : 'Connecting…'}
+                  className="text-term-fg/80"
+                />
+              </div>
+            )}
+
+            {/* Disconnected banner */}
+            {isDisconnected && (
+              <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex justify-center px-3">
+                <div className="glass-heavy pointer-events-auto flex h-10 items-center gap-2.5 rounded-full pl-3.5 pr-1.5">
+                  <WifiOff className="size-4 shrink-0 text-danger" strokeWidth={1.75} />
+                  <span className="text-[12px] font-medium text-label-2">
+                    {status === 'error' ? 'Connection error' : 'Disconnected'}
+                  </span>
+                  <Button variant="secondary" size="sm" onClick={handleReconnect}>
+                    <RotateCw strokeWidth={1.75} />
+                    Reconnect
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* EX1.11: Visualize button — appears when parseable output detected */}
+            {visualizeHint && onVisualize && (
+              <div className="absolute bottom-3 right-3 z-10 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    onVisualize(visualizeHint.rawOutput, visualizeHint.suggestedTool);
+                    setVisualizeHint(null);
+                    if (visualizeTimerRef.current) clearTimeout(visualizeTimerRef.current);
+                  }}
+                  className="shadow-glass backdrop-blur-xl"
+                  title={`Detected ${visualizeHint.pattern} output (${visualizeHint.lineCount} lines)`}
+                >
+                  <Sparkles className="text-accent-solid" strokeWidth={1.75} />
+                  Visualize
+                </Button>
+              </div>
+            )}
+          </div>
+        </ContextMenuTrigger>
+
+        <ContextMenuContent>
+          <ContextMenuItem onClick={handleCopy}>
+            <Copy strokeWidth={1.75} />
+            Copy
+            <ContextMenuShortcut>⌘C</ContextMenuShortcut>
+          </ContextMenuItem>
+          <ContextMenuItem onClick={handlePaste}>
+            <ClipboardPaste strokeWidth={1.75} />
+            Paste
+            <ContextMenuShortcut>⌘V</ContextMenuShortcut>
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={handleSelectAll}>
+            <MousePointerClick strokeWidth={1.75} />
+            Select All
+            <ContextMenuShortcut>⌘A</ContextMenuShortcut>
+          </ContextMenuItem>
+          <ContextMenuItem onClick={handleClear}>
+            <Trash2 strokeWidth={1.75} />
+            Clear
+          </ContextMenuItem>
           {isDisconnected && (
-            <div className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-3 py-2 px-4 bg-destructive/10 border-t border-destructive/20 z-10">
-              <WifiOff className="w-4 h-4 text-destructive" />
-              <span className="text-xs text-destructive">
-                {status === 'error' ? 'Connection error' : 'Disconnected'}
-              </span>
-              <button
-                onClick={handleReconnect}
-                className="flex items-center gap-1 px-2.5 py-1 text-xs rounded bg-secondary hover:bg-accent text-secondary-foreground"
-              >
-                <RefreshCw className="w-3 h-3" />
+            <>
+              <ContextMenuSeparator />
+              <ContextMenuItem onClick={handleReconnect}>
+                <RotateCw strokeWidth={1.75} />
                 Reconnect
-              </button>
-            </div>
+              </ContextMenuItem>
+            </>
           )}
-
-          {/* EX1.11: Visualize button — appears when parseable output detected */}
-          {visualizeHint && onVisualize && (
-            <div className="absolute bottom-2 right-3 z-10 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <button
-                onClick={() => {
-                  onVisualize(visualizeHint.rawOutput, visualizeHint.suggestedTool);
-                  setVisualizeHint(null);
-                  if (visualizeTimerRef.current) clearTimeout(visualizeTimerRef.current);
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-primary/90 hover:bg-primary text-primary-foreground shadow-lg backdrop-blur transition-all"
-                title={`Detected ${visualizeHint.pattern} output (${visualizeHint.lineCount} lines)`}
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                Visualize
-              </button>
-            </div>
-          )}
-        </div>
-      </ContextMenuTrigger>
-
-      <ContextMenuContent>
-        <ContextMenuItem onClick={handleCopy}>
-          <Copy className="w-4 h-4 mr-2 opacity-60" />
-          Copy
-          <ContextMenuShortcut>⌘C</ContextMenuShortcut>
-        </ContextMenuItem>
-        <ContextMenuItem onClick={handlePaste}>
-          <ClipboardPaste className="w-4 h-4 mr-2 opacity-60" />
-          Paste
-          <ContextMenuShortcut>⌘V</ContextMenuShortcut>
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem onClick={handleSelectAll}>
-          <MousePointerClick className="w-4 h-4 mr-2 opacity-60" />
-          Select All
-          <ContextMenuShortcut>⌘A</ContextMenuShortcut>
-        </ContextMenuItem>
-        <ContextMenuItem onClick={handleClear}>
-          <Trash2 className="w-4 h-4 mr-2 opacity-60" />
-          Clear
-        </ContextMenuItem>
-        {isDisconnected && (
-          <>
-            <ContextMenuSeparator />
-            <ContextMenuItem onClick={handleReconnect}>
-              <RefreshCw className="w-4 h-4 mr-2 opacity-60" />
-              Reconnect
-            </ContextMenuItem>
-          </>
-        )}
-      </ContextMenuContent>
-    </ContextMenu>
+        </ContextMenuContent>
+      </ContextMenu>
+    </div>
   );
 }

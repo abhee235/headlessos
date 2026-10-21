@@ -1,5 +1,6 @@
 // EX6-C.1 + C.2 + C.4 + C.5: Control Center — pre-desktop landing
-// @see docs/phases/phase-ex6.md
+// EX8.5: LumenOS v3 — blurred wallpaper, glass segmented tabs, glass panels.
+// @see docs/phases/phase-ex6.md, docs/phases/phase-ex8.md
 //
 // Three sections:
 //   1. Sessions — server cards with Resume/Wake/Connect (delegates to LoginScreen flow)
@@ -21,6 +22,7 @@ import { FleetDashboardView } from '../Fleet/FleetDashboardView';
 import { GlobalSettingsSection } from './GlobalSettingsSection';
 import { WakeConfirmDialog } from '../Desktop/WakeConfirmDialog';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { segmentItemClass } from '@/components/ui/segmented';
 
 type Section = 'sessions' | 'fleet' | 'settings';
 
@@ -40,12 +42,12 @@ export function ControlCenter() {
     <div className="fixed inset-0 z-9999 select-none">
       {/* Wallpaper */}
       <Wallpaper />
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-md" />
+      <div className="absolute inset-0 backdrop-blur-[44px] backdrop-saturate-150" />
 
       {/* Top tab bar (segmented control style, glassmorphism) */}
       <header className="absolute left-0 right-0 top-0 z-10 flex items-center justify-between px-6 py-4">
-        <div className="flex items-center gap-2 text-white/90">
-          <span className="text-sm font-medium tracking-tight drop-shadow">HeadlessOS Control Center</span>
+        <div className="flex items-center gap-2 text-white">
+          <span className="text-[15px] font-bold tracking-[-0.01em] [text-shadow:0_1px_8px_rgba(0,0,0,.35)]">HeadlessOS Control Center</span>
         </div>
 
         {/* Tabs (centered) */}
@@ -53,7 +55,7 @@ export function ControlCenter() {
           <nav
             role="tablist"
             aria-label="Control Center sections"
-            className="flex items-center gap-1 rounded-full border border-white/15 bg-white/8 p-1 backdrop-blur-xl shadow-lg"
+            className="glass-heavy flex items-center rounded-full p-[2px]"
           >
             {SECTIONS.map(({ id, label, Icon }) => {
               const active = section === id;
@@ -64,15 +66,10 @@ export function ControlCenter() {
                   aria-selected={active}
                   aria-controls={`cc-panel-${id}`}
                   onClick={() => setSection(id)}
-                  className={cn(
-                    'flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium transition-all',
-                    active
-                      ? 'bg-white/95 text-black shadow'
-                      : 'text-white/70 hover:bg-white/10 hover:text-white',
-                  )}
+                  className={segmentItemClass(active)}
                   data-testid={`cc-tab-${id}`}
                 >
-                  <Icon className="h-3.5 w-3.5" />
+                  <Icon className="h-4 w-4" strokeWidth={1.75} />
                   {label}
                 </button>
               );
@@ -85,10 +82,10 @@ export function ControlCenter() {
           <button
             onClick={goToDesktop}
             aria-label="Close Control Center"
-            className="rounded-full p-2 text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+            className="glass-heavy grid h-9 w-9 place-items-center rounded-full transition-colors hover:bg-[#D2483F] hover:text-white"
             data-testid="cc-close"
           >
-            <X className="h-4 w-4" />
+            <X className="h-[18px] w-[18px]" strokeWidth={1.75} />
           </button>
         )}
       </header>
@@ -108,7 +105,7 @@ export function ControlCenter() {
             id="cc-panel-fleet"
             className="h-full overflow-auto px-6 py-6"
           >
-            <div className="mx-auto max-w-7xl rounded-2xl border border-white/10 bg-background/85 p-6 shadow-2xl backdrop-blur-xl">
+            <div className="glass shadow-window mx-auto max-w-7xl rounded-[24px] p-6">
               <FleetDashboardView onServerActivated={goToDesktop} />
             </div>
           </div>
@@ -120,7 +117,7 @@ export function ControlCenter() {
             id="cc-panel-settings"
             className="h-full overflow-auto px-6 py-6"
           >
-            <div className="mx-auto max-w-3xl rounded-2xl border border-white/10 bg-background/85 p-6 shadow-2xl backdrop-blur-xl">
+            <div className="glass shadow-window mx-auto max-w-3xl rounded-[24px] p-6">
               <GlobalSettingsSection />
             </div>
           </div>

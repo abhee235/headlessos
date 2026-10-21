@@ -1,21 +1,18 @@
 // M8.4: Packages Section — full package management (update, upgrade, install, remove, search)
-// @see docs/phases/phase-8.md
+// EX8.6: LumenOS v3 — section header, stat cards, lit segmented tabs, glass table cards.
+// @see docs/phases/phase-8.md, docs/phases/phase-ex8.md
 
 import { useCallback, useEffect, useState, useRef } from 'react';
-import { RefreshCw, AlertCircle, Package, Download, Trash2, ArrowUpCircle, Search, X, RotateCw } from 'lucide-react';
+import { Package, PackageCheck, Download, Trash2, ArrowUpCircle, Search, RotateCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
-  TableCell,
-  TableHead,
   TableHeader,
-  TableRow,
 } from '@/components/ui/table';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { cn } from '@/lib/utils';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import {
   fetchPackageInfo,
   aptUpdate,
@@ -29,12 +26,19 @@ import type { PackageInfo, AptSearchResult } from '@/lib/api';
 import { toast } from 'sonner';
 import { Spinner } from '@/components/ui/spinner';
 import { LoadingView } from '@/components/ui/loading-view';
+import {
+  SectionBody, SectionHeader, RefreshButton, SegmentTabs, SearchField, TableCard, HeadRow, Th, Tr, Td,
+  MonoChip, StatCard, EmptyState, ErrorState,
+} from './admin-ui';
 
 export function PackagesSection({ serverId }: { serverId: string }) {
   const [data, setData] = useState<PackageInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+
+  // Active sub-tab (controlled so the active pill can be lit)
+  const [tab, setTab] = useState('upgradable');
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -199,81 +203,69 @@ export function PackagesSection({ serverId }: { serverId: string }) {
   }
 
   if (error || !data) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 text-foreground/40 gap-3">
-        <AlertCircle size={24} />
-        <span className="text-sm">{error || 'No data'}</span>
-        <Button variant="outline" size="sm" onClick={load}>Retry</Button>
-      </div>
-    );
+    return <ErrorState message={error || 'No data'} onRetry={load} />;
   }
 
   if (!data.available) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-foreground/40 gap-3">
-        <Package size={32} className="opacity-40" />
-        <span className="text-sm">{data.message || 'APT package manager not available'}</span>
-        <span className="text-xs">This section requires a Debian/Ubuntu-based system</span>
-      </div>
+      <SectionBody>
+        <SectionHeader icon={Package} title="Packages" badge={<Badge variant="secondary">Unavailable</Badge>} />
+        <EmptyState
+          icon={Package}
+          title={data.message || 'APT package manager not available'}
+          description="This section requires a Debian/Ubuntu-based system"
+        />
+      </SectionBody>
     );
   }
 
   return (
-    <div className="@container p-6 space-y-4">
+    <SectionBody>
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Package size={22} className="text-primary" />
-          <h2 className="text-xl font-bold text-foreground">Packages</h2>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 text-xs border-border/50"
-            onClick={handleAptUpdate}
-            disabled={!!busy}
-          >
-            {busy === 'update' ? <Spinner className="mr-1" size={14} /> : <RotateCw size={14} className="mr-1" />}
-            Update Lists
-          </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground/30 hover:text-foreground" onClick={load}>
-            <RefreshCw size={16} />
-          </Button>
-        </div>
-      </div>
+      <SectionHeader
+        icon={Package}
+        title="Packages"
+        subtitle={`apt · ${data.totalInstalled.toLocaleString()} installed`}
+        actions={
+          <>
+            <Button
+              variant="default"
+              onClick={handleAptUpdate}
+              disabled={!!busy}
+            >
+              {busy === 'update' ? <Spinner size={16} /> : <RotateCw strokeWidth={1.75} />}
+              Update lists
+            </Button>
+            <RefreshButton onClick={load} />
+          </>
+        }
+      />
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="p-4 bg-muted/20 rounded-lg">
-          <p className="text-xs text-foreground/40">Installed</p>
-          <p className="text-2xl font-bold text-foreground">{data.totalInstalled.toLocaleString()}</p>
-        </div>
-        <div className="p-4 bg-muted/20 rounded-lg">
-          <p className="text-xs text-foreground/40">Upgradable</p>
-          <p className="text-2xl font-bold text-foreground">
-            {data.upgradable.length}
-            {data.upgradable.length > 0 && (
-              <span className={cn('ml-2 text-xs align-middle px-2 py-0.5 rounded-full font-medium', 'bg-amber-500/10 text-amber-600')}>updates available</span>
-            )}
-          </p>
-        </div>
+      <div className="grid grid-cols-2 gap-3">
+        <StatCard label="Installed" value={data.totalInstalled.toLocaleString()} caption="apt packages" />
+        <StatCard
+          label="Upgradable"
+          value={
+            <>
+              {data.upgradable.length}
+              {data.upgradable.length > 0 && (
+                <Badge variant="warning" className="tracking-normal">updates available</Badge>
+              )}
+            </>
+          }
+        />
       </div>
 
       {/* Tabs: Upgradable / Search */}
-      <Tabs defaultValue="upgradable">
-        <TabsList className="h-auto p-1 bg-muted rounded-lg gap-1 w-auto inline-flex">
-          <TabsTrigger value="upgradable" className="rounded-md px-3 py-1.5 text-[13px] font-medium text-foreground/50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all hover:text-foreground/70">
-            Upgradable
-            {data.upgradable.length > 0 && (
-              <span className="ml-1.5 text-[11px] tabular-nums opacity-50">{data.upgradable.length}</span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="search" className="rounded-md px-3 py-1.5 text-[13px] font-medium text-foreground/50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all hover:text-foreground/70">
-            <Search size={14} className="mr-1.5" />
-            Search &amp; Install
-          </TabsTrigger>
-        </TabsList>
+      <Tabs value={tab} onValueChange={setTab}>
+        <SegmentTabs
+          value={tab}
+          items={[
+            { value: 'upgradable', label: 'Upgradable', count: data.upgradable.length > 0 ? data.upgradable.length : undefined },
+            { value: 'search', label: 'Search & install' },
+          ]}
+        />
 
         {/* Upgradable tab */}
         <TabsContent value="upgradable" className="mt-4 space-y-3">
@@ -289,172 +281,161 @@ export function PackagesSection({ serverId }: { serverId: string }) {
                 })}
                 disabled={!!busy}
               >
-                {busy === 'upgrade-all' ? <Spinner className="mr-1" size={14} /> : <ArrowUpCircle size={14} className="mr-1" />}
+                {busy === 'upgrade-all' ? <Spinner size={16} /> : <ArrowUpCircle strokeWidth={1.75} />}
                 Upgrade All ({data.upgradable.length})
               </Button>
             </div>
           )}
 
           {data.upgradable.length === 0 ? (
-            <div className="flex flex-col items-center justify-center text-foreground/30 py-12 text-sm">
-              <Package size={32} className="opacity-40 mb-2" />
-              <p>All packages are up to date</p>
-              <p className="text-xs mt-1 opacity-70">Click &quot;Update Lists&quot; to check for new updates</p>
-            </div>
+            <EmptyState
+              icon={PackageCheck}
+              title="All packages are up to date"
+              description={'Click "Update lists" to check for new updates'}
+            />
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent border-0">
-                  <TableHead className="text-xs font-medium text-foreground/40 h-9">Package</TableHead>
-                  <TableHead className="text-xs font-medium text-foreground/40 h-9">Current</TableHead>
-                  <TableHead className="text-xs font-medium text-foreground/40 h-9">Available</TableHead>
-                  <TableHead className="text-xs font-medium text-foreground/40 h-9">Arch</TableHead>
-                  <TableHead className="w-24 text-right text-xs font-medium text-foreground/40 h-9">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.upgradable.map((pkg) => (
-                  <TableRow key={`${pkg.name}-${pkg.architecture}`} className="border-0 hover:bg-muted/20 group">
-                    <TableCell className="font-mono text-xs text-foreground/80">{pkg.name}</TableCell>
-                    <TableCell className="text-xs text-foreground/50">{pkg.currentVersion}</TableCell>
-                    <TableCell className="text-xs font-medium text-primary">{pkg.newVersion}</TableCell>
-                    <TableCell className="text-xs text-foreground/50">{pkg.architecture}</TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 text-xs border-border/50"
-                        disabled={!!busy}
-                        onClick={() => handleUpgradePackage(pkg.name)}
-                      >
-                        {busy === `upgrade:${pkg.name}` ? (
-                          <Spinner className="mr-1" size={12} />
-                        ) : (
-                          <ArrowUpCircle size={12} className="mr-1" />
-                        )}
-                        Upgrade
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <TableCard>
+              <Table>
+                <TableHeader>
+                  <HeadRow>
+                    <Th>Package</Th>
+                    <Th>Current</Th>
+                    <Th>Available</Th>
+                    <Th>Arch</Th>
+                    <Th className="w-32 text-right">Action</Th>
+                  </HeadRow>
+                </TableHeader>
+                <TableBody>
+                  {data.upgradable.map((pkg) => (
+                    <Tr key={`${pkg.name}-${pkg.architecture}`}>
+                      <Td className="font-mono font-semibold text-foreground">{pkg.name}</Td>
+                      <Td className="font-mono text-[13px] text-label-2">{pkg.currentVersion}</Td>
+                      <Td className="font-mono text-[13px] font-medium text-accent-text">{pkg.newVersion}</Td>
+                      <Td>
+                        <MonoChip>{pkg.architecture}</MonoChip>
+                      </Td>
+                      <Td className="text-right">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          disabled={!!busy}
+                          onClick={() => handleUpgradePackage(pkg.name)}
+                        >
+                          {busy === `upgrade:${pkg.name}` ? (
+                            <Spinner size={16} />
+                          ) : (
+                            <ArrowUpCircle strokeWidth={1.75} />
+                          )}
+                          Upgrade
+                        </Button>
+                      </Td>
+                    </Tr>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableCard>
           )}
         </TabsContent>
 
         {/* Search & Install tab */}
         <TabsContent value="search" className="mt-4 space-y-3">
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/30" />
-            <Input
-              placeholder="Search packages (e.g. nginx, python3, htop)…"
-              value={searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="pl-9 pr-9 shadow-none h-8 text-xs"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground"
-                onClick={() => { setSearchQuery(''); setSearchResults([]); }}
-              >
-                <X size={14} />
-              </button>
-            )}
-          </div>
+          <SearchField
+            wrapperClassName="w-full max-w-xl"
+            placeholder="Search packages (e.g. nginx, python3, htop)…"
+            value={searchQuery}
+            onValueChange={handleSearchChange}
+            onClear={() => { setSearchQuery(''); setSearchResults([]); }}
+          />
 
           {searching && (
-            <div className="flex items-center justify-center py-8 text-foreground/40">
-              <Spinner className="mr-2" size={16} />
+            <div className="flex items-center justify-center gap-2 py-8 text-[13px] text-label-3">
+              <Spinner size={16} />
               Searching…
             </div>
           )}
 
           {!searching && searchQuery.length >= 2 && searchResults.length === 0 && (
-            <div className="flex flex-col items-center justify-center text-foreground/30 py-12 text-sm">
-              <Search size={24} className="opacity-40 mb-2" />
-              <p>No packages found for &quot;{searchQuery}&quot;</p>
-            </div>
+            <EmptyState icon={Search} title={<>No packages found for &quot;{searchQuery}&quot;</>} />
           )}
 
           {!searching && searchResults.length > 0 && (
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent border-0">
-                  <TableHead className="text-xs font-medium text-foreground/40 h-9">Package</TableHead>
-                  <TableHead className="text-xs font-medium text-foreground/40 h-9">Version</TableHead>
-                  <TableHead className="text-xs font-medium text-foreground/40 h-9">Description</TableHead>
-                  <TableHead className="text-xs font-medium text-foreground/40 h-9">Status</TableHead>
-                  <TableHead className="w-24 text-right text-xs font-medium text-foreground/40 h-9">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {searchResults.map((pkg) => (
-                  <TableRow key={`${pkg.name}-${pkg.architecture}`} className="border-0 hover:bg-muted/20 group">
-                    <TableCell className="font-mono text-xs text-foreground/80">{pkg.name}</TableCell>
-                    <TableCell className="text-xs text-foreground/50">{pkg.version}</TableCell>
-                    <TableCell className="text-xs text-foreground/50 max-w-75 truncate">{pkg.description}</TableCell>
-                    <TableCell>
-                      {pkg.installed ? (
-                        <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium', 'bg-emerald-500/10 text-emerald-600')}>Installed</span>
-                      ) : (
-                        <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium', 'bg-foreground/5 text-foreground/50')}>Not installed</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {pkg.installed ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs text-destructive hover:text-destructive border-border/50"
-                          disabled={!!busy}
-                          onClick={() => setConfirmAction({
-                            title: `Remove ${pkg.name}?`,
-                            description: `This will remove the package "${pkg.name}" from the server.`,
-                            destructive: true,
-                            onConfirm: () => handleRemovePackage(pkg.name),
-                          })}
-                        >
-                          {busy === `remove:${pkg.name}` ? (
-                            <Spinner className="mr-1" size={12} />
-                          ) : (
-                            <Trash2 size={12} className="mr-1" />
-                          )}
-                          Remove
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs border-border/50"
-                          disabled={!!busy}
-                          onClick={() => setConfirmAction({
-                            title: `Install ${pkg.name}?`,
-                            description: `This will install "${pkg.name}" (${pkg.version}) on the server.`,
-                            onConfirm: () => handleInstallPackage(pkg.name),
-                          })}
-                        >
-                          {busy === `install:${pkg.name}` ? (
-                            <Spinner className="mr-1" size={12} />
-                          ) : (
-                            <Download size={12} className="mr-1" />
-                          )}
-                          Install
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <TableCard>
+              <Table>
+                <TableHeader>
+                  <HeadRow>
+                    <Th>Package</Th>
+                    <Th>Version</Th>
+                    <Th>Description</Th>
+                    <Th>Status</Th>
+                    <Th className="w-32 text-right">Action</Th>
+                  </HeadRow>
+                </TableHeader>
+                <TableBody>
+                  {searchResults.map((pkg) => (
+                    <Tr key={`${pkg.name}-${pkg.architecture}`}>
+                      <Td className="font-mono font-semibold text-foreground">{pkg.name}</Td>
+                      <Td className="font-mono text-[13px] text-label-2">{pkg.version}</Td>
+                      <Td className="text-label-2"><div className="max-w-75 truncate">{pkg.description}</div></Td>
+                      <Td>
+                        {pkg.installed ? (
+                          <Badge variant="success">Installed</Badge>
+                        ) : (
+                          <Badge variant="secondary">Not installed</Badge>
+                        )}
+                      </Td>
+                      <Td className="text-right">
+                        {pkg.installed ? (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            disabled={!!busy}
+                            onClick={() => setConfirmAction({
+                              title: `Remove ${pkg.name}?`,
+                              description: `This will remove the package "${pkg.name}" from the server.`,
+                              destructive: true,
+                              onConfirm: () => handleRemovePackage(pkg.name),
+                            })}
+                          >
+                            {busy === `remove:${pkg.name}` ? (
+                              <Spinner size={16} />
+                            ) : (
+                              <Trash2 strokeWidth={1.75} />
+                            )}
+                            Remove
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            disabled={!!busy}
+                            onClick={() => setConfirmAction({
+                              title: `Install ${pkg.name}?`,
+                              description: `This will install "${pkg.name}" (${pkg.version}) on the server.`,
+                              onConfirm: () => handleInstallPackage(pkg.name),
+                            })}
+                          >
+                            {busy === `install:${pkg.name}` ? (
+                              <Spinner size={16} />
+                            ) : (
+                              <Download strokeWidth={1.75} />
+                            )}
+                            Install
+                          </Button>
+                        )}
+                      </Td>
+                    </Tr>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableCard>
           )}
 
           {!searching && searchQuery.length < 2 && searchResults.length === 0 && (
-            <div className="flex flex-col items-center justify-center text-foreground/30 py-12 text-sm">
-              <Search size={32} className="opacity-40 mb-2" />
-              <p>Search for packages to install or remove</p>
-              <p className="text-xs mt-1 opacity-70">Type at least 2 characters to search</p>
-            </div>
+            <EmptyState
+              icon={Search}
+              title="Search for packages to install or remove"
+              description="Type at least 2 characters to search"
+            />
           )}
         </TabsContent>
       </Tabs>
@@ -474,6 +455,6 @@ export function PackagesSection({ serverId }: { serverId: string }) {
           }}
         />
       )}
-    </div>
+    </SectionBody>
   );
 }

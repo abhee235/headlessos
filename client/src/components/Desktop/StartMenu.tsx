@@ -1,5 +1,9 @@
-// M6.6: Start Menu — Glassmorphic two-column layout with rich SVG app icons
-// @see docs/phases/phase-6.md
+// M6.6: Start Menu — app launcher
+// EX8.4: LumenOS v3 launcher — glass-heavy 30px panel rising from the dock:
+// date + greeting header with a server chip, recessed search, quick actions,
+// app grid, Recent + Server cards, and a footer with Settings / Lock /
+// Switch user / Sign out.
+// @see docs/phases/phase-6.md, docs/phases/phase-ex8.md
 
 import { useDesktopStore } from '../../store/window-store';
 import { useAppStore } from '../../store/app-store';
@@ -8,30 +12,24 @@ import { useSavedAppStore } from '../../store/saved-app-store';
 import {
   Search,
   Power,
-  ChevronRight,
-  ChevronLeft,
-  User,
-  Plug,
-  Unplug,
   Lock,
   ArrowLeftRight,
   Sparkles,
+  SquareTerminal,
+  FolderOpen,
+  Palette,
+  Monitor,
+  Activity,
+  Settings,
+  Plug,
+  Unplug,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { getLucideIcon } from '../DynamicUI/widgets/icon-helper';
-import { useState, useRef, useEffect, useCallback } from 'react';
-import {
-  DashboardIcon,
-  FileExplorerIcon,
-  TerminalIcon,
-  DockerIcon,
-  TaskManagerIcon,
-  ServicesIcon,
-  SettingsIcon,
-  ServerAdminIcon,
-  FleetIcon,
-  AgentIcon,
-  ObservatoryIcon,
-} from '@/components/ui/FileIcon';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { AppIcon } from '@/components/ui/FileIcon';
+import { formatShortcut } from '@/lib/format-shortcut';
+import { cn } from '@/lib/utils';
 
 // ─── Greeting ────────────────────────────────────────────────────────────────
 
@@ -47,63 +45,25 @@ function getGreeting(): string {
 interface AppEntry {
   id: string;
   label: string;
-  IconComponent: React.ComponentType<{ size?: number }>;
 }
 
-const PINNED_APPS: AppEntry[] = [
-  { id: 'dashboard', label: 'Dashboard', IconComponent: DashboardIcon },
-  { id: 'files', label: 'Files', IconComponent: FileExplorerIcon },
-  { id: 'terminal', label: 'Terminal', IconComponent: TerminalIcon },
-  { id: 'taskmanager', label: 'Tasks', IconComponent: TaskManagerIcon },
-  { id: 'docker', label: 'Docker', IconComponent: DockerIcon },
-  { id: 'services', label: 'Services', IconComponent: ServicesIcon },
-  // EX6-C.3: Fleet moved to Control Center
-  { id: 'agent', label: 'AI Agent', IconComponent: AgentIcon },
-  { id: 'settings', label: 'Personalize', IconComponent: SettingsIcon },
-];
-
 const ALL_APPS: AppEntry[] = [
-  { id: 'agent', label: 'AI Agent', IconComponent: AgentIcon },
-  { id: 'dashboard', label: 'Dashboard', IconComponent: DashboardIcon },
-  { id: 'docker', label: 'Docker', IconComponent: DockerIcon },
-  { id: 'files', label: 'File Explorer', IconComponent: FileExplorerIcon },
+  { id: 'dashboard', label: 'Dashboard' },
+  { id: 'files', label: 'File Explorer' },
+  { id: 'terminal', label: 'Terminal' },
+  { id: 'taskmanager', label: 'Task Manager' },
+  { id: 'docker', label: 'Docker' },
+  { id: 'services', label: 'Services' },
+  { id: 'serveradmin', label: 'Server Admin' },
   // EX6-C.3: Fleet moved to Control Center
-  { id: 'observatory', label: 'LLM Observatory', IconComponent: ObservatoryIcon },
-  { id: 'serveradmin', label: 'Server Admin', IconComponent: ServerAdminIcon },
-  { id: 'services', label: 'Services', IconComponent: ServicesIcon },
-  { id: 'settings', label: 'Settings', IconComponent: SettingsIcon },
-  { id: 'taskmanager', label: 'Task Manager', IconComponent: TaskManagerIcon },
-  { id: 'terminal', label: 'Terminal', IconComponent: TerminalIcon },
+  { id: 'agent', label: 'AI Agent' },
+  { id: 'observatory', label: 'LLM Observatory' },
+  { id: 'settings', label: 'Settings' },
 ];
-
-// ─── Recent Apps helpers (M9.2) ──────────────────────────────────────────────
-
-const APP_ICON_MAP: Record<string, React.ComponentType<{ size?: number }>> = {
-  agent: AgentIcon,
-  dashboard: DashboardIcon,
-  files: FileExplorerIcon,
-  fleet: FleetIcon,
-  terminal: TerminalIcon,
-  docker: DockerIcon,
-  services: ServicesIcon,
-  taskmanager: TaskManagerIcon,
-  settings: SettingsIcon,
-  serveradmin: ServerAdminIcon,
-  observatory: ObservatoryIcon,
-};
 
 const APP_LABEL_MAP: Record<string, string> = {
-  dashboard: 'Dashboard',
-  files: 'File Explorer',
-  terminal: 'Terminal',
-  docker: 'Docker',
+  ...Object.fromEntries(ALL_APPS.map((a) => [a.id, a.label])),
   fleet: 'Fleet Overview',
-  agent: 'AI Agent',
-  services: 'Services',
-  taskmanager: 'Task Manager',
-  settings: 'Settings',
-  serveradmin: 'Server Admin',
-  observatory: 'LLM Observatory',
 };
 
 function formatTimeAgo(timestamp: number): string {
@@ -118,10 +78,41 @@ function formatTimeAgo(timestamp: number): string {
   return `${days} days ago`;
 }
 
+const APP_COLS = 5;
+
+// ─── Small pieces ────────────────────────────────────────────────────────────
+
+function QuickAction({ icon: Icon, label, onClick, disabled }: { icon: LucideIcon; label: string; onClick: () => void; disabled?: boolean }) {
+  return (
+    <button
+      className="lumen-card flex h-[96px] min-w-0 flex-col items-center justify-center gap-[7px] rounded-[18px] text-foreground transition-colors hover:bg-dock-hover disabled:pointer-events-none disabled:opacity-40"
+      onClick={onClick}
+      disabled={disabled}
+      title={label}
+    >
+      <Icon className="h-6 w-6 shrink-0" strokeWidth={1.75} />
+      <span className="max-w-full truncate px-1 text-xs font-medium">{label}</span>
+    </button>
+  );
+}
+
+function FooterButton({ icon: Icon, label, onClick }: { icon: LucideIcon; label: string; onClick: () => void }) {
+  return (
+    <button
+      className="lumen-well grid h-[38px] w-[38px] shrink-0 place-items-center rounded-full text-foreground transition-colors hover:bg-chip-2"
+      title={label}
+      aria-label={label}
+      onClick={onClick}
+    >
+      <Icon className="h-[18px] w-[18px]" strokeWidth={1.75} />
+    </button>
+  );
+}
+
 // ─── Start Menu ──────────────────────────────────────────────────────────────
 
 export function StartMenu() {
-  const { startMenuOpen, closeStartMenu, openWindow } = useDesktopStore();
+  const { startMenuOpen, closeStartMenu, openWindow, toggleShowDesktop } = useDesktopStore();
   const {
     servers,
     activeServerId,
@@ -137,7 +128,6 @@ export function StartMenu() {
   const savedAppsFetched = useSavedAppStore(s => s.fetched);
   const openSavedApp = useSavedAppStore(s => s.openApp);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showAllApps, setShowAllApps] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const searchRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -157,7 +147,6 @@ export function StartMenu() {
   useEffect(() => {
     if (startMenuOpen) {
       setSearchQuery('');
-      setShowAllApps(false);
       setFocusedIndex(-1);
       setTimeout(() => searchRef.current?.focus(), 100);
     }
@@ -181,21 +170,31 @@ export function StartMenu() {
     };
   }, [startMenuOpen, closeStartMenu]);
 
-  const filteredApps = searchQuery
-    ? PINNED_APPS.filter((a) =>
-        a.label.toLowerCase().includes(searchQuery.toLowerCase()),
-      )
-    : PINNED_APPS;
+  const query = searchQuery.trim().toLowerCase();
+  const searching = query.length > 0;
 
-  const handleOpenApp = (appId: string, label: string) => {
+  const visibleApps = useMemo(
+    () => (searching ? ALL_APPS.filter((a) => a.label.toLowerCase().includes(query)) : ALL_APPS),
+    [searching, query],
+  );
+
+  // EX5-C.3: Filtered saved apps for search
+  const filteredSavedApps = searching
+    ? savedApps.filter(a =>
+        a.name.toLowerCase().includes(query) ||
+        a.cliTool.toLowerCase().includes(query) ||
+        a.tags.some(t => t.toLowerCase().includes(query))
+      )
+    : savedApps;
+
+  const handleOpenApp = useCallback((appId: string, label: string, meta?: Record<string, string>) => {
     // `settings` is a global app (no server needed) — especially the "Personalize" entry.
     const isGlobalApp = appId === 'settings';
     if (!isGlobalApp && (!activeServerId || !isConnected)) return;
     const serverId = isGlobalApp ? '' : (activeServerId ?? '');
-    const meta = appId === 'settings' && label === 'Personalize' ? { initialPage: 'wallpaper' } : undefined;
     openWindow(appId, serverId, label, appId, meta);
     closeStartMenu();
-  };
+  }, [activeServerId, isConnected, openWindow, closeStartMenu]);
 
   // EX5-C.3: Open a saved app as a DynamicUI window
   const handleOpenSavedApp = useCallback((app: (typeof savedApps)[number]) => {
@@ -204,371 +203,323 @@ export function StartMenu() {
     closeStartMenu();
   }, [activeServerId, isConnected, openSavedApp, closeStartMenu]);
 
-  // EX5-C.3: Filtered saved apps for search
-  const filteredSavedApps = searchQuery
-    ? savedApps.filter(a =>
-        a.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        a.cliTool.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        a.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()))
-      )
-    : savedApps;
-
-  // Keyboard navigation for app grid/list
-  const currentApps = showAllApps
-    ? (searchQuery ? ALL_APPS.filter(a => a.label.toLowerCase().includes(searchQuery.toLowerCase())) : ALL_APPS)
-    : filteredApps;
-  const COLS = showAllApps ? 1 : 4;
-
+  // Keyboard navigation: a 5-column grid while browsing, a list while searching
+  const cols = searching ? 1 : APP_COLS;
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    const count = currentApps.length;
+    const count = visibleApps.length;
+    if (e.key === 'Escape') {
+      closeStartMenu();
+      return;
+    }
     if (count === 0) return;
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setFocusedIndex(prev => {
-        const next = prev + COLS;
+        const next = prev + cols;
         return next >= count ? (prev < 0 ? 0 : prev) : next;
       });
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setFocusedIndex(prev => {
-        const next = prev - COLS;
+        const next = prev - cols;
         return next < 0 ? -1 : next;
       });
-    } else if (e.key === 'ArrowRight' && !showAllApps) {
+    } else if (e.key === 'ArrowRight' && !searching) {
       e.preventDefault();
       setFocusedIndex(prev => (prev + 1 >= count ? prev : prev + 1));
-    } else if (e.key === 'ArrowLeft' && !showAllApps) {
+    } else if (e.key === 'ArrowLeft' && !searching) {
       e.preventDefault();
       setFocusedIndex(prev => (prev <= 0 ? -1 : prev - 1));
-    } else if (e.key === 'Enter' && focusedIndex >= 0 && focusedIndex < count) {
-      e.preventDefault();
-      const app = currentApps[focusedIndex];
-      handleOpenApp(app.id, app.label);
-    } else if (e.key === 'Escape') {
-      closeStartMenu();
+    } else if (e.key === 'Enter') {
+      const idx = focusedIndex >= 0 ? focusedIndex : searching ? 0 : -1;
+      if (idx >= 0 && idx < count) {
+        e.preventDefault();
+        const app = visibleApps[idx]!;
+        handleOpenApp(app.id, app.label);
+      }
     }
-  }, [currentApps, COLS, focusedIndex, showAllApps, closeStartMenu, handleOpenApp]);
+  }, [visibleApps, cols, focusedIndex, searching, closeStartMenu, handleOpenApp]);
 
   // ── Early return AFTER all hooks (React Rules of Hooks) ──
   if (!startMenuOpen) return null;
 
+  const now = new Date();
+  const dateStr = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
+
   const statusDot =
     serverStatus === 'connected'
-      ? 'bg-success shadow-sm shadow-success/50'
+      ? 'bg-success shadow-[0_0_8px_var(--success)]'
       : serverStatus === 'connecting'
         ? 'bg-warning animate-pulse'
         : serverStatus === 'error'
           ? 'bg-destructive'
-          : 'bg-foreground/20';
+          : 'bg-fill-2';
+
+  const appDisabled = (id: string) => !isConnected && id !== 'settings';
 
   return (
     <div
       ref={menuRef}
-      className="absolute bottom-14 left-1/2 -translate-x-1/2 z-10000 w-160 bg-glass backdrop-blur-2xl backdrop-saturate-[1.8] border border-glass-border shadow-2xl shadow-black/10 dark:shadow-black/50 ring-1 ring-black/5 dark:ring-white/5 rounded-2xl overflow-hidden animate-scaleIn"
+      className="glass-heavy absolute bottom-[100px] left-1/2 z-[10000] flex max-h-[calc(100%-116px)] w-[780px] max-w-[calc(100vw-28px)] -translate-x-1/2 flex-col overflow-hidden rounded-[30px] animate-panelIn"
       onClick={(e) => e.stopPropagation()}
       onKeyDown={handleKeyDown}
+      role="dialog"
+      aria-label="Launcher"
     >
-      {/* ── Search bar ── */}
-      <div className="px-5 pt-6 pb-8">
-        <div className="flex items-center gap-3 px-4 py-2 bg-black/3 dark:bg-white/5 rounded-full border border-transparent focus-within:border-primary/30 focus-within:ring-2 focus-within:ring-primary/10 transition-all">
-          <Search className="w-4 h-4 text-foreground/40 shrink-0" />
+      {/* ── Header: date + greeting, server chip ── */}
+      <div className="flex shrink-0 items-end justify-between gap-3 px-6 pt-[22px] pb-3.5">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="text-sm text-label-2">{dateStr}</span>
+          <span className="truncate text-2xl leading-[30px] font-medium tracking-[-0.01em]">{getGreeting()}</span>
+        </div>
+        <div className="lumen-card flex min-w-0 items-center gap-2.5 rounded-[20px] py-1.5 pl-3 pr-3">
+          <span className={cn('h-2 w-2 shrink-0 rounded-full', statusDot)} />
+          <span className="truncate text-[15px] font-semibold">{activeServer?.name ?? 'No server'}</span>
+          {activeServer && (
+            <span className="truncate font-mono text-xs text-label-2">{activeServer.host}</span>
+          )}
+        </div>
+      </div>
+
+      {/* ── Search (recessed pill) ── */}
+      <div className="shrink-0 px-6 pb-1">
+        <div className="lumen-well flex h-[46px] items-center gap-3 rounded-[23px] px-4 focus-within:ring-[3px] focus-within:ring-accent-soft">
+          <Search className="h-[19px] w-[19px] shrink-0 text-label-2" strokeWidth={1.75} />
           <input
             ref={searchRef}
             type="text"
-            placeholder="Type here to search"
-            className="flex-1 bg-transparent text-[13px] font-medium text-foreground placeholder:text-foreground/35 outline-none"
+            placeholder="Search apps"
+            className="min-w-0 flex-1 bg-transparent text-[15px] text-foreground outline-none placeholder:text-label-3"
             value={searchQuery}
             onChange={(e) => { setSearchQuery(e.target.value); setFocusedIndex(-1); }}
+            aria-label="Search apps"
           />
+          <span className="flex shrink-0 gap-px rounded-[6px] bg-fill px-2 py-[3px] text-[11px] font-semibold text-label-2">
+            {formatShortcut('Ctrl+Space').map((k, i) => <span key={i}>{k}</span>)}
+          </span>
         </div>
       </div>
 
       {/* ── Body ── */}
-      {showAllApps ? (
-        /* ── All Apps list view ── */
-        <div className="px-5 pb-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-[13px] font-bold text-foreground/90 tracking-tight">
-              All Apps
-            </h3>
-            <button
-              className="flex items-center gap-0.5 text-[11px] text-primary/80 hover:text-primary font-semibold px-2.5 py-1 rounded-lg hover:bg-primary/8 transition-colors"
-              onClick={() => setShowAllApps(false)}
-            >
-              <ChevronLeft className="w-3 h-3" />
-              Back
-            </button>
-          </div>
-          <div className="flex flex-col gap-0.5 max-h-64 overflow-y-auto">
-            {(searchQuery
-              ? ALL_APPS.filter(a => a.label.toLowerCase().includes(searchQuery.toLowerCase()))
-              : ALL_APPS
-            ).map((app, idx) => (
-              <button
-                key={app.id}
-                className={`group flex items-center gap-3 px-2 py-2 rounded-xl transition-all text-left ${
-                  isConnected || app.id === 'settings'
-                    ? 'hover:bg-black/5 dark:hover:bg-white/8 cursor-pointer'
-                    : 'opacity-40 cursor-not-allowed'
-                } ${idx === focusedIndex ? 'ring-2 ring-primary/40 bg-primary/5' : ''}`}
-                disabled={!isConnected && app.id !== 'settings'}
-                onClick={() => handleOpenApp(app.id, app.label)}
-              >
-                <div className="shrink-0">
-                  <app.IconComponent size={32} />
-                </div>
-                <span className="text-[13px] text-foreground/75 font-semibold group-hover:text-foreground transition-colors">
-                  {app.label}
-                </span>
-              </button>
-            ))}
-            {/* EX5-C.3: Saved user apps in All Apps list */}
-            {filteredSavedApps.length > 0 && (
-              <>
-                <div className="mt-2 mb-1 px-2">
-                  <span className="text-[10px] font-bold text-foreground/40 uppercase tracking-wider">My Apps</span>
-                </div>
-                {filteredSavedApps.map((app) => {
-                  const IconComp = getLucideIcon(app.icon);
-                  return (
-                    <button
-                      key={`saved-${app.id}`}
-                      className={`group flex items-center gap-3 px-2 py-2 rounded-xl transition-all text-left ${
-                        isConnected
-                          ? 'hover:bg-black/5 dark:hover:bg-white/8 cursor-pointer'
-                          : 'opacity-40 cursor-not-allowed'
-                      }`}
-                      disabled={!isConnected}
-                      onClick={() => handleOpenSavedApp(app)}
-                      data-testid={`saved-app-${app.id}`}
-                    >
-                      <div className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-primary/10">
-                        {IconComp ? <IconComp size={18} className="text-primary" /> : <Sparkles size={18} className="text-primary" />}
-                      </div>
-                      <div className="min-w-0">
-                        <span className="text-[13px] text-foreground/75 font-semibold group-hover:text-foreground transition-colors block truncate">
-                          {app.name}
-                        </span>
-                        <span className="text-[10px] text-foreground/35">{app.cliTool}</span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </>
-            )}
-          </div>
-        </div>
-      ) : (
-        /* ── Two-column: Pinned + Recent ── */
-        <div className="flex">
-          {/* Left column: Pinned Apps */}
-          <div className="flex-1 px-5 pb-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-[13px] font-bold text-foreground/90 tracking-tight">
-                Pinned Apps
-              </h3>
-              <button
-                className="flex items-center gap-0.5 text-[11px] text-primary/80 hover:text-primary font-semibold px-2.5 py-1 rounded-lg hover:bg-primary/8 transition-colors"
-                onClick={() => setShowAllApps(true)}
-              >
-                See all
-                <ChevronRight className="w-3 h-3" />
-              </button>
+      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overflow-x-hidden px-6 pt-4 pb-[18px] [scrollbar-width:none]">
+        {!searching ? (
+          <>
+            {/* Quick actions */}
+            <div className="grid grid-cols-3 gap-4 min-[680px]:grid-cols-6">
+              <QuickAction icon={SquareTerminal} label="Terminal" disabled={!isConnected} onClick={() => handleOpenApp('terminal', 'Terminal')} />
+              <QuickAction icon={FolderOpen} label="Files" disabled={!isConnected} onClick={() => handleOpenApp('files', 'File Explorer')} />
+              <QuickAction icon={Palette} label="Personalize" onClick={() => handleOpenApp('settings', 'Personalize', { initialPage: 'wallpaper' })} />
+              <QuickAction icon={Monitor} label="Desktop" onClick={() => { toggleShowDesktop(); closeStartMenu(); }} />
+              <QuickAction icon={ArrowLeftRight} label="Switch" onClick={() => { closeStartMenu(); switchUser(); }} />
+              <QuickAction icon={Lock} label="Lock" onClick={() => { closeStartMenu(); lockScreen(); }} />
             </div>
 
-            <div className="grid grid-cols-4 gap-0.5">
-              {filteredApps.map((app, idx) => (
-                <button
-                  key={app.id}
-                  className={`group flex flex-col items-center gap-1.5 py-3 px-1.5 rounded-xl transition-all duration-150 ${
-                    isConnected || app.id === 'settings'
-                      ? 'hover:bg-black/5 dark:hover:bg-white/8 cursor-pointer active:scale-[0.97]'
-                      : 'opacity-40 cursor-not-allowed'
-                  } ${idx === focusedIndex ? 'ring-2 ring-primary/40 bg-primary/5' : ''}`}
-                  onClick={() => handleOpenApp(app.id, app.label)}
-                  disabled={!isConnected && app.id !== 'settings'}
-                >
-                  <div className="transition-transform duration-150 group-hover:scale-110 group-active:scale-100">
-                    <app.IconComponent size={44} />
-                  </div>
-                  <span className="text-[11px] text-foreground/60 font-semibold leading-tight text-center truncate w-full group-hover:text-foreground/90 transition-colors">
-                    {app.label}
-                  </span>
-                </button>
-              ))}
+            {/* App grid */}
+            <div className="flex flex-col gap-2.5">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[15px] font-semibold">Apps</span>
+                <span className="text-xs text-label-2">{ALL_APPS.length} apps</span>
+              </div>
+              <div className="grid grid-cols-5 gap-x-1 gap-y-1.5">
+                {visibleApps.map((app, idx) => (
+                  <button
+                    key={app.id}
+                    className={cn(
+                      'group flex min-w-0 flex-col items-center gap-2 rounded-[16px] px-0.5 pt-2.5 pb-2 text-foreground transition-colors',
+                      appDisabled(app.id) ? 'cursor-not-allowed opacity-40' : 'hover:bg-fill',
+                      idx === focusedIndex && 'bg-accent-soft ring-1 ring-accent-glow',
+                    )}
+                    onClick={() => handleOpenApp(app.id, app.label)}
+                    disabled={appDisabled(app.id)}
+                  >
+                    <span className="lumen-plate relative h-[52px] w-[52px] rounded-[17px] transition-transform duration-150 group-hover:scale-105">
+                      <span className="absolute left-[9px] top-[9px] flex h-8 w-8 items-center justify-center drop-shadow-[0_2px_3px_rgba(0,0,0,.3)]">
+                        <AppIcon appId={app.id} size={32} />
+                      </span>
+                    </span>
+                    <span className="max-w-full truncate text-xs">{app.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* EX5-C.3: My Apps compact row (saved apps) */}
+            {/* EX5-C.3: My Apps (saved apps) */}
             {filteredSavedApps.length > 0 && (
-              <div className="mt-3">
-                <h4 className="text-[11px] font-bold text-foreground/50 tracking-tight mb-1.5 px-0.5">
-                  My Apps
-                </h4>
-                <div className="flex flex-wrap gap-1">
-                  {filteredSavedApps.slice(0, 4).map((app) => {
-                    const IconComp = getLucideIcon(app.icon);
+              <div className="flex flex-col gap-2">
+                <span className="px-1 text-[15px] font-semibold">My Apps</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {filteredSavedApps.slice(0, 8).map((app) => {
+                    const IconComp = getLucideIcon(app.icon) ?? Sparkles;
                     return (
                       <button
                         key={`saved-pinned-${app.id}`}
-                        className={`group flex items-center gap-1.5 px-2 py-1.5 rounded-lg transition-all text-left text-[11px] ${
-                          isConnected
-                            ? 'hover:bg-black/5 dark:hover:bg-white/8 cursor-pointer'
-                            : 'opacity-40 cursor-not-allowed'
-                        }`}
+                        className={cn(
+                          'flex h-9 items-center gap-2 rounded-full border border-edge bg-mat px-3 text-[13px] font-medium transition-colors',
+                          isConnected ? 'hover:bg-mat-thick' : 'cursor-not-allowed opacity-40',
+                        )}
                         disabled={!isConnected}
                         onClick={() => handleOpenSavedApp(app)}
                         data-testid={`saved-app-pinned-${app.id}`}
                       >
-                        {IconComp ? <IconComp size={14} className="text-primary shrink-0" /> : <Sparkles size={14} className="text-primary shrink-0" />}
-                        <span className="text-foreground/60 font-semibold truncate max-w-20 group-hover:text-foreground/90 transition-colors">
-                          {app.name}
-                        </span>
+                        <IconComp size={16} className="shrink-0 text-accent-solid" strokeWidth={1.75} />
+                        <span className="max-w-32 truncate">{app.name}</span>
                       </button>
                     );
                   })}
                 </div>
               </div>
             )}
-          </div>
 
-          {/* Divider */}
-          <div className="w-px bg-separator self-stretch my-3" />
+            {/* Recent + Server cards */}
+            <div className="grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3.5">
+              <div className="lumen-card flex min-w-0 flex-col gap-0.5 rounded-[22px] px-2.5 pt-3.5 pb-2">
+                <span className="px-2 pb-1.5 text-[15px] font-semibold">Recent</span>
+                {recentApps.length === 0 ? (
+                  <p className="px-2 py-4 text-[13px] text-label-2">Open an app to see it here</p>
+                ) : (
+                  recentApps.slice(0, 4).map((entry) => {
+                    const label = APP_LABEL_MAP[entry.appId] ?? entry.appId;
+                    return (
+                      <button
+                        key={entry.appId}
+                        className={cn(
+                          'flex min-h-12 min-w-0 items-center gap-3 rounded-[12px] px-2 text-left transition-colors',
+                          isConnected ? 'hover:bg-fill' : 'cursor-not-allowed opacity-40',
+                        )}
+                        disabled={!isConnected}
+                        onClick={() => handleOpenApp(entry.appId, label)}
+                      >
+                        <AppIcon appId={entry.appId} size={28} />
+                        <span className="flex min-w-0 flex-col gap-px">
+                          <span className="truncate text-[13px]">{label}</span>
+                          <span className="truncate text-[11px] text-label-2">{formatTimeAgo(entry.timestamp)}</span>
+                        </span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
 
-          {/* Right column: Recently Used */}
-          <div className="w-56 px-3 pb-4">
-            <div className="flex items-center justify-between mb-3 px-1">
-              <h3 className="text-[13px] font-bold text-foreground/90 tracking-tight">
-                Recently Used
-              </h3>
-            </div>
-
-            <div className="flex flex-col gap-0.5">
-              {recentApps.length === 0 ? (
-                <p className="text-[11px] text-foreground/30 font-medium px-2 py-4 text-center">
-                  Open an app to see it here
-                </p>
-              ) : (
-                recentApps.slice(0, 6).map((entry) => {
-                  const IconComp = APP_ICON_MAP[entry.appId] ?? DashboardIcon;
-                  const label = APP_LABEL_MAP[entry.appId] ?? entry.appId;
-                  return (
+              <div className="lumen-card flex min-w-0 flex-col gap-3.5 rounded-[22px] p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[15px] font-semibold">Server</span>
+                  <span className={cn('h-2 w-2 rounded-full', statusDot)} />
+                </div>
+                <div className="flex min-w-0 flex-col gap-1.5 text-xs">
+                  <div className="flex justify-between gap-2">
+                    <span className="text-label-2">Status</span>
+                    <span className="font-semibold capitalize">{serverStatus}</span>
+                  </div>
+                  <div className="flex justify-between gap-2">
+                    <span className="text-label-2">Host</span>
+                    <span className="truncate font-mono font-medium">
+                      {activeServer ? `${activeServer.host}:${activeServer.port}` : '—'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-2">
+                    <span className="text-label-2">User</span>
+                    <span className="truncate font-mono font-medium">{activeServer?.username ?? '—'}</span>
+                  </div>
+                </div>
+                <div className="mt-auto flex items-center justify-between gap-2">
+                  <button
+                    className="flex items-center gap-1.5 text-xs text-label-2 transition-colors hover:text-foreground disabled:opacity-40"
+                    disabled={!isConnected}
+                    onClick={() => handleOpenApp('taskmanager', 'Task Manager')}
+                  >
+                    <Activity className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    Open Task Manager
+                  </button>
+                  {activeServer && serverStatus === 'connected' ? (
                     <button
-                      key={entry.appId}
-                      className={`group flex items-center gap-3 px-2 py-1.5 rounded-xl transition-all text-left ${
-                        isConnected
-                          ? 'hover:bg-black/5 dark:hover:bg-white/8 cursor-pointer'
-                          : 'opacity-40 cursor-not-allowed'
-                      }`}
-                      disabled={!isConnected}
-                      onClick={() => handleOpenApp(entry.appId, label)}
+                      className="grid h-7 w-7 place-items-center rounded-full bg-fill text-label-2 transition-colors hover:bg-fill-2 hover:text-danger"
+                      title="Disconnect"
+                      aria-label="Disconnect"
+                      onClick={(e) => { e.stopPropagation(); disconnectServer(activeServer.id); }}
                     >
-                      <div className="shrink-0">
-                        <IconComp size={32} />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[12px] text-foreground/75 font-semibold truncate group-hover:text-foreground transition-colors">
-                          {label}
-                        </p>
-                        <p className="text-[10px] text-foreground/35 font-medium">
-                          {formatTimeAgo(entry.timestamp)}
-                        </p>
-                      </div>
+                      <Unplug className="h-3.5 w-3.5" strokeWidth={1.75} />
                     </button>
-                  );
-                })
-              )}
+                  ) : activeServer && serverStatus !== 'connecting' ? (
+                    <button
+                      className="grid h-7 w-7 place-items-center rounded-full bg-fill text-label-2 transition-colors hover:bg-fill-2 hover:text-success"
+                      title="Connect"
+                      aria-label="Connect"
+                      onClick={(e) => { e.stopPropagation(); connectServer(activeServer.id); }}
+                    >
+                      <Plug className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    </button>
+                  ) : null}
+                </div>
+              </div>
             </div>
+          </>
+        ) : (
+          /* ── Search results ── */
+          <div className="flex flex-col gap-0.5">
+            <div className="px-1.5 pb-1.5 text-[13px] font-semibold">
+              {visibleApps.length + filteredSavedApps.length > 0 ? 'Best matches' : 'No matches'}
+            </div>
+            {visibleApps.map((app, idx) => (
+              <button
+                key={app.id}
+                className={cn(
+                  'flex min-h-[50px] items-center gap-3 rounded-[12px] px-2.5 text-left transition-colors',
+                  appDisabled(app.id) ? 'cursor-not-allowed opacity-40' : 'hover:bg-fill',
+                  (idx === focusedIndex || (focusedIndex < 0 && idx === 0)) && 'bg-accent-soft',
+                )}
+                disabled={appDisabled(app.id)}
+                onClick={() => handleOpenApp(app.id, app.label)}
+              >
+                <AppIcon appId={app.id} size={30} />
+                <span className="flex min-w-0 flex-col gap-px">
+                  <span className="text-sm">{app.label}</span>
+                  <span className="text-xs text-label-2">App</span>
+                </span>
+              </button>
+            ))}
+            {filteredSavedApps.map((app) => {
+              const IconComp = getLucideIcon(app.icon) ?? Sparkles;
+              return (
+                <button
+                  key={`saved-${app.id}`}
+                  className={cn(
+                    'flex min-h-[50px] items-center gap-3 rounded-[12px] px-2.5 text-left transition-colors',
+                    isConnected ? 'hover:bg-fill' : 'cursor-not-allowed opacity-40',
+                  )}
+                  disabled={!isConnected}
+                  onClick={() => handleOpenSavedApp(app)}
+                  data-testid={`saved-app-${app.id}`}
+                >
+                  <span className="grid h-[30px] w-[30px] place-items-center rounded-[10px] bg-accent-soft">
+                    <IconComp size={17} className="text-accent-solid" strokeWidth={1.75} />
+                  </span>
+                  <span className="flex min-w-0 flex-col gap-px">
+                    <span className="truncate text-sm">{app.name}</span>
+                    <span className="font-mono text-xs text-label-2">{app.cliTool}</span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
+        )}
+      </div>
+
+      {/* ── Footer ── */}
+      <div className="flex h-16 shrink-0 items-center gap-3 border-t border-border pl-6 pr-4">
+        <span className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-full border-2 border-white/25 bg-[linear-gradient(160deg,var(--lumen-accent-hi),var(--lumen-accent))] text-[13px] font-bold text-white">
+          {(activeServer?.username ?? 'H').slice(0, 1).toUpperCase()}
+        </span>
+        <div className="flex min-w-0 flex-1 flex-col gap-px">
+          <span className="truncate text-sm font-semibold">{activeServer?.username ?? 'HeadlessOS'}</span>
+          <span className="truncate text-[11px] text-label-2">
+            {activeServer ? `${activeServer.name} · ${activeServer.host}:${activeServer.port}` : 'No server connected'}
+          </span>
         </div>
-      )}
-
-      {/* ── Footer: user + server status ── */}
-      <div className="flex items-center justify-between px-5 py-2.5 border-t border-separator">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-linear-to-br from-primary to-primary/60 flex items-center justify-center shadow-sm shadow-primary/25">
-            <User className="w-4 h-4 text-white" strokeWidth={2.25} />
-          </div>
-          <div>
-            <p className="text-[13px] font-bold text-foreground/90 tracking-tight">
-              {getGreeting()}
-            </p>
-            <p className="text-[11px] text-foreground/40 font-medium">
-              {activeServer
-                ? `${activeServer.name} \u00b7 ${activeServer.host}:${activeServer.port}`
-                : 'No server connected'}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-1">
-          {/* Connection status dot */}
-          <span className={`w-2 h-2 rounded-full ${statusDot}`} />
-
-          {/* Connect / Disconnect */}
-          {activeServer && serverStatus === 'connected' ? (
-            <button
-              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-black/5 dark:hover:bg-white/6 text-foreground/35 hover:text-destructive transition-colors"
-              title="Disconnect"
-              onClick={(e) => {
-                e.stopPropagation();
-                disconnectServer(activeServer.id);
-              }}
-            >
-              <Unplug className="w-3.5 h-3.5" />
-            </button>
-          ) : activeServer && serverStatus !== 'connecting' ? (
-            <button
-              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-black/5 dark:hover:bg-white/6 text-foreground/35 hover:text-success transition-colors"
-              title="Connect"
-              onClick={(e) => {
-                e.stopPropagation();
-                connectServer(activeServer.id);
-              }}
-            >
-              <Plug className="w-3.5 h-3.5" />
-            </button>
-          ) : null}
-
-          {/* Separator */}
-          <div className="w-px h-5 bg-separator mx-1" />
-
-          {/* Lock */}
-          <button
-            className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-black/5 dark:hover:bg-white/6 text-foreground/35 hover:text-foreground/70 transition-colors"
-            title="Lock"
-            onClick={() => {
-              closeStartMenu();
-              lockScreen();
-            }}
-          >
-            <Lock className="w-3.5 h-3.5" />
-          </button>
-
-          {/* Switch User */}
-          <button
-            className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-black/5 dark:hover:bg-white/6 text-foreground/35 hover:text-foreground/70 transition-colors"
-            title="Switch User"
-            onClick={() => {
-              closeStartMenu();
-              switchUser();
-            }}
-          >
-            <ArrowLeftRight className="w-3.5 h-3.5" />
-          </button>
-
-          {/* Sign out */}
-          <button
-              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-black/5 dark:hover:bg-white/6 text-foreground/35 hover:text-destructive transition-colors"
-            title="Sign Out"
-            onClick={() => {
-              closeStartMenu();
-              signOut();
-            }}
-          >
-            <Power className="w-3.5 h-3.5" />
-          </button>
-        </div>
+        <FooterButton icon={Settings} label="Settings" onClick={() => handleOpenApp('settings', 'Settings')} />
+        <FooterButton icon={Lock} label="Lock" onClick={() => { closeStartMenu(); lockScreen(); }} />
+        <FooterButton icon={ArrowLeftRight} label="Switch User" onClick={() => { closeStartMenu(); switchUser(); }} />
+        <FooterButton icon={Power} label="Sign Out" onClick={() => { closeStartMenu(); signOut(); }} />
       </div>
     </div>
   );

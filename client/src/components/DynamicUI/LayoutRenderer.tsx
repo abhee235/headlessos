@@ -5,12 +5,12 @@ import type { Layout, DeepPartial } from 'headlessos-shared/schemas/dynamic-view
 import { StackLayout } from './layouts/StackLayout';
 import { GridLayout } from './layouts/GridLayout';
 import { TabsLayout } from './layouts/TabsLayout';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { LumenAlert } from './widgets/widget-card';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export function LayoutRenderer({ layout }: { layout: DeepPartial<Layout> }) {
   if (!layout.layout) {
-    return <Skeleton className="h-32 w-full rounded-lg" />;
+    return <Skeleton className="h-32 w-full rounded-[22px]" />;
   }
 
   switch (layout.layout) {
@@ -22,12 +22,9 @@ export function LayoutRenderer({ layout }: { layout: DeepPartial<Layout> }) {
       return <TabsLayout layout={layout as DeepPartial<Layout & { layout: 'tabs' }>} />;
     default:
       return (
-        <Alert variant="destructive">
-          <AlertTitle>Unknown layout</AlertTitle>
-          <AlertDescription>
-            Layout type &ldquo;{(layout as { layout: string }).layout}&rdquo; is not supported.
-          </AlertDescription>
-        </Alert>
+        <LumenAlert tone="destructive" title="Unknown layout">
+          Layout type &ldquo;{(layout as { layout: string }).layout}&rdquo; is not supported.
+        </LumenAlert>
       );
   }
 }

@@ -1,4 +1,5 @@
-// M2.4 + M2.5: File Actions — create file, create folder buttons
+// M2.4 + M2.5: File Actions — create file, create folder buttons (legacy; toolbar is in use)
+// EX8.6: LumenOS v3 tokens — round ghost buttons, accent rename-style field.
 // @see docs/phases/phase-2.md
 
 import { useState } from 'react';
@@ -48,7 +49,7 @@ export function FileActions({ serverId, currentPath, onComplete }: FileActionsPr
         </span>
         <input
           autoFocus
-          className="bg-background border border-input rounded px-2 py-0.5 text-foreground text-sm outline-none focus:border-primary w-40"
+          className="w-40 rounded-[6px] border border-accent-solid bg-mat-thick px-2 py-0.5 text-[13px] text-foreground outline-none placeholder:text-label-3 focus:ring-[3px] focus:ring-accent-soft"
           value={name}
           onChange={e => setName(e.target.value)}
           onKeyDown={e => {
@@ -64,7 +65,7 @@ export function FileActions({ serverId, currentPath, onComplete }: FileActionsPr
         <button
           onClick={handleCreate}
           disabled={!name.trim() || busy}
-          className="p-1 rounded hover:bg-accent text-success disabled:opacity-40"
+          className="grid h-7 w-7 place-items-center rounded-full text-success transition-colors duration-150 hover:bg-fill disabled:opacity-40"
           title="Create"
         >
           <Check className="w-3.5 h-3.5" />
@@ -74,7 +75,7 @@ export function FileActions({ serverId, currentPath, onComplete }: FileActionsPr
             setCreatingType(null);
             setName('');
           }}
-          className="p-1 rounded hover:bg-accent text-muted-foreground"
+          className="grid h-7 w-7 place-items-center rounded-full text-label-2 transition-colors duration-150 hover:bg-fill hover:text-foreground"
           title="Cancel"
         >
           <X className="w-3.5 h-3.5" />
@@ -87,17 +88,17 @@ export function FileActions({ serverId, currentPath, onComplete }: FileActionsPr
     <div className="flex items-center gap-1">
       <button
         onClick={() => setCreatingType('file')}
-        className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+        className="grid size-9 place-items-center rounded-full text-label-2 transition-colors duration-150 hover:bg-fill hover:text-foreground"
         title="New File"
       >
-        <FilePlus className="w-4 h-4" />
+        <FilePlus className="h-[18px] w-[18px]" strokeWidth={1.75} />
       </button>
       <button
         onClick={() => setCreatingType('folder')}
-        className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+        className="grid size-9 place-items-center rounded-full text-label-2 transition-colors duration-150 hover:bg-fill hover:text-foreground"
         title="New Folder"
       >
-        <FolderPlus className="w-4 h-4" />
+        <FolderPlus className="h-[18px] w-[18px]" strokeWidth={1.75} />
       </button>
     </div>
   );

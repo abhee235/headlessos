@@ -18,7 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton';
  */
 export function ContentRenderer({ item, index = 0 }: { item: DeepPartial<Widget | Layout>; index?: number }) {
   if (!item) {
-    return <Skeleton className="h-24 w-full rounded-lg" />;
+    return <Skeleton className="h-24 w-full rounded-[22px]" />;
   }
 
   // Check for widget FIRST — widgets have `type`, layouts don't
@@ -32,5 +32,5 @@ export function ContentRenderer({ item, index = 0 }: { item: DeepPartial<Widget 
   }
 
   // Streaming / partial — no discriminant yet
-  return <Skeleton className="h-24 w-full rounded-lg" />;
+  return <Skeleton className="h-24 w-full rounded-[22px]" />;
 }

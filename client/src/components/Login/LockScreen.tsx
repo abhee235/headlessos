@@ -1,10 +1,12 @@
-// M6.11: Lock Screen — Windows 11-style lock screen with clock
-// @see docs/phases/phase-6.md
+// M6.11: Lock Screen — clock over the wallpaper
+// EX8.5: LumenOS v3 — full-bleed wallpaper, date above a large bold clock in
+// the upper third, and a glass "click or press any key" pill at the bottom.
+// @see docs/phases/phase-6.md, docs/phases/phase-ex8.md
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAppStore } from '../../store/app-store';
 import { Wallpaper } from '../Desktop/Wallpaper';
-import { ChevronUp } from 'lucide-react';
+import { Lock } from 'lucide-react';
 
 export function LockScreen() {
   const unlockScreen = useAppStore(s => s.unlockScreen);
@@ -17,9 +19,9 @@ export function LockScreen() {
     return () => clearInterval(interval);
   }, []);
 
-  // Show "click anywhere" hint after 2s
+  // Fade the hint in shortly after the screen appears
   useEffect(() => {
-    const timeout = setTimeout(() => setHintVisible(true), 2000);
+    const timeout = setTimeout(() => setHintVisible(true), 600);
     return () => clearTimeout(timeout);
   }, []);
 
@@ -39,44 +41,35 @@ export function LockScreen() {
   }, [handleUnlock]);
 
   const timeStr = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-  const dateStr = time.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const dateStr = time.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
 
   return (
     <div
-      className="fixed inset-0 z-[99999] cursor-pointer select-none"
+      className="fixed inset-0 z-[99999] cursor-default select-none"
       onClick={handleUnlock}
     >
-      {/* Wallpaper */}
       <Wallpaper />
 
-      {/* Subtle vignette overlay */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background: 'radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.35) 100%)',
-        }}
-      />
-
-      {/* Clock + Date — centered, lower third */}
-      <div className="absolute inset-0 flex flex-col items-center justify-end pb-[28%] gap-1">
-        <span className="text-white text-[72px] font-extralight leading-none tracking-tight drop-shadow-lg">
-          {timeStr}
-        </span>
-        <span className="text-white/80 text-lg font-medium tracking-wide drop-shadow-md">
+      {/* Date + clock, centred in the upper third */}
+      <div className="absolute inset-x-0 top-[13%] flex flex-col items-center gap-1 text-white [text-shadow:0_2px_24px_rgba(0,0,0,.25)]">
+        <span className="text-[22px] font-medium tracking-[-0.01em] opacity-90">
           {dateStr}
+        </span>
+        <span className="text-[clamp(88px,11vw,132px)] leading-none font-bold tracking-[-0.03em] tabular-nums">
+          {timeStr}
         </span>
       </div>
 
-      {/* "Click anywhere" hint */}
+      {/* Sign-in hint */}
       <div
-        className={`absolute bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 transition-opacity duration-1000 ${
+        className={`absolute bottom-14 left-1/2 -translate-x-1/2 transition-opacity duration-700 ${
           hintVisible ? 'opacity-100' : 'opacity-0'
         }`}
       >
-        <ChevronUp className="w-5 h-5 text-white/50 animate-[slideUpIn_1.5s_ease-in-out_infinite]" />
-        <span className="text-white/50 text-xs font-medium tracking-widest uppercase">
-          Click anywhere or press a key
-        </span>
+        <div className="glass-heavy flex h-11 items-center gap-2.5 rounded-full px-5 text-sm font-medium">
+          <Lock className="h-4 w-4" strokeWidth={1.75} />
+          Click or press any key to sign in
+        </div>
       </div>
     </div>
   );

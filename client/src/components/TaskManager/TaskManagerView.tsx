@@ -1,44 +1,49 @@
-// M7.1: Task Manager — Windows 11-style Task Manager
-// Main container with sidebar navigation and tab views
-// @see docs/phases/phase-7.md
+// M7.1: Task Manager — main container with sidebar navigation and tab views
+// EX8.6: LumenOS v3 restyle — PaneSidebar with pinned CPU / Memory / Disk meters,
+// summary tiles above the process table.
+// EX8.9: App history, Startup apps, Users and Services pages.
+// @see docs/phases/phase-7.md, docs/phases/phase-ex8.md
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  Activity,
-  Cpu,
-  HardDrive,
-  Network,
-  MemoryStick,
-  Users,
-  RefreshCw,
-  AlertCircle,
-} from 'lucide-react';
-import { Spinner } from '@/components/ui/spinner';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Activity, AlertCircle, Cog, History, List, Rocket, Users, type LucideIcon } from 'lucide-react';
 import { LoadingView } from '@/components/ui/loading-view';
+import { Button } from '@/components/ui/button';
+import { PaneSidebar, PaneSidebarItem } from '@/components/ui/pane-sidebar';
 import type {
   TaskManagerData,
   TaskManagerResponse,
 } from '../../lib/api';
 import { fetchTaskManager } from '../../lib/api';
-import { useDesktopStore } from '../../store/window-store';
 import { DisconnectedState } from '@/components/ui/disconnected-state';
-import { cn } from '@/lib/utils';
 import { ProcessesTab } from './ProcessesTab';
 import { PerformanceTab } from './PerformanceTab';
+import { AppHistoryTab } from './AppHistoryTab';
+import { StartupTab } from './StartupTab';
+import { UsersTab } from './UsersTab';
+import { ServicesTab } from './ServicesTab';
+import { useAppStore } from '../../store/app-store';
+import { Meter, SERIES, Sparkline, formatBytesPerSec, formatMb } from './parts';
+
+/** Task Manager live refresh period */
+const LIVE_REFRESH_MS = 2000;
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type TabId = 'processes' | 'performance';
+type TabId = 'processes' | 'performance' | 'app-history' | 'startup' | 'users' | 'services';
 
 interface SidebarEntry {
   id: TabId;
   label: string;
-  icon: React.ElementType;
+  icon: LucideIcon;
 }
 
 const TABS: SidebarEntry[] = [
-  { id: 'processes', label: 'Processes', icon: Activity },
-  { id: 'performance', label: 'Performance', icon: Cpu },
+  { id: 'processes', label: 'Processes', icon: List },
+  { id: 'performance', label: 'Performance', icon: Activity },
+  { id: 'app-history', label: 'App history', icon: History },
+  { id: 'startup', label: 'Startup apps', icon: Rocket },
+  { id: 'users', label: 'Users', icon: Users },
+  { id: 'services', label: 'Services', icon: Cog },
 ];
 
 // ─── Task Manager View ──────────────────────────────────────────────────────
@@ -49,6 +54,7 @@ interface TaskManagerViewProps {
 
 export function TaskManagerView({ serverId }: TaskManagerViewProps) {
   const [tab, setTab] = useState<TabId>('processes');
+  const sshUser = useAppStore((s) => s.servers.find((srv) => srv.id === serverId)?.username);
   const [data, setData] = useState<TaskManagerData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -142,18 +148,19 @@ export function TaskManagerView({ serverId }: TaskManagerViewProps) {
     loadData();
   }, [loadData]);
 
-  // Auto-refresh every 3 seconds (paused while a context menu is open)
+  // Live refresh every 2 seconds (paused while a context menu is open).
+  // The server caps concurrent SSH channels, so this can't exhaust MaxSessions.
   useEffect(() => {
     const interval = setInterval(() => {
       if (!pauseRefreshRef.current) loadData(true);
-    }, 3000);
+    }, LIVE_REFRESH_MS);
     return () => clearInterval(interval);
   }, [loadData]);
 
   // ── Loading state ──
   if (loading) {
     return (
-      <div className="h-full bg-background">
+      <div className="h-full">
         <LoadingView label="Loading task manager…" />
       </div>
     );
@@ -174,16 +181,13 @@ export function TaskManagerView({ serverId }: TaskManagerViewProps) {
   // ── Error state ──
   if (error) {
     return (
-      <div className="flex items-center justify-center h-full bg-background">
+      <div className="flex h-full items-center justify-center">
         <div className="text-center">
-          <AlertCircle className="w-8 h-8 text-destructive mx-auto mb-2" />
-          <p className="text-sm text-destructive mb-3">{error}</p>
-          <button
-            onClick={() => loadData()}
-            className="px-3 py-1.5 text-xs bg-secondary hover:bg-accent text-foreground rounded-md"
-          >
+          <AlertCircle className="mx-auto mb-2 h-8 w-8 text-danger" strokeWidth={1.75} />
+          <p className="mb-3 text-[13px] text-danger">{error}</p>
+          <Button variant="secondary" size="sm" onClick={() => loadData()}>
             Retry
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -191,47 +195,95 @@ export function TaskManagerView({ serverId }: TaskManagerViewProps) {
 
   if (!data) return null;
 
+  // ── Derived values for the sidebar meters and summary tiles ──
+  const memPct = data.memory.totalMb > 0 ? (data.memory.usedMb / data.memory.totalMb) * 100 : 0;
+  const diskRates = diskHistory.map((d) => d.read + d.write);
+  const diskNow = diskRates[diskRates.length - 1] ?? 0;
+  const diskPeak = Math.max(1, ...diskRates);
+  const netSeries = netHistory.map((n) => ({ time: n.time, value: n.rx + n.tx }));
+  const netNow = netSeries[netSeries.length - 1]?.value ?? 0;
+  const { running, total } = data.cpu.processes;
+
   return (
-    <div className="flex h-full bg-background">
-      {/* ── Sidebar — Finder-inspired ── */}
-      <nav className="w-50 shrink-0 border-r border-border/40 overflow-y-auto pt-1.5">
-        <div className="px-4 pt-2.5 pb-1.5 text-[11px] font-semibold text-foreground/50 tracking-wide">
-          Task Manager
-        </div>
-        <div className="px-3 pb-2">
-          {TABS.map((entry) => {
-            const Icon = entry.icon;
-            const isActive = tab === entry.id;
-            return (
-              <button
-                key={entry.id}
-                onClick={() => setTab(entry.id)}
-                className={cn(
-                  'flex items-center gap-2 w-full px-2.5 py-2 text-[13px] rounded-md transition-colors outline-none',
-                  isActive
-                    ? 'bg-primary/15 text-primary font-medium'
-                    : 'text-foreground hover:bg-accent/50',
-                )}
-              >
-                <Icon size={20} strokeWidth={1.6} className={cn('shrink-0', isActive && 'text-primary')} />
-                {entry.label}
-              </button>
-            );
-          })}
-        </div>
-      </nav>
+    <div className="flex h-full">
+      {/* ── Sidebar ── */}
+      <PaneSidebar
+        width={208}
+        aria-label="Task Manager"
+        footer={
+          <div className="flex flex-col gap-3 pb-1">
+            <SidebarMeter
+              label="CPU"
+              value={`${Math.round(data.cpu.overallPercent)}%`}
+              pct={data.cpu.overallPercent}
+            />
+            <SidebarMeter
+              label="Memory"
+              value={`${Math.round(memPct)}%`}
+              pct={memPct}
+              fillClassName={SERIES.memory.bg}
+            />
+            <SidebarMeter
+              label="Disk"
+              value={formatBytesPerSec(diskNow)}
+              pct={(diskNow / diskPeak) * 100}
+              fillClassName={SERIES.disk.bg}
+              title="Disk I/O, relative to the peak over the last minute"
+            />
+          </div>
+        }
+      >
+        {TABS.map((entry) => (
+          <PaneSidebarItem
+            key={entry.id}
+            icon={entry.icon}
+            label={entry.label}
+            active={tab === entry.id}
+            onClick={() => setTab(entry.id)}
+          />
+        ))}
+      </PaneSidebar>
 
       {/* ── Content area ── */}
-      <div className="flex-1 min-w-0 overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden px-3.5 pb-2">
         {tab === 'processes' && (
-          <ProcessesTab
-            processes={data.processes}
+          <>
+            <div className="mb-3 grid shrink-0 grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3">
+              <SummaryTile label="CPU" value={`${data.cpu.overallPercent.toFixed(1)}%`}>
+                <Sparkline data={cpuHistory} dataKey="value" color={SERIES.cpu.color} domain={[0, 100]} />
+              </SummaryTile>
+              <SummaryTile label="Memory" value={formatMb(data.memory.usedMb)}>
+                <Sparkline data={memHistory} dataKey="value" color={SERIES.memory.color} domain={[0, 100]} />
+              </SummaryTile>
+              <SummaryTile label="Running" value={`${running} of ${total}`}>
+                <Meter value={total > 0 ? (running / total) * 100 : 0} fillClassName="bg-success" className="mb-1" />
+              </SummaryTile>
+              <SummaryTile label="Network" value={formatBytesPerSec(netNow)}>
+                <Sparkline data={netSeries} dataKey="value" color={SERIES.network.color} />
+              </SummaryTile>
+            </div>
+            <div className="min-h-0 flex-1">
+              <ProcessesTab
+                processes={data.processes}
+                serverId={serverId}
+                onRefresh={() => loadData(true)}
+                refreshing={refreshing}
+                onContextMenuOpenChange={(open: boolean) => { pauseRefreshRef.current = open; }}
+              />
+            </div>
+          </>
+        )}
+        {tab === 'app-history' && <AppHistoryTab serverId={serverId} />}
+        {tab === 'startup' && <StartupTab serverId={serverId} />}
+        {tab === 'users' && (
+          <UsersTab
             serverId={serverId}
-            onRefresh={() => loadData(true)}
-            refreshing={refreshing}
-            onContextMenuOpenChange={(open: boolean) => { pauseRefreshRef.current = open; }}
+            processes={data.processes}
+            totalMemMb={data.memory.totalMb}
+            currentUser={sshUser}
           />
         )}
+        {tab === 'services' && <ServicesTab serverId={serverId} />}
         {tab === 'performance' && (
           <PerformanceTab
             cpu={data.cpu}
@@ -245,6 +297,46 @@ export function TaskManagerView({ serverId }: TaskManagerViewProps) {
           />
         )}
       </div>
+    </div>
+  );
+}
+
+// ─── Sidebar meter: label + value on one line, 6px bar underneath ───────────
+
+function SidebarMeter({
+  label,
+  value,
+  pct,
+  fillClassName,
+  title,
+}: {
+  label: string;
+  value: string;
+  pct: number;
+  fillClassName?: string;
+  title?: string;
+}) {
+  return (
+    <div title={title}>
+      <div className="mb-1.5 flex items-center justify-between text-[12px]">
+        <span className="text-label-2">{label}</span>
+        <span className="font-semibold tabular-nums text-foreground">{value}</span>
+      </div>
+      <Meter value={pct} fillClassName={fillClassName} />
+    </div>
+  );
+}
+
+// ─── Summary tile: label, big number, sparkline / meter ─────────────────────
+
+function SummaryTile({ label, value, children }: { label: string; value: string; children: ReactNode }) {
+  return (
+    <div className="lumen-card flex min-w-0 flex-col rounded-[20px] px-4 pb-3 pt-3.5">
+      <span className="text-[13px] text-label-2">{label}</span>
+      <span className="mt-0.5 truncate text-[24px] font-bold leading-tight tracking-[-0.02em] tabular-nums">
+        {value}
+      </span>
+      <div className="mt-auto pt-2">{children}</div>
     </div>
   );
 }

@@ -1,4 +1,6 @@
 // M6.11: Add Server Form — inline form for adding new server connections
+// EX8.5: LumenOS v3 — a glass window card with pill fields; tokens, not white/N overlays.
+// @see docs/phases/phase-ex8.md
 // @see docs/phases/phase-6.md
 
 import { useState, useEffect, useRef } from 'react';
@@ -7,6 +9,7 @@ import {
   Server, KeyRound, Upload, FileText, ChevronDown, Check, FolderOpen } from 'lucide-react';
 import { fetchSSHKeys, fetchSSHKeyContent, type SSHKeyInfo } from '../../lib/api';
 import { Spinner } from '@/components/ui/spinner';
+import { SEGMENT_WELL, segmentItemClass } from '@/components/ui/segmented';
 
 type AuthMethod = 'password' | 'privateKey' | 'agent';
 type KeySource = 'detect' | 'upload' | 'paste';
@@ -141,12 +144,12 @@ export function AddServerForm({ onSubmit, onCancel }: AddServerFormProps) {
   };
 
   const inputClass =
-    'w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-white placeholder-white/30 text-sm outline-none focus:border-primary/50 focus:bg-white/15 transition-all';
+    'w-full h-[38px] px-4 rounded-full bg-field border border-edge text-foreground placeholder:text-label-3 text-[13px] outline-none focus:border-accent-solid/60 focus:ring-[3px] focus:ring-accent-soft transition-[box-shadow,border-color]';
 
-  const labelClass = 'text-white/50 text-xs font-medium uppercase tracking-wider mb-1.5 block';
+  const labelClass = 'text-label-3 text-[11px] font-bold uppercase tracking-[.06em] mb-1.5 px-1 block';
 
   return (
-    <div className="w-[440px] max-h-[85vh] overflow-y-auto bg-white/5 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-2xl p-6">
+    <div className="glass shadow-window w-[440px] max-h-[85vh] overflow-y-auto rounded-[24px] p-6">
       {/* Hidden file input for uploads */}
       <input
         ref={fileInputRef}
@@ -158,12 +161,12 @@ export function AddServerForm({ onSubmit, onCancel }: AddServerFormProps) {
 
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-          <Server className="w-5 h-5 text-primary" />
+        <div className="lumen-tile grid h-10 w-10 place-items-center rounded-[12px]">
+          <Server className="h-5 w-5 text-accent-solid" strokeWidth={1.75} />
         </div>
         <div>
-          <h2 className="text-white text-lg font-semibold">Add Server</h2>
-          <p className="text-white/40 text-xs">Configure a new SSH connection</p>
+          <h2 className="text-[17px] font-bold">Add Server</h2>
+          <p className="text-xs text-label-2">Configure a new SSH connection</p>
         </div>
       </div>
 
@@ -216,18 +219,13 @@ export function AddServerForm({ onSubmit, onCancel }: AddServerFormProps) {
         {/* Auth Method */}
         <div>
           <label className={labelClass}>Authentication</label>
-          <div className="flex gap-2">
+          <div className={`${SEGMENT_WELL} flex w-full`}>
             {(['password', 'privateKey', 'agent'] as AuthMethod[]).map(method => (
               <button
                 key={method}
                 type="button"
-                className={`
-                  flex-1 py-2 rounded-lg text-xs font-medium transition-all
-                  ${authMethod === method
-                    ? 'bg-primary/20 border border-primary/30 text-primary'
-                    : 'bg-white/5 border border-white/10 text-white/40 hover:text-white/60 hover:bg-white/10'
-                  }
-                `}
+                aria-pressed={authMethod === method}
+                className={segmentItemClass(authMethod === method, 'flex-1 px-2')}
                 onClick={() => {
                   setAuthMethod(method);
                   setError(null);
@@ -271,8 +269,8 @@ export function AddServerForm({ onSubmit, onCancel }: AddServerFormProps) {
                     className={`
                       flex-1 py-1.5 px-2 rounded-md text-[11px] font-medium transition-all flex items-center justify-center gap-1.5
                       ${keySource === id
-                        ? 'bg-primary/20 border border-primary/30 text-primary'
-                        : 'bg-white/5 border border-white/10 text-white/40 hover:text-white/60 hover:bg-white/10'
+                        ? 'bg-accent-soft border border-accent-solid/40 text-accent-solid'
+                        : 'bg-fill border border-edge text-label-2 hover:text-foreground hover:bg-fill'
                       }
                     `}
                     onClick={() => {
@@ -297,51 +295,51 @@ export function AddServerForm({ onSubmit, onCancel }: AddServerFormProps) {
                   Detected Keys (~/.ssh)
                 </label>
                 {loadingKeys ? (
-                  <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-white/40 text-sm">
-                    <Spinner className="w-3.5 h-3.5" />
+                  <div className="flex items-center gap-2 px-4 py-2.5 rounded-[10px] bg-fill-2 border border-edge text-label-2 text-sm">
+                    <Spinner className="h-4 w-4" />
                     Scanning ~/.ssh ...
                   </div>
                 ) : detectedKeys.length === 0 ? (
-                  <div className="px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white/30 text-xs">
+                  <div className="px-4 py-2.5 rounded-[10px] bg-fill border border-edge text-label-3 text-xs">
                     No SSH keys found in ~/.ssh — try uploading or pasting a key
                   </div>
                 ) : (
                   <div className="relative" ref={dropdownRef}>
                     <button
                       type="button"
-                      className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-sm transition-all hover:bg-white/15 focus:border-primary/50"
+                      className="w-full flex items-center justify-between px-4 h-[38px] rounded-full bg-field border border-edge text-[13px] transition-colors hover:bg-fill focus:border-accent-solid/60"
                       onClick={() => setKeyDropdownOpen(!keyDropdownOpen)}
                     >
                       <div className="flex items-center gap-2">
-                        <KeyRound className="w-3.5 h-3.5 text-primary" />
-                        <span className="text-white">
+                        <KeyRound className="w-3.5 h-3.5 text-accent-solid" />
+                        <span className="text-foreground">
                           {selectedKeyName ?? 'Select a key...'}
                         </span>
                         {selectedKeyName && (
-                          <span className="text-white/30 text-xs">
+                          <span className="text-label-3 text-xs">
                             ({detectedKeys.find(k => k.name === selectedKeyName)?.type})
                           </span>
                         )}
                       </div>
-                      <ChevronDown className={`w-4 h-4 text-white/40 transition-transform ${keyDropdownOpen ? 'rotate-180' : ''}`} />
+                      <ChevronDown className={`w-4 h-4 text-label-2 transition-transform ${keyDropdownOpen ? 'rotate-180' : ''}`} />
                     </button>
                     {keyDropdownOpen && (
-                      <div className="absolute z-50 mt-1 w-full rounded-lg bg-black/80 backdrop-blur-xl border border-white/15 shadow-2xl overflow-hidden">
+                      <div className="glass-heavy absolute z-50 mt-1 w-full overflow-hidden rounded-[18px] p-1.5">
                         {detectedKeys.map(key => (
                           <button
                             key={key.name}
                             type="button"
-                            className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/10 transition-colors"
+                            className="w-full flex items-center gap-3 px-3 py-2 rounded-[10px] text-left hover:bg-accent-soft transition-colors"
                             onClick={() => handleKeySelect(key.name)}
                           >
-                            <KeyRound className="w-3.5 h-3.5 text-white/40 shrink-0" />
+                            <KeyRound className="w-3.5 h-3.5 text-label-2 shrink-0" />
                             <div className="flex-1 min-w-0">
-                              <div className="text-white text-sm truncate">{key.name}</div>
-                              <div className="text-white/30 text-[10px] truncate">{key.path}</div>
+                              <div className="text-foreground text-sm truncate">{key.name}</div>
+                              <div className="text-label-3 text-[10px] truncate">{key.path}</div>
                             </div>
-                            <span className="text-white/20 text-[10px] font-mono">{key.type}</span>
+                            <span className="text-label-3 text-[10px] font-mono">{key.type}</span>
                             {selectedKeyName === key.name && (
-                              <Check className="w-3.5 h-3.5 text-primary shrink-0" />
+                              <Check className="w-3.5 h-3.5 text-accent-solid shrink-0" />
                             )}
                           </button>
                         ))}
@@ -351,14 +349,14 @@ export function AddServerForm({ onSubmit, onCancel }: AddServerFormProps) {
                 )}
                 {/* Loading indicator when fetching key content */}
                 {loadingKeyContent && (
-                  <div className="flex items-center gap-2 mt-2 text-white/40 text-xs">
-                    <Spinner className="w-3 h-3" />
+                  <div className="flex items-center gap-2 mt-2 text-label-2 text-xs">
+                    <Spinner className="h-4 w-4" />
                     Loading key content...
                   </div>
                 )}
                 {/* Key loaded confirmation */}
                 {!loadingKeyContent && privateKeyContent && selectedKeyName && (
-                  <div className="flex items-center gap-2 mt-2 text-success/80 text-xs">
+                  <div className="flex items-center gap-2 mt-2 text-success text-xs">
                     <Check className="w-3 h-3" />
                     Key loaded ({privateKeyContent.split('\n').length} lines)
                   </div>
@@ -372,18 +370,18 @@ export function AddServerForm({ onSubmit, onCancel }: AddServerFormProps) {
                 <label className={labelClass}>Private Key File</label>
                 <button
                   type="button"
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-white/10 border border-dashed border-white/20 text-white/60 text-sm hover:bg-white/15 hover:border-white/30 transition-all"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-[14px] bg-field border border-dashed border-edge-2 text-label-2 text-sm hover:bg-fill hover:border-accent-solid/40 transition-all"
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <FolderOpen className="w-4 h-4" />
                   {selectedKeyName ? (
-                    <span className="text-white">{selectedKeyName}</span>
+                    <span className="text-foreground">{selectedKeyName}</span>
                   ) : (
                     'Choose private key file...'
                   )}
                 </button>
                 {privateKeyContent && (
-                  <div className="flex items-center gap-2 mt-2 text-success/80 text-xs">
+                  <div className="flex items-center gap-2 mt-2 text-success text-xs">
                     <Check className="w-3 h-3" />
                     Key loaded ({privateKeyContent.split('\n').length} lines)
                   </div>
@@ -419,28 +417,28 @@ export function AddServerForm({ onSubmit, onCancel }: AddServerFormProps) {
         )}
 
         {authMethod === 'agent' && (
-          <p className="text-white/30 text-xs py-2">
+          <p className="text-label-3 text-xs py-2">
             Will use your local SSH agent (SSH_AUTH_SOCK)
           </p>
         )}
 
         {/* Error */}
         {error && (
-          <p className="text-destructive text-xs bg-destructive/10 px-3 py-2 rounded-lg">{error}</p>
+          <p className="rounded-[10px] border border-danger/30 bg-danger/14 px-3 py-2 text-xs text-danger">{error}</p>
         )}
 
         {/* Actions */}
         <div className="flex gap-3 pt-2">
           <button
             type="button"
-            className="flex-1 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white/50 hover:text-white/80 hover:bg-white/10 text-sm font-medium transition-all"
+            className="flex-1 h-[38px] rounded-full bg-mat border border-edge text-foreground shadow-[var(--lumen-spec)] hover:bg-mat-thick text-[13px] font-semibold transition-colors"
             onClick={onCancel}
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="flex-1 py-2.5 rounded-lg bg-primary hover:bg-primary/90 disabled:bg-primary/30 disabled:text-white/50 text-white text-sm font-medium transition-all flex items-center justify-center gap-2"
+            className="lumen-lit flex-1 h-[38px] rounded-full text-[13px] font-semibold transition-[filter,opacity] hover:brightness-105 disabled:opacity-50 flex items-center justify-center gap-2"
             disabled={!canSubmit}
           >
             {submitting ? (

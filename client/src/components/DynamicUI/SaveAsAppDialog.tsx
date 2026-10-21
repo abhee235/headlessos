@@ -1,4 +1,5 @@
 // EX5-C.2: Save As App Dialog — lets users save a generated DynamicView as a reusable app
+// EX8.6: Lumen field labels, recessed icon grid, accent-soft selection
 // @see docs/phases/phase-ex5.md
 
 import { useState, useMemo, useCallback } from 'react';
@@ -17,6 +18,7 @@ import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { getLucideIcon } from './widgets/icon-helper';
+import { TEXTAREA_FIELD_CLASS } from './widgets/widget-card';
 import { createSavedApp, type CreateAppInput } from '@/lib/api';
 import type { DynamicView } from 'headlessos-shared/schemas/dynamic-view';
 import { toast } from 'sonner';
@@ -35,6 +37,9 @@ const ICON_NAMES = [
   'Star', 'Target', 'Terminal', 'Upload', 'User', 'Users',
   'Wifi', 'Zap',
 ];
+
+/** Field label: 12px semibold secondary */
+const LABEL_CLASS = 'text-xs font-semibold text-label-2';
 
 // ── Props ───────────────────────────────────────────────
 
@@ -128,7 +133,7 @@ export function SaveAsAppDialog({
         <div className="space-y-4 py-2">
           {/* Name */}
           <div className="space-y-1.5">
-            <Label htmlFor="app-name">Name *</Label>
+            <Label className={LABEL_CLASS} htmlFor="app-name">Name *</Label>
             <Input
               id="app-name"
               data-testid="app-name-input"
@@ -141,21 +146,24 @@ export function SaveAsAppDialog({
 
           {/* Icon picker */}
           <div className="space-y-1.5">
-            <Label>Icon *</Label>
+            <Label className={LABEL_CLASS}>Icon *</Label>
             <div className="flex items-center gap-2">
               <Button
-                variant="outline"
-                size="sm"
-                className="h-9 gap-2"
+                variant="secondary"
+                className="gap-2 pl-2.5"
                 onClick={() => setShowIconPicker(!showIconPicker)}
                 data-testid="icon-picker-trigger"
               >
-                {SelectedIcon && <SelectedIcon className="w-4 h-4" />}
+                {SelectedIcon && (
+                  <span className="grid h-6 w-6 place-items-center rounded-full bg-accent-soft text-accent-text">
+                    <SelectedIcon className="size-3.5!" strokeWidth={1.75} />
+                  </span>
+                )}
                 <span className="text-xs">{icon}</span>
               </Button>
             </div>
             {showIconPicker && (
-              <ScrollArea className="h-40 border rounded-md p-2" data-testid="icon-picker-grid">
+              <ScrollArea className="h-40 rounded-[14px] border border-edge bg-paper p-2" data-testid="icon-picker-grid">
                 <div className="grid grid-cols-8 gap-1">
                   {ICON_NAMES.map((iconName) => {
                     const IconComp = getLucideIcon(iconName);
@@ -165,8 +173,8 @@ export function SaveAsAppDialog({
                         key={iconName}
                         type="button"
                         className={cn(
-                          'flex items-center justify-center w-8 h-8 rounded hover:bg-accent transition-colors',
-                          icon === iconName && 'bg-primary/10 ring-1 ring-primary',
+                          'flex h-8 w-8 items-center justify-center rounded-[10px] text-label-2 transition-colors duration-150 hover:bg-fill hover:text-foreground',
+                          icon === iconName && 'bg-accent-soft text-accent-text ring-1 ring-accent-glow hover:bg-accent-soft hover:text-accent-text',
                         )}
                         onClick={() => {
                           setIcon(iconName);
@@ -175,7 +183,7 @@ export function SaveAsAppDialog({
                         title={iconName}
                         data-testid={`icon-option-${iconName}`}
                       >
-                        <IconComp className="w-4 h-4" />
+                        <IconComp className="h-[17px] w-[17px]" strokeWidth={1.75} />
                       </button>
                     );
                   })}
@@ -186,7 +194,7 @@ export function SaveAsAppDialog({
 
           {/* CLI Tool */}
           <div className="space-y-1.5">
-            <Label htmlFor="app-cli-tool">CLI Tool *</Label>
+            <Label className={LABEL_CLASS} htmlFor="app-cli-tool">CLI Tool *</Label>
             <Input
               id="app-cli-tool"
               data-testid="app-cli-tool-input"
@@ -199,7 +207,7 @@ export function SaveAsAppDialog({
 
           {/* Description */}
           <div className="space-y-1.5">
-            <Label htmlFor="app-description">Description</Label>
+            <Label className={LABEL_CLASS} htmlFor="app-description">Description</Label>
             <Textarea
               id="app-description"
               data-testid="app-description-input"
@@ -208,12 +216,13 @@ export function SaveAsAppDialog({
               placeholder="What does this app show?"
               rows={2}
               maxLength={500}
+              className={TEXTAREA_FIELD_CLASS}
             />
           </div>
 
           {/* Tags */}
           <div className="space-y-1.5">
-            <Label htmlFor="app-tags">Tags</Label>
+            <Label className={LABEL_CLASS} htmlFor="app-tags">Tags</Label>
             <Input
               id="app-tags"
               data-testid="app-tags-input"
@@ -221,7 +230,7 @@ export function SaveAsAppDialog({
               onChange={(e) => setTagsInput(e.target.value)}
               placeholder="docker, monitoring, dashboard"
             />
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-[11px] text-label-3">
               Comma-separated tags for search and discovery
             </p>
           </div>

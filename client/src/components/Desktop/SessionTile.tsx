@@ -1,4 +1,5 @@
 // EX6-B.2 + B.3: SessionTile — one tile in the session switcher bar
+// EX8.4: LumenOS v3 — lumen-card tiles; the active one is accent-soft with a glow ring.
 // @see docs/phases/phase-ex6.md
 
 import { useMemo } from 'react';
@@ -9,6 +10,7 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuShortcut,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { useSessionsStore } from '../../store/sessions-store';
@@ -85,13 +87,12 @@ export function SessionTile({ server, isActive, onClick }: SessionTileProps) {
         <button
           onClick={onClick}
           className={cn(
-            'group relative flex flex-col items-start gap-1 rounded-lg border px-3 py-2 text-left text-xs transition-all',
-            'min-w-40 max-w-50 hover:bg-accent/40',
+            'group relative flex flex-col items-start gap-1 rounded-[16px] px-3 py-2 text-left text-xs transition-colors',
+            'min-w-40 max-w-50',
             isActive
-              ? 'border-primary bg-accent/60 shadow-sm'
-              : 'border-border bg-background/60 backdrop-blur-sm',
+              ? 'bg-accent-soft ring-1 ring-accent-glow'
+              : 'lumen-card hover:bg-fill',
           )}
-          style={isActive ? { borderColor: accent.oklchDark } : undefined}
           aria-pressed={isActive}
           data-testid={`session-tile-${server.id}`}
         >
@@ -102,8 +103,8 @@ export function SessionTile({ server, isActive, onClick }: SessionTileProps) {
               style={{ backgroundColor: accent.oklchDark }}
               aria-hidden="true"
             />
-            <Server className="h-3.5 w-3.5 flex-none text-muted-foreground" aria-hidden="true" />
-            <span className="flex-1 truncate font-medium">{server.name}</span>
+            <Server className="h-3.5 w-3.5 flex-none text-label-2" strokeWidth={1.75} aria-hidden="true" />
+            <span className={cn('flex-1 truncate text-[13px] font-semibold', isActive && 'text-accent-text')}>{server.name}</span>
             <span
               className={cn('h-2 w-2 flex-none rounded-full', status.dot)}
               aria-label={status.label}
@@ -112,7 +113,7 @@ export function SessionTile({ server, isActive, onClick }: SessionTileProps) {
           </div>
 
           {/* Bottom row: status text + window count */}
-          <div className="flex w-full items-center justify-between text-[10px] text-muted-foreground">
+          <div className="flex w-full items-center justify-between text-[11px] text-label-2">
             <span className="flex items-center gap-1">
               {StatusIcon && <StatusIcon className="h-3 w-3" />}
               {status.label}
@@ -140,7 +141,7 @@ export function SessionTile({ server, isActive, onClick }: SessionTileProps) {
           disabled={summary?.lifecycle === 'hibernated'}
         >
           Hibernate
-          <span className="ml-auto text-[10px] text-muted-foreground">⌘⇧H</span>
+          <ContextMenuShortcut>⌘⇧H</ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuItem
           onClick={() => {

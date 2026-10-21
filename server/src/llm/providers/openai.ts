@@ -15,14 +15,33 @@ import type {
 } from '../provider.js';
 import { SYSTEM_PROMPT, buildTextPrompt } from '../provider.js';
 
+/** EX8.20: default model for LLM parsing (Settings → AI) */
+export const DEFAULT_OPENAI_MODEL = 'gpt-6-luna';
+
+/**
+ * Extra Chat Completions params for a tool call. GPT-6 Luna is a reasoning model
+ * whose Chat Completions function calling needs `reasoning_effort: 'none'`
+ * (OpenAI model page). SDK 5.23 does not list 'none' yet, so it is cast.
+ */
+export function toolCallParams(model: string, hasTools: boolean): { reasoning_effort?: OpenAI.ReasoningEffort } {
+  return hasTools && model.startsWith('gpt-6-luna')
+    ? { reasoning_effort: 'none' as unknown as OpenAI.ReasoningEffort }
+    : {};
+}
+
 export class OpenAIProvider implements LLMProvider {
   name = 'openai';
   private client: OpenAI;
   model: string;
 
-  constructor(apiKey: string, model = 'gpt-4.1-mini') {
-    this.client = new OpenAI({ apiKey });
+  constructor(apiKey: string, model = DEFAULT_OPENAI_MODEL, client?: OpenAI) {
+    this.client = client ?? new OpenAI({ apiKey });
     this.model = model;
+  }
+
+  /** Same key (same client), another model: switching model in Settings keeps the key */
+  withModel(model: string): OpenAIProvider {
+    return new OpenAIProvider('', model, this.client);
   }
 
   async parseText<T>(input: ParseTextInput<T>): Promise<ParseResult<T>> {
@@ -146,14 +165,17 @@ export class OpenAIProvider implements LLMProvider {
       return assistantMsg;
     });
 
+    const hasTools = !!input.tools && input.tools.length > 0;
     const response = await this.client.chat.completions.create({
       model: this.model,
       messages,
-      ...(input.tools && input.tools.length > 0 ? {
+      ...(hasTools ? {
         tools: input.tools as OpenAI.Chat.Completions.ChatCompletionTool[],
         tool_choice: input.tool_choice ?? 'auto',
       } : {}),
-      ...(input.maxTokens ? { max_tokens: input.maxTokens } : {}),
+      ...toolCallParams(this.model, hasTools),
+      // max_tokens is deprecated and rejected by reasoning models; this works for all
+      ...(input.maxTokens ? { max_completion_tokens: input.maxTokens } : {}),
     });
 
     const choice = response.choices[0];

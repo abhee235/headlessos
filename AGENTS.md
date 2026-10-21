@@ -859,12 +859,14 @@ All UI primitives live in `client/src/components/ui/`. They use the CSS variable
 - **Need a side panel/drawer?** → `Sheet` (sliding from any edge) or `Drawer` (bottom sheet mobile-style)
 - **Need a toast notification?** → `Toaster` from `sonner.tsx` + `toast()` from `sonner`
 - **Need a command palette?** → `Command` (cmdk-powered, searchable list)
-- **Need tabs?** → `Tabs` / `TabsList` / `TabsTrigger` / `TabsContent`
+- **Need tabs?** → `Tabs` / `TabsList` / `TabsTrigger` / `TabsContent` (tab panels) or `Segmented` from `segmented.tsx` (button groups, filters, options). Both share one look — never hand-roll a pill group or light the selected pill with the accent; use `SEGMENT_WELL` + `segmentItemClass(selected)` for custom ones
 - **Need a form?** → `Form` (react-hook-form + Zod integration) with `Input`, `Textarea`, `Select`, `Checkbox`, `Switch`, `RadioGroup`
 - **Need a data table?** → `Table` (styled HTML table) — for advanced features, compose with sorting/filtering
 - **Need charts?** → `ChartContainer` + recharts components (BarChart, LineChart, etc.) with theme-aware tooltips
 - **Need resizable panels?** → `ResizablePanelGroup` / `ResizablePanel` / `ResizableHandle`
 - **Need a date picker?** → `Calendar` (react-day-picker v9) inside a `Popover`
+- **Need to edit or show a code/config file?** → `CodeEditor` (Monaco, syntax colouring, Lumen themes)
+- **Need a folder or file glyph (New Folder, New File, listings)?** → `FileIcon type="directory"|"file"`, never lucide `Folder`/`FolderPlus`/`File`/`FilePlus`
 - **Need a file icon?** → `FileIcon` (custom SVG component with 12 color categories, 100+ extension mappings)
 - **Need loading state?** → `Skeleton` (pulse animation placeholder)
 - **Need a progress bar?** → `Progress`
@@ -945,32 +947,30 @@ All files are in `client/src/components/ui/`. Import pattern: `import { Componen
 | Component | File | Base | Key Exports |
 |-----------|------|------|-------------|
 | AppWindow | `app-window.tsx` | Radix Dialog + compound | `AppWindow`, `AppWindow.Sidebar`, `AppWindow.SidebarGroup`, `AppWindow.SidebarItem`, `AppWindow.Toolbar`, `AppWindow.Body`, `AppWindow.Footer` — **standard for all overlay dialogs** |
+| Segmented | `segmented.tsx` | Custom | `Segmented`, `SEGMENT_WELL`, `SEGMENT_ITEM`, `SEGMENT_ON`, `SEGMENT_OFF`, `segmentItemClass`, `SegmentCount` — the one tab/filter look (38px well, 32px 14px options, selected on `bg-mat-thick`) |
+| CodeEditor | `code-editor.tsx` | Monaco (lazy chunk) | `CodeEditor` (`value`, `onChange`, `path` → language, `onSave` on Ctrl/⌘+S, `readOnly`) — use for any code/config file editing; never import `code-editor-impl` directly |
 | FileIcon | `FileIcon.tsx` | Custom SVG | `FileIcon`, `DashboardIcon`, `FileExplorerIcon`, `TerminalIcon`, `ThisPCIcon`, `FolderSVG`, `SymlinkSVG`, `FileSVG`, `getFileCategory`, `FILE_COLORS` |
 | Visually Hidden | `visually-hidden.tsx` | Radix | `VisuallyHidden` (accessibility: hidden but screen-reader visible) |
 
 ### CSS Variable Design Tokens
 
-Defined in `client/src/styles.css`. All components reference these — NEVER hardcode colors.
+Defined in `client/src/styles.css` (LumenOS v3 glass design, EX8). All components reference these — NEVER hardcode colors. Full reference: `docs/UI_DESIGN.md` §6.
 
 ```
---background / --foreground       Main app background and text
---card / --card-foreground        Card surfaces
---chrome / --chrome-foreground    Window chrome (title bars)
---popover / --popover-foreground  Menus, dropdowns, tooltips
---primary / --primary-foreground  Primary actions (buttons, links)
---secondary / --secondary-foreground  Secondary actions
---muted / --muted-foreground      Muted/disabled text, subtle backgrounds
---accent / --accent-foreground    Accent highlights
---destructive / --destructive-foreground  Destructive actions (delete, error)
---success / --success-foreground  Success states
---warning / --warning-foreground  Warning states
---border                          Borders
---input                           Input field borders
---ring                            Focus rings
---radius                          Border radius (default 0.5rem)
---taskbar / --taskbar-foreground  Taskbar
---sidebar / --sidebar-foreground  Sidebar panels
+--lumen-*                         Raw glass layer: label/label2/label3, fill/fill2, chip,
+                                  mat-thin/mat/mat-thick, field, paper, edge/edge2,
+                                  accent/accent-hi/accent-text/accent-soft/accent-glow, lit, danger
+--background / --foreground       Main app background and text (foreground = lumen label)
+--card / --popover / --chrome     Surfaces (mapped onto the glass layer)
+--primary / --primary-foreground  Accent (follows data-accent on <html>)
+--accent / --accent-foreground    Accent-soft tint + accent text (hover/selected)
+--muted-foreground                Secondary text
+--destructive / --success / --warning   Semantic states
+--border / --input / --ring       Hairlines, field background, focus glow
+--radius                          14px (sm 10 · md 14 · lg 18 · xl 22 · 2xl 24 · 3xl 30)
 ```
+
+Surface classes: `.glass`, `.glass-subtle`, `.glass-heavy`, `.lumen-card`, `.lumen-section`, `.lumen-well`, `.lumen-lit`, `.lumen-plate`. Accent / glass / transparency presets are `<html>` attributes set by `useLumenAppearance`.
 
 ### Adding a New Component
 

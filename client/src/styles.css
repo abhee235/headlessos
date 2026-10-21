@@ -1,13 +1,25 @@
 @import "tailwindcss";
+/* EX8.1: Manrope (UI) + Geist Mono (code) — bundled so Electron works offline */
+@import "@fontsource-variable/manrope";
+@import "@fontsource-variable/geist-mono";
 
 /* Enable class-based dark mode for TailwindCSS 4 */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* ── HeadlessOS Design Tokens ─────────────────────────────
-   oklch color system · shadcn/ui v2 compatible
+/* ── HeadlessOS Design Tokens — LumenOS v3 (EX8) ──────────
+   Two layers:
+   1. --lumen-*  raw glass layer (mats, edges, fills, accent)
+   2. shadcn semantic tokens mapped onto it, so every ui/
+      primitive picks up the glass look automatically.
    All tokens registered via @theme inline so TailwindCSS 4
-   auto-generates utilities: bg-background, text-foreground,
-   border-border, bg-primary/10, text-muted-foreground, etc.
+   auto-generates utilities: bg-background, bg-fill, bg-mat,
+   text-label-3, border-edge, bg-accent-soft, etc.
+   Presets switch via <html> attributes:
+     data-accent="iris|teal|blue|moss"
+     data-glass="heavy|balanced|subtle"
+     data-transparency="off"
+     data-wall-tone="dark"   (dark wallpaper in light mode)
+   @see docs/phases/phase-ex8.md
    ──────────────────────────────────────────────────────── */
 
 @theme inline {
@@ -83,150 +95,247 @@
   --color-dock-active: var(--dock-active);
   --color-dock-indicator: var(--dock-indicator);
 
-  /* ── Radius ── */
-  --radius-sm: calc(var(--radius) - 0.25rem);
+  /* ── Lumen layer (EX8.1) ── */
+  --color-accent-solid: var(--lumen-accent);
+  --color-accent-hi: var(--lumen-accent-hi);
+  --color-accent-text: var(--lumen-accent-text);
+  --color-accent-soft: var(--lumen-accent-soft);
+  --color-accent-glow: var(--lumen-accent-glow);
+  --color-on-accent: var(--lumen-on-accent);
+  --color-fill: var(--lumen-fill);
+  --color-fill-2: var(--lumen-fill2);
+  --color-chip: var(--lumen-chip);
+  --color-chip-2: var(--lumen-chip2);
+  --color-edge: var(--lumen-edge);
+  --color-edge-2: var(--lumen-edge2);
+  --color-mat-thin: var(--lumen-mat-thin);
+  --color-mat: var(--lumen-mat);
+  --color-mat-thick: var(--lumen-mat-thick);
+  --color-field: var(--lumen-field);
+  --color-field-2: var(--lumen-field2);
+  --color-paper: var(--lumen-paper);
+  --color-track: var(--lumen-track);
+  --color-label: var(--lumen-label);
+  --color-label-2: var(--lumen-label2);
+  --color-label-3: var(--lumen-label3);
+  --color-danger: var(--lumen-danger);
+  --color-term: var(--lumen-term-bg);
+  /* Data-viz hues (fixed in both themes, as in LumenOS) */
+  --color-viz-blue: var(--viz-blue);
+  --color-viz-green: var(--viz-green);
+  --color-viz-amber: var(--viz-amber);
+  --color-viz-violet: var(--viz-violet);
+  --color-viz-red: var(--viz-red);
+  --color-term-fg: var(--lumen-term-fg);
+
+  /* ── Radius: sm 10 · md 14 · lg 18 · xl 22 · 2xl 24 (windows) · 3xl 30 (shell panels) ── */
+  --radius-sm: calc(var(--radius) - 4px);
   --radius-md: var(--radius);
-  --radius-lg: calc(var(--radius) + 0.25rem);
-  --radius-xl: calc(var(--radius) + 0.5rem);
+  --radius-lg: calc(var(--radius) + 4px);
+  --radius-xl: calc(var(--radius) + 8px);
+  --radius-2xl: 24px;
+  --radius-3xl: 30px;
+
+  /* ── Type ── */
+  --font-sans: 'Manrope Variable', 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'Geist Mono Variable', 'Geist Mono', ui-monospace, 'Cascadia Code', monospace;
 }
 
 :root {
-  --radius: 0.65rem;
+  --radius: 14px;
 
-  /* ── Surface ── */
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.141 0.005 285.823);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.141 0.005 285.823);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.141 0.005 285.823);
+  /* ── Lumen raw layer (light, Heavy glass, Iris accent) ── */
+  --lumen-ink: 16, 30, 38;
+  /* Labels are darker than the handoff's .9/.72/.5: light glass renders
+     mid-grey over most wallpapers, where .72 measured 4.2:1 (below WCAG AA).
+     These keep label2 ≈ 5:1 and label3 ≥ 4.5:1 on Heavy glass. */
+  --lumen-label: rgba(16, 30, 38, .95);
+  --lumen-label2: rgba(16, 30, 38, .82);
+  --lumen-label3: rgba(16, 30, 38, .74);
+  --lumen-sep: rgba(16, 30, 38, .1);
+  --lumen-fill: rgba(16, 30, 38, .06);
+  --lumen-fill2: rgba(16, 30, 38, .12);
+  --lumen-mat-thin: rgba(255, 255, 255, .28);
+  --lumen-mat: rgba(255, 255, 255, .42);
+  --lumen-mat-thick: rgba(255, 255, 255, .6);
+  --lumen-field: rgba(255, 255, 255, .45);
+  --lumen-field2: rgba(255, 255, 255, .6);
+  --lumen-paper: rgba(255, 255, 255, .32);
+  --lumen-edge: rgba(255, 255, 255, .42);
+  --lumen-edge2: rgba(255, 255, 255, .62);
+  --lumen-spec: inset 0 1px 0 rgba(255, 255, 255, .55);
+  --lumen-spec2: rgba(255, 255, 255, .8);
+  --lumen-hair: rgba(255, 255, 255, .38);
+  --lumen-chip: rgba(16, 30, 38, .07);
+  --lumen-chip2: rgba(16, 30, 38, .12);
+  --lumen-track: rgba(255, 255, 255, .5);
+  --lumen-card: linear-gradient(150deg, rgba(255, 255, 255, .45), rgba(255, 255, 255, .22));
+  --lumen-panel: linear-gradient(150deg, rgba(255, 255, 255, .42), rgba(255, 255, 255, .26));
+  --lumen-lift: 0 30px 60px -24px rgba(0, 0, 0, .45);
+  --lumen-blur: blur(44px) saturate(190%);
+  --lumen-panel-blur: blur(40px) saturate(180%);
+  /* EX8.11: top menu bar — thin translucent glass over the wallpaper */
+  --lumen-menubar: rgba(255, 255, 255, .3);
+  --lumen-menubar-edge: rgba(16, 30, 38, .08);
+  --lumen-icon-filter: brightness(0) opacity(.85);
+  --lumen-accent: #6A4FB0;
+  --lumen-accent-hi: #8468C8;
+  --lumen-accent-text: #4F3790;
+  --lumen-accent-soft: rgba(106, 79, 176, .15);
+  --lumen-accent-glow: rgba(106, 79, 176, .45);
+  --lumen-on-accent: #fff;
+  --lumen-lit: linear-gradient(180deg, #8468C8, #6A4FB0); /* "lit" toggle tiles */
+  --lumen-danger: #A12C2C;
+  --lumen-wall-scrim: transparent;
+  /* Data-viz hues — vivid and theme-independent, as in the LumenOS System and
+     Activity windows: memory/upload blue, disk/download green, CPU violet,
+     network/loopback amber. Use with the .lumen-glow-* drop shadows. */
+  --viz-blue: #4FA3FF;
+  --viz-green: #34D27B;
+  --viz-amber: #F5B83D;
+  --viz-violet: #7D63FF;
+  --viz-violet-from: #5E3BE6;
+  --viz-violet-to: #A493FF;
+  --viz-red: #FF6B5E;
+  --lumen-text-lift: 0 1px 2px rgba(0, 0, 0, .14);
+  /* Terminal pane: always dark, in both themes (as in LumenOS) */
+  --lumen-term-bg: rgba(9, 13, 19, .8);
+  --lumen-term-fg: #D6DEE4;
 
-  /* ── Primary ── */
-  --primary: oklch(0.488 0.243 264.376);
-  --primary-foreground: oklch(0.97 0.014 254.604);
-
-  /* ── Secondary ── */
-  --secondary: oklch(0.967 0.001 286.375);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
-
-  /* ── Muted ── */
-  --muted: oklch(0.967 0.001 286.375);
-  --muted-foreground: oklch(0.552 0.016 285.938);
-
-  /* ── Accent ── */
-  --accent: oklch(0.967 0.001 286.375);
-  --accent-foreground: oklch(0.21 0.006 285.885);
-
-  /* ── Semantic ── */
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.97 0.014 254.604);
-  --success: oklch(0.696 0.17 162.48);
-  --success-foreground: oklch(1 0 0);
-  --warning: oklch(0.795 0.184 86.047);
-  --warning-foreground: oklch(0.21 0.006 285.885);
-
-  /* ── Border / Input / Ring ── */
-  --border: oklch(0.92 0.004 286.32);
-  --input: oklch(0.92 0.004 286.32);
-  --ring: oklch(0.708 0 0);
-
-  /* ── Chrome ── */
-  --chrome: oklch(0.965 0.001 286.375);
-  --chrome-foreground: oklch(0.4 0.01 286);
-
-  /* ── Taskbar ── */
-  --taskbar: oklch(1 0 0);
-  --taskbar-foreground: oklch(0.4 0.01 286);
-
-  /* ── Sidebar ── */
-  --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.141 0.005 285.823);
-  --sidebar-primary: oklch(0.546 0.245 262.881);
-  --sidebar-primary-foreground: oklch(0.97 0.014 254.604);
-  --sidebar-accent: oklch(0.967 0.001 286.375);
-  --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
-  --sidebar-border: oklch(0.92 0.004 286.32);
-  --sidebar-ring: oklch(0.708 0 0);
-
-  /* ── Charts ── */
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
-
-  /* ── Overlay / Glass / Separator / Dock ── */
-  --overlay: oklch(0 0 0 / 40%);
-  --separator: oklch(0 0 0 / 6%);
-  --glass: oklch(1 0 0 / 88%);
-  --glass-foreground: oklch(0.141 0.005 285.823);
-  --glass-border: oklch(0 0 0 / 8%);
-  --dock-hover: oklch(1 0 0 / 10%);
-  --dock-active: oklch(1 0 0 / 20%);
-  --dock-indicator: oklch(1 0 0 / 80%);
+  /* ── shadcn semantic tokens mapped onto Lumen ── */
+  --background: #EEF1F4;
+  --foreground: var(--lumen-label);
+  --card: rgba(255, 255, 255, .34);
+  --card-foreground: var(--lumen-label);
+  --popover: rgba(255, 255, 255, .5);
+  --popover-foreground: var(--lumen-label);
+  --primary: var(--lumen-accent);
+  --primary-foreground: var(--lumen-on-accent);
+  --secondary: var(--lumen-fill);
+  --secondary-foreground: var(--lumen-label);
+  --muted: var(--lumen-fill);
+  --muted-foreground: var(--lumen-label2);
+  --accent: var(--lumen-accent-soft);
+  --accent-foreground: var(--lumen-accent-text);
+  --destructive: var(--lumen-danger);
+  --destructive-foreground: #fff;
+  --success: #2F7A4F;
+  --success-foreground: #fff;
+  --warning: #B7791F;
+  --warning-foreground: #fff;
+  --border: var(--lumen-sep);
+  --input: var(--lumen-field);
+  --ring: var(--lumen-accent-glow);
+  --chrome: var(--lumen-mat);
+  --chrome-foreground: var(--lumen-label);
+  --taskbar: rgba(255, 255, 255, .34);
+  --taskbar-foreground: var(--lumen-label);
+  --sidebar: var(--lumen-mat-thin);
+  --sidebar-foreground: var(--lumen-label);
+  --sidebar-primary: var(--lumen-accent);
+  --sidebar-primary-foreground: var(--lumen-on-accent);
+  --sidebar-accent: var(--lumen-accent-soft);
+  --sidebar-accent-foreground: var(--lumen-accent-text);
+  --sidebar-border: var(--lumen-edge);
+  --sidebar-ring: var(--lumen-accent-glow);
+  --chart-1: #6A4FB0;
+  --chart-2: #8468C8;
+  --chart-3: #2F5FB3;
+  --chart-4: #007187;
+  --chart-5: #2F7A4F;
+  --overlay: rgba(0, 0, 0, .32);
+  --separator: var(--lumen-sep);
+  --glass: var(--lumen-mat);
+  --glass-foreground: var(--lumen-label);
+  --glass-border: var(--lumen-edge);
+  --dock-hover: rgba(255, 255, 255, .14);
+  --dock-active: var(--lumen-accent-soft);
+  --dock-indicator: var(--lumen-accent);
 }
 
 .dark {
-  --background: oklch(0.141 0.005 285.823);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.21 0.006 285.885);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.21 0.006 285.885);
-  --popover-foreground: oklch(0.985 0 0);
+  --lumen-ink: 255, 255, 255;
+  --lumen-label: rgba(255, 255, 255, .95);
+  --lumen-label2: rgba(255, 255, 255, .72);
+  --lumen-label3: rgba(255, 255, 255, .5);
+  --lumen-sep: rgba(255, 255, 255, .12);
+  --lumen-fill: rgba(255, 255, 255, .08);
+  --lumen-fill2: rgba(255, 255, 255, .16);
+  --lumen-mat-thin: rgba(44, 44, 50, .25);
+  --lumen-mat: rgba(44, 44, 50, .54);
+  --lumen-mat-thick: rgba(44, 44, 50, .72);
+  --lumen-field: rgba(0, 0, 0, .2);
+  --lumen-field2: rgba(255, 255, 255, .06);
+  --lumen-paper: rgba(0, 0, 0, .16);
+  --lumen-edge: rgba(255, 255, 255, .12);
+  --lumen-edge2: rgba(255, 255, 255, .13);
+  --lumen-spec: inset 0 1px 0 rgba(255, 255, 255, .12);
+  --lumen-spec2: rgba(255, 255, 255, .12);
+  --lumen-hair: rgba(255, 255, 255, .10);
+  --lumen-chip: rgba(0, 0, 0, .24);
+  --lumen-chip2: rgba(0, 0, 0, .34);
+  --lumen-track: rgba(255, 255, 255, .14);
+  --lumen-card: linear-gradient(150deg, rgba(255, 255, 255, .10), rgba(255, 255, 255, .03));
+  --lumen-panel: linear-gradient(150deg, rgba(120, 120, 128, .30), rgba(40, 40, 46, .34));
+  --lumen-menubar: rgba(8, 10, 14, .16);
+  --lumen-menubar-edge: rgba(255, 255, 255, .09);
+  --lumen-lift: 0 30px 60px -20px rgba(0, 0, 0, .7);
+  --lumen-icon-filter: brightness(0) invert(1);
+  --lumen-accent: #B9A2FF;
+  --lumen-accent-hi: #D0C2FF;
+  --lumen-accent-text: #D0C2FF;
+  --lumen-accent-soft: rgba(185, 162, 255, .22);
+  --lumen-accent-glow: rgba(185, 162, 255, .35);
+  --lumen-on-accent: #071E25;
+  --lumen-danger: #FF7B72;
+  --lumen-wall-scrim: linear-gradient(180deg, rgba(0, 0, 0, .18), rgba(0, 0, 0, .38));
+  --lumen-text-lift: 0 1px 3px rgba(0, 0, 0, .45);
 
-  --primary: oklch(0.488 0.243 264.376);
-  --primary-foreground: oklch(0.97 0.014 254.604);
-
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
-
-  --muted: oklch(0.274 0.006 286.033);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-
-  --accent: oklch(0.274 0.006 286.033);
-  --accent-foreground: oklch(0.985 0 0);
-
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.141 0.005 285.823);
-  --success: oklch(0.765 0.177 163.223);
-  --success-foreground: oklch(0.141 0.005 285.823);
-  --warning: oklch(0.852 0.199 91.936);
-  --warning-foreground: oklch(0.141 0.005 285.823);
-
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-
-  --chrome: oklch(0.21 0.006 285.885);
-  --chrome-foreground: oklch(0.705 0.015 286.067);
-
-  --taskbar: oklch(0.178 0.005 285.823);
-  --taskbar-foreground: oklch(0.705 0.015 286.067);
-
-  --sidebar: oklch(0.21 0.006 285.885);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.623 0.214 259.815);
-  --sidebar-primary-foreground: oklch(0.97 0.014 254.604);
-  --sidebar-accent: oklch(0.274 0.006 286.033);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.439 0 0);
-
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
-
-  --overlay: oklch(0 0 0 / 60%);
-  --separator: oklch(1 0 0 / 8%);
-  --glass: oklch(0.21 0.006 285.885 / 85%);
-  --glass-foreground: oklch(0.985 0 0);
-  --glass-border: oklch(1 0 0 / 12%);
-  --dock-hover: oklch(1 0 0 / 8%);
-  --dock-active: oklch(1 0 0 / 15%);
-  --dock-indicator: oklch(1 0 0 / 60%);
+  --background: #202227;
+  --card: rgba(255, 255, 255, .06);
+  --popover: rgba(60, 60, 68, .6);
+  --success: #7FD3A0;
+  --success-foreground: #071E25;
+  --warning: #F2C66D;
+  --warning-foreground: #071E25;
+  --destructive-foreground: #071E25;
+  --taskbar: rgba(80, 80, 88, .32);
+  --chart-1: #B9A2FF;
+  --chart-2: #D0C2FF;
+  --chart-3: #8AB4FF;
+  --chart-4: #4FC3D6;
+  --chart-5: #7FD3A0;
+  --overlay: rgba(0, 0, 0, .5);
+  --dock-hover: rgba(255, 255, 255, .14);
 }
+
+/* ── Accent presets (data-accent on <html>). Iris is the default above.
+   The lit gradient always uses the light-mode pair, as in LumenOS. ── */
+[data-accent="teal"] { --lumen-accent:#007187; --lumen-accent-hi:#1F8EA3; --lumen-accent-text:#005261; --lumen-accent-soft:rgba(0,113,135,.15); --lumen-accent-glow:rgba(0,113,135,.45); --lumen-lit:linear-gradient(180deg,#1F8EA3,#007187); --chart-1:#007187; --chart-2:#1F8EA3; }
+.dark[data-accent="teal"] { --lumen-accent:#4FC3D6; --lumen-accent-hi:#7AD6E5; --lumen-accent-text:#7AD6E5; --lumen-accent-soft:rgba(79,195,214,.22); --lumen-accent-glow:rgba(79,195,214,.35); --chart-1:#4FC3D6; --chart-2:#7AD6E5; }
+[data-accent="blue"] { --lumen-accent:#2F5FB3; --lumen-accent-hi:#4A7BD0; --lumen-accent-text:#234A8C; --lumen-accent-soft:rgba(47,95,179,.15); --lumen-accent-glow:rgba(47,95,179,.45); --lumen-lit:linear-gradient(180deg,#4A7BD0,#2F5FB3); --chart-1:#2F5FB3; --chart-2:#4A7BD0; }
+.dark[data-accent="blue"] { --lumen-accent:#8AB4FF; --lumen-accent-hi:#AFCBFF; --lumen-accent-text:#AFCBFF; --lumen-accent-soft:rgba(138,180,255,.22); --lumen-accent-glow:rgba(138,180,255,.35); --chart-1:#8AB4FF; --chart-2:#AFCBFF; }
+[data-accent="moss"] { --lumen-accent:#2F7A4F; --lumen-accent-hi:#44935F; --lumen-accent-text:#1F5C3A; --lumen-accent-soft:rgba(47,122,79,.15); --lumen-accent-glow:rgba(47,122,79,.45); --lumen-lit:linear-gradient(180deg,#44935F,#2F7A4F); --chart-1:#2F7A4F; --chart-2:#44935F; }
+.dark[data-accent="moss"] { --lumen-accent:#7FD3A0; --lumen-accent-hi:#A5E3BC; --lumen-accent-text:#A5E3BC; --lumen-accent-soft:rgba(127,211,160,.22); --lumen-accent-glow:rgba(127,211,160,.35); --chart-1:#7FD3A0; --chart-2:#A5E3BC; }
+
+/* ── Glass strength presets (data-glass on <html>). Heavy is the default.
+   Dark = light alpha + .12 (cap .92). ── */
+[data-glass="balanced"] { --lumen-mat-thin:rgba(255,255,255,.42); --lumen-mat:rgba(255,255,255,.56); --lumen-mat-thick:rgba(255,255,255,.72); --lumen-blur:blur(30px) saturate(190%); }
+[data-glass="subtle"]   { --lumen-mat-thin:rgba(255,255,255,.6);  --lumen-mat:rgba(255,255,255,.72); --lumen-mat-thick:rgba(255,255,255,.84); --lumen-blur:blur(18px) saturate(190%); }
+.dark[data-glass="balanced"] { --lumen-mat-thin:rgba(44,44,50,.54); --lumen-mat:rgba(44,44,50,.68); --lumen-mat-thick:rgba(44,44,50,.84); }
+.dark[data-glass="subtle"]   { --lumen-mat-thin:rgba(44,44,50,.72); --lumen-mat:rgba(44,44,50,.84); --lumen-mat-thick:rgba(44,44,50,.92); }
+
+/* Dark wallpaper in light mode: mats + .2 (cap .92) so text stays readable */
+[data-wall-tone="dark"]:not(.dark) { --lumen-mat-thin:rgba(255,255,255,.48); --lumen-mat:rgba(255,255,255,.62); --lumen-mat-thick:rgba(255,255,255,.8); }
+[data-wall-tone="dark"][data-glass="balanced"]:not(.dark) { --lumen-mat-thin:rgba(255,255,255,.62); --lumen-mat:rgba(255,255,255,.76); --lumen-mat-thick:rgba(255,255,255,.92); }
+[data-wall-tone="dark"][data-glass="subtle"]:not(.dark) { --lumen-mat-thin:rgba(255,255,255,.8); --lumen-mat:rgba(255,255,255,.92); --lumen-mat-thick:rgba(255,255,255,.92); }
+
+/* "Transparency off" (Settings): near-opaque mats, no blur, solid panels */
+[data-transparency="off"],
+[data-transparency="off"][data-glass],
+[data-transparency="off"][data-wall-tone="dark"]:not(.dark) { --lumen-mat-thin:rgba(255,255,255,.9); --lumen-mat:rgba(255,255,255,.94); --lumen-mat-thick:rgba(255,255,255,.97); --lumen-blur:none; --lumen-panel-blur:none; --lumen-panel:#F3F5F8; --taskbar:#EEF1F4; }
+.dark[data-transparency="off"],
+.dark[data-transparency="off"][data-glass] { --lumen-mat-thin:rgba(44,44,50,.9); --lumen-mat:rgba(44,44,50,.94); --lumen-mat-thick:rgba(44,44,50,.97); --lumen-panel:#22252B; --taskbar:#202227; }
 
 /* ── Base styles ── */
 * {
@@ -234,98 +343,116 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text',
-    'Helvetica Neue', system-ui, sans-serif;
+  font-family: var(--font-sans);
   background-color: var(--background);
-  color: var(--foreground);
+  color: var(--lumen-label);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Glass utility classes ── */
-.glass {
-  background: var(--glass);
-  backdrop-filter: blur(40px) saturate(1.8);
-  -webkit-backdrop-filter: blur(40px) saturate(1.8);
+input::placeholder,
+textarea::placeholder {
+  color: var(--lumen-label3);
 }
 
-.glass-subtle {
-  background: oklch(1 0 0 / 45%);
-  backdrop-filter: blur(24px) saturate(1.5);
-  -webkit-backdrop-filter: blur(24px) saturate(1.5);
-}
+/* ── Surface recipes (EX8.1) ───────────────────────────────
+   In the components layer so Tailwind utilities on the same element
+   (hover:bg-*, ring-*, shadow-*, border-*) can still override them. */
+@layer components {
+  /* Window body */
+  .glass {
+    background: linear-gradient(180deg, rgba(255, 255, 255, .14), rgba(255, 255, 255, 0) 42%), var(--lumen-mat);
+    backdrop-filter: var(--lumen-blur);
+    -webkit-backdrop-filter: var(--lumen-blur);
+    border: 1px solid var(--lumen-edge);
+    color: var(--lumen-label);
+  }
+  /* Inset pane inside a window (sidebars, toolbars) */
+  .glass-subtle {
+    background: var(--lumen-mat-thin);
+    border: 1px solid var(--lumen-edge);
+  }
+  /* Floating shell panel: dock, launcher, quick settings, menus, toasts */
+  /* EX8.11: top menu bar (28px strip; darkens the wallpaper ~14% in dark mode,
+     measured from the Claude Design screen) */
+  .lumen-menubar {
+    background: var(--lumen-menubar);
+    backdrop-filter: blur(30px) saturate(160%);
+    -webkit-backdrop-filter: blur(30px) saturate(160%);
+    box-shadow: 0 1px 0 var(--lumen-menubar-edge);
+  }
+  .glass-heavy {
+    background: var(--lumen-panel);
+    backdrop-filter: var(--lumen-panel-blur);
+    -webkit-backdrop-filter: var(--lumen-panel-blur);
+    border: 1px solid var(--lumen-edge2);
+    box-shadow: inset 0 1px 0 var(--lumen-spec2), var(--lumen-lift);
+    color: var(--lumen-label);
+  }
+  /* Content card inside panels/dashboards */
+  .lumen-card {
+    background: var(--lumen-card);
+    border: 1px solid var(--lumen-edge2);
+    box-shadow: inset 0 1px 0 var(--lumen-spec2);
+  }
+  /* Settings-style section card inside windows */
+  .lumen-section {
+    background: var(--lumen-mat-thin);
+    border: 1px solid var(--lumen-edge);
+    box-shadow: var(--lumen-spec);
+  }
+  /* Recessed well (dock utility group, segmented controls) */
+  .lumen-well {
+    background: var(--lumen-chip);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, .3), 0 1px 0 rgba(255, 255, 255, .06);
+  }
+  /* Lit toggle / primary pill / active slider fill */
+  .lumen-lit {
+    background: var(--lumen-lit);
+    color: #fff;
+    box-shadow: 0 6px 18px -6px var(--lumen-accent-glow), inset 0 1px 0 rgba(255, 255, 255, .35);
+  }
+  /* App icon plate (dock + launcher) */
+  .lumen-plate {
+    background: linear-gradient(180deg, rgba(255, 255, 255, .2), rgba(255, 255, 255, .06));
+    border: 1px solid var(--lumen-edge2);
+    box-shadow: inset 0 1px 0 var(--lumen-spec2), 0 6px 14px -8px rgba(0, 0, 0, .45);
+  }
+  /* Raised pill input (launcher search, sign-in password) */
+  .lumen-field-raised {
+    background: var(--lumen-mat-thick);
+    border: 1px solid var(--lumen-edge);
+    box-shadow: var(--lumen-spec), var(--lumen-lift);
+  }
+  /* Raised icon tile (card headers, section headers) — 36px, radius 11 */
+  .lumen-tile {
+    background: linear-gradient(180deg, rgba(255, 255, 255, .22), rgba(255, 255, 255, .08));
+    border: 1px solid rgba(255, 255, 255, .2);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3), 0 6px 14px -6px rgba(0, 0, 0, .45);
+  }
+  /* Headings and big numbers that sit up off the glass */
+  .lumen-text-lift { text-shadow: var(--lumen-text-lift); }
+  /* Soft glow behind vivid data marks (rings, bars, status dots) */
+  .lumen-glow-blue { filter: drop-shadow(0 0 6px rgba(79, 163, 255, .6)); }
+  .lumen-glow-green { filter: drop-shadow(0 0 5px rgba(52, 210, 123, .55)); }
+  .lumen-glow-violet { filter: drop-shadow(0 0 6px rgba(125, 99, 255, .55)); }
+  .lumen-dot-green { background: var(--viz-green); box-shadow: 0 0 0 3px rgba(52, 210, 123, .18), 0 0 10px rgba(52, 210, 123, .85); }
+  .lumen-dot-amber { background: var(--viz-amber); box-shadow: 0 0 0 3px rgba(245, 184, 61, .18), 0 0 8px rgba(245, 184, 61, .8); }
+  /* Monochrome SVG icons that must follow the theme */
+  .lumen-icon { filter: var(--lumen-icon-filter); }
+  /* Wallpaper scrim (darkens the wallpaper in dark mode) */
+  .lumen-scrim { background: var(--lumen-wall-scrim); }
 
-.dark .glass-subtle {
-  background: oklch(0.21 0.006 285.885 / 55%);
-}
-
-.glass-heavy {
-  background: oklch(1 0 0 / 82%);
-  backdrop-filter: blur(48px) saturate(2);
-  -webkit-backdrop-filter: blur(48px) saturate(2);
-}
-
-.dark .glass-heavy {
-  background: oklch(0.21 0.006 285.885 / 88%);
-}
-
-/* ── Modern shadow presets ── */
-.shadow-glass {
-  box-shadow:
-    0 0 0 1px oklch(0 0 0 / 4%),
-    0 8px 40px -8px oklch(0 0 0 / 8%),
-    0 2px 8px -2px oklch(0 0 0 / 4%);
-}
-
-.dark .shadow-glass {
-  box-shadow:
-    0 0 0 1px oklch(1 0 0 / 6%),
-    0 8px 40px -8px oklch(0 0 0 / 50%),
-    0 2px 8px -2px oklch(0 0 0 / 30%);
-}
-
-.shadow-window {
-  box-shadow:
-    0 0 0 1px oklch(0 0 0 / 6%),
-    0 24px 80px -12px oklch(0 0 0 / 12%),
-    0 8px 24px -8px oklch(0 0 0 / 6%);
-}
-
-.dark .shadow-window {
-  box-shadow:
-    0 0 0 1px oklch(1 0 0 / 8%),
-    0 24px 80px -12px oklch(0 0 0 / 60%),
-    0 8px 24px -8px oklch(0 0 0 / 40%);
-}
-
-.shadow-window-unfocused {
-  box-shadow:
-    0 0 0 1px oklch(0 0 0 / 4%),
-    0 12px 40px -8px oklch(0 0 0 / 6%),
-    0 4px 12px -4px oklch(0 0 0 / 3%);
-}
-
-.dark .shadow-window-unfocused {
-  box-shadow:
-    0 0 0 1px oklch(1 0 0 / 5%),
-    0 12px 40px -8px oklch(0 0 0 / 40%),
-    0 4px 12px -4px oklch(0 0 0 / 30%);
-}
-
-.shadow-dock {
-  box-shadow:
-    0 0 0 1px oklch(0 0 0 / 5%),
-    0 16px 64px -16px oklch(0 0 0 / 10%),
-    0 4px 16px -4px oklch(0 0 0 / 5%);
-}
-
-.dark .shadow-dock {
-  box-shadow:
-    0 0 0 1px oklch(1 0 0 / 6%),
-    0 16px 64px -16px oklch(0 0 0 / 50%),
-    0 4px 16px -4px oklch(0 0 0 / 30%);
+  /* ── Shadows ── */
+  .shadow-glass { box-shadow: var(--lumen-spec), var(--lumen-lift); }
+  .shadow-window { box-shadow: var(--lumen-spec), var(--lumen-lift); }
+  .shadow-window-unfocused { box-shadow: var(--lumen-spec), 0 16px 40px -20px rgba(0, 0, 0, .35); }
+  /* EX8.18: desktop windows split the two: the drop shadow sits on its own
+     element so Chrome's blur layer stays the window's own box */
+  .shadow-window-drop { box-shadow: var(--lumen-lift); }
+  .shadow-window-drop-unfocused { box-shadow: 0 16px 40px -20px rgba(0, 0, 0, .35); }
+  .shadow-dock { box-shadow: inset 0 1px 0 var(--lumen-spec2), 0 24px 60px -24px rgba(0, 0, 0, .6); }
 }
 
 /* ── EX3-D.3: Widget entrance animations with stagger ── */
@@ -356,6 +483,9 @@ body {
   .animate-dialogIn,
   .animate-slideUpIn,
   .animate-scaleIn,
+  .animate-panelIn,
+  .animate-panelDown,
+  .animate-toastIn,
   .animate-windowOpen,
   .animate-windowClose {
     animation: none !important;
@@ -365,9 +495,25 @@ body {
 }
 
 /* ── Animations ── */
-@keyframes contextMenuIn {
-  from { opacity: 0; transform: scale(0.96) translateY(-4px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
+/* EX8.1: menus and popovers open with lu-pop */
+@keyframes lu-pop {
+  from { opacity: 0; transform: scale(.97) translateY(-2px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Shell panels (launcher, quick settings) rise from the dock */
+@keyframes lu-panel-down {
+  from { opacity: 0; transform: translateY(-10px) scale(.98); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes lu-panel {
+  from { opacity: 0; transform: translateY(10px) scale(.98); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes lu-toast {
+  from { opacity: 0; transform: translateX(28px); }
+  to { opacity: 1; transform: none; }
 }
 
 @keyframes dialogIn {
@@ -384,6 +530,10 @@ body {
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+/* EX8.10: HomeHub overlay fade + canvas rise (HomeHub.dc.html) */
+@keyframes hub-in { from { opacity: 0 } to { opacity: 1 } }
+@keyframes hub-rise { from { opacity: 0; transform: translateY(14px) scale(.985) } to { opacity: 1; transform: none } }
 
 @keyframes dockBounce {
   0%, 100% { transform: translateY(0); }
@@ -406,8 +556,21 @@ body {
 }
 
 .animate-contextMenuIn {
-  animation: contextMenuIn 0.15s cubic-bezier(0.2, 0, 0, 1) forwards;
-  transform-origin: var(--radix-context-menu-content-transform-origin, top left);
+  animation: lu-pop .12s ease-out forwards;
+  transform-origin: var(--radix-context-menu-content-transform-origin, var(--radix-dropdown-menu-content-transform-origin, top left));
+}
+
+.animate-panelIn {
+  animation: lu-panel .18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* EX8.11: panels hanging from the top menu bar drop in from above */
+.animate-panelDown {
+  animation: lu-panel-down .18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-toastIn {
+  animation: lu-toast .22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .animate-dialogIn {
@@ -426,8 +589,11 @@ body {
   animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* EX8.18: no `forwards` — the last frame is the resting style anyway, and a
+   filling animation kept every window on an "active" opacity + transform
+   compositor animation for as long as it stayed open */
 .animate-windowOpen {
-  animation: windowOpen 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: windowOpen 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .animate-windowClose {
@@ -455,18 +621,30 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: oklch(0 0 0 / 12%);
+  background: var(--lumen-fill2);
   border-radius: 100px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: oklch(0 0 0 / 20%);
+  background: rgba(var(--lumen-ink), .24);
 }
 
-.dark ::-webkit-scrollbar-thumb {
-  background: oklch(1 0 0 / 10%);
+/* Scrollbar shows only while the pointer is over the area (or focus is in it) —
+   sidebars use it so an idle nav list has no bar down its edge. Chromium does not
+   repaint ::-webkit-scrollbar-thumb on the scroller's :hover, but it does when an
+   inherited colour changes: the thumb paints the scroller's border-color as a wide
+   inset border (the scroller has no border of its own, so nothing else shows). */
+.scrollbar-on-hover {
+  border-color: transparent;
+  transition: border-color .2s ease;
 }
-
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: oklch(1 0 0 / 18%);
+.scrollbar-on-hover:hover,
+.scrollbar-on-hover:focus-within {
+  border-color: var(--lumen-fill2);
+}
+.scrollbar-on-hover::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-color: inherit;
+  border-right-style: inset;
+  border-right-width: calc(100vw + 100vh);
 }

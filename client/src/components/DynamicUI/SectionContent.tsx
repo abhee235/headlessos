@@ -29,16 +29,16 @@ export function SectionContent({ layout, loading }: SectionContentProps) {
   if (!layout || (loading && isLayoutEmpty(layout))) {
     return (
       <div className="space-y-4 animate-pulse">
-        <Skeleton className="h-5 w-32" />
-        <div className="grid grid-cols-3 gap-3">
-          <Skeleton className="h-20 w-full rounded-lg" />
-          <Skeleton className="h-20 w-full rounded-lg" />
-          <Skeleton className="h-20 w-full rounded-lg" />
+        <Skeleton className="h-5 w-32 rounded-full" />
+        <div className="grid grid-cols-3 gap-4">
+          <Skeleton className="h-24 w-full rounded-[22px]" />
+          <Skeleton className="h-24 w-full rounded-[22px]" />
+          <Skeleton className="h-24 w-full rounded-[22px]" />
         </div>
-        <Skeleton className="h-8 w-full" />
-        <Skeleton className="h-8 w-3/4" />
-        <Skeleton className="h-8 w-5/6" />
-        <Skeleton className="h-32 w-full rounded-lg" />
+        <Skeleton className="h-[34px] w-full rounded-[10px]" />
+        <Skeleton className="h-[34px] w-3/4 rounded-[10px]" />
+        <Skeleton className="h-[34px] w-5/6 rounded-[10px]" />
+        <Skeleton className="h-32 w-full rounded-[22px]" />
       </div>
     );
   }

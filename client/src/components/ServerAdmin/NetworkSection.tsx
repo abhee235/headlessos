@@ -1,9 +1,10 @@
 // M8.7: Network Section — listening ports, routes, DNS, interfaces, hostname management
-// @see docs/phases/phase-8.md
+// EX8.6: LumenOS v3 — section header, lit segmented tabs, pill search, glass table cards.
+// @see docs/phases/phase-8.md, docs/phases/phase-ex8.md
 
 import { useCallback, useEffect, useState } from 'react';
 import {
-  RefreshCw, AlertCircle, Wifi, Pencil, ArrowUpCircle, ArrowDownCircle, Save, X, Activity, Globe, Radio, Search, MoreHorizontal, Shield, Lock, Eye, Ban, FileText, Circle, CheckCircle2, Target, SlidersHorizontal, ChevronDown } from 'lucide-react';
+  Network, Pencil, ArrowUpCircle, ArrowDownCircle, Save, X, Globe, Lock, Eye, Ban, FileText, Circle, Target, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,12 +12,9 @@ import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
-  TableCell,
-  TableHead,
   TableHeader,
-  TableRow,
 } from '@/components/ui/table';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,12 +22,15 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { cn } from '@/lib/utils';
 import { fetchNetworkInfo, setHostname, setDnsConfig, setInterfaceUp, setInterfaceDown } from '@/lib/api';
 import type { NetworkInfo } from '@/lib/api';
 import { toast } from 'sonner';
 import { Spinner } from '@/components/ui/spinner';
 import { LoadingView } from '@/components/ui/loading-view';
+import {
+  SectionBody, SectionHeader, RefreshButton, SegmentTabs, SearchField, TableCard, HeadRow, Th, Tr, Td,
+  EmptyRow, MonoChip, RoundIconButton, RowMenuButton, Panel, PanelTitle, FIELD_LABEL, ErrorState,
+} from './admin-ui';
 
 export function NetworkSection({ serverId }: { serverId: string }) {
   const [data, setData] = useState<NetworkInfo | null>(null);
@@ -51,6 +52,9 @@ export function NetworkSection({ serverId }: { serverId: string }) {
 
   // Port search filter (must be before any early returns to satisfy hooks rules)
   const [portSearch, setPortSearch] = useState('');
+
+  // Active sub-tab (controlled so the active pill can be lit)
+  const [tab, setTab] = useState('ports');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -138,32 +142,16 @@ export function NetworkSection({ serverId }: { serverId: string }) {
   }
 
   if (error || !data) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 text-foreground/40 gap-3">
-        <AlertCircle size={24} />
-        <span className="text-sm">{error || 'No data'}</span>
-        <Button variant="outline" size="sm" onClick={load}>Retry</Button>
-      </div>
-    );
+    return <ErrorState message={error || 'No data'} onRetry={load} />;
   }
 
   // ── Helpers (data is guaranteed non-null below) ──
-  const getProcessColor = (process: string) => {
+  const getProcessTag = (process: string): { label: string; variant: 'success' | 'secondary' } | null => {
     const p = process.toLowerCase();
-    if (p.includes('ssh')) return 'text-foreground/70 bg-foreground/5';
-    if (p.includes('nginx') || p.includes('apache') || p.includes('http')) return 'text-foreground/70 bg-foreground/5';
-    if (p.includes('dns') || p.includes('systemd-resolve')) return 'text-foreground/70 bg-foreground/5';
-    if (p.includes('docker') || p.includes('containerd')) return 'text-foreground/70 bg-foreground/5';
-    if (p.includes('postgres') || p.includes('mysql') || p.includes('mongo')) return 'text-foreground/70 bg-foreground/5';
-    return 'text-foreground/60 bg-foreground/5';
-  };
-
-  const getProcessTag = (process: string): { label: string; color: string } | null => {
-    const p = process.toLowerCase();
-    if (p.includes('ssh')) return { label: 'Running', color: 'text-emerald-600 bg-emerald-500/10' };
-    if (p.includes('dns') || p.includes('systemd-resolve')) return { label: 'DNS', color: 'text-foreground/50 bg-foreground/5' };
-    if (p.includes('nginx') || p.includes('apache') || p.includes('http')) return { label: 'Running', color: 'text-emerald-600 bg-emerald-500/10' };
-    if (p.includes('docker') || p.includes('containerd')) return { label: 'Running', color: 'text-emerald-600 bg-emerald-500/10' };
+    if (p.includes('ssh')) return { label: 'Running', variant: 'success' };
+    if (p.includes('dns') || p.includes('systemd-resolve')) return { label: 'DNS', variant: 'secondary' };
+    if (p.includes('nginx') || p.includes('apache') || p.includes('http')) return { label: 'Running', variant: 'success' };
+    if (p.includes('docker') || p.includes('containerd')) return { label: 'Running', variant: 'success' };
     return null;
   };
 
@@ -172,22 +160,16 @@ export function NetworkSection({ serverId }: { serverId: string }) {
     return p.includes('ssh') || p.includes('nginx') || p.includes('https') || p.includes('tls') || p.includes('secure');
   };
 
-  const getProtoBadgeColor = (proto: string) => {
-    if (proto === 'tcp') return 'bg-foreground/8 text-foreground/70';
-    if (proto === 'udp') return 'bg-foreground/8 text-foreground/70';
-    if (proto === 'tcp6') return 'bg-foreground/8 text-foreground/70';
-    return 'bg-foreground/5 text-foreground/60';
-  };
-
-  const getStateBadgeColor = (state: string) => {
-    if (state === 'ESTABLISHED') return 'bg-emerald-500/10 text-emerald-600';
-    if (state === 'LISTEN') return 'bg-foreground/5 text-foreground/60';
-    if (state === 'TIME_WAIT' || state === 'CLOSE_WAIT') return 'bg-amber-500/10 text-amber-600';
-    if (state === 'CLOSED') return 'bg-foreground/5 text-foreground/40';
-    return 'bg-foreground/5 text-foreground/50';
+  const getStateBadgeVariant = (state: string): 'success' | 'secondary' | 'warning' | 'outline' => {
+    if (state === 'ESTABLISHED') return 'success';
+    if (state === 'LISTEN') return 'secondary';
+    if (state === 'TIME_WAIT' || state === 'CLOSE_WAIT') return 'warning';
+    if (state === 'CLOSED') return 'outline';
+    return 'secondary';
   };
 
   const isPublicPort = (port: number) => [22, 80, 443, 8080, 3000, 3001, 5432, 3306, 6379, 27017].includes(port);
+  const isLoopback = (addr: string) => addr.startsWith('127.') || addr === '::1' || addr === '[::1]';
 
   // Filtered ports
   const filteredPorts = data.ports.filter(p => {
@@ -201,330 +183,294 @@ export function NetworkSection({ serverId }: { serverId: string }) {
     );
   });
 
+  const upCount = (data.interfaces ?? []).filter((i) => i.state === 'UP').length;
+
   return (
-    <div className="@container p-6 space-y-4">
+    <SectionBody>
       {/* ── Title Row ── */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Wifi size={22} className="text-primary" />
-          <h2 className="text-xl font-bold text-foreground">Network</h2>
-          {data.hostname && !editingHostname && (
-            <div className="flex items-center gap-1.5 ml-1">
-              <CheckCircle2 size={16} className="text-emerald-500" />
-              <span className="text-sm text-foreground/60 font-mono">{data.hostname}</span>
-              <button
-                className="p-0.5 rounded text-foreground/25 hover:text-foreground/60 transition-colors"
-                onClick={openHostnameEdit}
-                disabled={busy}
-                title="Change hostname"
-              >
-                <Pencil size={11} />
-              </button>
-            </div>
-          )}
-          {editingHostname && (
-            <div className="flex items-center gap-2 ml-1">
+      <SectionHeader
+        icon={Network}
+        title="Network"
+        badge={<Badge variant="success">Online</Badge>}
+        subtitle={
+          editingHostname ? (
+            <span className="flex items-center gap-1.5 py-0.5">
               <Input
                 value={hostnameInput}
                 onChange={e => setHostnameInput(e.target.value)}
-                className="h-7 w-48 text-xs font-mono"
+                className="h-7 w-48 font-mono text-xs"
                 placeholder="new-hostname"
                 disabled={busy}
                 onKeyDown={e => { if (e.key === 'Enter') void handleSaveHostname(); if (e.key === 'Escape') setEditingHostname(false); }}
               />
-              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => void handleSaveHostname()} disabled={busy}>
-                <Save size={12} />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingHostname(false)} disabled={busy}>
-                <X size={12} />
-              </Button>
-            </div>
-          )}
-        </div>
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground/30 hover:text-foreground" onClick={load} disabled={busy}>
-          <RefreshCw size={16} className={cn(busy && 'animate-spin')} />
-        </Button>
-      </div>
+              <RoundIconButton className="h-7 w-7" onClick={() => void handleSaveHostname()} disabled={busy} title="Save hostname">
+                <Save strokeWidth={1.75} />
+              </RoundIconButton>
+              <RoundIconButton className="h-7 w-7" onClick={() => setEditingHostname(false)} disabled={busy} title="Cancel">
+                <X strokeWidth={1.75} />
+              </RoundIconButton>
+            </span>
+          ) : (
+            <>
+              {data.hostname && (
+                <>
+                  <span className="truncate font-mono">{data.hostname}</span>
+                  <button
+                    className="rounded-full p-1 text-label-3 transition-colors duration-150 hover:bg-fill hover:text-foreground"
+                    onClick={openHostnameEdit}
+                    disabled={busy}
+                    title="Change hostname"
+                  >
+                    <Pencil size={12} strokeWidth={1.75} />
+                  </button>
+                  <span className="text-label-3">·</span>
+                </>
+              )}
+              <span className="truncate">
+                {upCount} of {data.interfaces?.length ?? 0} interfaces up
+              </span>
+            </>
+          )
+        }
+        actions={<RefreshButton onClick={load} disabled={busy} spinning={busy} />}
+      />
 
       {/* ── Tabs ── */}
-      <Tabs defaultValue="ports">
-        <TabsList className="h-auto p-1 bg-muted rounded-lg gap-1 w-auto inline-flex">
-          {[
-            { value: 'ports', label: 'Listening Ports', count: data.ports.length, icon: Radio },
-            { value: 'connections', label: 'Connections', count: data.connections.length, icon: Activity },
-            { value: 'interfaces', label: 'Interfaces', count: data.interfaces?.length ?? 0, icon: Globe },
-            { value: 'routes', label: 'Routes', icon: Globe },
-            { value: 'dns', label: 'DNS', icon: Globe },
-          ].map((tab) => (
-            <TabsTrigger
-              key={tab.value}
-              value={tab.value}
-              className="rounded-md px-3 py-1.5 text-[13px] font-medium text-foreground/50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all hover:text-foreground/70"
-            >
-              {tab.label}
-            
-              
-             {'count' in tab && tab.count !== undefined && (  
-        <Badge variant="secondary" className="ml-1.5 px-1.5 text-muted-foreground">
-          {tab.count}
-        </Badge>
-      )}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+      <Tabs value={tab} onValueChange={setTab}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <SegmentTabs
+            value={tab}
+            items={[
+              { value: 'ports', label: 'Listening ports', count: data.ports.length },
+              { value: 'connections', label: 'Connections', count: data.connections.length },
+              { value: 'interfaces', label: 'Interfaces', count: data.interfaces?.length ?? 0 },
+              { value: 'routes', label: 'Routes' },
+              { value: 'dns', label: 'DNS' },
+            ]}
+          />
+          {tab === 'ports' && (
+            <SearchField
+              placeholder="Search ports or addresses"
+              value={portSearch}
+              onValueChange={setPortSearch}
+            />
+          )}
+        </div>
 
         {/* ── Ports Tab ── */}
-        <TabsContent value="ports" className="mt-4">
-          {/* Filter bar with chips + search */}
-          <div className="flex items-center justify-between gap-3 mb-3">
-            <div className="flex items-center gap-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs font-medium border-border/50">
-                    <SlidersHorizontal size={13} />
-                    Filters
-                    <ChevronDown size={12} className="opacity-40" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-36">
-                  <DropdownMenuItem>Show All</DropdownMenuItem>
-                  <DropdownMenuItem>Public Only</DropdownMenuItem>
-                  <DropdownMenuItem>Private Only</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs font-medium border-border/50">
-                    All Protocols
-                    <ChevronDown size={12} className="opacity-40" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-32">
-                  <DropdownMenuItem>All Protocols</DropdownMenuItem>
-                  <DropdownMenuItem>TCP</DropdownMenuItem>
-                  <DropdownMenuItem>UDP</DropdownMenuItem>
-                  <DropdownMenuItem>TCP6</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs font-medium border-border/50">
-                    All Ports
-                    <ChevronDown size={12} className="opacity-40" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-36">
-                  <DropdownMenuItem>All Ports</DropdownMenuItem>
-                  <DropdownMenuItem>Common Ports</DropdownMenuItem>
-                  <DropdownMenuItem>High Ports</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs font-medium border-border/50">
-                    All Status
-                    <ChevronDown size={12} className="opacity-40" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-32">
-                  <DropdownMenuItem>All Status</DropdownMenuItem>
-                  <DropdownMenuItem>Running</DropdownMenuItem>
-                  <DropdownMenuItem>Listening</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-            <div className="relative w-56">
-              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-foreground/30" />
-              <Input
-                placeholder="Search..."
-                value={portSearch}
-                onChange={e => setPortSearch(e.target.value)}
-                className="h-8 pl-8 text-xs bg-muted/30 border shadow-none"
-              />
-            </div>
+        <TabsContent value="ports" className="mt-4 space-y-3">
+          {/* Filter pills */}
+          <div className="flex flex-wrap items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="secondary" size="sm">
+                  <SlidersHorizontal strokeWidth={1.75} />
+                  Filters
+                  <ChevronDown className="opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-36">
+                <DropdownMenuItem>Show All</DropdownMenuItem>
+                <DropdownMenuItem>Public Only</DropdownMenuItem>
+                <DropdownMenuItem>Private Only</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="secondary" size="sm">
+                  All Protocols
+                  <ChevronDown className="opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-32">
+                <DropdownMenuItem>All Protocols</DropdownMenuItem>
+                <DropdownMenuItem>TCP</DropdownMenuItem>
+                <DropdownMenuItem>UDP</DropdownMenuItem>
+                <DropdownMenuItem>TCP6</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="secondary" size="sm">
+                  All Ports
+                  <ChevronDown className="opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-36">
+                <DropdownMenuItem>All Ports</DropdownMenuItem>
+                <DropdownMenuItem>Common Ports</DropdownMenuItem>
+                <DropdownMenuItem>High Ports</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="secondary" size="sm">
+                  All Status
+                  <ChevronDown className="opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-32">
+                <DropdownMenuItem>All Status</DropdownMenuItem>
+                <DropdownMenuItem>Running</DropdownMenuItem>
+                <DropdownMenuItem>Listening</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent border-0">
-                <TableHead className="w-20 text-xs font-medium text-foreground/40 h-9">Proto</TableHead>
-                <TableHead className="text-xs font-medium text-foreground/40 h-9">Address</TableHead>
-                <TableHead className="w-20 text-xs font-medium text-foreground/40 h-9">Port</TableHead>
-                <TableHead className="text-xs font-medium text-foreground/40 h-9">Process</TableHead>
-                <TableHead className="w-10 text-xs font-medium text-foreground/40 h-9"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredPorts.map((p, i) => {
-                const tag = getProcessTag(p.process);
-                return (
-                <TableRow key={i} className="border-0 hover:bg-muted/20 group">
-                  <TableCell className="py-3">
-                    <span className={cn('inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide', getProtoBadgeColor(p.protocol))}>
-                      {p.protocol.toUpperCase()}
-                    </span>
-                  </TableCell>
-                  <TableCell className="font-mono text-sm text-foreground/80 py-3">{p.localAddress}</TableCell>
-                  <TableCell className="py-3">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm font-bold text-foreground tabular-nums">{p.localPort}</span>
-                      {isPublicPort(p.localPort) && (
-                        <span className="inline-block w-2 h-2 rounded-full bg-amber-400" title="Common public port" />
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-3">
-                    <div className="flex items-center gap-2">
-                      {isSecureProcess(p.process) && (
-                        <Lock size={12} className="text-foreground/30" />
-                      )}
-                      <span className={cn('inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium', getProcessColor(p.process))}>
-                        {p.process}
-                        {p.pid && <span className="ml-1 opacity-40">({p.pid})</span>}
-                      </span>
-                      {tag && (
-                        <span className={cn('inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium', tag.color)}>
-                          {tag.label}
-                        </span>
-                      )}
-                      {isPublicPort(p.localPort) && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-600">
-                          <Shield size={9} />
-                          PUBLIC
-                        </span>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-3">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button className="p-1.5 rounded-md text-foreground/20 hover:text-foreground/60 hover:bg-muted/50 transition-colors opacity-0 group-hover:opacity-100">
-                          <MoreHorizontal size={15} />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-44">
-                        <DropdownMenuItem>
-                          <Eye size={14} className="mr-2" /> Inspect
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Target size={14} className="mr-2" /> Kill Process
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Ban size={14} className="mr-2" /> Block IP
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <FileText size={14} className="mr-2" /> View Logs
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-                );
-              })}
-              {filteredPorts.length === 0 && (
-                <TableRow className="border-0">
-                  <TableCell colSpan={5} className="text-center text-foreground/30 py-12 text-sm">
+          <TableCard>
+            <Table>
+              <TableHeader>
+                <HeadRow>
+                  <Th className="w-20">Proto</Th>
+                  <Th>Address</Th>
+                  <Th className="w-24">Port</Th>
+                  <Th>Process</Th>
+                  <Th className="w-28">Exposure</Th>
+                  <Th className="w-14"></Th>
+                </HeadRow>
+              </TableHeader>
+              <TableBody>
+                {filteredPorts.map((p, i) => {
+                  const tag = getProcessTag(p.process);
+                  const exposure = isPublicPort(p.localPort) ? 'public' : isLoopback(p.localAddress) ? 'local' : null;
+                  return (
+                    <Tr key={i}>
+                      <Td>
+                        <MonoChip>{p.protocol.toUpperCase()}</MonoChip>
+                      </Td>
+                      <Td className="font-mono text-foreground">{p.localAddress}</Td>
+                      <Td className="font-mono font-bold tabular-nums text-foreground">{p.localPort}</Td>
+                      <Td>
+                        <div className="flex min-w-0 items-center gap-2">
+                          {isSecureProcess(p.process) && (
+                            <Lock size={13} strokeWidth={1.75} className="shrink-0 text-label-3" />
+                          )}
+                          <span className="truncate text-label-2">{p.process}</span>
+                          {p.pid && <span className="font-mono text-[12px] text-label-3">{p.pid}</span>}
+                          {tag && <Badge variant={tag.variant}>{tag.label}</Badge>}
+                        </div>
+                      </Td>
+                      <Td>
+                        {exposure === 'public' && (
+                          <Badge variant="warning" title="Common public port">Public</Badge>
+                        )}
+                        {exposure === 'local' && <Badge variant="secondary">Local</Badge>}
+                      </Td>
+                      <Td className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <RowMenuButton />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-44">
+                            <DropdownMenuItem>
+                              <Eye size={14} className="mr-2" /> Inspect
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                              <Target size={14} className="mr-2" /> Kill Process
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                              <Ban size={14} className="mr-2" /> Block IP
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                              <FileText size={14} className="mr-2" /> View Logs
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </Td>
+                    </Tr>
+                  );
+                })}
+                {filteredPorts.length === 0 && (
+                  <EmptyRow colSpan={6}>
                     {portSearch ? 'No ports match your filter' : 'No listening ports'}
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                  </EmptyRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableCard>
         </TabsContent>
 
         {/* ── Connections Tab ── */}
         <TabsContent value="connections" className="mt-4">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent border-0">
-                <TableHead className="w-20 text-xs font-medium text-foreground/40 h-9">Proto</TableHead>
-                <TableHead className="text-xs font-medium text-foreground/40 h-9">Local</TableHead>
-                <TableHead className="text-xs font-medium text-foreground/40 h-9">Remote</TableHead>
-                <TableHead className="w-30 text-xs font-medium text-foreground/40 h-9">State</TableHead>
-                <TableHead className="text-xs font-medium text-foreground/40 h-9">Process</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.connections.map((c, i) => (
-                <TableRow key={i} className="border-0 hover:bg-muted/20">
-                  <TableCell className="py-2.5">
-                    <span className={cn('inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-mono font-medium', getProtoBadgeColor(c.protocol))}>
-                      {c.protocol.toUpperCase()}
-                    </span>
-                  </TableCell>
-                  <TableCell className="font-mono text-sm text-foreground/80 py-2.5">{c.localAddress}:{c.localPort}</TableCell>
-                  <TableCell className="font-mono text-sm text-foreground/80 py-2.5">{c.remoteAddress}:{c.remotePort}</TableCell>
-                  <TableCell className="py-2.5">
-                    <span className={cn('inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium', getStateBadgeColor(c.state))}>
-                      {c.state}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-sm text-foreground/60 py-2.5">{c.process || '—'}</TableCell>
-                </TableRow>
-              ))}
-              {data.connections.length === 0 && (
-                <TableRow className="border-0"><TableCell colSpan={5} className="text-center text-foreground/30 py-12 text-sm">No active connections</TableCell></TableRow>
-              )}
-            </TableBody>
-          </Table>
+          <TableCard>
+            <Table>
+              <TableHeader>
+                <HeadRow>
+                  <Th className="w-20">Proto</Th>
+                  <Th>Local</Th>
+                  <Th>Remote</Th>
+                  <Th className="w-36">State</Th>
+                  <Th>Process</Th>
+                </HeadRow>
+              </TableHeader>
+              <TableBody>
+                {data.connections.map((c, i) => (
+                  <Tr key={i}>
+                    <Td>
+                      <MonoChip>{c.protocol.toUpperCase()}</MonoChip>
+                    </Td>
+                    <Td className="font-mono text-foreground">{c.localAddress}:{c.localPort}</Td>
+                    <Td className="font-mono text-foreground">{c.remoteAddress}:{c.remotePort}</Td>
+                    <Td>
+                      <Badge variant={getStateBadgeVariant(c.state)}>{c.state}</Badge>
+                    </Td>
+                    <Td className="text-label-2">{c.process || '—'}</Td>
+                  </Tr>
+                ))}
+                {data.connections.length === 0 && (
+                  <EmptyRow colSpan={5}>No active connections</EmptyRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableCard>
         </TabsContent>
 
         {/* ── Interfaces Tab ── */}
         <TabsContent value="interfaces" className="mt-4">
-          <div className="grid gap-2">
+          <TableCard className="divide-y divide-border">
             {(data.interfaces ?? []).map((iface) => (
               <div
                 key={iface.name}
-                className="rounded-lg p-4 flex items-center justify-between hover:bg-muted/20 transition-colors"
+                className="flex items-center justify-between gap-4 px-5 py-3.5 transition-colors duration-150 hover:bg-fill"
               >
-                <div className="flex items-center gap-4">
-                  <div className={cn(
-                    'flex items-center justify-center w-9 h-9 rounded-lg',
-                    iface.state === 'UP' ? 'bg-foreground/5' : 'bg-foreground/5',
-                  )}>
-                    <Globe size={16} className={iface.state === 'UP' ? 'text-foreground/50' : 'text-foreground/30'} />
+                <div className="flex min-w-0 items-center gap-3.5">
+                  <div className="lumen-tile flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px]">
+                    <Globe size={17} strokeWidth={1.75} className={iface.state === 'UP' ? 'text-label-2' : 'text-label-3'} />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm font-semibold text-foreground">{iface.name}</span>
-                      <span className={cn(
-                        'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold',
-                        iface.state === 'UP' ? 'bg-emerald-500/10 text-emerald-600' :
-                        iface.state === 'DOWN' ? 'bg-foreground/5 text-foreground/40' :
-                        'bg-foreground/5 text-foreground/40',
-                      )}>
-                        <Circle size={6} className={iface.state === 'UP' ? 'fill-emerald-500' : 'fill-foreground/30'} />
+                      <span className="font-mono text-[14px] font-semibold text-foreground">{iface.name}</span>
+                      <Badge variant={iface.state === 'UP' ? 'success' : 'secondary'}>
+                        <Circle size={6} className={iface.state === 'UP' ? 'fill-current' : 'fill-current opacity-50'} />
                         {iface.state}
-                      </span>
+                      </Badge>
                     </div>
-                    <div className="flex items-center gap-4 mt-1">
-                      {iface.mac && <span className="text-xs font-mono text-foreground/40">MAC {iface.mac}</span>}
-                      {iface.mtu && <span className="text-xs text-foreground/40">MTU {iface.mtu}</span>}
-                      {iface.type && <span className="text-xs text-foreground/40">{iface.type}</span>}
+                    <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[12px] text-label-3">
+                      {iface.mac && <span className="font-mono">MAC {iface.mac}</span>}
+                      {iface.mtu && <span>MTU {iface.mtu}</span>}
+                      {iface.type && <span>{iface.type}</span>}
                     </div>
                   </div>
                 </div>
-                <div>
+                <div className="shrink-0">
                   {iface.name !== 'lo' && (
                     iface.state === 'UP' ? (
                       <Button
-                        variant="ghost"
+                        variant="destructive"
                         size="sm"
-                        className="h-7 text-xs text-destructive/70 hover:text-destructive hover:bg-destructive/10"
                         onClick={() => setConfirmInterface({ name: iface.name, action: 'down' })}
                         disabled={busy}
                       >
-                        <ArrowDownCircle size={13} className="mr-1" /> Disable
+                        <ArrowDownCircle strokeWidth={1.75} /> Disable
                       </Button>
                     ) : (
                       <Button
-                        variant="ghost"
+                        variant="secondary"
                         size="sm"
-                        className="h-7 text-xs text-emerald-500/70 hover:text-emerald-500 hover:bg-emerald-500/10"
                         onClick={() => setConfirmInterface({ name: iface.name, action: 'up' })}
                         disabled={busy}
                       >
-                        <ArrowUpCircle size={13} className="mr-1" /> Enable
+                        <ArrowUpCircle strokeWidth={1.75} /> Enable
                       </Button>
                     )
                   )}
@@ -532,37 +478,37 @@ export function NetworkSection({ serverId }: { serverId: string }) {
               </div>
             ))}
             {(!data.interfaces || data.interfaces.length === 0) && (
-              <div className="text-center text-foreground/30 py-12 text-sm">No interface data</div>
+              <div className="py-12 text-center text-[13px] text-label-3">No interface data</div>
             )}
-          </div>
+          </TableCard>
         </TabsContent>
 
         {/* ── Routes Tab ── */}
         <TabsContent value="routes" className="mt-4">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent border-0">
-                <TableHead className="text-xs font-medium text-foreground/40 h-9">Destination</TableHead>
-                <TableHead className="text-xs font-medium text-foreground/40 h-9">Gateway</TableHead>
-                <TableHead className="text-xs font-medium text-foreground/40 h-9">Interface</TableHead>
-                <TableHead className="w-25 text-xs font-medium text-foreground/40 h-9">Metric</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.routes.map((r, i) => (
-                <TableRow key={i} className="border-0 hover:bg-muted/20">
-                  <TableCell className="font-mono text-sm text-foreground/80 py-2.5">{r.destination}</TableCell>
-                  <TableCell className="font-mono text-sm text-foreground/60 py-2.5">{r.gateway || '—'}</TableCell>
-                  <TableCell className="text-sm text-foreground py-2.5">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-mono font-medium bg-foreground/5 text-foreground/60">
-                      {r.interface}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-sm text-foreground/50 tabular-nums py-2.5">{r.metric ?? '—'}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <TableCard>
+            <Table>
+              <TableHeader>
+                <HeadRow>
+                  <Th>Destination</Th>
+                  <Th>Gateway</Th>
+                  <Th>Interface</Th>
+                  <Th className="w-28">Metric</Th>
+                </HeadRow>
+              </TableHeader>
+              <TableBody>
+                {data.routes.map((r, i) => (
+                  <Tr key={i}>
+                    <Td className="font-mono text-foreground">{r.destination}</Td>
+                    <Td className="font-mono text-label-2">{r.gateway || '—'}</Td>
+                    <Td>
+                      <MonoChip>{r.interface}</MonoChip>
+                    </Td>
+                    <Td className="tabular-nums text-label-2">{r.metric ?? '—'}</Td>
+                  </Tr>
+                ))}
+              </TableBody>
+            </Table>
+          </TableCard>
         </TabsContent>
 
         {/* ── DNS Tab ── */}
@@ -570,65 +516,65 @@ export function NetworkSection({ serverId }: { serverId: string }) {
           <div className="space-y-4">
             {!editingDns ? (
               <>
-                <div className="rounded-lg bg-muted/20 p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-semibold text-foreground">Nameservers</h3>
-                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={openDnsEdit} disabled={busy}>
-                      <Pencil size={11} className="mr-1.5" /> Edit DNS
+                <Panel>
+                  <div className="flex items-center justify-between">
+                    <PanelTitle>Nameservers</PanelTitle>
+                    <Button variant="secondary" size="sm" onClick={openDnsEdit} disabled={busy}>
+                      <Pencil strokeWidth={1.75} /> Edit DNS
                     </Button>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {data.dns.nameservers.map((ns, i) => (
-                      <span key={i} className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-mono font-medium bg-foreground/5 text-foreground/70">{ns}</span>
+                      <MonoChip key={i} className="h-7 px-2.5 text-foreground">{ns}</MonoChip>
                     ))}
                     {data.dns.nameservers.length === 0 && (
-                      <span className="text-sm text-foreground/30">None configured</span>
+                      <span className="text-[13px] text-label-3">None configured</span>
                     )}
                   </div>
-                </div>
-                <div className="rounded-lg bg-muted/20 p-4">
-                  <h3 className="text-sm font-semibold text-foreground mb-3">Search Domains</h3>
+                </Panel>
+                <Panel>
+                  <PanelTitle>Search Domains</PanelTitle>
                   <div className="flex flex-wrap gap-2">
                     {data.dns.searchDomains.map((d, i) => (
-                      <span key={i} className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-mono font-medium bg-foreground/5 text-foreground/70">{d}</span>
+                      <MonoChip key={i} className="h-7 px-2.5 text-foreground">{d}</MonoChip>
                     ))}
                     {data.dns.searchDomains.length === 0 && (
-                      <span className="text-sm text-foreground/30">None configured</span>
+                      <span className="text-[13px] text-label-3">None configured</span>
                     )}
                   </div>
-                </div>
+                </Panel>
               </>
             ) : (
-              <div className="rounded-lg bg-muted/20 p-4 space-y-3">
-                <h3 className="font-semibold text-sm text-foreground">Edit DNS Configuration</h3>
+              <Panel>
+                <PanelTitle>Edit DNS Configuration</PanelTitle>
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-foreground/50">Nameservers (comma-separated)</Label>
+                  <Label className={FIELD_LABEL}>Nameservers (comma-separated)</Label>
                   <Input
                     value={dnsInput}
                     onChange={e => setDnsInput(e.target.value)}
                     placeholder="8.8.8.8, 8.8.4.4"
-                    className="font-mono text-sm"
+                    className="font-mono"
                     disabled={busy}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-foreground/50">Search Domains (comma-separated, optional)</Label>
+                  <Label className={FIELD_LABEL}>Search Domains (comma-separated, optional)</Label>
                   <Input
                     value={searchDomainsInput}
                     onChange={e => setSearchDomainsInput(e.target.value)}
                     placeholder="example.com, local.lan"
-                    className="font-mono text-sm"
+                    className="font-mono"
                     disabled={busy}
                   />
                 </div>
                 <div className="flex items-center gap-2 pt-1">
                   <Button size="sm" onClick={() => void handleSaveDns()} disabled={busy || !dnsInput.trim()}>
-                    {busy && <Spinner size={14} className="mr-1" />}
+                    {busy && <Spinner size={16} />}
                     Save
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => setEditingDns(false)} disabled={busy}>Cancel</Button>
                 </div>
-              </div>
+              </Panel>
             )}
           </div>
         </TabsContent>
@@ -644,6 +590,6 @@ export function NetworkSection({ serverId }: { serverId: string }) {
         variant={confirmInterface?.action === 'down' ? 'destructive' : 'default'}
         onConfirm={() => { void handleInterfaceToggle(); }}
       />
-    </div>
+    </SectionBody>
   );
 }

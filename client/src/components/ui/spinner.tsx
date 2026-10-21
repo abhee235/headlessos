@@ -1,4 +1,5 @@
 // EX6-C.8: Branded Loading Spinner Rollout
+// EX8.25: viewBox cropped to the mark; 16px minimum
 import { cn } from '@/lib/utils';
 
 type SpinnerProps = {
@@ -10,15 +11,21 @@ type SpinnerProps = {
  * Branded loader: ring + "H" glyph remain static; only the orbit group
  * (trailing arc + leading dot) spins around the centre, matching the
  * locked Ring-Tick H mark.
+ *
+ * EX8.25: the viewBox is cropped to the mark (ring + orbit dot reach 20.2
+ * units from the centre), so `size` is the size you see. The old 0 0 64 64
+ * box drew the mark at 61%: a 16px spinner showed a 10px mark. Sizes:
+ * 16 inline (buttons, rows), 18 next to a status label, 40 for a panel
+ * (LoadingView). `min-h-4 min-w-4` keeps any caller at 16px or more.
  */
-export function Spinner({ className, size = 16 }: SpinnerProps) {
+export function Spinner({ className, size = 18 }: SpinnerProps) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 64 64"
+      viewBox="11.5 11.5 41 41"
       width={size}
       height={size}
-      className={cn('inline-block align-middle', className)}
+      className={cn('inline-block min-h-4 min-w-4 align-middle', className)}
       aria-hidden="true"
       role="img"
     >

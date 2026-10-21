@@ -1,10 +1,11 @@
 // EX1.2: KeyValue Widget — grid of key-value pairs
+// EX8.6: vertical = hairline rows (label left, value right); grids = recessed chip tiles
 // @see docs/phases/phase-ex1.md
 
 import type { z } from 'zod';
 import type { KeyValueWidgetSchema } from 'headlessos-shared/schemas/dynamic-view';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { WidgetCard } from './widget-card';
 
 type KeyValueWidget = z.infer<typeof KeyValueWidgetSchema>;
 
@@ -19,23 +20,31 @@ export function KeyValueWidget({ widget }: { widget: KeyValueWidget }) {
   const { title, pairs, layout } = widget;
   const gridCols = layoutClasses[layout] ?? 'grid-cols-2';
 
-  return (
-    <Card>
-      {title && (
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        </CardHeader>
-      )}
-      <CardContent className={title ? 'pt-0' : 'pt-4'}>
-        <div className={cn('grid gap-3', gridCols)}>
+  if (layout === 'vertical') {
+    return (
+      <WidgetCard title={title}>
+        <div className="divide-y divide-border">
           {pairs.map((pair, i) => (
-            <div key={i} className="space-y-1">
-              <p className="text-xs text-muted-foreground">{pair.key}</p>
-              <p className="text-sm font-medium">{pair.value}</p>
+            <div key={i} className="flex min-h-10 items-center justify-between gap-4 py-2 first:pt-0 last:pb-0">
+              <p className="shrink-0 text-sm text-label-2">{pair.key}</p>
+              <p className="min-w-0 truncate text-right text-[13px] font-semibold">{pair.value}</p>
             </div>
           ))}
         </div>
-      </CardContent>
-    </Card>
+      </WidgetCard>
+    );
+  }
+
+  return (
+    <WidgetCard title={title}>
+      <div className={cn('grid gap-2.5', gridCols)}>
+        {pairs.map((pair, i) => (
+          <div key={i} className="min-w-0 rounded-[14px] bg-chip px-3.5 py-2.5">
+            <p className="truncate text-xs text-label-2">{pair.key}</p>
+            <p className="mt-0.5 truncate text-sm font-semibold">{pair.value}</p>
+          </div>
+        ))}
+      </div>
+    </WidgetCard>
   );
 }

@@ -569,10 +569,13 @@ export async function fetchTaskManager(serverId: string): Promise<TaskManagerRes
   return request<TaskManagerResponse>(`/servers/${serverId}/taskmanager`);
 }
 
+/** 15 SIGTERM · 9 SIGKILL · 19 SIGSTOP (suspend) · 18 SIGCONT (resume) */
+export type ProcessSignal = 9 | 15 | 18 | 19;
+
 export async function killProcess(
   serverId: string,
   pid: number,
-  signal: 9 | 15 = 15,
+  signal: ProcessSignal = 15,
 ): Promise<{ success: boolean; error?: string }> {
   return request<{ success: boolean; error?: string }>(
     `/servers/${serverId}/taskmanager/kill`,
@@ -581,6 +584,150 @@ export async function killProcess(
       body: JSON.stringify({ pid, signal }),
     },
   );
+}
+
+// EX8.6: extra fields for the Task Manager process detail card
+export interface ProcessDetailData {
+  pid: number;
+  threads: number | null;
+  /** nice value, -20 (highest priority) … 19 (lowest) */
+  nice: number | null;
+  /** start timestamp as printed by `ps -o lstart`, e.g. "Tue Oct 20 16:28:01 2026" */
+  startedAt: string | null;
+}
+
+export async function fetchProcessDetail(
+  serverId: string,
+  pid: number,
+): Promise<{ success: boolean; data?: ProcessDetailData; error?: string }> {
+  return request<{ success: boolean; data?: ProcessDetailData; error?: string }>(
+    `/servers/${serverId}/taskmanager/process/${pid}`,
+  );
+}
+
+// ── Task Manager: users, app history, startup (EX8.9) ──
+
+export interface TaskManagerAccount {
+  name: string;
+  uid: number;
+  shell: string;
+  kind: 'admin' | 'standard' | 'service';
+}
+
+export interface TaskManagerSession {
+  user: string;
+  tty: string;
+  from: string | null;
+  /** ISO timestamp, when known */
+  loginAt: string | null;
+}
+
+export interface TaskManagerUsersData {
+  accounts: TaskManagerAccount[];
+  sessions: TaskManagerSession[];
+  currentUser: string;
+}
+
+export interface AppUsageData {
+  name: string;
+  cpuSeconds: number;
+  rssKb: number;
+  instances: number;
+  readBytes: number | null;
+  writeBytes: number | null;
+  users: string[];
+}
+
+export interface AppHistoryData {
+  /** ISO boot time — totals are for running processes since then */
+  since: string;
+  /** false when /proc/<pid>/io was unreadable for other users' processes */
+  ioReadable: boolean;
+  apps: AppUsageData[];
+}
+
+export interface StartupItemData {
+  id: string;
+  name: string;
+  command: string | null;
+  source: 'systemd' | 'sysv' | 'cron';
+  enabled: boolean;
+  delayMs: number | null;
+  impact: 'high' | 'medium' | 'low' | null;
+  toggleable: boolean;
+}
+
+export interface StartupData {
+  init: 'systemd' | 'sysv' | 'none';
+  /** PID 1's command — 'systemd', 'init', or a container entrypoint */
+  pid1: string;
+  bootedAt: string;
+  boot: {
+    totalMs: number;
+    firmwareMs: number | null;
+    loaderMs: number | null;
+    kernelMs: number | null;
+    userspaceMs: number | null;
+  } | null;
+  items: StartupItemData[];
+}
+
+type Envelope<T> = { success: boolean; data?: T; error?: string };
+
+export async function fetchTaskManagerUsers(serverId: string): Promise<Envelope<TaskManagerUsersData>> {
+  return request<Envelope<TaskManagerUsersData>>(`/servers/${serverId}/taskmanager/users`);
+}
+
+export async function fetchAppHistory(serverId: string): Promise<Envelope<AppHistoryData>> {
+  return request<Envelope<AppHistoryData>>(`/servers/${serverId}/taskmanager/app-history`);
+}
+
+export async function fetchStartupItems(serverId: string): Promise<Envelope<StartupData>> {
+  return request<Envelope<StartupData>>(`/servers/${serverId}/taskmanager/startup`);
+}
+
+export async function setStartupItem(
+  serverId: string,
+  itemId: string,
+  action: 'enable' | 'disable',
+): Promise<{ success: boolean; error?: string }> {
+  return request<{ success: boolean; error?: string }>(
+    `/servers/${serverId}/taskmanager/startup/${encodeURIComponent(itemId)}/${action}`,
+    { method: 'POST' },
+  );
+}
+
+// ── HomeHub glance: local host + weather (EX8.15) ──────
+
+export interface HostInfo { username: string; hostname: string; platform: string }
+
+export async function fetchHostInfo(): Promise<Envelope<HostInfo>> {
+  return request<Envelope<HostInfo>>('/host');
+}
+
+export interface GeoPlace {
+  name: string;
+  admin1: string | null;
+  country: string | null;
+  latitude: number;
+  longitude: number;
+  timezone: string | null;
+}
+
+export async function geocodeCity(q: string): Promise<Envelope<GeoPlace[]>> {
+  return request<Envelope<GeoPlace[]>>(`/weather/geocode?q=${encodeURIComponent(q)}`);
+}
+
+export interface WeatherData {
+  current: { temperature: number; humidity: number; windSpeed: number; code: number; isDay: boolean };
+  daily: Array<{ date: string; max: number; min: number; code: number }>;
+  units: 'celsius' | 'fahrenheit';
+  timezone: string;
+  fetchedAt: string;
+}
+
+export async function fetchWeather(lat: number, lon: number, units: 'celsius' | 'fahrenheit'): Promise<Envelope<WeatherData>> {
+  return request<Envelope<WeatherData>>(`/weather?lat=${lat}&lon=${lon}&units=${units}`);
 }
 
 // ── Docker ──────────────────────────────────────────────
@@ -718,12 +865,18 @@ export interface ServiceData {
   activeState: 'active' | 'inactive' | 'failed' | 'activating' | 'deactivating';
   subState: string;
   description: string;
+  /** EX8.9: boot behaviour — enabled → automatic, disabled/static → manual, masked → disabled */
+  startup?: 'automatic' | 'manual' | 'disabled' | null;
+  /** EX8.9: main PID while running */
+  pid?: number | null;
 }
 
 export interface ServicesResponse {
   success: boolean;
   data?: ServiceData[];
   systemdAvailable?: boolean;
+  /** EX8.9: which init system answered (SysV fallback when there is no systemd) */
+  init?: 'systemd' | 'sysv' | 'none';
   error?: string;
 }
 
@@ -1182,6 +1335,10 @@ export interface LLMConfig {
   provider: 'openai' | 'none';
   model: string;
   hasApiKey: boolean;
+  /** EX8.22: where the active key came from */
+  keySource?: 'settings' | 'env' | null;
+  /** EX8.22: false when the server could not save the change to disk */
+  persisted?: boolean;
 }
 
 export interface LLMModelInfo {
@@ -1280,10 +1437,23 @@ export interface AgentResult {
   status: 'completed' | 'aborted' | 'error' | 'max_steps_reached';
 }
 
+/** EX8.24: one live event from /ws/agent/:serverId/:sessionId */
+export type AgentProgressEvent =
+  | { kind: 'thought'; step: number; thought: string; decision: 'run_command' | 'answer'; command?: string }
+  | { kind: 'step'; step: number; data: AgentStep };
+
+/** EX8.24: the investigation's progress socket (through the Vite proxy in dev) */
+export function agentProgressWsUrl(serverId: string, sessionId: string): string {
+  const path = `/ws/agent/${encodeURIComponent(serverId)}/${encodeURIComponent(sessionId)}`;
+  if (isElectronProd) return withToken(`ws://localhost:${BACKEND_PORT}${path}`);
+  const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  return `${proto}://${window.location.host}${path}`;
+}
+
 export async function startAgentInvestigation(
   serverId: string,
   question: string,
-  options?: { maxSteps?: number; readOnly?: boolean },
+  options?: { maxSteps?: number; readOnly?: boolean; sessionId?: string },
 ): Promise<{ success: boolean; data?: AgentResult; error?: string }> {
   return request(`/servers/${serverId}/agent/investigate`, {
     method: 'POST',

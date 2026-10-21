@@ -1,5 +1,7 @@
 // M6.1 + M5.6c: Desktop — high-quality desktop with rich SVG icons, wallpaper, and wired context menus
-// @see docs/phases/phase-6.md
+// EX8.4: LumenOS v3 desktop icons — Fluent icons, white 12px labels with a
+// text shadow, soft hover; the desktop runs under the floating dock.
+// @see docs/phases/phase-6.md, docs/phases/phase-ex8.md
 
 import { useCallback, useState, useRef, useEffect } from 'react';
 import { useDesktopStore } from '../../store/window-store';
@@ -15,6 +17,8 @@ import {
   AgentIcon,
   UIAgentIcon,
   RecycleBinIcon,
+  FileIcon,
+  AppIcon,
 } from '../ui/FileIcon';
 import {
   ContextMenu,
@@ -33,15 +37,11 @@ import { Input } from '@/components/ui/input';
 import {
   Folder,
   File,
-  RefreshCw,
+  RotateCw,
   LayoutGrid,
   SortAsc,
   Info,
-  Paintbrush,
-  Activity,
-  Box,
   Server,
-  Shield,
   Check,
 } from 'lucide-react';
 import { Wallpaper } from './Wallpaper';
@@ -54,6 +54,8 @@ interface DesktopIcon {
   appId: string;
   label: string;
   IconComponent: React.FC<{ size?: number }>;
+  /** No drop shadow under the icon (user review: the AI / UI Agent squircles) */
+  flat?: boolean;
 }
 
 const DESKTOP_ICONS: DesktopIcon[] = [
@@ -87,12 +89,14 @@ const DESKTOP_ICONS: DesktopIcon[] = [
     appId: 'agent',
     label: 'AI Agent',
     IconComponent: AgentIcon,
+    flat: true,
   },
   {
     id: 'desktop-ui-agent',
     appId: 'ui-agent',
     label: 'UI Agent',
     IconComponent: UIAgentIcon,
+    flat: true,
   },
   {
     id: 'desktop-recycle-bin',
@@ -175,9 +179,9 @@ export function Desktop() {
 
   // Desktop icon sizing
   const iconSizeMap: Record<DesktopIconSize, { box: string; icon: number; text: string }> = {
-    small:  { box: 'w-[64px] h-[72px]', icon: 32, text: 'text-[10px]' },
-    medium: { box: 'w-[80px] h-[88px]', icon: 44, text: 'text-[11px]' },
-    large:  { box: 'w-[96px] h-[104px]', icon: 56, text: 'text-[12px]' },
+    small:  { box: 'w-[68px]', icon: 32, text: 'text-[11px] leading-[14px]' },
+    medium: { box: 'w-[80px]', icon: 44, text: 'text-xs leading-4' },
+    large:  { box: 'w-[92px]', icon: 52, text: 'text-xs leading-4' },
   };
   const iconStyle = iconSizeMap[desktopIconSize];
 
@@ -198,34 +202,33 @@ export function Desktop() {
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div
-          className="absolute inset-0 bottom-13 overflow-hidden select-none"
+          className="absolute inset-0 overflow-hidden select-none"
           onClick={() => closeStartMenu()}
         >
       {/* Wallpaper with branded watermark */}
       <Wallpaper />
 
       {/* Desktop Icons */}
-      <div className="relative z-10 flex flex-col flex-wrap gap-2 p-5 h-full content-start">
+      <div className="relative z-10 flex h-[calc(100%-96px)] flex-col flex-wrap content-start gap-1 p-3 pt-10">
         {sortedIcons.map(icon => (
           <button
             key={icon.id}
             className={`
-              flex flex-col items-center justify-center gap-1.5
-              ${iconStyle.box} rounded-2xl
-              transition-all duration-200 ease-out
-              hover:bg-white/[0.10] active:bg-white/[0.15]
-              hover:shadow-lg hover:shadow-black/[0.05]
-              ${!isConnected ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'}
-              group
+              group flex flex-col items-center gap-1 px-1 pt-1.5 pb-1
+              ${iconStyle.box} rounded-sm
+              transition-colors duration-150
+              hover:bg-dock-hover active:bg-accent-soft
+              focus-visible:outline-none focus-visible:bg-accent-soft focus-visible:ring-1 focus-visible:ring-accent-glow
+              ${!isConnected ? 'opacity-30 cursor-not-allowed' : 'cursor-default'}
             `}
             onDoubleClick={() => handleDoubleClick(icon)}
             disabled={!isConnected}
             title={isConnected ? icon.label : 'Connect to a server first'}
           >
-            <div className="transition-transform duration-200 ease-out group-hover:scale-110 group-hover:-translate-y-1 group-active:scale-95 drop-shadow-lg">
+            <div className={`${icon.flat ? '' : 'drop-shadow-[0_2px_3px_rgba(0,0,0,.3)] '}transition-transform duration-150 group-active:scale-95`}>
               <icon.IconComponent size={iconStyle.icon} />
             </div>
-            <span className={`${iconStyle.text} text-white/90 font-medium leading-tight text-center drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] line-clamp-2 px-1`}>
+            <span className={`${iconStyle.text} line-clamp-2 max-w-full break-words text-center font-normal text-white [text-shadow:0_1px_2px_rgba(0,0,0,.75),0_0_1px_rgba(0,0,0,.6)]`}>
               {icon.label}
             </span>
           </button>
@@ -234,17 +237,17 @@ export function Desktop() {
         {/* "This PC" when no server connected */}
         {!isConnected && (
           <button
-            className="flex flex-col items-center justify-center gap-1.5 w-[80px] h-[88px] rounded-2xl hover:bg-white/[0.10] cursor-pointer group transition-all duration-200"
+            className="group flex w-20 flex-col items-center gap-1 rounded-sm px-1 pt-1.5 pb-1 transition-colors duration-150 hover:bg-dock-hover"
             onDoubleClick={() => {
               const { startMenuOpen, toggleStartMenu } = useDesktopStore.getState();
               if (!startMenuOpen) toggleStartMenu();
             }}
             title="Open Start Menu to connect a server"
           >
-            <div className="transition-transform duration-200 group-hover:scale-110 group-hover:-translate-y-1 drop-shadow-lg opacity-50">
+            <div className="opacity-60 drop-shadow-[0_2px_3px_rgba(0,0,0,.3)]">
               <ThisPCIcon size={44} />
             </div>
-            <span className="text-[11px] text-white/50 font-medium leading-tight text-center drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">
+            <span className="text-center text-xs leading-4 text-white/70 [text-shadow:0_1px_2px_rgba(0,0,0,.75)]">
               This PC
             </span>
           </button>
@@ -253,10 +256,10 @@ export function Desktop() {
 
       {/* Connect prompt when no server */}
       {!isConnected && (
-        <div className="absolute inset-0 flex items-end justify-center pb-24 pointer-events-none">
-          <div className="text-center glass rounded-2xl px-8 py-5 border border-white/[0.12]">
-            <p className="text-white/50 text-sm font-medium">Connect a server to get started</p>
-            <p className="text-white/25 text-xs mt-1.5">Use the Start menu to manage servers</p>
+        <div className="absolute inset-0 flex items-end justify-center pb-32 pointer-events-none">
+          <div className="glass-heavy rounded-[28px] px-8 py-5 text-center">
+            <p className="text-[15px] font-semibold">Connect a server to get started</p>
+            <p className="mt-1 text-[13px] text-label-2">Use the launcher to manage servers</p>
           </div>
         </div>
       )}
@@ -312,7 +315,7 @@ export function Desktop() {
           disabled={!isConnected}
           onClick={() => { setCreatingType('folder'); setCreateName(''); setCreateError(null); }}
         >
-          <Folder className="w-4 h-4 mr-2 opacity-60" />
+          <FileIcon type="directory" size="sm" />
           New Folder
           <ContextMenuShortcut>⇧⌘N</ContextMenuShortcut>
         </ContextMenuItem>
@@ -320,14 +323,14 @@ export function Desktop() {
           disabled={!isConnected}
           onClick={() => { setCreatingType('file'); setCreateName(''); setCreateError(null); }}
         >
-          <File className="w-4 h-4 mr-2 opacity-60" />
+          <FileIcon type="file" size="sm" />
           New File
         </ContextMenuItem>
 
         <ContextMenuSeparator />
 
         <ContextMenuItem onClick={handleRefresh}>
-          <RefreshCw className="w-4 h-4 mr-2 opacity-60" />
+          <RotateCw className="w-4 h-4 mr-2 opacity-60" />
           Refresh
           <ContextMenuShortcut>F5</ContextMenuShortcut>
         </ContextMenuItem>
@@ -338,7 +341,7 @@ export function Desktop() {
           disabled={!isConnected}
           onClick={() => activeServerId && openWindow('taskmanager', activeServerId, 'Task Manager', 'taskmanager')}
         >
-          <Activity className="w-4 h-4 mr-2 opacity-60" />
+          <AppIcon appId="taskmanager" size={17} />
           Task Manager
           <ContextMenuShortcut>⌃⇧Esc</ContextMenuShortcut>
         </ContextMenuItem>
@@ -347,7 +350,7 @@ export function Desktop() {
           disabled={!isConnected}
           onClick={() => activeServerId && openWindow('docker', activeServerId, 'Docker', 'docker')}
         >
-          <Box className="w-4 h-4 mr-2 opacity-60" />
+          <AppIcon appId="docker" size={17} />
           Docker
         </ContextMenuItem>
 
@@ -355,7 +358,7 @@ export function Desktop() {
           disabled={!isConnected}
           onClick={() => activeServerId && openWindow('services', activeServerId, 'Services', 'services')}
         >
-          <Server className="w-4 h-4 mr-2 opacity-60" />
+          <AppIcon appId="services" size={17} />
           Services
         </ContextMenuItem>
 
@@ -363,12 +366,12 @@ export function Desktop() {
           disabled={!isConnected}
           onClick={() => activeServerId && openWindow('serveradmin', activeServerId, 'Server Admin', 'serveradmin')}
         >
-          <Shield className="w-4 h-4 mr-2 opacity-60" />
+          <AppIcon appId="serveradmin" size={17} />
           Server Admin
         </ContextMenuItem>
 
         <ContextMenuItem onClick={() => openWindow('settings', '', 'Personalize', 'settings', { initialPage: 'wallpaper' })}>
-          <Paintbrush className="w-4 h-4 mr-2 opacity-60" />
+          <AppIcon appId="settings" size={17} />
           Personalize
         </ContextMenuItem>
 

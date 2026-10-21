@@ -5,7 +5,7 @@ import { Spinner } from '@/components/ui/spinner';
 type LoadingViewProps = {
   /** Optional label shown below the spinner. Omit for icon-only. */
   label?: string;
-  /** Spinner size in px. Defaults to 64 for full-screen states. */
+  /** Spinner size in px (the mark itself since EX8.25). Defaults to 40 for panel states. */
   size?: number;
   /** Extra classes on the wrapper. */
   className?: string;
@@ -15,7 +15,7 @@ type LoadingViewProps = {
 
 export function LoadingView({
   label,
-  size = 64,
+  size = 40,
   className,
   fullHeight = true,
 }: LoadingViewProps) {

@@ -1,19 +1,18 @@
 // M7.2 + M8.1 + M8.6: Security Section — users, sessions, login history, SSH config, fail2ban, user/session management
-// @see docs/phases/phase-7.md, docs/phases/phase-8.md
+// EX8.6: LumenOS v3 — section header, lit segmented tabs, glass table cards, round row actions.
+// @see docs/phases/phase-7.md, docs/phases/phase-8.md, docs/phases/phase-ex8.md
 
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshCw, AlertCircle, Lock, Users, LogIn, Key, ShieldCheck, Ban, ShieldOff, RotateCw, Plus, Trash2, KeyRound, UserPlus } from 'lucide-react';
+import { RotateCw, Lock, ShieldCheck, Ban, ShieldOff, Plus, Trash2, KeyRound, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
-  TableCell,
-  TableHead,
   TableHeader,
-  TableRow,
 } from '@/components/ui/table';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -23,7 +22,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils';
 import {
   fetchSecurityInfo,
   fetchFail2banJailDetail,
@@ -40,11 +38,18 @@ import type { SecurityInfo, Fail2banJailDetail } from '@/lib/api';
 import { toast } from 'sonner';
 import { Spinner } from '@/components/ui/spinner';
 import { LoadingView } from '@/components/ui/loading-view';
+import {
+  SectionBody, SectionHeader, RefreshButton, SegmentTabs, TableCard, CardHeading, HeadRow, Th, Tr, Td,
+  EmptyRow, MonoChip, RoundIconButton, Panel, PanelTitle, StatCard, FIELD_LABEL, EmptyState, ErrorState,
+} from './admin-ui';
 
 export function SecuritySection({ serverId }: { serverId: string }) {
   const [data, setData] = useState<SecurityInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Active sub-tab (controlled so the active pill can be lit)
+  const [tab, setTab] = useState('sessions');
 
   // M8.1 — Fail2ban management state
   const [selectedJail, setSelectedJail] = useState<string | null>(null);
@@ -271,13 +276,7 @@ export function SecuritySection({ serverId }: { serverId: string }) {
   }
 
   if (error || !data) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 gap-3 text-foreground/40">
-        <AlertCircle size={24} />
-        <p className="text-sm">{error || 'No data'}</p>
-        <Button variant="outline" size="sm" onClick={load}>Retry</Button>
-      </div>
-    );
+    return <ErrorState message={error || 'No data'} onRetry={load} />;
   }
 
   // Filter to human users (uid >= 1000) and system accounts separately
@@ -285,223 +284,203 @@ export function SecuritySection({ serverId }: { serverId: string }) {
   const systemUsers = data.users.filter((u) => u.uid < 1000);
 
   return (
-    <div className="@container p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <Lock size={22} className="text-primary" />
-          <h2 className="text-xl font-bold text-foreground">Security</h2>
-        </div>
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground/30 hover:text-foreground" onClick={load} title="Refresh">
-          <RefreshCw size={16} />
-        </Button>
-      </div>
+    <SectionBody>
+      <SectionHeader
+        icon={Lock}
+        title="Security"
+        subtitle="Users, sessions and SSH"
+        actions={<RefreshButton onClick={load} />}
+      />
 
-      <Tabs defaultValue="sessions">
-        <TabsList className="h-auto p-1 bg-muted rounded-lg gap-1 w-auto inline-flex">
-          <TabsTrigger value="sessions" className="rounded-md px-3 py-1.5 text-[13px] font-medium text-foreground/50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all hover:text-foreground/70">
-            <LogIn size={14} className="mr-1.5" />
-            Active Sessions
-            <span className="ml-1.5 text-[11px] tabular-nums opacity-50">{data.sessions.length}</span>
-          </TabsTrigger>
-          <TabsTrigger value="users" className="rounded-md px-3 py-1.5 text-[13px] font-medium text-foreground/50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all hover:text-foreground/70">
-            <Users size={14} className="mr-1.5" />
-            Users
-            <span className="ml-1.5 text-[11px] tabular-nums opacity-50">{humanUsers.length}</span>
-          </TabsTrigger>
-          <TabsTrigger value="ssh" className="rounded-md px-3 py-1.5 text-[13px] font-medium text-foreground/50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all hover:text-foreground/70">
-            <Key size={14} className="mr-1.5" />
-            SSH Config
-          </TabsTrigger>
-          <TabsTrigger value="history" className="rounded-md px-3 py-1.5 text-[13px] font-medium text-foreground/50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all hover:text-foreground/70">
-            Login History
-          </TabsTrigger>
-          <TabsTrigger value="fail2ban" className="rounded-md px-3 py-1.5 text-[13px] font-medium text-foreground/50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all hover:text-foreground/70">
-            <ShieldCheck size={14} className="mr-1.5" />
-            Fail2ban
-          </TabsTrigger>
-        </TabsList>
+      <Tabs value={tab} onValueChange={setTab}>
+        <SegmentTabs
+          value={tab}
+          items={[
+            { value: 'sessions', label: 'Active sessions', count: data.sessions.length },
+            { value: 'users', label: 'Users', count: humanUsers.length },
+            { value: 'ssh', label: 'SSH config' },
+            { value: 'history', label: 'Login history' },
+            { value: 'fail2ban', label: 'Fail2ban' },
+          ]}
+        />
 
         <TabsContent value="sessions" className="mt-4">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent border-0">
-                <TableHead className="text-xs font-medium text-foreground/40 h-9">User</TableHead>
-                <TableHead className="text-xs font-medium text-foreground/40 h-9">Terminal</TableHead>
-                <TableHead className="text-xs font-medium text-foreground/40 h-9">Login Time</TableHead>
-                <TableHead className="text-xs font-medium text-foreground/40 h-9">Remote Host</TableHead>
-                <TableHead className="text-xs font-medium text-foreground/40 h-9 w-20 text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.sessions.map((s, i) => (
-                <TableRow key={i} className="border-0 hover:bg-muted/20 group">
-                  <TableCell className="font-medium">{s.user}</TableCell>
-                  <TableCell className="font-mono text-xs text-foreground/60">{s.terminal}</TableCell>
-                  <TableCell className="text-xs text-foreground/60">{s.loginTime}</TableCell>
-                  <TableCell className="font-mono text-xs text-foreground/60">{s.remoteHost || '-'}</TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:text-destructive h-7 px-2 text-xs"
-                      onClick={() => handleKillSession(s.terminal)}
-                      disabled={busy}
-                      title="Kill session"
-                    >
-                      <Trash2 size={13} className="mr-1" /> Kill
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {data.sessions.length === 0 && (
-                <TableRow className="border-0">
-                  <TableCell colSpan={5} className="text-center text-foreground/30 py-12 text-sm">No active sessions</TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+          <TableCard>
+            <Table>
+              <TableHeader>
+                <HeadRow>
+                  <Th>User</Th>
+                  <Th>Terminal</Th>
+                  <Th>Login time</Th>
+                  <Th>Remote host</Th>
+                  <Th className="w-24 text-right">Actions</Th>
+                </HeadRow>
+              </TableHeader>
+              <TableBody>
+                {data.sessions.map((s, i) => (
+                  <Tr key={i}>
+                    <Td className="font-semibold text-foreground">{s.user}</Td>
+                    <Td><MonoChip>{s.terminal}</MonoChip></Td>
+                    <Td className="text-label-2">{s.loginTime}</Td>
+                    <Td className="font-mono text-label-2">{s.remoteHost || '-'}</Td>
+                    <Td className="text-right">
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleKillSession(s.terminal)}
+                        disabled={busy}
+                        title="Kill session"
+                      >
+                        <Trash2 strokeWidth={1.75} /> Kill
+                      </Button>
+                    </Td>
+                  </Tr>
+                ))}
+                {data.sessions.length === 0 && (
+                  <EmptyRow colSpan={5}>No active sessions</EmptyRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableCard>
         </TabsContent>
 
         <TabsContent value="users" className="mt-4 space-y-4">
-          {/* Add User button + form */}
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-foreground/60">Human Users (UID &ge; 1000)</h3>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowAddUser(!showAddUser)}
-              disabled={busy}
-            >
-              <Plus size={14} className="mr-1" /> Add User
-            </Button>
-          </div>
-
-          {showAddUser && (
-            <div className="bg-muted/20 rounded-lg p-4 space-y-3">
-              <h4 className="font-medium text-sm">Create New User</h4>
-              <div className="space-y-1">
-                <label className="text-xs text-foreground/50">Username</label>
-                <Input
-                  value={newUsername}
-                  onChange={(e) => setNewUsername(e.target.value.toLowerCase())}
-                  placeholder="newuser"
-                  className="max-w-xs text-sm shadow-none h-8"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-foreground/50">Shell</label>
-                <Input
-                  value={newUserShell}
-                  onChange={(e) => setNewUserShell(e.target.value)}
-                  placeholder="/bin/bash"
-                  className="max-w-xs font-mono text-sm shadow-none h-8"
-                />
-              </div>
-              <div className="flex items-center gap-2 pt-1">
-                <Button size="sm" onClick={handleCreateUser} disabled={busy || !newUsername.trim()}>
-                  {busy && <Spinner size={14} className="mr-1" />}
-                  Create
+          <TableCard>
+            {/* Add User button + form */}
+            <CardHeading
+              title="Human users"
+              count={humanUsers.length}
+              caption="UID ≥ 1000"
+              actions={
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setShowAddUser(!showAddUser)}
+                  disabled={busy}
+                >
+                  <Plus strokeWidth={1.75} /> Add user
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => setShowAddUser(false)} disabled={busy}>
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          )}
+              }
+            />
 
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent border-0">
-                <TableHead className="text-xs font-medium text-foreground/40 h-9">Username</TableHead>
-                <TableHead className="text-xs font-medium text-foreground/40 h-9">UID</TableHead>
-                <TableHead className="text-xs font-medium text-foreground/40 h-9">Home</TableHead>
-                <TableHead className="text-xs font-medium text-foreground/40 h-9">Shell</TableHead>
-                <TableHead className="text-xs font-medium text-foreground/40 h-9 w-24 text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {humanUsers.map((u) => (
-                <TableRow key={u.uid} className="border-0 hover:bg-muted/20 group">
-                  <TableCell className="font-medium">{u.username}</TableCell>
-                  <TableCell className="text-xs text-foreground/60">{u.uid}</TableCell>
-                  <TableCell className="font-mono text-xs text-foreground/60">{u.home}</TableCell>
-                  <TableCell className="font-mono text-xs text-foreground/60">{u.shell}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-0.5">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => { setPasswordTarget(u.username); setPasswordInput(''); }}
-                          >
-                            <KeyRound size={14} />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Set Password</TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => { setGroupTarget(u.username); setGroupInput(''); }}
-                          >
-                            <UserPlus size={14} />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Add to Group</TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => setDeleteTarget(u.username)}
-                            disabled={u.username === 'root'}
-                          >
-                            <Trash2 size={14} />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Delete User</TooltipContent>
-                      </Tooltip>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+            {showAddUser && (
+              <div className="space-y-3 border-b border-border bg-fill px-5 py-4">
+                <h4 className="text-[14px] font-semibold text-foreground">Create New User</h4>
+                <div className="space-y-1.5">
+                  <label className={FIELD_LABEL}>Username</label>
+                  <Input
+                    value={newUsername}
+                    onChange={(e) => setNewUsername(e.target.value.toLowerCase())}
+                    placeholder="newuser"
+                    className="max-w-xs"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className={FIELD_LABEL}>Shell</label>
+                  <Input
+                    value={newUserShell}
+                    onChange={(e) => setNewUserShell(e.target.value)}
+                    placeholder="/bin/bash"
+                    className="max-w-xs font-mono"
+                  />
+                </div>
+                <div className="flex items-center gap-2 pt-1">
+                  <Button size="sm" onClick={handleCreateUser} disabled={busy || !newUsername.trim()}>
+                    {busy && <Spinner size={16} />}
+                    Create
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setShowAddUser(false)} disabled={busy}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <Table>
+              <TableHeader>
+                <HeadRow>
+                  <Th>Username</Th>
+                  <Th>UID</Th>
+                  <Th>Home</Th>
+                  <Th>Shell</Th>
+                  <Th className="w-32 text-right">Actions</Th>
+                </HeadRow>
+              </TableHeader>
+              <TableBody>
+                {humanUsers.map((u) => (
+                  <Tr key={u.uid}>
+                    <Td className="font-semibold text-foreground">{u.username}</Td>
+                    <Td className="font-mono tabular-nums text-label-2">{u.uid}</Td>
+                    <Td className="font-mono text-foreground">{u.home}</Td>
+                    <Td className="font-mono text-label-2">{u.shell}</Td>
+                    <Td className="text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <RoundIconButton
+                              onClick={() => { setPasswordTarget(u.username); setPasswordInput(''); }}
+                            >
+                              <KeyRound strokeWidth={1.75} />
+                            </RoundIconButton>
+                          </TooltipTrigger>
+                          <TooltipContent>Set Password</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <RoundIconButton
+                              onClick={() => { setGroupTarget(u.username); setGroupInput(''); }}
+                            >
+                              <UserPlus strokeWidth={1.75} />
+                            </RoundIconButton>
+                          </TooltipTrigger>
+                          <TooltipContent>Add to Group</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <RoundIconButton
+                              tone="danger"
+                              onClick={() => setDeleteTarget(u.username)}
+                              disabled={u.username === 'root'}
+                            >
+                              <Trash2 strokeWidth={1.75} />
+                            </RoundIconButton>
+                          </TooltipTrigger>
+                          <TooltipContent>Delete User</TooltipContent>
+                        </Tooltip>
+                      </div>
+                    </Td>
+                  </Tr>
+                ))}
+              </TableBody>
+            </Table>
+          </TableCard>
 
           {/* Set Password Dialog */}
           <Dialog open={passwordTarget !== null} onOpenChange={(open) => { if (!open) setPasswordTarget(null); }}>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  <KeyRound size={18} /> Set Password
+                  <KeyRound size={18} strokeWidth={1.75} /> Set Password
                 </DialogTitle>
                 <DialogDescription>
                   Set a new password for user &ldquo;{passwordTarget}&rdquo;.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-2 py-2">
-                <label className="text-xs text-foreground/50">New Password</label>
+                <label className={FIELD_LABEL}>New Password</label>
                 <Input
                   type="password"
                   value={passwordInput}
                   onChange={(e) => setPasswordInput(e.target.value)}
                   placeholder="Enter new password"
                   onKeyDown={(e) => e.key === 'Enter' && passwordInput && handleSetPassword()}
-                  className="shadow-none h-8 text-xs"
                   autoFocus
                 />
               </div>
               <DialogFooter>
                 <Button variant="ghost" onClick={() => setPasswordTarget(null)} disabled={busy}>Cancel</Button>
                 <Button onClick={handleSetPassword} disabled={busy || !passwordInput}>
-                  {busy && <Spinner size={14} className="mr-1" />}
+                  {busy && <Spinner size={16} />}
                   Set Password
                 </Button>
               </DialogFooter>
@@ -513,27 +492,26 @@ export function SecuritySection({ serverId }: { serverId: string }) {
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  <UserPlus size={18} /> Add to Group
+                  <UserPlus size={18} strokeWidth={1.75} /> Add to Group
                 </DialogTitle>
                 <DialogDescription>
                   Add user &ldquo;{groupTarget}&rdquo; to a system group.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-2 py-2">
-                <label className="text-xs text-foreground/50">Group Name</label>
+                <label className={FIELD_LABEL}>Group Name</label>
                 <Input
                   value={groupInput}
                   onChange={(e) => setGroupInput(e.target.value)}
                   placeholder="sudo, docker, www-data"
                   onKeyDown={(e) => e.key === 'Enter' && groupInput.trim() && handleAddToGroup()}
-                  className="shadow-none h-8 text-xs"
                   autoFocus
                 />
               </div>
               <DialogFooter>
                 <Button variant="ghost" onClick={() => setGroupTarget(null)} disabled={busy}>Cancel</Button>
                 <Button onClick={handleAddToGroup} disabled={busy || !groupInput.trim()}>
-                  {busy && <Spinner size={14} className="mr-1" />}
+                  {busy && <Spinner size={16} />}
                   Add to Group
                 </Button>
               </DialogFooter>
@@ -541,38 +519,35 @@ export function SecuritySection({ serverId }: { serverId: string }) {
           </Dialog>
 
           {systemUsers.length > 0 && (
-            <>
-              <h3 className="text-sm font-medium text-foreground/60 mt-4 mb-2">
-                System Accounts
-                <span className={cn('ml-1.5 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium', 'bg-foreground/5 text-foreground/50')}>{systemUsers.length}</span>
-              </h3>
+            <TableCard>
+              <CardHeading title="System accounts" count={systemUsers.length} />
               <Table>
                 <TableHeader>
-                  <TableRow className="hover:bg-transparent border-0">
-                    <TableHead className="text-xs font-medium text-foreground/40 h-9">Username</TableHead>
-                    <TableHead className="text-xs font-medium text-foreground/40 h-9">UID</TableHead>
-                    <TableHead className="text-xs font-medium text-foreground/40 h-9">Shell</TableHead>
-                  </TableRow>
+                  <HeadRow>
+                    <Th>Username</Th>
+                    <Th>UID</Th>
+                    <Th>Shell</Th>
+                  </HeadRow>
                 </TableHeader>
                 <TableBody>
                   {systemUsers.map((u) => (
-                    <TableRow key={u.uid} className="border-0 hover:bg-muted/20 group">
-                      <TableCell className="text-xs">{u.username}</TableCell>
-                      <TableCell className="text-xs text-foreground/60">{u.uid}</TableCell>
-                      <TableCell className="font-mono text-xs text-foreground/60">{u.shell}</TableCell>
-                    </TableRow>
+                    <Tr key={u.uid}>
+                      <Td className="text-foreground">{u.username}</Td>
+                      <Td className="font-mono tabular-nums text-label-2">{u.uid}</Td>
+                      <Td className="font-mono text-label-2">{u.shell}</Td>
+                    </Tr>
                   ))}
                 </TableBody>
               </Table>
-            </>
+            </TableCard>
           )}
 
           {/* Delete User Dialog */}
           <Dialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 text-destructive">
-                  <Trash2 size={18} /> Delete User
+                <DialogTitle className="flex items-center gap-2 text-danger">
+                  <Trash2 size={18} strokeWidth={1.75} /> Delete User
                 </DialogTitle>
                 <DialogDescription>
                   Permanently delete user &ldquo;{deleteTarget}&rdquo; and their home directory. This cannot be undone.
@@ -580,8 +555,8 @@ export function SecuritySection({ serverId }: { serverId: string }) {
               </DialogHeader>
               <DialogFooter>
                 <Button variant="ghost" onClick={() => setDeleteTarget(null)} disabled={busy}>Cancel</Button>
-                <Button variant="destructive" onClick={() => { void handleDeleteUser(); }} disabled={busy}>
-                  {busy && <Spinner size={14} className="mr-1" />}
+                <Button variant="danger" onClick={() => { void handleDeleteUser(); }} disabled={busy}>
+                  {busy && <Spinner size={16} />}
                   Delete User
                 </Button>
               </DialogFooter>
@@ -590,61 +565,61 @@ export function SecuritySection({ serverId }: { serverId: string }) {
         </TabsContent>
 
         <TabsContent value="ssh" className="mt-4">
-          <div className="grid grid-cols-2 gap-3 max-w-lg">
+          <TableCard className="max-w-xl divide-y divide-border">
             {Object.entries(data.sshConfig).map(([key, value]) => (
-              <div key={key} className="flex justify-between items-center p-2 bg-muted/20 rounded-lg">
-                <span className="text-xs text-foreground/50 capitalize">
+              <div key={key} className="flex h-[50px] items-center justify-between px-5">
+                <span className="text-[14px] capitalize text-foreground">
                   {key.replace(/([A-Z])/g, ' $1').trim()}
                 </span>
-                <span
-                  className={cn(
-                    'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium font-mono',
+                <Badge
+                  className="font-mono"
+                  variant={
                     (key === 'passwordAuthentication' && value === 'no') ||
                     (key === 'permitRootLogin' && value === 'no')
-                      ? 'bg-emerald-500/10 text-emerald-600'
+                      ? 'success'
                       : (key === 'passwordAuthentication' && value === 'yes') ||
                         (key === 'permitRootLogin' && value === 'yes')
-                        ? 'bg-amber-500/10 text-amber-600'
-                        : 'bg-foreground/5 text-foreground/50',
-                  )}
+                        ? 'warning'
+                        : 'secondary'
+                  }
                 >
                   {value}
-                </span>
+                </Badge>
               </div>
             ))}
-          </div>
+          </TableCard>
         </TabsContent>
 
         <TabsContent value="history" className="mt-4">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent border-0">
-                <TableHead className="text-xs font-medium text-foreground/40 h-9">User</TableHead>
-                <TableHead className="text-xs font-medium text-foreground/40 h-9">Terminal</TableHead>
-                <TableHead className="text-xs font-medium text-foreground/40 h-9">Remote Host</TableHead>
-                <TableHead className="text-xs font-medium text-foreground/40 h-9">Login</TableHead>
-                <TableHead className="text-xs font-medium text-foreground/40 h-9">Logout</TableHead>
-                <TableHead className="text-xs font-medium text-foreground/40 h-9">Duration</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.loginHistory.map((h, i) => (
-                <TableRow key={i} className="border-0 hover:bg-muted/20 group">
-                  <TableCell className="font-medium text-xs">{h.user}</TableCell>
-                  <TableCell className="font-mono text-xs text-foreground/60">{h.terminal}</TableCell>
-                  <TableCell className="font-mono text-xs text-foreground/60">{h.remoteHost}</TableCell>
-                  <TableCell className="text-xs text-foreground/60">{h.loginTime}</TableCell>
-                  <TableCell className="text-xs text-foreground/60">{h.logoutTime}</TableCell>
-                  <TableCell className="text-xs text-foreground/60">{h.duration || '-'}</TableCell>
-                </TableRow>
-              ))}
-              {data.loginHistory.length === 0 && (
-                <TableRow className="border-0">
-                  <TableCell colSpan={6} className="text-center text-foreground/30 py-12 text-sm">No login history</TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+          <TableCard>
+            <Table>
+              <TableHeader>
+                <HeadRow>
+                  <Th>User</Th>
+                  <Th>Terminal</Th>
+                  <Th>Remote host</Th>
+                  <Th>Login</Th>
+                  <Th>Logout</Th>
+                  <Th>Duration</Th>
+                </HeadRow>
+              </TableHeader>
+              <TableBody>
+                {data.loginHistory.map((h, i) => (
+                  <Tr key={i}>
+                    <Td className="font-semibold text-foreground">{h.user}</Td>
+                    <Td><MonoChip>{h.terminal}</MonoChip></Td>
+                    <Td className="font-mono text-label-2">{h.remoteHost}</Td>
+                    <Td className="text-label-2">{h.loginTime}</Td>
+                    <Td className="text-label-2">{h.logoutTime}</Td>
+                    <Td className="tabular-nums text-label-2">{h.duration || '-'}</Td>
+                  </Tr>
+                ))}
+                {data.loginHistory.length === 0 && (
+                  <EmptyRow colSpan={6}>No login history</EmptyRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableCard>
         </TabsContent>
 
         <TabsContent value="fail2ban" className="mt-4">
@@ -653,19 +628,19 @@ export function SecuritySection({ serverId }: { serverId: string }) {
               {/* Header with status and reload */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck size={16} className="text-emerald-600" />
-                  <span className="text-sm font-medium text-foreground/60">Fail2ban is active</span>
+                  <ShieldCheck size={17} strokeWidth={1.75} className="text-success" />
+                  <span className="text-[14px] font-semibold text-foreground">Fail2ban is active</span>
                 </div>
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   onClick={handleReload}
                   disabled={actionLoading === 'reload'}
                 >
                   {actionLoading === 'reload' ? (
-                    <Spinner size={14} className="mr-1" />
+                    <Spinner size={16} />
                   ) : (
-                    <RotateCw size={14} className="mr-1" />
+                    <RotateCw strokeWidth={1.75} />
                   )}
                   Reload Config
                 </Button>
@@ -683,41 +658,32 @@ export function SecuritySection({ serverId }: { serverId: string }) {
                     >
                       ← Back to Jails
                     </Button>
-                    <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-sm font-medium font-mono', 'bg-foreground/5 text-foreground/60')}>{selectedJail}</span>
+                    <MonoChip className="h-7 px-2.5 text-[13px] text-foreground">{selectedJail}</MonoChip>
                   </div>
 
                   {jailLoading ? (
-                    <div className="flex items-center justify-center py-12 text-foreground/40">
-                      <Spinner className="mr-2" size={16} />
+                    <div className="flex items-center justify-center gap-2 py-12 text-[13px] text-label-3">
+                      <Spinner size={16} />
                       Loading jail details…
                     </div>
                   ) : jailDetail ? (
                     <>
                       {/* Jail stats */}
                       <div className="grid grid-cols-3 gap-3">
-                        <div className="bg-muted/20 rounded-lg p-3 text-center">
-                          <div className="text-2xl font-bold text-destructive">{jailDetail.currentlyBanned}</div>
-                          <div className="text-xs text-foreground/40">Currently Banned</div>
-                        </div>
-                        <div className="bg-muted/20 rounded-lg p-3 text-center">
-                          <div className="text-2xl font-bold">{jailDetail.totalBanned}</div>
-                          <div className="text-xs text-foreground/40">Total Banned</div>
-                        </div>
-                        <div className="bg-muted/20 rounded-lg p-3 text-center">
-                          <div className="text-2xl font-bold">{jailDetail.totalFailed}</div>
-                          <div className="text-xs text-foreground/40">Total Failed</div>
-                        </div>
+                        <StatCard label="Currently Banned" value={jailDetail.currentlyBanned} valueClassName="text-danger" />
+                        <StatCard label="Total Banned" value={jailDetail.totalBanned} />
+                        <StatCard label="Total Failed" value={jailDetail.totalFailed} />
                       </div>
 
                       {/* Filter & File info */}
-                      <div className="grid grid-cols-2 gap-3 text-xs">
-                        <div className="bg-muted/20 rounded-lg p-2">
-                          <span className="text-foreground/40">Filter: </span>
-                          <span className="font-mono">{jailDetail.filter || 'N/A'}</span>
+                      <div className="grid grid-cols-2 gap-3 text-[13px]">
+                        <div className="lumen-card rounded-[16px] px-4 py-3">
+                          <span className="text-label-2">Filter: </span>
+                          <span className="font-mono text-foreground">{jailDetail.filter || 'N/A'}</span>
                         </div>
-                        <div className="bg-muted/20 rounded-lg p-2">
-                          <span className="text-foreground/40">Log Files: </span>
-                          <span className="font-mono">{jailDetail.fileList.length > 0 ? jailDetail.fileList.join(', ') : 'N/A'}</span>
+                        <div className="lumen-card rounded-[16px] px-4 py-3">
+                          <span className="text-label-2">Log Files: </span>
+                          <span className="font-mono text-foreground">{jailDetail.fileList.length > 0 ? jailDetail.fileList.join(', ') : 'N/A'}</span>
                         </div>
                       </div>
 
@@ -728,18 +694,17 @@ export function SecuritySection({ serverId }: { serverId: string }) {
                           value={banIpInput}
                           onChange={(e) => setBanIpInput(e.target.value)}
                           onKeyDown={(e) => { if (e.key === 'Enter') handleBanIp(); }}
-                          className="max-w-xs font-mono text-sm shadow-none h-8"
+                          className="max-w-xs font-mono"
                         />
                         <Button
                           variant="destructive"
-                          size="sm"
                           onClick={handleBanIp}
                           disabled={!banIpInput.trim() || actionLoading === 'ban'}
                         >
                           {actionLoading === 'ban' ? (
-                            <Spinner size={14} className="mr-1" />
+                            <Spinner size={16} />
                           ) : (
-                            <Ban size={14} className="mr-1" />
+                            <Ban strokeWidth={1.75} />
                           )}
                           Ban IP
                         </Button>
@@ -747,42 +712,40 @@ export function SecuritySection({ serverId }: { serverId: string }) {
 
                       {/* Banned IPs table */}
                       {jailDetail.bannedIps.length > 0 ? (
-                        <Table>
-                          <TableHeader>
-                            <TableRow className="hover:bg-transparent border-0">
-                              <TableHead className="text-xs font-medium text-foreground/40 h-9">Banned IP</TableHead>
-                              <TableHead className="text-xs font-medium text-foreground/40 h-9 w-24 text-right">Actions</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {jailDetail.bannedIps.map((ip) => (
-                              <TableRow key={ip} className="border-0 hover:bg-muted/20 group">
-                                <TableCell className="font-mono text-sm">{ip}</TableCell>
-                                <TableCell className="text-right">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleUnbanIp(ip)}
-                                    disabled={actionLoading === `unban:${ip}`}
-                                    className="text-destructive hover:text-destructive"
-                                  >
-                                    {actionLoading === `unban:${ip}` ? (
-                                      <Spinner size={14} className="mr-1" />
-                                    ) : (
-                                      <ShieldOff size={14} className="mr-1" />
-                                    )}
-                                    Unban
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
+                        <TableCard>
+                          <Table>
+                            <TableHeader>
+                              <HeadRow>
+                                <Th>Banned IP</Th>
+                                <Th className="w-32 text-right">Actions</Th>
+                              </HeadRow>
+                            </TableHeader>
+                            <TableBody>
+                              {jailDetail.bannedIps.map((ip) => (
+                                <Tr key={ip}>
+                                  <Td className="font-mono text-foreground">{ip}</Td>
+                                  <Td className="text-right">
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      onClick={() => handleUnbanIp(ip)}
+                                      disabled={actionLoading === `unban:${ip}`}
+                                    >
+                                      {actionLoading === `unban:${ip}` ? (
+                                        <Spinner size={16} />
+                                      ) : (
+                                        <ShieldOff strokeWidth={1.75} />
+                                      )}
+                                      Unban
+                                    </Button>
+                                  </Td>
+                                </Tr>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </TableCard>
                       ) : (
-                        <div className="flex flex-col items-center justify-center py-8 text-foreground/30">
-                          <ShieldCheck size={20} className="opacity-40 mb-1" />
-                          <p className="text-xs">No banned IPs in this jail</p>
-                        </div>
+                        <EmptyState icon={ShieldCheck} title="No banned IPs in this jail" className="py-8" />
                       )}
 
                       {/* Refresh jail detail */}
@@ -793,7 +756,7 @@ export function SecuritySection({ serverId }: { serverId: string }) {
                           onClick={() => loadJailDetail(selectedJail)}
                           disabled={jailLoading}
                         >
-                          <RefreshCw size={14} className="mr-1" />
+                          <RotateCw strokeWidth={1.75} />
                           Refresh
                         </Button>
                       </div>
@@ -803,39 +766,37 @@ export function SecuritySection({ serverId }: { serverId: string }) {
               ) : (
                 /* Jail list — clickable badges */
                 data.fail2ban.jails && data.fail2ban.jails.length > 0 ? (
-                  <div>
-                    <h3 className="text-sm font-medium text-foreground/60 mb-2">Active Jails</h3>
+                  <Panel>
+                    <PanelTitle>Active Jails</PanelTitle>
                     <div className="flex flex-wrap gap-2">
                       {data.fail2ban.jails.map((j) => (
                         <span
                           key={j}
-                          className={cn(
-                            'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium cursor-pointer transition-colors',
-                            'bg-foreground/5 text-foreground/60 hover:bg-foreground/10 hover:text-foreground',
-                          )}
+                          className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full border border-edge bg-mat px-3 font-mono text-[13px] text-foreground shadow-[var(--lumen-spec)] transition-colors duration-150 hover:bg-mat-thick"
                           onClick={() => loadJailDetail(j)}
                         >
-                          <ShieldCheck size={12} className="mr-1" />
+                          <ShieldCheck size={14} strokeWidth={1.75} className="text-success" />
                           {j}
                         </span>
                       ))}
                     </div>
-                    <p className="text-xs text-foreground/40 mt-2">Click a jail to view details and manage banned IPs</p>
-                  </div>
+                    <p className="text-[12px] text-label-3">Click a jail to view details and manage banned IPs</p>
+                  </Panel>
                 ) : (
-                  <p className="text-sm text-foreground/40">No active jails found</p>
+                  <EmptyState icon={ShieldCheck} title="No active jails found" />
                 )
               )}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-12 gap-2 text-foreground/30">
-              <ShieldCheck size={24} className="opacity-40" />
-              <p className="text-sm">{data.fail2ban.message || 'Fail2ban is not installed'}</p>
-              <p className="text-xs text-foreground/40">Install with: <code className="bg-muted/30 px-1.5 py-0.5 rounded">sudo apt install fail2ban</code></p>
-            </div>
+            <EmptyState
+              icon={ShieldCheck}
+              title={data.fail2ban.message || 'Fail2ban is not installed'}
+              description="Install with:"
+              code="sudo apt install fail2ban"
+            />
           )}
         </TabsContent>
       </Tabs>
-    </div>
+    </SectionBody>
   );
 }

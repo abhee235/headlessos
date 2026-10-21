@@ -1,5 +1,5 @@
-// ConfirmDialog — Windows 11 style confirmation dialog
-// Replaces window.confirm() with a proper modal
+// ConfirmDialog — LumenOS v3 confirmation dialog (EX8.2)
+// Replaces window.confirm(). Destructive confirmations fill solid red.
 
 import {
   Dialog,
@@ -39,8 +39,8 @@ export function ConfirmDialog({
         <DialogHeader>
           <div className="flex items-start gap-3">
             {variant === "destructive" && (
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-destructive/10 dark:bg-destructive/20">
-                <AlertTriangle className="h-5 w-5 text-destructive" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-danger/30 bg-danger/14">
+                <AlertTriangle className="h-5 w-5 text-danger" strokeWidth={1.75} />
               </div>
             )}
             <div>
@@ -54,7 +54,7 @@ export function ConfirmDialog({
             {cancelLabel}
           </Button>
           <Button
-            variant={variant === "destructive" ? "destructive" : "default"}
+            variant={variant === "destructive" ? "danger" : "default"}
             size="sm"
             onClick={() => {
               onConfirm();

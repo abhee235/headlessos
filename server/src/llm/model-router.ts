@@ -25,6 +25,9 @@ import {
 } from '../config/models.js';
 import { withSpan, setSpanAttributes } from '../observatory/context.js';
 
+/** Shown wherever an agent runs without a key (same wording as the investigation agent) */
+export const NO_KEY_MESSAGE = 'LLM provider is not configured. Please set up an API key in Settings > AI/LLM.';
+
 export interface ModelRouterOptions {
   apiKey: string;
   config?: Partial<ModelConfig>;
@@ -84,7 +87,21 @@ export class ModelRouter extends BaseService {
       if (fbProvider) return fbProvider;
     }
 
+    if (!this.apiKey) throw new Error(NO_KEY_MESSAGE);
     throw new Error(`No LLM provider available for role '${role}' or any fallback`);
+  }
+
+  /**
+   * EX8.21: a key saved in Settings → AI reaches the agents without a restart.
+   * An empty key leaves no providers (getModel then reports NO_KEY_MESSAGE).
+   */
+  setApiKey(apiKey: string): void {
+    this.apiKey = apiKey;
+    if (this.config) this.createProviders();
+  }
+
+  hasApiKey(): boolean {
+    return this.apiKey.length > 0;
   }
 
   /**
@@ -218,6 +235,7 @@ export class ModelRouter extends BaseService {
 
   private createProviders(): void {
     this.providers.clear();
+    if (!this.apiKey) return;
 
     // Deduplicate: if multiple roles use the same model, share the provider
     const providerByModel = new Map<string, LLMProvider>();
@@ -282,6 +300,7 @@ export class ModelRouter extends BaseService {
   private computeSpanCost(model: string, tokensUsed: { input: number; output: number }): number {
     // Reuse MODEL_PRICING from usage-tracker module pattern
     const SPAN_PRICING: Record<string, { input: number; output: number }> = {
+      'gpt-6-luna': { input: 0.0001, output: 0.0005 },
       'gpt-4.1': { input: 0.002, output: 0.008 },
       'gpt-4.1-mini': { input: 0.0004, output: 0.0016 },
       'gpt-4.1-nano': { input: 0.0001, output: 0.0004 },

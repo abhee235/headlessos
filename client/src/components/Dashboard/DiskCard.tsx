@@ -1,7 +1,9 @@
 // M2.2: Disk Card — disk usage display
-// @see docs/phases/phase-2.md
+// EX8.6: LumenOS v3 — a small usage ring per mount, in recessed tiles
+// @see docs/phases/phase-2.md, docs/phases/phase-ex8.md
 
 import { HardDrive } from 'lucide-react';
+import { DashCard, Ring } from './parts';
 
 interface DiskEntry {
   filesystem: string;
@@ -28,45 +30,39 @@ export function DiskCard({ disks }: DiskCardProps) {
   const toShow = meaningful.length > 0 ? meaningful : disks;
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <div className="flex items-center gap-2 mb-3">
-        <HardDrive className="w-4 h-4 text-success" />
-        <h3 className="text-sm font-medium text-card-foreground">Disk Usage</h3>
-      </div>
-
-      <div className="space-y-3">
+    <DashCard
+      icon={HardDrive}
+      title="Disk usage"
+      meta={`${toShow.length} mount${toShow.length !== 1 ? 's' : ''}`}
+    >
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(132px,1fr))] gap-2.5">
         {toShow.map((disk, i) => (
-          <DiskRow key={`${disk.mountPoint}-${i}`} disk={disk} />
+          <DiskTile key={`${disk.mountPoint}-${i}`} disk={disk} />
         ))}
       </div>
-    </div>
+    </DashCard>
   );
 }
 
-function DiskRow({ disk }: { disk: DiskEntry }) {
-  const color =
+function DiskTile({ disk }: { disk: DiskEntry }) {
+  const arc =
     disk.usePercent >= 90
-      ? 'bg-destructive'
+      ? 'stroke-destructive'
       : disk.usePercent >= 70
-        ? 'bg-warning'
-        : 'bg-success';
+        ? 'stroke-warning'
+        : 'stroke-viz-green lumen-glow-green';
 
   return (
-    <div>
-      <div className="flex items-center justify-between text-xs mb-1">
-        <span className="text-foreground font-mono truncate max-w-[200px]" title={disk.mountPoint}>
-          {disk.mountPoint}
-        </span>
-        <span className="text-muted-foreground font-mono shrink-0 ml-2">
-          {disk.used} / {disk.size} ({disk.usePercent}%)
-        </span>
-      </div>
-      <div className="w-full bg-muted rounded-full h-1.5">
-        <div
-          className={`h-1.5 rounded-full transition-all duration-300 ${color}`}
-          style={{ width: `${Math.min(disk.usePercent, 100)}%` }}
-        />
-      </div>
+    <div className="flex min-w-0 flex-col items-center rounded-[16px] border border-edge bg-chip px-3 pb-3 pt-3.5 text-center">
+      <Ring value={disk.usePercent} size={64} stroke={6} arcClassName={arc}>
+        <span className="text-[14px] font-bold tabular-nums text-foreground">{disk.usePercent}%</span>
+      </Ring>
+      <span className="mt-2.5 w-full truncate font-mono text-[13px] text-foreground" title={disk.mountPoint}>
+        {disk.mountPoint}
+      </span>
+      <span className="w-full truncate text-[12px] text-label-2 tabular-nums">
+        {disk.used} / {disk.size}
+      </span>
     </div>
   );
 }

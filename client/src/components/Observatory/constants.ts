@@ -1,5 +1,7 @@
 // Phoenix Observatory Design System — shared constants
 // Extracted from Arize Phoenix for pixel-perfect clone
+// EX8.6: status / role / output styles now map onto LumenOS tokens. The span-kind
+// palette stays: it is a categorical data-viz identity (one hue per kind, pinned by tests).
 
 /* ── Span Kind Colors (dark theme — Phoenix -1000 level) ── */
 export const SPAN_KIND_COLORS: Record<string, string> = {
@@ -15,33 +17,22 @@ export const SPAN_KIND_COLORS: Record<string, string> = {
   PROMPT:    'rgb(255, 181, 97)',   // orange-1100
 };
 
-/* ── Token Badge Colors (Phoenix -500 level — used for SpanKindToken pill) ── */
-export const SPAN_KIND_TOKEN_COLORS: Record<string, string> = {
-  LLM:       '#e68019',   // orange-500
-  AGENT:     '#929292',   // gray-500
-  CHAIN:     '#378ef0',   // blue-500
-  TOOL:      '#dfbe00',   // yellow-500
-  RETRIEVER: '#1b959a',   // seafoam-500
-  EMBEDDING: '#7575f1',   // indigo-500
-  RERANKER:  '#7cc33f',   // celery-500
-  EVALUATOR: '#7575f1',   // indigo-500
-  GUARDRAIL: '#c038cc',   // fuchsia-500
-  PROMPT:    '#e68019',   // orange-400
-};
+/* ── Token Badge Colors — SpanKindToken tints the same kind palette (EX8.6) ── */
+export const SPAN_KIND_TOKEN_COLORS: Record<string, string> = SPAN_KIND_COLORS;
 
-/* ── Status Colors ── */
+/* ── Status Colors (theme tokens) ── */
 export const STATUS_COLORS: Record<string, string> = {
-  OK:      'rgb(34, 184, 96)',   // green / success
-  ERROR:   'rgb(228, 62, 62)',   // red / danger
-  RUNNING: 'rgb(59, 130, 246)',  // blue
-  UNSET:   'rgb(142, 142, 142)', // gray-500
+  OK:      'var(--success)',
+  ERROR:   'var(--destructive)',
+  RUNNING: 'var(--lumen-accent)',
+  UNSET:   'var(--lumen-label3)',
 };
 
 /* ── Status CSS class helper (used in trace list) ── */
 export const STATUS_DOT_CLASS: Record<string, string> = {
-  OK:      'bg-green-500',
-  ERROR:   'bg-red-500',
-  RUNNING: 'bg-blue-500 animate-pulse',
+  OK:      'bg-success',
+  ERROR:   'bg-danger',
+  RUNNING: 'bg-accent-solid animate-pulse',
 };
 
 /* ── Tree Layout (Phoenix values) ── */
@@ -55,18 +46,18 @@ export const L_CONNECTOR_WIDTH = 11; // px
 export const TIMELINE_BAR_HEIGHT = 6; // px
 export const TIMELINE_BAR_RADIUS = 3; // px
 
-/* ── Chat Message Role Colors (dark theme Tailwind classes) ── */
+/* ── Chat Message Role Styles (Lumen bubbles: user = accent-soft, others = glass mats) ── */
 export const ROLE_STYLES: Record<string, { bg: string; border: string }> = {
-  user:      { bg: 'bg-zinc-800/50',      border: 'border-zinc-600' },
-  system:    { bg: 'bg-indigo-950/30',     border: 'border-indigo-800/40' },
-  assistant: { bg: 'bg-blue-950/30',       border: 'border-blue-800/40' },
-  tool:      { bg: 'bg-yellow-950/30',     border: 'border-yellow-800/40' },
-  function:  { bg: 'bg-yellow-950/30',     border: 'border-yellow-800/40' },
+  user:      { bg: 'bg-accent-soft',  border: 'border-accent-solid/30' },
+  system:    { bg: 'bg-fill',         border: 'border-edge' },
+  assistant: { bg: 'bg-mat-thin',     border: 'border-edge' },
+  tool:      { bg: 'bg-warning/10',   border: 'border-warning/30' },
+  function:  { bg: 'bg-warning/10',   border: 'border-warning/30' },
 };
 
 export const OUTPUT_CARD_STYLE = {
-  bg: 'bg-emerald-950/20',
-  border: 'border-emerald-800/30',
+  bg: 'bg-success/10',
+  border: 'border-success/30',
 };
 
 /* ── Helpers ── */

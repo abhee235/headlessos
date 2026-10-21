@@ -1,28 +1,23 @@
-// M6.6: Taskbar — Windows 11 style with pinned apps + system tray
-// @see docs/phases/phase-6.md
+// M6.6: Taskbar — pinned apps + system tray
+// EX8.4: LumenOS v3 — a floating, centred glass dock (utility well → app
+// tiles → Recycle Bin) plus a separate tray pill at the bottom-right that
+// opens Quick Settings (glyphs) and the Notification Center (clock).
+// @see docs/phases/phase-6.md, docs/phases/phase-ex8.md
 
 import { useDesktopStore } from '../../store/window-store';
 import { useAppStore } from '../../store/app-store';
 import {
-  Wifi,
-  WifiOff,
+  Grip,
   Monitor,
-  Settings,
+  House,
+  Search,
   Activity,
-  Box,
-  Server,
+  Settings,
   X,
   Pin,
   PinOff,
-  Sun,
-  Moon,
-  ChevronUp,
-  Plus,
-  Power,
-  PowerOff,
-  Check,
 } from 'lucide-react';
-import { useState, useEffect, useCallback } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -30,321 +25,161 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
-import { useThemeStore } from '../../store/theme-store';
-import { usePreferencesStore } from '../../store/preferences-store';
+import { usePreferencesStore, type DockPosition } from '../../store/preferences-store';
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import {
-  DashboardIcon,
-  FileExplorerIcon,
-  TerminalIcon,
-  DockerIcon,
-  TaskManagerIcon,
-  ServicesIcon,
-  SettingsIcon,
-  ThisPCIcon,
-  FleetIcon,
-  AgentIcon,
-} from '@/components/ui/FileIcon';
-import { NotificationBell } from './NotificationCenter';
+import { AppIcon, RecycleBinIcon } from '@/components/ui/FileIcon';
+import { colourTile } from './dock-tiles';
+import { listTrash } from '../../lib/api';
+import { cn } from '@/lib/utils';
+import { eventBus } from '@/lib/event-bus';
 
-// ─── All known apps (icon + label) ──────────────────────────────────────────
+// ─── All known dock apps (label) ─────────────────────────────────────────────
 
-interface AppMeta {
-  id: string;
-  label: string;
-  IconComponent: React.ComponentType<{ size?: number }>;
-}
-
-const ALL_APPS: AppMeta[] = [
-  { id: 'dashboard', label: 'Dashboard', IconComponent: DashboardIcon },
-  { id: 'files', label: 'File Explorer', IconComponent: FileExplorerIcon },
-  { id: 'terminal', label: 'Terminal', IconComponent: TerminalIcon },
-  { id: 'docker', label: 'Docker', IconComponent: DockerIcon },
-  { id: 'taskmanager', label: 'Task Manager', IconComponent: TaskManagerIcon },
-  { id: 'services', label: 'Services', IconComponent: ServicesIcon },
-  { id: 'settings', label: 'Settings', IconComponent: SettingsIcon },
-  { id: 'serveradmin', label: 'Server Admin', IconComponent: ThisPCIcon },
+const APP_LABELS: Record<string, string> = {
+  dashboard: 'Dashboard',
+  files: 'File Explorer',
+  terminal: 'Terminal',
+  docker: 'Docker',
+  taskmanager: 'Task Manager',
+  services: 'Services',
+  settings: 'Settings',
+  serveradmin: 'Server Admin',
   // EX6-C.3: Fleet moved to Control Center
-  { id: 'agent', label: 'AI Agent', IconComponent: AgentIcon },
-];
+  agent: 'AI Agent',
+};
 
-const ALL_APP_MAP = new Map(ALL_APPS.map(a => [a.id, a]));
-
-// ─── Clock ───────────────────────────────────────────────────────────────────
-
-function Clock() {
-  const [time, setTime] = useState(new Date());
-  const dateFormat = usePreferencesStore((s) => s.dateFormat);
-
-  useEffect(() => {
-    const interval = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const timeStr = time.toLocaleTimeString([], {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: dateFormat === '12h',
-  });
-  const dateStr = time.toLocaleDateString([], {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <div className="flex flex-col items-end justify-center px-3 h-9 rounded-md hover:bg-foreground/5 cursor-default transition-colors select-none">
-          <span className="text-[11.5px] text-foreground/90 font-semibold leading-tight tabular-nums tracking-tight text-uppercase">
-            {timeStr}
-          </span>
-          <span className="text-[10px] text-foreground/55 font-medium leading-tight tracking-wide">
-            {dateStr}
-          </span>
-        </div>
-      </TooltipTrigger>
-      <TooltipContent side="top" sideOffset={10}>
-        {time.toLocaleDateString([], {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-        })}
-      </TooltipContent>
-    </Tooltip>
-  );
+/** The dock's Search button toggles the CommandPalette (same as Ctrl+K). */
+function openCommandPalette() {
+  eventBus.emit('palette:toggle', {});
 }
 
-// ─── Theme toggle ────────────────────────────────────────────────────────────
+// ─── Dock pieces ─────────────────────────────────────────────────────────────
 
-function ThemeToggle() {
-  const { resolvedTheme, toggleTheme } = useThemeStore();
+/**
+ * EX8.15: whether the active server's Recycle Bin has items, so the dock shows
+ * the full bin (papers inside). Re-checked every 15 s and when the window regains
+ * focus; nothing else emits trash events.
+ */
+export function useTrashHasItems(serverId: string | null, connected: boolean): boolean {
+  const [full, setFull] = useState(false);
+  useEffect(() => {
+    setFull(false);
+    if (!serverId || !connected) return;
+    let alive = true;
+    const check = () => listTrash(serverId).then((items) => { if (alive) setFull(items.length > 0); }).catch(() => {});
+    void check();
+    const id = setInterval(check, 15_000);
+    window.addEventListener('focus', check);
+    return () => { alive = false; clearInterval(id); window.removeEventListener('focus', check); };
+  }, [serverId, connected]);
+  return full;
+}
+
+/** EX8.12: which edge the dock sits on — tooltips and hover lift point away from it */
+const DockSideContext = createContext<DockPosition>('bottom');
+
+/** 42px round button inside the recessed utility well. */
+function WellButton({
+  label,
+  active = false,
+  onClick,
+  children,
+}: {
+  label: string;
+  active?: boolean;
+  onClick: (e: React.MouseEvent) => void;
+  children: React.ReactNode;
+}) {
+  const side = useContext(DockSideContext);
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <button
-          className="flex items-center justify-center w-9 h-9 rounded-md hover:bg-foreground/5 transition-colors"
-          onClick={toggleTheme}
-        >
-          {resolvedTheme === 'dark' ? (
-            <Sun className="w-4 h-4 text-foreground/80" />
-          ) : (
-            <Moon className="w-4 h-4 text-foreground/80" />
+          aria-label={label}
+          className={cn(
+            'grid h-[42px] w-[42px] shrink-0 place-items-center rounded-full text-foreground transition-colors duration-200',
+            '[&_svg]:h-5 [&_svg]:w-5',
+            active ? 'bg-accent-soft text-accent-text' : 'hover:bg-dock-hover',
           )}
+          onClick={onClick}
+        >
+          {children}
         </button>
       </TooltipTrigger>
-      <TooltipContent side="top" sideOffset={10}>
-        {resolvedTheme === 'dark' ? 'Light mode' : 'Dark mode'}
-      </TooltipContent>
+      <TooltipContent side={side === 'right' ? 'left' : 'top'} sideOffset={14}>{label}</TooltipContent>
     </Tooltip>
   );
 }
 
-// ─── System tray ─────────────────────────────────────────────────────────────
-
-// ─── Server Switcher (replaces old sidebar — M10.2 redesign) ─────────────────
-
-function ServerSwitcher() {
-  const servers = useAppStore(s => s.servers);
-  const activeServerId = useAppStore(s => s.activeServerId);
-  const setActiveServer = useAppStore(s => s.setActiveServer);
-  const connectServer = useAppStore(s => s.connectServer);
-  const disconnectServer = useAppStore(s => s.disconnectServer);
-  const openWindow = useDesktopStore(s => s.openWindow);
-  const [open, setOpen] = useState(false);
-
-  const activeServer = servers.find(s => s.id === activeServerId);
-  const isConnected = activeServer?.state?.status === 'connected';
-
-  if (servers.length === 0) {
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <div className="flex items-center justify-center w-9 h-9 rounded-md hover:bg-foreground/5 cursor-default transition-colors">
-            <WifiOff className="w-4 h-4 text-foreground/40" />
-          </div>
-        </TooltipTrigger>
-        <TooltipContent side="top" sideOffset={10}>
-          No servers configured
-        </TooltipContent>
-      </Tooltip>
-    );
-  }
-
+/** 50px app plate; an accent dot at its top-left marks a running app (glowing when focused). */
+function DockTile({
+  label,
+  appId,
+  bare = false,
+  focused = false,
+  running = false,
+  dimmed = false,
+  onClick,
+  children,
+}: {
+  label: string;
+  /** EX8.16: picks the app's colour tile (when the dock style is Colour) */
+  appId?: string;
+  /** No plate at all (Recycle Bin in the Colour style) */
+  bare?: boolean;
+  focused?: boolean;
+  running?: boolean;
+  dimmed?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  const side = useContext(DockSideContext);
+  const style = usePreferencesStore((s) => s.dockIconStyle);
+  const tile = style === 'color' && appId ? colourTile(appId) : null;
+  const noPlate = style === 'color' && bare;
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <PopoverTrigger asChild>
-            <button className="flex items-center gap-1.5 h-9 px-2 rounded-md hover:bg-foreground/5 transition-colors cursor-default">
-              {isConnected ? (
-                <Wifi className="w-3.5 h-3.5 text-success shrink-0" />
-              ) : (
-                <WifiOff className="w-3.5 h-3.5 text-foreground/40 shrink-0" />
-              )}
-              <span className="text-[11px] font-medium text-foreground/70 max-w-20 truncate">
-                {activeServer?.name ?? 'Select'}
-              </span>
-            </button>
-          </PopoverTrigger>
-        </TooltipTrigger>
-        <TooltipContent side="top" sideOffset={10}>
-          {activeServer
-            ? `${activeServer.name} — ${isConnected ? 'Connected' : 'Disconnected'}`
-            : 'Select a server'}
-        </TooltipContent>
-      </Tooltip>
-
-      <PopoverContent
-        side="top"
-        sideOffset={12}
-        align="end"
-        className="w-64 p-0"
-      >
-        <div className="px-3 py-2 border-b border-border/40">
-          <h4 className="text-xs font-semibold text-foreground/60 uppercase tracking-wider">
-            Servers
-          </h4>
-        </div>
-        <div className="max-h-64 overflow-y-auto py-1">
-          {servers.map(srv => {
-            const isActive = srv.id === activeServerId;
-            const status = srv.state?.status;
-            const srvConnected = status === 'connected';
-            const srvConnecting = status === 'connecting';
-
-            return (
-              <button
-                key={srv.id}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${
-                  isActive ? 'bg-primary/8' : 'hover:bg-foreground/5'
-                }`}
-                onClick={() => {
-                  setActiveServer(srv.id);
-                  if (!srvConnected && !srvConnecting) {
-                    connectServer(srv.id);
-                  }
-                  setOpen(false);
-                }}
-              >
-                {/* Status dot */}
-                <span
-                  className={`w-2 h-2 rounded-full shrink-0 ${
-                    srvConnected
-                      ? 'bg-success'
-                      : srvConnecting
-                        ? 'bg-warning animate-pulse'
-                        : 'bg-foreground/20'
-                  }`}
-                />
-                {/* Server info */}
-                <div className="flex-1 min-w-0">
-                  <div className="text-[12px] font-medium text-foreground truncate leading-tight">
-                    {srv.name}
-                  </div>
-                  <div className="text-[10px] text-muted-foreground truncate leading-tight">
-                    {srv.host}:{srv.port}
-                  </div>
-                </div>
-                {/* Active check or connect/disconnect button */}
-                {isActive ? (
-                  <Check className="w-3.5 h-3.5 text-primary shrink-0" />
-                ) : null}
-                {/* Connect/disconnect toggle */}
-                {srvConnected ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        className="p-1 rounded hover:bg-foreground/10 transition-colors"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          disconnectServer(srv.id);
-                        }}
-                      >
-                        <PowerOff className="w-3 h-3 text-muted-foreground" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="left" sideOffset={4}>
-                      Disconnect
-                    </TooltipContent>
-                  </Tooltip>
-                ) : !srvConnecting ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        className="p-1 rounded hover:bg-foreground/10 transition-colors"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          connectServer(srv.id);
-                        }}
-                      >
-                        <Power className="w-3 h-3 text-muted-foreground" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="left" sideOffset={4}>
-                      Connect
-                    </TooltipContent>
-                  </Tooltip>
-                ) : null}
-              </button>
-            );
-          })}
-        </div>
-        {/* Add server */}
-        <div className="border-t border-border/40 p-1">
-          <button
-            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded transition-colors"
-            onClick={() => {
-              if (activeServerId) {
-                openWindow('settings', activeServerId, 'Settings', 'settings');
-              }
-              setOpen(false);
-            }}
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          aria-label={label}
+          className={cn(
+            'group relative h-[50px] w-[50px] shrink-0 rounded-[16px] transition-transform duration-[180ms] ease-out',
+            side === 'right' ? 'hover:-translate-x-[5px] hover:scale-[1.07]' : 'hover:-translate-y-[5px] hover:scale-[1.07]',
+            // No ring on click; keyboard focus still gets one
+            'outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            dimmed && 'opacity-40',
+          )}
+          onClick={onClick}
+        >
+          {tile ? tile.plate : !noPlate && <span className="lumen-plate absolute inset-0 rounded-[16px]" />}
+          <span
+            className={cn(
+              'absolute inset-0 grid place-items-center [&>*]:block',
+              // Colour tiles carry their own contrast; keep only a hint of lift on the glyph
+              tile ? 'drop-shadow-[0_1px_1px_rgba(0,0,0,.18)]' : 'drop-shadow-[0_2px_3px_rgba(0,0,0,.3)]',
+            )}
           >
-            <Plus className="w-3.5 h-3.5" />
-            Add Server
-          </button>
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-// ─── System tray ─────────────────────────────────────────────────────────────
-
-function SystemTray() {
-  return (
-    <div className="absolute right-1 flex items-center">
-      {/* Chevron (overflow) */}
-      <button className="flex items-center justify-center w-8 h-9 rounded-md hover:bg-foreground/5 transition-colors">
-        <ChevronUp className="w-3.5 h-3.5 text-foreground/60" />
-      </button>
-
-      {/* Notifications */}
-      <NotificationBell />
-
-      {/* Theme */}
-      <ThemeToggle />
-
-      {/* Server switcher */}
-      <ServerSwitcher />
-
-      {/* Thin separator */}
-      <div className="w-px h-4 bg-foreground/8 mx-0.5" />
-
-      {/* Clock */}
-      <Clock />
-    </div>
+            {tile ? tile.glyph : children}
+          </span>
+          {(focused || running) && (
+            <span
+              aria-hidden
+              className={cn(
+                'absolute left-[5px] top-[5px] size-[7px] rounded-full bg-accent-solid shadow-[0_0_0_1.5px_rgba(0,0,0,.28)] transition-[opacity,box-shadow] duration-200',
+                focused
+                  ? 'shadow-[0_0_0_1.5px_rgba(0,0,0,.28),0_0_8px_var(--lumen-accent-glow)]'
+                  : 'opacity-55',
+              )}
+            />
+          )}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side={side === 'right' ? 'left' : 'top'} sideOffset={16}>{label}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -359,20 +194,25 @@ export function Taskbar() {
     closeWindow,
     openWindow,
     toggleStartMenu,
+    toggleHomeHub,
+    homeHubOpen,
     startMenuOpen,
   } = useDesktopStore();
   const { activeServerId } = useAppStore();
+  // EX8.12: bottom-centre (default) or right-middle; only the dock moves
+  const dockPosition = usePreferencesStore((s) => s.dockPosition);
+  const dockIconStyle = usePreferencesStore((s) => s.dockIconStyle);
+  const vertical = dockPosition === 'right';
   const isConnected = useAppStore(
     (s) => s.servers.find((srv) => srv.id === s.activeServerId)?.state?.status === 'connected',
   );
   const pinnedAppIds = usePreferencesStore(s => s.pinnedAppIds);
+  const trashFull = useTrashHasItems(activeServerId, isConnected);
   const pinApp = usePreferencesStore(s => s.pinApp);
   const unpinApp = usePreferencesStore(s => s.unpinApp);
 
-  // Build pinned apps list from preferences + app metadata
-  const pinnedApps = pinnedAppIds
-    .map(id => ALL_APP_MAP.get(id))
-    .filter((a): a is AppMeta => !!a);
+  // Pinned apps from preferences (unknown ids are skipped)
+  const pinnedApps = pinnedAppIds.filter((id) => id in APP_LABELS);
 
   // Click handler for pinned/running app icons
   const handleAppClick = useCallback(
@@ -386,8 +226,7 @@ export function Taskbar() {
           focusWindow(existingWindow.id);
         }
       } else if (activeServerId && isConnected) {
-        const meta = ALL_APP_MAP.get(appId);
-        openWindow(appId, activeServerId, meta?.label ?? appId, appId);
+        openWindow(appId, activeServerId, APP_LABELS[appId] ?? appId, appId);
       }
     },
     [activeServerId, isConnected, focusWindow, minimizeWindow, restoreWindow, openWindow],
@@ -397,162 +236,139 @@ export function Taskbar() {
     useDesktopStore.getState().toggleShowDesktop();
   }, []);
 
-  // Build set of pinned app IDs for quick lookup
+  const handleOpenBin = useCallback(() => {
+    if (!activeServerId || !isConnected) return;
+    // Same target as the desktop Recycle Bin icon: Files on the trash virtual folder
+    openWindow('files', activeServerId, 'Recycle Bin', 'files', { initialPath: '__trash__' });
+  }, [activeServerId, isConnected, openWindow]);
+
   const pinnedIdSet = new Set(pinnedAppIds);
   // EX6-D: Citrix-style session isolation — only show running windows
   // that belong to the active session in the taskbar.
   const sessionWindows = activeServerId
     ? windows.filter((w) => w.serverId === activeServerId)
     : [];
-  // Non-pinned open windows (scoped to active session)
   const unpinnedWindows = sessionWindows.filter((w) => !pinnedIdSet.has(w.appId));
 
   return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>
-        <div className="absolute bottom-0 left-0 right-0 h-13 z-9999 flex items-center justify-center bg-taskbar/80 dark:bg-taskbar/70 backdrop-blur-2xl backdrop-saturate-150 border-t border-foreground/[0.06] shadow-[0_-1px_12px_0_rgba(0,0,0,0.04)]">
-          {/* ── Center: Start + Pinned Apps + Running extras ── */}
-          <div className="flex items-center gap-2">
-            {/* Start */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  className={`flex items-center justify-center w-11 h-10 rounded-md transition-all duration-100 ${
-                    startMenuOpen
-                      ? 'bg-foreground/10'
-                      : 'hover:bg-foreground/5 active:bg-foreground/8'
-                  }`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleStartMenu();
-                  }}
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    className="w-5 h-5"
-                  >
-                    <defs>
-                      <linearGradient id="win-tl" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0%" stopColor="#55B4F1" />
-                        <stop offset="100%" stopColor="#1B7FCC" />
-                      </linearGradient>
-                      <linearGradient id="win-tr" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0%" stopColor="#5EC96E" />
-                        <stop offset="100%" stopColor="#37A44C" />
-                      </linearGradient>
-                      <linearGradient id="win-bl" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0%" stopColor="#F0734B" />
-                        <stop offset="100%" stopColor="#D94A2A" />
-                      </linearGradient>
-                      <linearGradient id="win-br" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0%" stopColor="#FBCE42" />
-                        <stop offset="100%" stopColor="#E8AE10" />
-                      </linearGradient>
-                    </defs>
-                    <rect x="2" y="2" width="9" height="9" rx="2" fill="url(#win-tl)" />
-                    <rect x="13" y="2" width="9" height="9" rx="2" fill="url(#win-tr)" />
-                    <rect x="2" y="13" width="9" height="9" rx="2" fill="url(#win-bl)" />
-                    <rect x="13" y="13" width="9" height="9" rx="2" fill="url(#win-br)" />
-                  </svg>
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={10}>
-                Start
-              </TooltipContent>
-            </Tooltip>
-
-            {/* ── Pinned apps ── */}
-            {pinnedApps.map((app) => {
-              const win = windows.find(
-                (w) => w.appId === app.id && w.serverId === activeServerId,
-              );
-              const isOpen = !!win;
-              const isFocused = win?.focused && !win?.minimized;
-
-              return (
-                <ContextMenu key={app.id}>
-                  <ContextMenuTrigger asChild>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          className={`relative flex items-center justify-center w-11 h-10 rounded-md transition-all duration-100 ${
-                            isFocused
-                              ? 'bg-foreground/10'
-                              : isOpen
-                                ? 'hover:bg-foreground/6'
-                                : 'hover:bg-foreground/5'
-                          } ${!isConnected && !isOpen ? 'opacity-40' : ''}`}
-                          onClick={() => handleAppClick(app.id, win ?? undefined)}
-                        >
-                          <app.IconComponent size={32} />
-                          {isOpen && (
-                            <span
-                              className={`absolute bottom-0.75 left-1/2 -translate-x-1/2 rounded-full transition-all duration-200 ${
-                                isFocused
-                                  ? 'w-4 h-0.75 bg-primary'
-                                  : 'w-1.5 h-0.75 bg-foreground/25'
-                              }`}
-                            />
-                          )}
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" sideOffset={10}>
-                        {app.label}
-                      </TooltipContent>
-                    </Tooltip>
-                  </ContextMenuTrigger>
-                  <ContextMenuContent>
-                    <ContextMenuItem className="text-xs font-medium pointer-events-none">
-                      <span className="mr-2 opacity-50"><app.IconComponent size={16} /></span>
-                      {app.label}
-                    </ContextMenuItem>
-                    <ContextMenuSeparator />
-                    <ContextMenuItem onClick={() => unpinApp(app.id)}>
-                      <PinOff className="w-4 h-4 mr-2 opacity-50" />
-                      Unpin from Taskbar
-                    </ContextMenuItem>
-                    {isOpen && (
-                      <>
-                        <ContextMenuSeparator />
-                        <ContextMenuItem
-                          danger
-                          onClick={() => win && closeWindow(win.id)}
-                        >
-                          <X className="w-4 h-4 mr-2" />
-                          Close Window
-                        </ContextMenuItem>
-                      </>
-                    )}
-                  </ContextMenuContent>
-                </ContextMenu>
-              );
-            })}
-
-            {/* ── Separator if there are unpinned windows ── */}
-            {unpinnedWindows.length > 0 && (
-              <div className="w-px h-5 bg-foreground/8 mx-1" />
+    <DockSideContext.Provider value={dockPosition}>
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div
+            className={cn(
+              'glass-heavy shadow-dock absolute z-[9999] flex items-center gap-2.5 rounded-[30px]',
+              vertical
+                ? 'right-[14px] top-[calc(50%+14px)] max-h-[calc(100vh-57px)] w-[72px] -translate-y-1/2 flex-col pb-3 pt-2.5'
+                : 'bottom-[14px] left-1/2 h-[72px] max-w-[calc(100vw-28px)] -translate-x-1/2 pl-2.5 pr-3',
             )}
+            aria-orientation={vertical ? 'vertical' : 'horizontal'}
+            role="toolbar"
+            aria-label="Dock"
+          >
+            {/* ── Utility well: Launcher · Home hub · Search (prototype order) ── */}
+            <div
+              className={cn(
+                'lumen-well flex shrink-0 items-center gap-0.5 rounded-[26px]',
+                vertical ? 'w-[52px] flex-col py-[5px]' : 'h-[52px] px-[5px]',
+              )}
+            >
+              <WellButton
+                label="Launcher"
+                active={startMenuOpen}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleStartMenu();
+                }}
+              >
+                <Grip strokeWidth={1.75} />
+              </WellButton>
+              <WellButton
+                label="Home hub"
+                active={homeHubOpen}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleHomeHub();
+                }}
+              >
+                <House strokeWidth={1.75} />
+              </WellButton>
+              <WellButton label="Search (Ctrl+K)" onClick={openCommandPalette}>
+                <Search strokeWidth={1.75} />
+              </WellButton>
+            </div>
 
-            {/* ── Non-pinned running windows ── */}
-            {unpinnedWindows.map((win) => {
-              const meta = ALL_APP_MAP.get(win.appId);
-              const Icon = meta?.IconComponent ?? DashboardIcon;
-              const isFocused = win.focused && !win.minimized;
+            {/* ── Pinned apps + running extras ── */}
+            <div
+              className={cn(
+                'flex items-center gap-2 [scrollbar-width:none]',
+                vertical
+                  ? 'min-h-0 w-[72px] flex-col overflow-y-auto overflow-x-hidden py-0.5'
+                  : 'h-[72px] min-w-0 overflow-x-auto overflow-y-hidden px-0.5',
+              )}
+            >
+              {pinnedApps.map((appId) => {
+                const label = APP_LABELS[appId] ?? appId;
+                const win = windows.find((w) => w.appId === appId && w.serverId === activeServerId);
+                const isOpen = !!win;
+                const isFocused = !!win && win.focused && !win.minimized;
 
-              return (
-                <ContextMenu key={win.id}>
-                  <ContextMenuTrigger asChild>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          className={`relative flex items-center justify-center w-11 h-10 rounded-md transition-all duration-100 ${
-                            isFocused
-                              ? 'bg-foreground/10'
-                              : win.minimized
-                                ? 'opacity-50 hover:bg-foreground/5 hover:opacity-80'
-                                : 'hover:bg-foreground/6'
-                          }`}
+                return (
+                  <ContextMenu key={appId}>
+                    <ContextMenuTrigger asChild>
+                      {/* flex: a block wrapper adds baseline space under the tile */}
+                      <div className="flex">
+                        <DockTile
+                          label={label}
+                          appId={appId}
+                          focused={isFocused}
+                          running={isOpen}
+                          dimmed={!isConnected && !isOpen}
+                          onClick={() => handleAppClick(appId, win ?? undefined)}
+                        >
+                          <AppIcon appId={appId} size={32} />
+                        </DockTile>
+                      </div>
+                    </ContextMenuTrigger>
+                    <ContextMenuContent>
+                      <ContextMenuItem className="pointer-events-none font-semibold">
+                        <AppIcon appId={appId} size={17} />
+                        {label}
+                      </ContextMenuItem>
+                      <ContextMenuSeparator />
+                      <ContextMenuItem onClick={() => unpinApp(appId)}>
+                        <PinOff />
+                        Unpin from Dock
+                      </ContextMenuItem>
+                      {isOpen && (
+                        <>
+                          <ContextMenuSeparator />
+                          <ContextMenuItem danger onClick={() => win && closeWindow(win.id)}>
+                            <X />
+                            Close Window
+                          </ContextMenuItem>
+                        </>
+                      )}
+                    </ContextMenuContent>
+                  </ContextMenu>
+                );
+              })}
+
+              {unpinnedWindows.length > 0 && pinnedApps.length > 0 && (
+                <span className={cn('shrink-0 bg-border', vertical ? 'my-0.5 h-px w-7' : 'mx-0.5 h-7 w-px')} />
+              )}
+
+              {unpinnedWindows.map((win) => {
+                const isFocused = win.focused && !win.minimized;
+                return (
+                  <ContextMenu key={win.id}>
+                    <ContextMenuTrigger asChild>
+                      {/* flex: a block wrapper adds baseline space under the tile */}
+                      <div className="flex">
+                        <DockTile
+                          label={win.title}
+                          appId={win.appId}
+                          focused={isFocused}
+                          running={!win.minimized}
                           onClick={() =>
                             handleAppClick(win.appId, {
                               id: win.id,
@@ -561,90 +377,66 @@ export function Taskbar() {
                             })
                           }
                         >
-                          <Icon size={20} />
-                          {!win.minimized && (
-                            <span
-                              className={`absolute bottom-0.75 left-1/2 -translate-x-1/2 rounded-full transition-all duration-200 ${
-                                isFocused
-                                  ? 'w-4 h-0.75 bg-primary'
-                                  : 'w-1.5 h-0.75 bg-foreground/25'
-                              }`}
-                            />
-                          )}
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" sideOffset={10}>
+                          <AppIcon appId={win.appId} size={32} />
+                        </DockTile>
+                      </div>
+                    </ContextMenuTrigger>
+                    <ContextMenuContent>
+                      <ContextMenuItem className="pointer-events-none font-semibold">
+                        <AppIcon appId={win.appId} size={17} />
                         {win.title}
-                      </TooltipContent>
-                    </Tooltip>
-                  </ContextMenuTrigger>
-                  <ContextMenuContent>
-                    <ContextMenuItem className="text-xs font-medium pointer-events-none">
-                      <span className="mr-2 opacity-50"><Icon size={16} /></span>
-                      {win.title}
-                    </ContextMenuItem>
-                    <ContextMenuSeparator />
-                    <ContextMenuItem onClick={() => pinApp(win.appId)}>
-                      <Pin className="w-4 h-4 mr-2 opacity-50" />
-                      Pin to Taskbar
-                    </ContextMenuItem>
-                    <ContextMenuSeparator />
-                    <ContextMenuItem
-                      danger
-                      onClick={() => closeWindow(win.id)}
-                    >
-                      <X className="w-4 h-4 mr-2" />
-                      Close Window
-                    </ContextMenuItem>
-                  </ContextMenuContent>
-                </ContextMenu>
-              );
-            })}
+                      </ContextMenuItem>
+                      <ContextMenuSeparator />
+                      <ContextMenuItem onClick={() => pinApp(win.appId)}>
+                        <Pin />
+                        Pin to Dock
+                      </ContextMenuItem>
+                      <ContextMenuSeparator />
+                      <ContextMenuItem danger onClick={() => closeWindow(win.id)}>
+                        <X />
+                        Close Window
+                      </ContextMenuItem>
+                    </ContextMenuContent>
+                  </ContextMenu>
+                );
+              })}
+            </div>
+
+            {/* ── Divider, then Recycle Bin ── */}
+            <span className={cn('shrink-0 bg-border', vertical ? 'my-0.5 h-px w-9' : 'mx-0.5 h-9 w-px')} />
+            <DockTile label={trashFull ? 'Recycle Bin (has items)' : 'Recycle Bin'} bare dimmed={!isConnected} onClick={handleOpenBin}>
+              <RecycleBinIcon size={dockIconStyle === 'color' ? 44 : 32} full={trashFull} />
+            </DockTile>
           </div>
+        </ContextMenuTrigger>
 
-          {/* ── System tray ── */}
-          <SystemTray />
+        {/* Dock context menu */}
+        <ContextMenuContent>
+          <ContextMenuItem onClick={handleShowDesktop}>
+            <Monitor />
+            Show Desktop
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem
+            disabled={!isConnected}
+            onClick={() => {
+              if (activeServerId) {
+                openWindow('taskmanager', activeServerId, 'Task Manager', 'taskmanager');
+              }
+            }}
+          >
+            <Activity />
+            Task Manager
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem disabled>
+            <Settings />
+            Dock Settings
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
 
-          {/* ── Show Desktop strip (Windows-style peek strip at far right) ── */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={handleShowDesktop}
-                className="w-1 h-8 ml-1 rounded-sm bg-foreground/10 hover:bg-foreground/25 transition-colors shrink-0 cursor-pointer"
-                aria-label="Show Desktop"
-              />
-            </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs">
-              Show Desktop
-            </TooltipContent>
-          </Tooltip>
-        </div>
-      </ContextMenuTrigger>
-
-      {/* Taskbar context menu */}
-      <ContextMenuContent>
-        <ContextMenuItem onClick={handleShowDesktop}>
-          <Monitor className="w-4 h-4 mr-2 opacity-50" />
-          Show Desktop
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem
-          disabled={!isConnected}
-          onClick={() => {
-            if (activeServerId) {
-              openWindow('taskmanager', activeServerId, 'Task Manager', 'taskmanager');
-            }
-          }}
-        >
-          <Activity className="w-4 h-4 mr-2 opacity-50" />
-          Task Manager
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem disabled>
-          <Settings className="w-4 h-4 mr-2 opacity-50" />
-          Taskbar Settings
-        </ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
+      {/* EX8.11: the tray moved to the top menu bar (MenuBar.tsx) */}
+    </DockSideContext.Provider>
   );
 }

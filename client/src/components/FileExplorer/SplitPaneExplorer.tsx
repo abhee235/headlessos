@@ -1,9 +1,13 @@
 // M10.4: Split-Pane File Explorer — dual directory view side by side
-// @see docs/PROGRESS.md
+// EX8.6: LumenOS v3 — path pills, 30px rows, hairline divider.
+// @see docs/PROGRESS.md, docs/phases/phase-ex8.md
 
 import { useEffect, useState, useCallback } from 'react';
-import { RefreshCw, AlertCircle, ArrowRight } from 'lucide-react';
+import { AlertCircle, ArrowUp } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
+import { Button } from '@/components/ui/button';
+import { FileIcon } from '@/components/ui/FileIcon';
+import { cn } from '@/lib/utils';
 import type { FileEntryData } from '../../lib/api';
 import { fetchFiles } from '../../lib/api';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -16,6 +20,19 @@ import {
 import { UploadDropZone } from './UploadDropZone';
 
 // ── Minimal file list for the split pane ─────────────────
+
+/** 30px row: radius 10px, hover bg-fill. */
+const MINI_ROW =
+  'flex h-[30px] w-full items-center gap-2.5 rounded-[10px] px-2.5 text-left text-[13px] transition-colors duration-150 hover:bg-fill';
+
+/** Read-only path pill above each pane. */
+function PanePathBar({ path, className }: { path: string; className?: string }) {
+  return (
+    <div className={cn('mb-1.5 flex h-[30px] shrink-0 items-center rounded-full border border-edge bg-field px-3', className)}>
+      <span className="truncate font-mono text-[11px] text-label-2">{path}</span>
+    </div>
+  );
+}
 
 function MiniFileList({
   entries,
@@ -59,14 +76,11 @@ function MiniFileList({
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <AlertCircle className="w-5 h-5 text-destructive mx-auto mb-2" />
-          <p className="text-xs text-destructive">{error}</p>
-          <button
-            onClick={onRefresh}
-            className="mt-2 px-2 py-1 text-xs bg-accent hover:bg-accent/80 text-foreground rounded-md"
-          >
+          <AlertCircle className="mx-auto mb-2 h-6 w-6 text-danger" strokeWidth={1.75} />
+          <p className="text-[13px] text-danger">{error}</p>
+          <Button variant="secondary" size="sm" className="mt-3" onClick={onRefresh}>
             Retry
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -75,37 +89,35 @@ function MiniFileList({
   return (
     <UploadDropZone serverId={serverId} currentPath={currentPath} onUploadComplete={onRefresh}>
       <ScrollArea className="h-full">
-        <div className="divide-y divide-border/20">
+        <div className="flex flex-col gap-px px-2 pb-2">
           {/* Navigate up */}
           {currentPath !== '/' && (
             <button
-              className="flex items-center gap-2 w-full px-3 py-1.5 text-left hover:bg-accent/30 transition-colors text-muted-foreground"
+              className={cn(MINI_ROW, 'text-label-2 hover:text-foreground')}
               onClick={navigateUp}
             >
-              <ArrowRight className="w-3 h-3 rotate-180" />
-              <span className="text-xs">..</span>
+              <ArrowUp className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+              <span>..</span>
             </button>
           )}
           {entries.map(entry => (
             <button
               key={entry.name}
-              className="flex items-center gap-2 w-full px-3 py-1.5 text-left hover:bg-accent/30 transition-colors"
+              className={cn(MINI_ROW, 'text-foreground')}
               onDoubleClick={() => openEntry(entry)}
               onClick={() => {
                 if (entry.type === 'directory') openEntry(entry);
               }}
             >
-              <span className={`text-xs shrink-0 ${entry.type === 'directory' ? 'text-primary' : 'text-muted-foreground'}`}>
-                {entry.type === 'directory' ? '📁' : '📄'}
-              </span>
-              <span className="text-[13px] text-foreground truncate flex-1">{entry.name}</span>
-              <span className="text-[10px] text-muted-foreground/50 tabular-nums shrink-0">
+              <FileIcon entry={entry} size="sm" className="shrink-0" />
+              <span className="flex-1 truncate">{entry.name}</span>
+              <span className="shrink-0 text-[11px] tabular-nums text-label-3">
                 {entry.type === 'directory' ? '' : formatSize(entry.size)}
               </span>
             </button>
           ))}
           {entries.length === 0 && (
-            <div className="px-3 py-6 text-center text-xs text-muted-foreground">
+            <div className="px-3 py-6 text-center text-[13px] text-label-3">
               Empty directory
             </div>
           )}
@@ -173,11 +185,7 @@ export function SplitPaneExplorer({ serverId, initialPath }: SplitPaneExplorerPr
       <ResizablePanel defaultSize="50%" minSize="25%">
         <div className="flex flex-col h-full">
           {/* Left path bar */}
-          <div className="flex items-center px-3 py-1.5 border-b border-border/30 bg-muted/30">
-            <span className="text-[11px] text-muted-foreground truncate font-mono">
-              {leftPath}
-            </span>
-          </div>
+          <PanePathBar path={leftPath} className="ml-3 mr-2" />
           {/* Left file list */}
           <div className="flex-1 min-h-0">
             <MiniFileList
@@ -193,15 +201,13 @@ export function SplitPaneExplorer({ serverId, initialPath }: SplitPaneExplorerPr
         </div>
       </ResizablePanel>
 
-      <ResizableHandle withHandle />
+      {/* Subtle hairline divider; the primitive keeps a wider hit area */}
+      <ResizableHandle className="my-1" />
 
       <ResizablePanel defaultSize="50%" minSize="25%">
         <div className="flex flex-col h-full">
-          {/* Right path bar */}          <div className="flex items-center px-3 py-1.5 border-b border-border/30 bg-muted/30">
-            <span className="text-[11px] text-muted-foreground truncate font-mono">
-              {rightPath}
-            </span>
-          </div>
+          {/* Right path bar */}
+          <PanePathBar path={rightPath} className="ml-2 mr-4" />
           {/* Right file list */}
           <div className="flex-1 min-h-0">
             <MiniFileList
