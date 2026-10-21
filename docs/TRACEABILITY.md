@@ -1151,6 +1151,14 @@ None (all changes to existing files).
 - **Tests modified:** `server/tests/observatory/trace-store.test.ts`, `server/tests/llm/usage-tracker.test.ts`
 - **Verification:** server 2366 passed (+2 skipped), client 648, both typechecks clean
 
+### EX10.5 follow-up: object-only view schema, bracket repair
+- **Status:** ✅ Complete
+- **Date:** 2026-10-22
+- **Files modified:** `server/src/agent/tools/types.ts` (`inputSchema`), `server/src/agent/tools/tool-converter.ts`, `server/src/agent/tools/{view-arg,update-view,generate-schema,validate-schema}.ts`, `server/src/agent/loop/tool-input.ts` (`dropMismatchedClosers`, `repairNearError`)
+- **Docs:** `docs/phases/phase-ex10.md` (§8b, EX10.5 follow-up note)
+- **Tests modified:** `server/tests/agent/tools/view-arg.test.ts`
+- **Verification:** 9 of the 10 failed strings from the 2026-10-22 traces repair into valid views (replayed locally); server suite and `tsc -p server` clean
+
 ## How to Use This File
 
 ### After completing a task:

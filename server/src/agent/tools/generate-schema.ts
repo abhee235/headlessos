@@ -9,14 +9,15 @@
 import { z } from 'zod';
 import { DynamicViewSchema } from 'headlessos-shared/schemas/dynamic-view';
 import type { AgentTool, ToolContext, ToolResult } from './types.js';
-import { describeCounts, readViewArg, viewArgSchema, viewCounts } from './view-arg.js';
+import { describeCounts, readViewArg, viewArgSchema, viewCounts, viewInputSchema } from './view-arg.js';
+
+const SCHEMA_DESCRIPTION =
+    'The FINAL complete DynamicViewSchema view as a JSON object (not a string). Must be valid against DynamicViewSchema. ' +
+    'This MUST contain ALL data from all sections — it is the complete, finished view. ' +
+    'Call this ONLY after all update_view() calls and all data gathering is done.';
 
 const GenerateSchemaParams = z.object({
-  schema: viewArgSchema(
-    'The FINAL complete DynamicViewSchema view as a JSON object. Must be valid against DynamicViewSchema. ' +
-    'This MUST contain ALL data from all sections — it is the complete, finished view. ' +
-    'Call this ONLY after all update_view() calls and all data gathering is done.'
-  ),
+  schema: viewArgSchema(SCHEMA_DESCRIPTION),
 });
 
 export const generateSchemaTool: AgentTool = {
@@ -28,6 +29,7 @@ export const generateSchemaTool: AgentTool = {
     '(3) sent progressive updates via update_view for each section. ' +
     'The schema is validated against DynamicViewSchema with Zod — if it fails, fix the errors and retry.',
   parameters: GenerateSchemaParams,
+  inputSchema: viewInputSchema('schema', SCHEMA_DESCRIPTION),
   securityTier: 'local',
 
   async execute(rawArgs: unknown, _context: ToolContext): Promise<ToolResult> {

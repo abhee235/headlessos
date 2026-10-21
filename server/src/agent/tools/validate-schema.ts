@@ -9,16 +9,19 @@
 import { z } from 'zod';
 import { DynamicViewSchema } from 'headlessos-shared/schemas/dynamic-view';
 import type { AgentTool, ToolContext, ToolResult } from './types.js';
-import { readViewArg, viewArgSchema } from './view-arg.js';
+import { readViewArg, viewArgSchema, viewInputSchema } from './view-arg.js';
+
+const VALIDATE_DESCRIPTION = 'The view to check against DynamicViewSchema, as a JSON object (not a string)';
 
 const ValidateSchemaParams = z.object({
-  schema: viewArgSchema('The view to check against DynamicViewSchema, as a JSON object'),
+  schema: viewArgSchema(VALIDATE_DESCRIPTION),
 });
 
 export const validateSchemaTool: AgentTool = {
   name: 'validate_schema',
   description: 'Validate a JSON string against the DynamicViewSchema. Returns detailed error messages if validation fails, so you can fix issues before calling generate_schema. Use this as a "linter" to check your work before finalizing.',
   parameters: ValidateSchemaParams,
+  inputSchema: viewInputSchema('schema', VALIDATE_DESCRIPTION),
   securityTier: 'local',
 
   async execute(rawArgs: unknown, _context: ToolContext): Promise<ToolResult> {

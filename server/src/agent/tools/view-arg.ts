@@ -6,11 +6,25 @@
 // where it broke, so the model can fix that spot instead of resending the same string.
 
 import { z } from 'zod';
-import { repairJson } from '../loop/tool-input.js';
+import { DynamicViewSchema } from 'headlessos-shared/schemas/dynamic-view';
+import { repairJson, repairNearError } from '../loop/tool-input.js';
 
-/** Zod for the argument: an object first (what we ask for), a string still accepted */
+/** Zod for the argument at runtime: an object, or a string we parse or repair */
 export const viewArgSchema = (description: string) =>
   z.union([z.record(z.string(), z.unknown()), z.string()]).describe(description);
+
+/**
+ * EX10.5 follow-up: what the model is shown — an object only. Offered "object or string",
+ * a small model wrote strings, and its strings had mismatched brackets.
+ */
+export function viewInputSchema(key: 'view' | 'schema', description: string): Record<string, unknown> {
+  return {
+    type: 'object',
+    properties: { [key]: { type: 'object', description, additionalProperties: true } },
+    required: [key],
+    additionalProperties: false,
+  };
+}
 
 export type ViewArg =
   | { ok: true; value: unknown; repaired: boolean }
@@ -24,8 +38,13 @@ export function readViewArg(value: unknown, name: 'view' | 'schema'): ViewArg {
   try {
     return { ok: true, value: JSON.parse(value), repaired: false };
   } catch (err) {
-    const repaired = repairJson(value);
-    if (repaired !== undefined) return { ok: true, value: repaired, repaired: true };
+    // EX10.5 follow-up: a repair is used only when the result is a valid view — a guessed
+    // structure must not reach the owner's window. The syntax ladder first, then moving one
+    // bracket near the error; otherwise the model gets the position and sends it again.
+    const valid = (v: unknown) => DynamicViewSchema.safeParse(v).success;
+    const ladder = repairJson(value);
+    const repaired = ladder && valid(ladder) ? ladder : repairNearError(value, valid);
+    if (repaired && valid(repaired)) return { ok: true, value: repaired, repaired: true };
     return { ok: false, error: jsonErrorAt(value, err, name) };
   }
 }

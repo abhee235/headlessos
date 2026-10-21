@@ -36,7 +36,8 @@ export function parseToolArgs(args: unknown): ParsedArgs {
 /**
  * Syntax-only repairs, re-parsing after each step: cut to the outermost object,
  * drop trailing commas, quote bare keys, single → double quotes, close a
- * truncated object. Returns a plain object or undefined.
+ * truncated object; last (EX10.5 follow-up), drop closing brackets that do not
+ * match the open one. Returns a plain object or undefined.
  */
 export function repairJson(text: string): Record<string, unknown> | undefined {
   const start = text.indexOf('{');
@@ -63,7 +64,109 @@ export function repairJson(text: string): Record<string, unknown> | undefined {
   const doubled = cur.replace(/'([^'\\]*(?:\\.[^'\\]*)*)'/g, (_m, inner: string) => `"${inner.replace(/"/g, '\\"')}"`);
   if ((ok = attempt(doubled))) return ok;
 
-  return attempt(closeTruncated(cur)) ?? attempt(closeTruncated(doubled));
+  return attempt(closeTruncated(cur))
+    ?? attempt(closeTruncated(doubled))
+    ?? attempt(closeTruncated(dropMismatchedClosers(cur)))
+    ?? attempt(closeTruncated(dropMismatchedClosers(doubled)));
+}
+
+/**
+ * EX10.5 follow-up: a bracket in the wrong place, found by trying small edits near where
+ * JSON.parse stopped — remove one of the last few `}`/`]` before that point, or add a `]`/`}`
+ * right after one of them — for up to `rounds` errors in a row. The first candidate that
+ * parses and that `accept` takes wins (e.g. a valid view), else the first that parses.
+ * Models writing nested views close an object too early (`…"x"}]},"gap":"sm"}},…`) or
+ * leave an array open (`…"x"},"layout":"stack"}],…`).
+ */
+export function repairNearError(
+  text: string,
+  accept: (value: Record<string, unknown>) => boolean = () => true,
+  rounds = 3,
+): Record<string, unknown> | undefined {
+  const NEAR = 6;
+  const BEAM = 48;
+  let fallback: Record<string, unknown> | undefined;
+  let frontier = [text];
+  const seen = new Set(frontier);
+  for (let round = 0; round <= rounds && frontier.length; round++) {
+    const next: string[] = [];
+    for (const candidate of frontier) {
+      let message: string;
+      try {
+        const value: unknown = JSON.parse(candidate);
+        if (isPlainObject(value)) {
+          if (accept(value)) return value;
+          fallback ??= value;
+        }
+        continue;
+      } catch (err) {
+        message = err instanceof Error ? err.message : String(err);
+      }
+      if (round === rounds) continue;
+      const pos = Number(/position (\d+)/.exec(message)?.[1]);
+      const stop = Number.isFinite(pos) ? pos : candidate.length;
+      const closers = closerPositions(candidate, stop).slice(-NEAR).reverse();
+      const edits: string[] = [];
+      for (const i of closers) edits.push(candidate.slice(0, i) + candidate.slice(i + 1));
+      for (const i of closers) for (const ch of [']', '}']) edits.push(candidate.slice(0, i + 1) + ch + candidate.slice(i + 1));
+      for (const ch of [']', '}']) edits.push(candidate.slice(0, stop) + ch + candidate.slice(stop));
+      for (const e of edits) {
+        if (!seen.has(e)) {
+          seen.add(e);
+          next.push(e);
+        }
+      }
+    }
+    frontier = next.slice(0, BEAM);
+  }
+  return fallback;
+}
+
+/** Indexes of `}` and `]` outside strings, before `stop` */
+function closerPositions(text: string, stop: number): number[] {
+  const out: number[] = [];
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < Math.min(stop, text.length); i++) {
+    const ch = text[i]!;
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '"') inString = false;
+    } else if (ch === '"') inString = true;
+    else if (ch === '}' || ch === ']') out.push(i);
+  }
+  return out;
+}
+
+/**
+ * EX10.5 follow-up: outside strings, skip a `}` or `]` that does not close the bracket
+ * currently open. Models writing nested views put a `}` where a `]` belongs, e.g.
+ * `…"gap":"sm"}}],…` after an inner stack (2026-10-22 runs).
+ */
+export function dropMismatchedClosers(text: string): string {
+  const open: string[] = [];
+  let inString = false;
+  let escaped = false;
+  let out = '';
+  for (const ch of text) {
+    if (inString) {
+      out += ch;
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === '{') open.push('}');
+    else if (ch === '[') open.push(']');
+    else if (ch === '}' || ch === ']') {
+      if (open[open.length - 1] !== ch) continue; // a stray closer: leave it out
+      open.pop();
+    }
+    out += ch;
+  }
+  return out;
 }
 
 /** Close strings, drop a dangling key or comma, and close open brackets. */

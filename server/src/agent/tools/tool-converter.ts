@@ -15,7 +15,8 @@ export function toolsToOpenAIFunctions(tools: AgentTool[]): ChatCompletionTool[]
     function: {
       name: tool.name,
       description: tool.description,
-      parameters: toolParameters(tool),
+      // EX10.5 follow-up: a tool may show the model a narrower schema than it accepts
+      parameters: tool.inputSchema ?? toolParameters(tool),
     },
   }));
 }

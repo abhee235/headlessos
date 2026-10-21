@@ -223,6 +223,38 @@ The trace store keeps a span's own `costUsd` when one was set (the router sets 0
 models) and only computes a price when none was. Unknown models are no longer priced at a
 default rate: they show no cost.
 
+### 8b. Follow-ups from the first runs on 64K (fixes to EX10.5, EX10.1, EX10.4)
+
+Three UI Agent runs on `ornith:latest` after EX10.1–EX10.7 (2026-10-22, 02:47–02:55)
+showed:
+
+- **Views sent as strings.** Every `update_view` the model sent as an object succeeded.
+  Every one sent as a string failed: a `}` where a `]` belonged, after a nested stack. The
+  model resent the identical string even though the error named the spot (7 times, about
+  55 s, in one run; 3 times, about 17 s, in another). The tool schema still offered
+  "object or string".
+- **A timeout shorter than the replies we allow.** A reply copying log lines into the view
+  ran 6,920 tokens at about 58 tokens/s. Our 120 s request timeout cut it off; Ollama logged
+  a 500 after 2m0s. EX10.1 allows 8,192 tokens, about 140 s at that speed. The error said
+  "Ollama is not reachable", and the partial view was lost.
+
+Fixes:
+
+1. **(EX10.5)** View tools advertise only an object for `view` / `schema`. The schema the
+   model sees comes from `AgentTool.inputSchema` when a tool sets one. Strings are still
+   accepted at runtime. `repairJson` gains a step that drops a closing bracket that does
+   not match the open one (outside strings), before closing what is left open.
+2. **(EX10.1)** `OllamaProvider` streams (`stream: true`) and times out only on silence:
+   - no first chunk within 180 s (model load and prompt evaluation), or
+   - no chunk for 60 s after that.
+   A long reply that keeps arriving is never cut. Errors say what happened: not reachable
+   (connection failed), did not start answering, or stopped sending (with the token count
+   so far). Timeouts are `LLMTimeoutError` (`llm/provider.ts`).
+3. **(EX10.4)** The UI Agent executor and the shared loop treat an `LLMTimeoutError` like a
+   cut-off: the same three reminders ("send a smaller step"), then the EX10.4 early stop
+   with the last valid partial view. The reason is "the model kept taking too long to
+   answer".
+
 ### 9. Later (specced here, built after EX10.7)
 
 - **EX10.8 Action selection and data.** When slots are few, request words beat the fixed core
@@ -437,6 +469,20 @@ progressive example shows `update_view({"view": {…}})`. Its old double-stringi
 never had its placeholders filled in.
 
 Strings still work, so the fake-mode scenarios (which send strings) pass unchanged.
+
+**Follow-up (§8b fix 1).**
+- `AgentTool.inputSchema` (new) is what `toolsToOpenAIFunctions` shows the model when set.
+  The three view tools set it to an object only (`viewInputSchema`); their Zod
+  `parameters` still accept a string.
+- `repairJson` gains a last step, `dropMismatchedClosers`.
+- The new `repairNearError(text, accept)` tries one-bracket edits near where `JSON.parse`
+  stopped: remove one of the last 6 closers, or add a `]` or `}` after one of them. It
+  runs up to 3 rounds, with a beam of 48.
+- `readViewArg` uses a repair only when the result passes `DynamicViewSchema`. A guessed
+  structure never reaches the window; otherwise the model gets the position error.
+- Replayed against the 10 failed `update_view` strings from the 02:47 and 02:51 traces: 9
+  now repair into the valid view the model meant. The 10th has a duplicate `"type"` key
+  (a content error, not a bracket error) and is refused with its position, as intended.
 
 ## EX10.6 — Tool input for every tool (as built)
 
