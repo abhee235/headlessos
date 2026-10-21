@@ -1143,6 +1143,14 @@ None (all changes to existing files).
 - **Tests created:** `server/tests/agent/tools/tool-input-all.test.ts`
 - **Verification:** server 2365 passed (+2 skipped), `tsc -p server` clean
 
+### EX10.7: Cost
+- **Status:** ✅ Complete
+- **Date:** 2026-10-22
+- **Files modified:** `server/src/observatory/trace-store.ts` (span cost first, no default price), `server/src/llm/usage-tracker.ts` (no default price)
+- **Docs:** `docs/phases/phase-ex10.md` ("EX10.7 — as built")
+- **Tests modified:** `server/tests/observatory/trace-store.test.ts`, `server/tests/llm/usage-tracker.test.ts`
+- **Verification:** server 2366 passed (+2 skipped), client 648, both typechecks clean
+
 ## How to Use This File
 
 ### After completing a task:

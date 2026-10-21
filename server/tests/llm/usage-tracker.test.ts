@@ -160,10 +160,11 @@ describe('LLMUsageTracker', () => {
       expect(summary.estimatedCostUsd).toBeCloseTo(0.00075, 5);
     });
 
-    it('uses default pricing for unknown models', () => {
+    // EX10.7: no guessed price; a local model such as ornith:latest costs nothing
+    it('adds no cost for models without a known price', () => {
       tracker.recordCall({
         command: 'df -h',
-        model: 'some-unknown-model',
+        model: 'ornith:latest',
         inputTokens: 1000,
         outputTokens: 1000,
         latencyMs: 1000,
@@ -171,8 +172,8 @@ describe('LLMUsageTracker', () => {
       });
 
       const summary = tracker.getSummary();
-      // Default: input $0.005/1K, output $0.015/1K → $0.02
-      expect(summary.estimatedCostUsd).toBeCloseTo(0.02, 3);
+      expect(summary.estimatedCostUsd).toBe(0);
+      expect(summary.totalInputTokens).toBe(1000);
     });
 
     it('handles model prefix matching', () => {
