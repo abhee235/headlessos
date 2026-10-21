@@ -40,7 +40,7 @@
 | **EX6: Multi-Session Desktop & Hibernation** | **Experimental** | **✅** | **34/34 tasks** | [phase-ex6](phases/phase-ex6.md) |
 | **EX7: Container Target Mode** | **Experimental** | **✅** | **10/10 tasks** | [phase-ex7](phases/phase-ex7.md) |
 | **EX8: LumenOS v3 Design System** | **Experimental** | **✅** | **9/9 tasks** | [phase-ex8](phases/phase-ex8.md) |
-| **EX9: Safe Agents (Actions, Approvals, Local Models)** | **Experimental** | **🔄** | **1/6 tasks** | [phase-ex9](phases/phase-ex9.md) |
+| **EX9: Safe Agents (Actions, Approvals, Local Models)** | **Experimental** | **🔄** | **2/6 tasks** | [phase-ex9](phases/phase-ex9.md) |
 
 ---
 
@@ -52,7 +52,7 @@
 | Task ID | Task | Status | Verification |
 |---------|------|--------|--------------|
 | EX9.0 | Remove the UI Agent's write tools (`exec_write_command`, `sftp_write`) from `ALL_AGENT_TOOLS` | ✅ | Default registry has no write-tier tool; a model calling either name gets "Unknown tool" and SSH/SFTP are never touched (3 new tests) |
-| EX9.1 | Action catalog + validators + quoting + runner; agent scope enforced by CommandPolicy; both agents on the runner | ⬜ | |
+| EX9.1 | Action catalog + validators + quoting + runner; agent scope enforced by CommandPolicy; both agents on the runner | ✅ | 60 read actions; inside an agent run CommandPolicy refuses any ungranted command in every mode; `exec_command`/`sftp_read`/`sandbox_exec` and the read allowlist retired; fake dev mode runs end to end on actions. Server 2203 passed (+1 skipped), client 624 |
 | EX9.2 | Change actions, ApprovalGate, append-only audit log, ApprovalCard; Stop denies pending; view buttons via preview/run | ⬜ | |
 | EX9.3 | Shared agent loop (typed events), OllamaProvider, Settings → AI provider choice, weak-model input handling | ⬜ | |
 | EX9.4 | Loop guard, context trimming, output caps, per-model benchmark | ⬜ | |
@@ -562,6 +562,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-10-22 | **EX9.0–EX9.1 ✅** Agents no longer write shell commands. The UI Agent's write tools are unregistered; both agents call 60 typed read actions (`agent/actions/`) whose parameters are validated by strict Zod schemas and whose argv is built and quoted by the server. Inside an agent run, `CommandPolicy` refuses any command the action runner did not grant, in every policy mode, and SFTP needs a grant. SFTP reads re-check the resolved real path (symlinks). The free-form `exec_command`/`sftp_read`/`sandbox_exec` tools and the regex read allowlist are gone. |
 | 2026-10-22 | **EX9 🔄** Safe agents planned. ADR-024 (agents run typed actions, not shell commands; supersedes the free-form command parts of ADR-014). Phase spec: phase-ex9.md (6 tasks): action catalog + runner enforced at CommandPolicy via an agent scope, owner approvals with an append-only audit log, shared loop + Ollama, loop guard and budgets. SECURITY.md §4b added. |
 | 2026-10-20 | **EX8 ✅** LumenOS v3 glass design (7/7). Token layer (`--lumen-*` → shadcn tokens, `data-accent`/`data-glass`/`data-transparency` presets, accent follows wallpaper), bundled Manrope + Geist Mono, every `ui/` primitive, window chrome, floating dock + tray, launcher, new Quick Settings, notifications + calendar, lock/sign-in, and all apps restyled. New: Task Manager process detail card + `GET /taskmanager/process/:pid` + SIGSTOP/SIGCONT. Fixes: command palette launch, terminal resize frames typed into the shell, theme on lock screen. Validated side-by-side against the Claude Design prototype with Playwright. See [phase-ex8](phases/phase-ex8.md). |
 | 2026-10-20 | **EX8.8 ✅** Monaco code editor in Files and container Files: bundled + lazy-loaded (offline-safe), language from file name, Lumen light/dark syntax themes, Ctrl/⌘+S. Also: branded H spinner for every window's lazy load and container shells (docker exec as the pty command), 2px type step in Settings rows, light-theme label contrast raised to WCAG AA. |

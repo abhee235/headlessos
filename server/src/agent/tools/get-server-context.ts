@@ -2,27 +2,26 @@
 // @see docs/phases/phase-ex2.md — EX2.2
 //
 // Returns cached server metadata (OS, architecture, installed tools, etc.)
-// Uses a lightweight exec to gather info if not already cached.
+// EX9.1: gathered through catalog actions, so it goes through the ActionRunner.
 
 import { z } from 'zod';
 import type { AgentTool, ToolContext, ToolResult } from './types.js';
+import { ActionRunner } from '../actions/runner.js';
 
 const GetServerContextParams = z.object({
   refresh: z.boolean().optional()
     .describe('Force refresh of server context (default: false, uses cached data)'),
 });
 
-// Commands to gather server context — all read-only
-const CONTEXT_COMMANDS = [
-  { key: 'os', cmd: 'cat /etc/os-release', description: 'OS release info' },
-  { key: 'hostname', cmd: 'hostname', description: 'Server hostname' },
-  { key: 'arch', cmd: 'uname -m', description: 'Architecture' },
-  { key: 'kernel', cmd: 'uname -r', description: 'Kernel version' },
-  { key: 'uptime', cmd: 'uptime', description: 'System uptime' },
-  { key: 'memory', cmd: 'free -h', description: 'Memory usage' },
-  { key: 'disk', cmd: 'df -h', description: 'Disk usage' },
-  { key: 'docker', cmd: 'docker --version', description: 'Docker version (if installed)' },
-  { key: 'nginx', cmd: 'nginx -v', description: 'Nginx version (if installed)' },
+// Catalog actions that describe the server — all read-only
+const CONTEXT_ACTIONS: Array<{ key: string; action: string; params?: Record<string, unknown>; description: string }> = [
+  { key: 'os', action: 'os_release', description: 'OS release info' },
+  { key: 'kernel', action: 'kernel_info', description: 'Kernel, host name and architecture' },
+  { key: 'uptime', action: 'uptime', description: 'System uptime' },
+  { key: 'memory', action: 'memory_usage', description: 'Memory usage (MiB)' },
+  { key: 'disk', action: 'disk_usage', description: 'Disk usage' },
+  { key: 'docker', action: 'cli_locate', params: { program: 'docker' }, description: 'Docker (path if installed)' },
+  { key: 'nginx', action: 'cli_locate', params: { program: 'nginx' }, description: 'Nginx (path if installed)' },
 ];
 
 // Cache: serverId → context string
@@ -51,20 +50,17 @@ export const getServerContextTool: AgentTool = {
       }
 
       // Gather context in parallel
+      const runner = context.actions ?? new ActionRunner({ ssh: context.ssh });
       const results = await Promise.allSettled(
-        CONTEXT_COMMANDS.map(async ({ key, cmd, description }) => {
-          try {
-            const result = await context.ssh.exec(context.serverId, cmd, 10_000);
-            return {
-              key,
-              description,
-              value: result.exitCode === 0
-                ? result.stdout.trim()
-                : `(unavailable: ${result.stderr.trim() || 'exit code ' + result.exitCode})`,
-            };
-          } catch {
-            return { key, description, value: '(unavailable: command failed)' };
-          }
+        CONTEXT_ACTIONS.map(async ({ key, action, params, description }) => {
+          const result = await runner.run(context.serverId, action, params ?? {}, { runId: context.runId });
+          return {
+            key,
+            description,
+            value: result.ok && result.exitCode === 0 && result.stdout.trim()
+              ? result.stdout.trim()
+              : `(unavailable: ${result.stderr.trim() || result.error || 'not found'})`,
+          };
         })
       );
 

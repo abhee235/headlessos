@@ -10,14 +10,14 @@ import type { AgentTool, ToolContext, ToolResult } from './types.js';
 const GrepOutputParams = z.object({
   pattern: z.string().describe('Regex pattern to search for in previously fetched command output'),
   command: z.string().optional()
-    .describe('Search within output of a specific command. If omitted, searches all cached outputs.'),
+    .describe('Search only the output of this action (e.g. "process_list") or exact cache key. If omitted, searches all cached outputs.'),
   caseInsensitive: z.boolean().optional()
     .describe('Whether the regex match should be case insensitive (default: true)'),
 });
 
 export const grepOutputTool: AgentTool = {
   name: 'grep_output',
-  description: 'Search within previously fetched command outputs using a regex pattern. This does not run any SSH commands — it searches the cached outputs from prior exec_command calls. Use this to find specific information without re-running commands.',
+  description: 'Search within previously fetched action outputs using a regex pattern. This does not touch the server — it searches the cached outputs of earlier action calls. Use this to find specific information without running an action again.',
   parameters: GrepOutputParams,
   securityTier: 'local',
 
@@ -41,18 +41,20 @@ export const grepOutputTool: AgentTool = {
       // Determine which outputs to search
       const outputs: Array<{ command: string; output: string }> = [];
       if (command) {
-        const output = context.previousOutputs.get(command);
-        if (!output) {
+        // EX9.1: action outputs are cached as "<action>:<json params>"; an action name matches all of them
+        for (const [key, output] of context.previousOutputs.entries()) {
+          if (key === command || key.startsWith(`${command}:`)) outputs.push({ command: key, output });
+        }
+        if (outputs.length === 0) {
           return {
             success: false,
             output: '',
-            error: `No cached output for command: ${command}. Run exec_command first.`,
+            error: `No cached output for command: ${command}. Run an action first.`,
             metadata: {
               availableCommands: Array.from(context.previousOutputs.keys()),
             },
           };
         }
-        outputs.push({ command, output });
       } else {
         for (const [cmd, output] of context.previousOutputs.entries()) {
           outputs.push({ command: cmd, output });
@@ -63,7 +65,7 @@ export const grepOutputTool: AgentTool = {
         return {
           success: false,
           output: '',
-          error: 'No cached command outputs available. Run exec_command first to gather data.',
+          error: 'No cached command outputs available. Run an action first to gather data.',
         };
       }
 

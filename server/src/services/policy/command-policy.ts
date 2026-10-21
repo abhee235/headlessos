@@ -14,6 +14,10 @@
 //                 For tests that need to run arbitrary commands.
 //
 // Blocked commands are ALWAYS rejected, regardless of mode.
+//
+// EX9.1 (ADR-024): inside an agent run (services/policy/agent-scope.ts) the only
+// command allowed is the one the action runner just built and granted — in every
+// mode. For agents the action catalog is the allowlist; free-form text is refused.
 
 import { BaseService } from '../base-service.js';
 import {
@@ -25,13 +29,14 @@ import {
   type CommandRule,
   type RiskLevel,
 } from '../../security/validators.js';
+import { currentAgentScope } from './agent-scope.js';
 
 export type PolicyMode = 'enforce' | 'audit' | 'off';
 
 export interface PolicyDecision {
   allowed: boolean;
   /** Reason for rejection, when `allowed === false` */
-  reason?: 'blocked' | 'not-in-allowlist' | 'invalid-input';
+  reason?: 'blocked' | 'not-in-allowlist' | 'invalid-input' | 'not-an-action';
   message?: string;
   /** Risk level when matched against the allowlist */
   risk?: RiskLevel;
@@ -101,6 +106,20 @@ export class CommandPolicy extends BaseService {
         allowed: false,
         reason: 'blocked',
         message: `Blocked command pattern: ${truncate(trimmed)}`,
+      };
+    }
+
+    // EX9.1: an agent may only run the command its action grant names
+    const scope = currentAgentScope();
+    if (scope) {
+      const grant = scope.grant;
+      if (grant?.kind === 'exec' && grant.command === command) {
+        return { allowed: true, matchedRule: `action:${grant.actionId}` };
+      }
+      return {
+        allowed: false,
+        reason: 'not-an-action',
+        message: `Agents can only run catalog actions; refused: ${truncate(trimmed)}`,
       };
     }
 
@@ -175,6 +194,23 @@ export class CommandPolicy extends BaseService {
     return decision.risk
       ? ({ pattern: /./, risk: decision.risk } as CommandRule)
       : null;
+  }
+
+  /**
+   * EX9.1: SFTP has no command to check, so inside an agent run an SFTP session
+   * needs an `sftp` grant from the action runner. No-op outside agent runs.
+   */
+  assertSftpAllowed(serverId?: string): void {
+    const scope = currentAgentScope();
+    if (!scope) return;
+    if (scope.grant?.kind === 'sftp') return;
+    const decision: PolicyDecision = {
+      allowed: false,
+      reason: 'not-an-action',
+      message: 'Agents can only read files through catalog actions',
+    };
+    this.recordAudit({ command: '(sftp)', decision, serverId, timestamp: new Date().toISOString() });
+    throw new SecurityError(decision.message!);
   }
 
   /** Quick boolean check. */

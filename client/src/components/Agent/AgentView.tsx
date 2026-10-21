@@ -251,7 +251,7 @@ export function AgentView({ serverId }: AgentViewProps) {
 
   const onProgress = (e: AgentProgressEvent) => {
     if (e.kind === 'thought') {
-      setPending({ step: e.step, thought: e.thought, command: e.decision === 'run_command' ? e.command : undefined });
+      setPending({ step: e.step, thought: e.thought, command: e.decision === 'run_action' ? e.command : undefined });
     } else if (e.kind === 'step') {
       setLiveSteps((prev) => [...prev.filter((x) => x.stepNumber !== e.data.stepNumber), e.data]);
       // the next step starts thinking straight away

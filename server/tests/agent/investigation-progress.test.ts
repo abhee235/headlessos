@@ -9,8 +9,9 @@ function agentWith(thoughts: Array<Record<string, unknown>>) {
   return new InvestigationAgent(ssh as never, { parseText } as never);
 }
 
-const RUN_FREE = { thought: 'Check memory', command: 'free -h', answer: null, decision: 'run_command' };
-const ANSWER = { thought: 'Enough data', command: null, answer: '9 of 16 GB used', decision: 'answer' };
+// EX9.1: the model names an action; the server builds the command
+const RUN_FREE = { thought: 'Check memory', action: 'memory_usage', params: '{}', answer: null, decision: 'run_action' };
+const ANSWER = { thought: 'Enough data', action: null, params: null, answer: '9 of 16 GB used', decision: 'answer' };
 
 describe('InvestigationAgent progress (EX8.24)', () => {
   it('uses the session id the client chose and streams thought → step for every step', async () => {
@@ -22,8 +23,8 @@ describe('InvestigationAgent progress (EX8.24)', () => {
 
     expect(result.sessionId).toBe('client-session-1');
     expect(events.map((e) => `${e.kind}:${e.step}`)).toEqual(['thought:1', 'step:1', 'thought:2', 'step:2']);
-    expect(events[0]).toMatchObject({ thought: 'Check memory', decision: 'run_command', command: 'free -h' });
-    expect(events[1]).toMatchObject({ data: { stepNumber: 1, command: 'free -h', output: 'Mem: 16G 9G', decision: 'continue' } });
+    expect(events[0]).toMatchObject({ thought: 'Check memory', decision: 'run_action', action: 'memory_usage', command: 'free -m' });
+    expect(events[1]).toMatchObject({ data: { stepNumber: 1, action: 'memory_usage', command: 'free -m', output: 'Mem: 16G 9G', decision: 'continue' } });
     expect(events[3]).toMatchObject({ data: { stepNumber: 2, decision: 'answer' } });
     // the streamed steps are the steps of the result
     expect(events.filter((e) => e.kind === 'step').map((e) => e.data)).toEqual(result.steps);

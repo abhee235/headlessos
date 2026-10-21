@@ -3,6 +3,10 @@
 //
 // Enforces read/write/deny tiers on all agent tool calls.
 // Checked at tool execution layer — cannot be bypassed by LLM output.
+//
+// EX9.1 (ADR-024): tools that touch a server are catalog actions ('action' tier);
+// the ActionRunner validates them, so they pass here. The free-form exec_command
+// and sftp_read tools, and the read allowlist they used, are gone.
 
 import type { AgentTool } from './tools/types.js';
 
@@ -122,14 +126,6 @@ const WRITE_PATH_ALLOWLIST: RegExp[] = [
   /^\/var\/www\//,
 ];
 
-// ── READ Allowlist (imported from shared module) ────────
-
-import {
-  AGENT_READ_ONLY_ALLOWLIST,
-  PIPE_FILTERS,
-  BLOCKED_PATTERNS,
-} from './command-allowlist.js';
-
 // ── Internal Check Functions ────────────────────────────
 
 function isDeniedCommand(command: string): boolean {
@@ -142,27 +138,6 @@ function isDeniedPath(path: string): boolean {
   // Block control characters (newlines, tabs, null bytes, etc.)
   if (/[\x00-\x1f\x7f]/.test(normalized)) return true;
   return DENY_PATHS.some(re => re.test(normalized));
-}
-
-function isReadCommand(command: string): boolean {
-  const trimmed = command.trim();
-
-  // Check blocked patterns
-  for (const blocked of BLOCKED_PATTERNS) {
-    if (blocked.test(trimmed)) return false;
-  }
-
-  // Support piped commands
-  const segments = trimmed.split(/\s*\|\s*/);
-  for (let i = 0; i < segments.length; i++) {
-    const seg = segments[i]!.trim();
-    if (i === 0) {
-      if (!AGENT_READ_ONLY_ALLOWLIST.some(re => re.test(seg))) return false;
-    } else {
-      if (!PIPE_FILTERS.some(re => re.test(seg))) return false;
-    }
-  }
-  return true;
 }
 
 function isWriteCommand(command: string): boolean {
@@ -215,25 +190,8 @@ function isDenied(tool: AgentTool, args: unknown): { denied: boolean; reason: st
   return { denied: false, reason: '' };
 }
 
-function isReadAllowed(tool: AgentTool, args: unknown): { allowed: boolean; reason: string } {
-  // exec_command → check read allowlist
-  if (tool.name === 'exec_command') {
-    const command = extractCommand(args);
-    if (!command) return { allowed: false, reason: 'No command provided' };
-    if (isReadCommand(command)) return { allowed: true, reason: '' };
-    return { allowed: false, reason: `Command not in read allowlist: ${command}` };
-  }
-
-  // sftp_read → path must be absolute, no traversal (but any readable path OK)
-  if (tool.name === 'sftp_read') {
-    const path = extractPath(args);
-    if (!path) return { allowed: false, reason: 'No path provided' };
-    if (!path.startsWith('/')) return { allowed: false, reason: 'Path must be absolute' };
-    if (path.includes('..')) return { allowed: false, reason: 'Path traversal not allowed' };
-    return { allowed: true, reason: '' };
-  }
-
-  // get_server_context → always allowed (read tier)
+function isReadAllowed(tool: AgentTool, _args: unknown): { allowed: boolean; reason: string } {
+  // get_server_context → always allowed (it runs catalog actions)
   if (tool.name === 'get_server_context') {
     return { allowed: true, reason: '' };
   }
@@ -276,6 +234,11 @@ function isWriteAllowed(tool: AgentTool, args: unknown): { allowed: boolean; rea
  * 4. Write tier — check write allowlist
  */
 export function checkGuardrails(tool: AgentTool, args: unknown): GuardrailResult {
+  // 0. EX9.1: catalog actions — the ActionRunner validates params and builds the command
+  if (tool.securityTier === 'action') {
+    return { allowed: true, tier: 'read' };
+  }
+
   // 1. DENY check first — always checked, overrides everything
   const denyResult = isDenied(tool, args);
   if (denyResult.denied) {

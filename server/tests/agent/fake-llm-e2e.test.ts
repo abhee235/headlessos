@@ -131,7 +131,7 @@ describe('FakeLLM End-to-End Pipeline', () => {
       // Should start with planning thinking events
       expect(types[0]).toBe('thinking');
 
-      // Should contain tool_result events for get_server_context and exec_command
+      // Should contain tool_result events for get_server_context and the process_list action
       const toolResults = events.filter(
         (e): e is AgentEvent & { type: 'tool_result' } => e.type === 'tool_result',
       );
@@ -142,10 +142,10 @@ describe('FakeLLM End-to-End Pipeline', () => {
       expect(contextResult).toBeDefined();
       expect(contextResult!.success).toBe(true);
 
-      // Should have exec_command result
-      const execResult = toolResults.find(e => e.tool === 'exec_command');
-      expect(execResult).toBeDefined();
-      expect(execResult!.success).toBe(true);
+      // EX9.1: the agent ran a catalog action, never a free-form command
+      const actionResult = toolResults.find(e => e.tool === 'process_list');
+      expect(actionResult).toBeDefined();
+      expect(actionResult!.success).toBe(true);
 
       // Should have generate_schema tool result
       const genResult = toolResults.find(e => e.tool === 'generate_schema');
@@ -382,9 +382,9 @@ describe('FakeLLM End-to-End Pipeline', () => {
   describe('MockSSHConnectionManager', () => {
     it('returns canned output for known commands', async () => {
       const mock = new MockSSHConnectionManager(createUbuntuServerOutputs());
-      const result = await mock.exec('srv', 'hostname');
+      const result = await mock.exec('srv', 'uptime');
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toBe('web-prod-01');
+      expect(result.stdout).toContain('up 42 days');
     });
 
     it('throws for unknown commands', async () => {
@@ -394,11 +394,11 @@ describe('FakeLLM End-to-End Pipeline', () => {
 
     it('logs all exec calls', async () => {
       const mock = new MockSSHConnectionManager(createUbuntuServerOutputs());
-      await mock.exec('s1', 'hostname');
-      await mock.exec('s2', 'uname -m');
+      await mock.exec('s1', 'uptime');
+      await mock.exec('s2', 'uname -a');
       expect(mock.execLog).toHaveLength(2);
       expect(mock.execLog[0]!.serverId).toBe('s1');
-      expect(mock.execLog[1]!.command).toBe('uname -m');
+      expect(mock.execLog[1]!.command).toBe('uname -a');
     });
   });
 

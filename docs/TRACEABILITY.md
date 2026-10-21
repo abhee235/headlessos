@@ -1028,6 +1028,17 @@ None (all changes to existing files).
 - **Tests:** `server/tests/agent/tools/tools.test.ts` (8 tools, none write-tier), `server/tests/agent/executor.test.ts` ("default tool set (EX9.0)": both names → Unknown tool, no exec/getSftp)
 - **Verification:** server 2180 passed (+1 skipped), `tsc -p server` clean
 
+### EX9.1: Action catalog, runner, enforcement
+- **Status:** ✅ Complete
+- **Date:** 2026-10-22
+- **Files created:** `server/src/agent/actions/{index,types,quote,params,runner,tools}.ts`, `server/src/agent/actions/catalog/{index,define,system,network,services,docker,admin,files}.ts`, `server/src/services/policy/agent-scope.ts`
+- **Files deleted:** `server/src/agent/tools/{exec-command,sftp-read,sandbox-exec}.ts`, `server/tests/agent/sandbox-exec.test.ts`
+- **Files modified:** `services/policy/command-policy.ts` (agent-scope check in every mode, `assertSftpAllowed`), `ssh/connection-manager.ts` (`getSftp` asks the policy), `agent/tools/{index,types,tool-converter,get-server-context,grep-output}.ts`, `agent/{guardrails,command-allowlist,executor,reflector,error-recovery,ui-agent,investigation-agent}.ts`, `routes/agent-ui.ts`, `llm/providers/{fake-ssh-proxy,fake-scenarios,fake-progressive-scenario}.ts`; client `lib/api.ts` (`run_action`, `action`), `components/Agent/AgentView.tsx`
+- **Docs:** `docs/phases/phase-ex9.md` (§1, §5, §6, "EX9.1 — as built"), `CLAUDE.md` (agent safety), `docs/ARCHITECTURE.md` (Mode 2 superseded note)
+- **Tests created:** `server/tests/agent/actions/{quote-params,catalog,runner,scope-policy,tools}.test.ts`, `server/tests/llm/fake-mode-actions.test.ts`; rewritten `server/tests/agent/investigation-agent.test.ts`
+- **Tests modified:** `tests/agent/{command-allowlist,guardrails,executor,fake-llm-e2e,agent-spans,investigation-progress,ui-agent-sandbox}.test.ts`, `tests/agent/tools/tools.test.ts`, `tests/agent/{helpers/mock-ssh,scenarios/system-overview}.ts`, `tests/routes/security-regressions.test.ts` (H2 rewritten for actions); client `tests/components/agent-progress.test.tsx`
+- **Verification:** server 2203 passed (+1 skipped), client 624, both typechecks clean
+
 ## How to Use This File
 
 ### After completing a task:

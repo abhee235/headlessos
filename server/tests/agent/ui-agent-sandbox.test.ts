@@ -10,7 +10,8 @@ import type { PostGenerationReflector, Reflection } from '../../src/agent/reflec
 import type { ConnectionManager } from '../../src/ssh/connection-manager.js';
 import type { TemplateRegistry } from '../../src/dynamic-ui/template-registry.js';
 import type { SandboxManager, SandboxInfo } from '../../src/agent/sandbox-manager.js';
-import { ToolRegistry } from '../../src/agent/tools/tool-registry.js';
+import { currentAgentScope } from '../../src/services/policy/agent-scope.js';
+import { getDefaultCatalog, actionTool } from '../../src/agent/actions/index.js';
 import type { DynamicView } from 'headlessos-shared/schemas/dynamic-view';
 
 // ── Helpers (mirrors ui-agent.test.ts patterns) ──
@@ -182,7 +183,6 @@ function createSandboxAgent(overrides?: {
   ssh?: ConnectionManager;
   templateRegistry?: TemplateRegistry;
   sandboxManager?: SandboxManager;
-  toolRegistry?: ToolRegistry;
 }): UIAgent {
   return new UIAgent({
     modelRouter: overrides?.modelRouter ?? createMockModelRouter(),
@@ -192,7 +192,6 @@ function createSandboxAgent(overrides?: {
     ssh: overrides?.ssh ?? createMockSSH(),
     templateRegistry: overrides?.templateRegistry ?? createMockTemplateRegistry(),
     sandboxManager: overrides?.sandboxManager ?? createMockSandboxManager(),
-    toolRegistry: overrides?.toolRegistry ?? new ToolRegistry(),
   });
 }
 
@@ -276,19 +275,50 @@ describe('UIAgent — Sandbox Mode (EX5-B.3)', () => {
       expect(context.activeSandboxId).toBe(SANDBOX_INFO.id);
     });
 
-    it('registers sandbox_exec tool in the registry', async () => {
+    // EX9.1: the sandbox lifecycle is our code, so CommandPolicy must not treat it as the agent
+    it('creates, installs and destroys the sandbox outside the agent scope', async () => {
       const sandboxManager = createMockSandboxManager();
-      const toolRegistry = new ToolRegistry();
-      const agent = createSandboxAgent({ sandboxManager, toolRegistry });
+      const scopes: unknown[] = [];
+      for (const fn of ['create', 'install', 'destroySandbox'] as const) {
+        const original = (sandboxManager[fn] as ReturnType<typeof vi.fn>).getMockImplementation();
+        (sandboxManager[fn] as ReturnType<typeof vi.fn>).mockImplementation((...args: unknown[]) => {
+          scopes.push(currentAgentScope());
+          return original!(...args);
+        });
+      }
+      const executor = createMockExecutor(VALID_DYNAMIC_VIEW);
+      (executor.execute as ReturnType<typeof vi.fn>).mockImplementation(async function* () {
+        scopes.push(currentAgentScope()?.agent); // the executor itself runs as the agent
+        yield { type: 'generation_complete', view: VALID_DYNAMIC_VIEW } as AgentEvent;
+      });
+      const agent = createSandboxAgent({ sandboxManager, executor });
 
-      await collectEvents(
-        agent.generate('server-1', 'Build UI for nginx', {
-          sandboxMode: true,
-          toolName: 'nginx',
-        }),
-      );
+      await collectEvents(agent.generate('server-1', 'Build UI for nginx', { sandboxMode: true, toolName: 'nginx' }));
 
-      expect(toolRegistry.has('sandbox_exec')).toBe(true);
+      expect(scopes).toEqual([undefined, undefined, 'ui-agent', undefined]);
+    });
+
+    // EX9.1: sandbox_exec is gone; the cli_* actions run inside the active sandbox
+    it('runs cli actions inside the sandbox container', async () => {
+      const sandboxManager = createMockSandboxManager();
+      (sandboxManager as unknown as { getSandbox: unknown }).getSandbox = vi.fn().mockReturnValue(SANDBOX_INFO);
+      const ssh = createMockSSH();
+      (ssh.exec as ReturnType<typeof vi.fn>).mockResolvedValue({ stdout: 'Usage: nginx [-h]', stderr: '', exitCode: 0, durationMs: 5 });
+      const executor = createMockExecutor(VALID_DYNAMIC_VIEW);
+      const agent = createSandboxAgent({ sandboxManager, executor, ssh });
+
+      await collectEvents(agent.generate('server-1', 'Build UI for nginx', { sandboxMode: true, toolName: 'nginx' }));
+      const context = (executor.execute as ReturnType<typeof vi.fn>).mock.calls[0]![1];
+
+      const help = actionTool(getDefaultCatalog().get('cli_help')!);
+      const result = await help.execute({ program: 'nginx' }, context);
+      expect(result.success).toBe(true);
+      expect(ssh.exec).toHaveBeenCalledWith('server-1', `docker exec ${SANDBOX_INFO.containerName} nginx --help`, expect.any(Number));
+
+      // a non-cli action still runs on the host
+      const disk = actionTool(getDefaultCatalog().get('disk_usage')!);
+      await disk.execute({}, context);
+      expect(ssh.exec).toHaveBeenLastCalledWith('server-1', 'df -hT', expect.any(Number));
     });
   });
 
@@ -500,35 +530,6 @@ describe('UIAgent — Sandbox Mode (EX5-B.3)', () => {
       );
 
       expect(sandboxManager.create).toHaveBeenCalledWith('server-1', 'restic');
-    });
-  });
-
-  describe('sandbox does not register duplicate tools', () => {
-    it('skips registering sandbox_exec if already in registry', async () => {
-      const sandboxManager = createMockSandboxManager();
-      const toolRegistry = new ToolRegistry();
-
-      // Pre-register a fake sandbox_exec
-      toolRegistry.register({
-        name: 'sandbox_exec',
-        description: 'pre-existing',
-        parameters: {} as never,
-        securityTier: 'read',
-        execute: vi.fn(),
-      });
-
-      const agent = createSandboxAgent({ sandboxManager, toolRegistry });
-
-      // Should not throw (no duplicate registration)
-      await collectEvents(
-        agent.generate('server-1', 'Build UI for nginx', {
-          sandboxMode: true,
-          toolName: 'nginx',
-        }),
-      );
-
-      // Still has the tool
-      expect(toolRegistry.has('sandbox_exec')).toBe(true);
     });
   });
 });

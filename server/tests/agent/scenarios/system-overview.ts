@@ -4,7 +4,7 @@
 // for "show me system overview". This is the reference output that
 // real prompts should replicate.
 //
-// Pipeline: Plan → Execute (get_server_context → exec_command → generate_schema) → Complete
+// Pipeline: Plan → Execute (get_server_context → process_list action → generate_schema) → Complete
 
 import type { FakeLLMScenario } from '../../../src/llm/providers/fake-llm.js';
 import type { PlannerHints } from '../../../src/agent/planner.js';
@@ -167,7 +167,7 @@ const EXECUTOR_TURN_1_GET_CONTEXT: ChatWithToolsResult = {
 };
 
 /**
- * Turn 2: Agent calls exec_command to get detailed CPU info.
+ * Turn 2: Agent calls the process_list action to see what uses the CPU.
  */
 const EXECUTOR_TURN_2_TOP: ChatWithToolsResult = {
   message: {
@@ -178,8 +178,8 @@ const EXECUTOR_TURN_2_TOP: ChatWithToolsResult = {
         id: 'call_top_1',
         type: 'function',
         function: {
-          name: 'exec_command',
-          arguments: JSON.stringify({ command: 'top -bn1 | head -5' }),
+          name: 'process_list',
+          arguments: JSON.stringify({ sortBy: 'cpu' }),
         },
       },
     ],

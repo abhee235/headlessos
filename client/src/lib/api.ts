@@ -1420,6 +1420,8 @@ export async function updateServerTags(serverId: string, tags: string[]): Promis
 export interface AgentStep {
   stepNumber: number;
   thought: string;
+  /** EX9.1: the catalog action the step ran */
+  action?: string;
   command?: string;
   output?: string;
   observation?: string;
@@ -1439,7 +1441,8 @@ export interface AgentResult {
 
 /** EX8.24: one live event from /ws/agent/:serverId/:sessionId */
 export type AgentProgressEvent =
-  | { kind: 'thought'; step: number; thought: string; decision: 'run_command' | 'answer'; command?: string }
+  // EX9.1: the agent names a catalog action; `command` is what the server built for it
+  | { kind: 'thought'; step: number; thought: string; decision: 'run_action' | 'answer'; action?: string; command?: string }
   | { kind: 'step'; step: number; data: AgentStep };
 
 /** EX8.24: the investigation's progress socket (through the Vite proxy in dev) */

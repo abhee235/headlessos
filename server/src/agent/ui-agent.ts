@@ -12,11 +12,15 @@ import type { TemplateRegistry } from '../dynamic-ui/template-registry.js';
 import { Planner, type PlannerHints } from './planner.js';
 import { ReactiveExecutor, type AgentEvent } from './executor.js';
 import { PostGenerationReflector, type ReflectionIssue } from './reflector.js';
-import { ToolRegistry } from './tools/tool-registry.js';
 import type { ToolContext } from './tools/types.js';
 import { withTraceGen, setSpanAttributes } from '../observatory/context.js';
 import type { SandboxManager } from './sandbox-manager.js';
-import { sandboxExecTool } from './tools/sandbox-exec.js';
+import { ActionRunner } from './actions/runner.js';
+import { selectActions } from './actions/tools.js';
+import { outsideAgentScope, runGenAsAgent } from '../services/policy/agent-scope.js';
+
+/** EX9.1: read actions offered to the model per run (ADR-024 §6) */
+const OFFERED_ACTIONS = 40;
 
 // ── Agent Meta ──
 
@@ -79,8 +83,6 @@ export class UIAgent {
   private templateRegistry: TemplateRegistry;
   /** EX5-B.3: Optional sandbox manager for isolated CLI discovery */
   private sandboxManager?: SandboxManager;
-  /** EX5-B.3: Tool registry for dynamic tool registration (sandbox_exec) */
-  private toolRegistry?: ToolRegistry;
 
   constructor(deps: {
     modelRouter: ModelRouter;
@@ -90,7 +92,6 @@ export class UIAgent {
     ssh: ConnectionManager;
     templateRegistry: TemplateRegistry;
     sandboxManager?: SandboxManager;
-    toolRegistry?: ToolRegistry;
   }) {
     this.modelRouter = deps.modelRouter;
     this.planner = deps.planner;
@@ -99,7 +100,6 @@ export class UIAgent {
     this.ssh = deps.ssh;
     this.templateRegistry = deps.templateRegistry;
     this.sandboxManager = deps.sandboxManager;
-    this.toolRegistry = deps.toolRegistry;
   }
 
   /**
@@ -111,16 +111,21 @@ export class UIAgent {
    * Pipeline: Plan → Execute → optional Reflect → optional Re-execute → complete
    *
    * The entire session is wrapped in an Observatory trace (EX4-B.2).
+   * EX9.1: it also runs as an agent scope, so CommandPolicy refuses any command
+   * the action runner did not build (ADR-024).
    */
   async *generate(
     serverId: string,
     request: string,
     options: UIAgentOptions = {},
   ): AsyncGenerator<UIAgentEvent> {
-    yield* withTraceGen<UIAgentEvent>(
-      `UIAgent: ${request.slice(0, 50)}`,
-      { trigger: 'ui-agent', serverId },
-      () => this.generateCore(serverId, request, options),
+    const sessionId = crypto.randomUUID();
+    yield* runGenAsAgent<UIAgentEvent>({ runId: sessionId, agent: 'ui-agent' }, () =>
+      withTraceGen<UIAgentEvent>(
+        `UIAgent: ${request.slice(0, 50)}`,
+        { trigger: 'ui-agent', serverId },
+        () => this.generateCore(serverId, request, options, sessionId),
+      ),
     );
   }
 
@@ -131,9 +136,9 @@ export class UIAgent {
   private async *generateCore(
     serverId: string,
     request: string,
-    options: UIAgentOptions = {},
+    options: UIAgentOptions,
+    sessionId: string,
   ): AsyncGenerator<UIAgentEvent> {
-    const sessionId = crypto.randomUUID();
     const maxPostReflections = options.maxPostReflections ?? 2;
     const signal = options.signal;
     const startTime = Date.now();
@@ -147,6 +152,9 @@ export class UIAgent {
       ssh: this.ssh,
       templateRegistry: this.templateRegistry,
       previousOutputs: new Map(),
+      actions: new ActionRunner({ ssh: this.ssh }),
+      runId: sessionId,
+      offeredActions: new Set(selectActions(request, { max: OFFERED_ACTIONS }).map((a) => a.id)),
     };
 
     // ── EX5-B.3: SANDBOX SETUP (when sandboxMode=true) ──
@@ -157,26 +165,23 @@ export class UIAgent {
       const toolName = options.toolName ?? this.extractToolName(request);
       try {
         yield { type: 'thinking', message: `Creating sandbox container for "${toolName}"...` };
-        const sandbox = await this.sandboxManager!.create(serverId, toolName);
+        // The sandbox lifecycle is our code, not a model choice: run it outside the agent scope
+        const sandbox = await outsideAgentScope(() => this.sandboxManager!.create(serverId, toolName));
         sandboxId = sandbox.id;
+        const createdId = sandboxId;
 
         // Install tool in sandbox
         yield { type: 'thinking', message: `Installing ${toolName} in sandbox...` };
         try {
-          await this.sandboxManager!.install(sandboxId, [toolName]);
+          await outsideAgentScope(() => this.sandboxManager!.install(createdId, [toolName]));
         } catch {
           // Tool may already be in the base image or not installable — continue
           yield { type: 'thinking', message: `Note: ${toolName} may not need installation, continuing discovery...` };
         }
 
-        // Wire sandbox into context
+        // Wire sandbox into context: the cli_* actions now run inside it
         context.sandboxManager = this.sandboxManager;
         context.activeSandboxId = sandboxId;
-
-        // Register sandbox_exec tool for this session
-        if (this.toolRegistry && !this.toolRegistry.has('sandbox_exec')) {
-          this.toolRegistry.register(sandboxExecTool);
-        }
 
         yield { type: 'thinking', message: 'Sandbox ready — discovering CLI structure...' };
       } catch (err) {
@@ -378,7 +383,8 @@ export class UIAgent {
       // ── EX5-B.3: SANDBOX CLEANUP ──
       if (sandboxId && this.sandboxManager) {
         try {
-          await this.sandboxManager.destroySandbox(sandboxId);
+          const doomed = sandboxId;
+          await outsideAgentScope(() => this.sandboxManager!.destroySandbox(doomed));
           yield { type: 'thinking', message: 'Sandbox destroyed ✓' };
         } catch {
           // Best-effort cleanup

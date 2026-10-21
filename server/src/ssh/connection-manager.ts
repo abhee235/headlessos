@@ -276,6 +276,8 @@ export class ConnectionManager extends BaseService {
   }
 
   async getSftp(serverId: string): Promise<SFTPWrapper> {
+    // EX9.1: inside an agent run, SFTP needs a grant from the action runner
+    this.policy?.assertSftpAllowed(serverId);
     const conn = this.requireConnection(serverId);
 
     // Reuse cached SFTP session

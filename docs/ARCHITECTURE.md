@@ -379,6 +379,12 @@ fastify.get('/api/servers/:id/system/dashboard', async (req) => {
 
 #### Mode 2: ReAct Agent (Backlog — build later)
 
+> **Superseded by EX9 / ADR-024.** The agent that was built (M11.5) no longer sends
+> command text. It calls typed catalog actions such as `disk_usage` or
+> `dir_size { path, depth }`; the server builds, quotes and runs the command, and
+> `CommandPolicy` refuses anything else inside an agent run. The sketch below is the
+> original design. See [phases/phase-ex9.md](phases/phase-ex9.md).
+
 For **open-ended investigation** queries like "Why is my server slow?" or "What's using all the disk space?". Uses LLM tool-calling to let the model decide what commands to run next.
 
 ```
