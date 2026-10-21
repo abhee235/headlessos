@@ -169,6 +169,13 @@ every policy mode. Actions that change a server wait for the owner's approval
 (full command, server, login user, reason) and are logged to
 `~/.headlessos/audit/actions.jsonl`. See [phases/phase-ex9.md](phases/phase-ex9.md).
 
+Action output is treated as untrusted (EX9.5). Secrets are removed before the owner or
+the model sees it (`agent/actions/redact.ts`). The model gets it inside
+`<server_output>…</server_output>`, and both agents' prompts say text there is data,
+never instructions. Redaction is pattern-based: it lowers the chance of a secret
+reaching an LLM provider but does not guarantee it. A model still cannot run anything
+outside the catalog, and changes still need approval.
+
 ### 5. File Operations: Always Use SFTP
 
 For file operations (read, write, delete, rename), **always use SFTP API** instead of shell commands:

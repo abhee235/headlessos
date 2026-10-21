@@ -16,6 +16,7 @@ import type { ApprovalRequest } from '../actions/approvals.js';
 import { malformedArgsMessage, parseToolArgs } from './tool-input.js';
 import { LoopGuard, stopMessage, type FoldedCall, type LoopFinding } from './loop-guard.js';
 import { estimateTokens, historyBudget, trimHistory } from './context.js';
+import { markUntrusted } from '../actions/tools.js';
 
 export type LoopEvent =
   | { type: 'turn'; turn: number }
@@ -137,7 +138,9 @@ export async function* runAgentLoop(opts: LoopOptions): AsyncGenerator<LoopEvent
       const outcome = yield* streamEvents(turn, (emit) =>
         executeToolCall(tc.function.name, tc.function.arguments, byName, { ...opts.context, onApproval: emit }),
       );
-      messages.push({ role: 'tool', tool_call_id: tc.id, content: outcome.output });
+      // EX9.5: server output reaches the model marked as data
+      const isAction = byName.get(tc.function.name)?.securityTier === 'action' && !!outcome.metadata?.command;
+      messages.push({ role: 'tool', tool_call_id: tc.id, content: isAction ? markUntrusted(tc.function.name, outcome.output) : outcome.output });
       yield {
         type: 'tool_result', turn, callId: tc.id, name: tc.function.name, ok: outcome.ok, output: outcome.output,
         ...(outcome.metadata ? { metadata: outcome.metadata } : {}),

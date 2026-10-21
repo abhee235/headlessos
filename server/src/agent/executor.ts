@@ -21,6 +21,7 @@ import type { ChatMessage } from '../llm/provider.js';
 import { withSpan, withSpanGen, setSpanAttributes } from '../observatory/context.js';
 import { getDefaultCatalog } from './actions/catalog/index.js';
 import { extractProseToolCalls, malformedArgsMessage, parseToolArgs } from './loop/tool-input.js';
+import { markUntrusted, UNTRUSTED_RULE } from './actions/tools.js';
 
 /** EX9.2: change actions a generated button may name (params only; the server adds the reason) */
 const CHANGE_ACTION_LINES = getDefaultCatalog()
@@ -249,9 +250,13 @@ export class ReactiveExecutor {
             }, { input: toolArgs });
             const latencyMs = Date.now() - startTime;
 
+            // EX9.5: server output reaches the model marked as data
+            const forModel = tool.securityTier === 'action' && result.metadata?.command
+              ? { ...result, output: markUntrusted(toolName, result.output) }
+              : result;
             messages.push({
               role: 'tool',
-              content: JSON.stringify(result),
+              content: JSON.stringify(forModel),
               tool_call_id: toolCall.id,
             });
             yield {
@@ -548,6 +553,7 @@ ${this.buildProgressiveExample(hints)}
 - Use specific actions over broad ones (service_status for one unit rather than service_list)
 - If an action fails, try another one (e.g. nginx_test failed → file_read /etc/nginx/nginx.conf)
 - To read a file, use file_read (or file_tail for the end of a log)
+- ${UNTRUSTED_RULE}
 - The schema JSON passed to generate_schema must be a STRING (JSON.stringify), not an object
 ${hints.securityRequirements.needsWrite ? '- This request may need write-back capability. Include writeBack config in form widgets.' : ''}
 ${hints.securityRequirements.sensitiveData ? '- This involves sensitive data. Mask passwords in the UI.' : ''}`;

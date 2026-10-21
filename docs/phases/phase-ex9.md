@@ -337,6 +337,20 @@ run → runner.run(change action) → approvals.request(...)  ──► event ap
   blocks, cloud access keys, bearer/JWT tokens, `password=`/`secret=`/`token=` values,
   connection-string credentials.
 
+EX9.5 scope (decided 2026-10-22): redaction and untrusted-data marking are built; the
+agent login is deferred (it needs encrypted credentials for a second user, a second SSH
+connection per server, and a server-form UI — its own task).
+
+- **Redaction** (`agent/actions/redact.ts`, `redactSecrets(text) → { text, count }`) runs in
+  the runner on every action's stdout and stderr, and on the JSON of parsed data before
+  the model sees it. So the owner's step view, view-button toasts and the model all get
+  the redacted text. Key/value rules need `=` or `:` after the key, so config words like
+  `PasswordAuthentication no` stay. The model is told how many values were removed.
+- **Untrusted data:** the shared loop and the UI Agent executor send an action's output to
+  the model inside `<server_output action="…">…</server_output>` (a forged closing tag
+  in the output is defused), and both system prompts say text inside it is data from the
+  server, never instructions. The owner's view shows the output without the wrapper.
+
 ## What does not change
 
 - Classic apps (Dashboard, Files, Docker, Services, Task Manager, Server Admin) keep
@@ -353,7 +367,7 @@ run → runner.run(change action) → approvals.request(...)  ──► event ap
 | EX9.2 | Change actions + ApprovalGate + audit log + ApprovalCard; Stop denies pending; investigation agent "Allow changes (asks first)"; generated view buttons through preview/run | ✅ |
 | EX9.3 | Shared agent loop with typed events; OllamaProvider; Settings → AI provider choice; weak-model input handling (repair, prose calls, aliases, coercion, short errors) | ✅ |
 | EX9.4 | Loop guard, context trimming, exec/output caps, benchmark script + fake-provider test | ✅ |
-| EX9.5 | (Optional) agent login per server, untrusted-data marking, secret redaction | ⬜ |
+| EX9.5 | (Optional) agent login per server, untrusted-data marking, secret redaction | ✅ (agent login deferred, see §10) |
 
 ## EX9.0 — Remove the UI Agent's write tools
 
@@ -552,6 +566,41 @@ steps, tokens, seconds, actions, plus repaired / malformed calls, unknown tools,
 parameter errors and failed actions. `tests/agent/bench.test.ts` drives it with a
 scripted provider. It was not run against a real model here: that is an LLM run for the
 owner to start.
+
+## EX9.5 — Redaction and untrusted data (as built)
+
+**Redaction** (`agent/actions/redact.ts`). Rules run in order. Each one that changes text
+adds to the count:
+
+| Rule | Example in | Out |
+|------|------------|-----|
+| PEM private key block (also a cut-off one with no END line) | `-----BEGIN OPENSSH PRIVATE KEY-----…` | `[private key removed]` |
+| Connection string password | `postgres://app:pa55@db` | `postgres://app:[redacted]@db` |
+| Bearer / Basic (16+ chars) | `Bearer abcd…` | `Bearer [redacted]` |
+| JWT | `eyJ….eyJ….sig` | `[token removed]` |
+| AWS / OpenAI-Anthropic / GitHub / GitLab / Slack key shapes | `AKIA…`, `sk-…`, `ghp_…`, `glpat-…`, `xoxb-…` | `[… removed]` |
+| crypt(3) hashes | `$6$salt$…` | `[hash removed]` |
+| Secret-named key with `=` or `:` | `DB_PASSWORD=x`, `"client_secret": "x"` | `DB_PASSWORD=[redacted]` |
+
+The key/value rule leaves `PWD`/`OLDPWD` and values that are flags or numbers (`true`, `no`,
+`4096`…) alone. A placeholder an earlier rule left (`OPENAI_API_KEY=[api key removed]`)
+counts as one value and is not redacted again. Prose and config keywords stay (`PasswordAuthentication no`,
+"the token bucket"), because a key needs `=`/`:` right after it.
+
+Where it runs: `ActionRunner` on exec stdout/stderr and SFTP reads (`ActionRunResult.redacted`
+= count), and `formatForModel` on the JSON of parsed data. The model sees
+`[N secret values removed]`. The audit log stores commands and exit codes, never output,
+so it has nothing to redact.
+
+**Untrusted data:** `markUntrusted(action, output)` and `UNTRUSTED_RULE` in
+`agent/actions/tools.ts`. The shared loop wraps a result only when the tool is in the
+`action` tier and actually ran a command. Local tools (notes, `grep_output`, view
+updates) are our own text and go unwrapped. The UI Agent executor wraps the `output`
+field of the tool message the same way. Its `grep_output` cache and the owner's step
+view keep the raw text. A `<server_output` or `</server_output` inside the output gets a
+zero-width space after `<`, so the output cannot close the wrapper early.
+
+Not built: per-server agent login (see the scope note in §10).
 
 ## Inspiration (read-only sibling repos)
 

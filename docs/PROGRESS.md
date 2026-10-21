@@ -40,7 +40,7 @@
 | **EX6: Multi-Session Desktop & Hibernation** | **Experimental** | **✅** | **34/34 tasks** | [phase-ex6](phases/phase-ex6.md) |
 | **EX7: Container Target Mode** | **Experimental** | **✅** | **10/10 tasks** | [phase-ex7](phases/phase-ex7.md) |
 | **EX8: LumenOS v3 Design System** | **Experimental** | **✅** | **9/9 tasks** | [phase-ex8](phases/phase-ex8.md) |
-| **EX9: Safe Agents (Actions, Approvals, Local Models)** | **Experimental** | **🔄** | **5/6 tasks** | [phase-ex9](phases/phase-ex9.md) |
+| **EX9: Safe Agents (Actions, Approvals, Local Models)** | **Experimental** | **✅** | **6/6 tasks** | [phase-ex9](phases/phase-ex9.md) |
 
 ---
 
@@ -56,7 +56,7 @@
 | EX9.2 | Change actions, ApprovalGate, append-only audit log, ApprovalCard; Stop denies pending; view buttons via preview/run | ✅ | 11 change actions; read-only runs refuse them outright; allow/deny/Stop/timeout paths tested; Playwright-measured footer switch + approval dialog (Deny only); audit got asked + answered deny |
 | EX9.3 | Shared agent loop (typed events), OllamaProvider, Settings → AI provider choice, weak-model input handling | ✅ | Investigation agent on native tool calls; Ollama provider + model picker (Playwright-measured against a real local Ollama); JSON repair, prose calls, key aliases, coercion |
 | EX9.4 | Loop guard, context trimming, output caps, per-model benchmark | ✅ | Guard warns, refuses identical repeats, stops with a tools-off conclusion; history trimmed to the window; SSH byte cap + per-model output cap; `npm run bench:agents` (tested with a scripted provider, not yet run on a real model) |
-| EX9.5 | (Optional) per-server agent login, untrusted-data marking, secret redaction | ⬜ | |
+| EX9.5 | (Optional) per-server agent login, untrusted-data marking, secret redaction | ✅ | Redaction in the runner and the model view; server output reaches the model inside `<server_output>` and both prompts say it is data. Per-server agent login deferred (needs a second credential, connection and form UI). Server 2329 passed (+2 skipped), client 643 |
 
 ---
 
@@ -562,6 +562,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-10-22 | **EX9.5 ✅ (EX9 complete)** Secrets are removed from every action's output before the owner or the model sees it (private keys, tokens, API keys, password hashes, `password=`-style values, connection-string passwords); the model is told how many. Server output reaches the model inside `<server_output>` and both agents' prompts say text there is data, never instructions. Per-server agent login is deferred. |
 | 2026-10-22 | **EX9.4 ✅** Agent runs stay bounded. A loop guard warns when the same call keeps returning the same result, refuses identical repeats, and ends a stuck run with a tools-off summary; history is trimmed to the model's window (older results stubbed first); SSH output stops at a byte cap and each result is cut to what the model can afford (60% head, 40% tail). `npm run bench:agents` scores a model on 12 benign questions against canned output. |
 | 2026-10-22 | **EX9.3 ✅** Agents work with local models. Settings → AI gains Ollama (URL, consent for a non-loopback host, the installed models); one provider serves parsing, both agents and Dynamic UI, and the OpenAI key stays saved for switching back. The investigation agent runs on a shared loop with native tool calls and typed events; small models get a tool list sized to their context. Broken tool-call JSON is repaired, tool calls written as text are run, misnamed parameters are mapped, and errors read "field: expected …, you sent …". |
 | 2026-10-22 | **EX9.2 ✅** Nothing changes a server until the owner allows it. 11 change actions (services, containers, nginx reload, process signal, apt) pause the run and show an approval card with the exact command, server, login user and the model's reason; Allow once or Deny, Stop denies everything pending, 10-minute expiry, no "always allow". Every asked/answered/ran event is appended to `~/.headlessos/audit/actions.jsonl`. AI Agent gets an "Allow changes (asks first)" switch (off by default). Generated view buttons name catalog actions; changes go through a server-recorded preview; legacy command buttons may only read. |
