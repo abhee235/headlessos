@@ -89,6 +89,7 @@ The design handoff lives outside the repo tree in `Custom OS UI Design/handoff/`
 | EX8.21 | Settings key reaches the agents (user report): AI Agent, Dynamic UI and UI Agent use the key saved in Settings → AI, no restart | ✅ |
 | EX8.22 | Settings key saved encrypted (requested): survives restarts; wins over `.env` | ✅ |
 | EX8.23 | Observatory "Failed to fetch" (user report): its REST calls go through the dev proxy | ✅ |
+| EX8.24 | AI Agent live progress (user report): steps stream in while it runs; Stop works | ✅ |
 
 ## Additions beyond the handoff
 
@@ -475,6 +476,26 @@ CORS failure ("Failed to fetch"; Playwright: `ERR_FAILED` on `/traces` and
 `/stats`). Its base is now same-origin in the browser and the backend origin only
 in Electron (where fetch is patched to add the token), like `useObservatorySocket`.
 Verified live: Traces (1) and stats load; no failed requests.
+
+## EX8.24 — AI Agent live progress
+
+**Report:** after "Investigating…" nothing showed until the end (one run took
+59 s: 10 LLM calls, 7 commands). The window sent one POST and waited. M11.6 had
+a progress socket (`/ws/agent/:id/:sessionId`), but the session id was made
+inside the run and returned only with the result, so nothing could subscribe; the
+Stop button only showed a toast.
+
+**Fix:** the client picks the session id (`crypto.randomUUID()`), opens the socket
+(through the Vite proxy in dev; waits at most 1.5 s), then POSTs with `sessionId`.
+The server uses it when it matches `[A-Za-z0-9-]{8,64}`. Every recorded step is
+emitted as `{ kind: 'step', data: AgentStep }`, and each LLM decision first as
+`{ kind: 'thought', thought, decision, command? }`. The window lists finished
+steps as they arrive, plus a pending row ("Thinking…" / "Running command…" with
+the command), and shows the elapsed seconds. Stop calls the abort route with the
+session id: the run ends after the current step with status Aborted. Tests:
+`server/tests/agent/investigation-progress.test.ts`,
+`client/tests/components/agent-progress.test.tsx`. Not run live from here (agent
+runs are the user's to start).
 
 ## Deviations from the handoff text (prototype wins where they differ)
 

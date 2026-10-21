@@ -54,6 +54,13 @@ export interface AgentOptions {
   maxSteps?: number;
   readOnly?: boolean;
   commandTimeout?: number;
+  /** EX8.24: chosen by the client so it can open /ws/agent/:id/:sessionId before the run */
+  sessionId?: string;
+}
+
+/** Client-chosen session ids are used only when they look like an id */
+function pickSessionId(requested?: string): string {
+  return requested && /^[A-Za-z0-9-]{8,64}$/.test(requested) ? requested : crypto.randomUUID();
 }
 
 // ── ReAct Agent ─────────────────────────────────────────
@@ -103,7 +110,7 @@ export class InvestigationAgent {
   ): Promise<AgentResult> {
     if (!this.llmProvider) {
       return {
-        sessionId: crypto.randomUUID(),
+        sessionId: pickSessionId(options.sessionId),
         question,
         steps: [],
         answer: 'LLM provider is not configured. Please set up an API key in Settings > AI/LLM.',
@@ -125,10 +132,15 @@ export class InvestigationAgent {
     question: string,
     options: AgentOptions = {},
   ): Promise<AgentResult> {
-    const sessionId = crypto.randomUUID();
+    const sessionId = pickSessionId(options.sessionId);
     const maxSteps = options.maxSteps ?? DEFAULT_MAX_STEPS;
     const cmdTimeout = options.commandTimeout ?? DEFAULT_CMD_TIMEOUT;
     const steps: AgentStep[] = [];
+    // EX8.24: every recorded step goes out on the progress socket as it happens
+    const record = (s: AgentStep) => {
+      steps.push(s);
+      this.events.emit(`step:${sessionId}`, { kind: 'step', step: s.stepNumber, data: s });
+    };
     let totalTokens = 0;
     const startTime = Date.now();
     let finalAnswer = '';
@@ -180,7 +192,7 @@ export class InvestigationAgent {
         thought = parseResult.data;
         totalTokens += parseResult.tokensUsed.input + parseResult.tokensUsed.output;
       } catch (err) {
-        steps.push({
+        record({
           stepNumber: step,
           thought: 'LLM call failed',
           decision: 'error',
@@ -190,12 +202,15 @@ export class InvestigationAgent {
         break;
       }
 
-      // Emit step progress
-      this.events.emit(`step:${sessionId}`, { step, thought: thought.thought, decision: thought.decision });
+      // Emit the thought (and the command about to run) before acting on it
+      this.events.emit(`step:${sessionId}`, {
+        kind: 'thought', step, thought: thought.thought, decision: thought.decision,
+        ...(thought.command ? { command: thought.command.trim() } : {}),
+      });
 
       // If agent decided to answer
       if (thought.decision === 'answer' && thought.answer) {
-        steps.push({
+        record({
           stepNumber: step,
           thought: thought.thought,
           decision: 'answer',
@@ -211,7 +226,7 @@ export class InvestigationAgent {
         // Validate command against allowlist
         if (!isCommandAllowed(cmd)) {
           const blockMsg = `Command blocked: "${cmd}" is not in the read-only allowlist.`;
-          steps.push({
+          record({
             stepNumber: step,
             thought: thought.thought,
             command: cmd,
@@ -234,7 +249,7 @@ export class InvestigationAgent {
           }, { input: cmd });
         } catch (err) {
           const errMsg = err instanceof Error ? err.message : 'Command execution failed';
-          steps.push({
+          record({
             stepNumber: step,
             thought: thought.thought,
             command: cmd,
@@ -260,20 +275,12 @@ export class InvestigationAgent {
 
         const fullOutput = stderr ? `STDOUT:\n${output}\nSTDERR:\n${stderr}` : output;
 
-        steps.push({
+        record({
           stepNumber: step,
           thought: thought.thought,
           command: cmd,
           output: fullOutput,
           decision: 'continue',
-        });
-
-        // Emit progress
-        this.events.emit(`step:${sessionId}`, {
-          step,
-          thought: thought.thought,
-          command: cmd,
-          outputPreview: fullOutput.substring(0, 200),
         });
 
         conversationHistory.push(

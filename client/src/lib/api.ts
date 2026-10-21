@@ -1437,10 +1437,23 @@ export interface AgentResult {
   status: 'completed' | 'aborted' | 'error' | 'max_steps_reached';
 }
 
+/** EX8.24: one live event from /ws/agent/:serverId/:sessionId */
+export type AgentProgressEvent =
+  | { kind: 'thought'; step: number; thought: string; decision: 'run_command' | 'answer'; command?: string }
+  | { kind: 'step'; step: number; data: AgentStep };
+
+/** EX8.24: the investigation's progress socket (through the Vite proxy in dev) */
+export function agentProgressWsUrl(serverId: string, sessionId: string): string {
+  const path = `/ws/agent/${encodeURIComponent(serverId)}/${encodeURIComponent(sessionId)}`;
+  if (isElectronProd) return withToken(`ws://localhost:${BACKEND_PORT}${path}`);
+  const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  return `${proto}://${window.location.host}${path}`;
+}
+
 export async function startAgentInvestigation(
   serverId: string,
   question: string,
-  options?: { maxSteps?: number; readOnly?: boolean },
+  options?: { maxSteps?: number; readOnly?: boolean; sessionId?: string },
 ): Promise<{ success: boolean; data?: AgentResult; error?: string }> {
   return request(`/servers/${serverId}/agent/investigate`, {
     method: 'POST',

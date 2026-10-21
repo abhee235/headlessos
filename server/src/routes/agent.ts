@@ -29,14 +29,14 @@ export async function agentRoutes(
 
   fastify.post<{
     Params: { id: string };
-    Body: { question: string; maxSteps?: number; readOnly?: boolean };
+    Body: { question: string; maxSteps?: number; readOnly?: boolean; sessionId?: string };
   }>(
     '/api/servers/:id/agent/investigate',
     async (req, reply) => {
       const { id } = req.params;
       requireConnected(id);
 
-      const { question, maxSteps, readOnly } = req.body ?? {};
+      const { question, maxSteps, readOnly, sessionId } = req.body ?? {};
 
       if (!question || typeof question !== 'string' || question.trim().length === 0) {
         reply.code(400);
@@ -52,6 +52,8 @@ export async function agentRoutes(
         const result = await agent.investigate(id, question.trim(), {
           maxSteps: Math.min(maxSteps ?? 10, 15),
           readOnly: readOnly ?? true,
+          // EX8.24: lets the client watch /ws/agent/:id/:sessionId while it runs
+          ...(typeof sessionId === 'string' ? { sessionId } : {}),
         });
 
         return { success: true, data: result };

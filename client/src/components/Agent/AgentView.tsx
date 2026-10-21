@@ -1,11 +1,15 @@
 // M11.5 + M11.6: AI Agent View — ReAct investigation with live progress
 // EX8.6: Lumen glass — step bubbles, result card, pill composer
+// EX8.24: steps stream in while it runs (the M11.6 socket, now reachable); Stop works
 // @see docs/DECISIONS.md (ADR-013, ADR-014)
 
 import { useState, useRef, useEffect } from 'react';
 import {
   Bot, Send, Square, Terminal, Brain, CheckCircle2, XCircle, AlertTriangle, Clock, ChevronDown, ChevronRight, Copy, Zap } from 'lucide-react';
-import { startAgentInvestigation, type AgentResult, type AgentStep } from '../../lib/api';
+import {
+  abortAgentInvestigation, agentProgressWsUrl, startAgentInvestigation,
+  type AgentProgressEvent, type AgentResult, type AgentStep,
+} from '../../lib/api';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -126,6 +130,46 @@ function StepCard({ step }: { step: AgentStep }) {
   );
 }
 
+// ── EX8.24: the step being worked on right now ─────────
+
+function PendingStepCard({ step, thought, command }: { step: number; thought?: string; command?: string }) {
+  return (
+    <div className={cn(BUBBLE_CLASS, 'flex items-center gap-2 px-3.5 py-2.5')} aria-live="polite">
+      <Spinner className="h-4 w-4 shrink-0 text-accent-solid" />
+      <span className="shrink-0 font-mono text-xs text-label-3">Step {step}</span>
+      <span className="flex-1 truncate text-[13px] text-label-2">
+        {command ? 'Running command…' : thought ? `${thought.slice(0, 80)}${thought.length > 80 ? '…' : ''}` : 'Thinking…'}
+      </span>
+      {command && (
+        <Badge variant="secondary" className="shrink-0 font-mono text-[10px]">
+          {command.substring(0, 40)}
+        </Badge>
+      )}
+    </div>
+  );
+}
+
+/** A session id the server accepts ([A-Za-z0-9-]{8,64}) */
+function newSessionId(): string {
+  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `s-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/** Open the progress socket; resolves once open (or after 1.5 s, so a dead socket never blocks the run) */
+function openProgressSocket(url: string, onEvent: (e: AgentProgressEvent) => void): Promise<WebSocket | null> {
+  return new Promise((resolve) => {
+    let ws: WebSocket;
+    try { ws = new WebSocket(url); } catch { resolve(null); return; }
+    const timer = setTimeout(() => resolve(ws), 1500);
+    ws.onopen = () => { clearTimeout(timer); resolve(ws); };
+    ws.onerror = () => { clearTimeout(timer); resolve(null); };
+    ws.onmessage = (m) => {
+      try { onEvent(JSON.parse(String(m.data)) as AgentProgressEvent); } catch { /* ignore bad frames */ }
+    };
+  });
+}
+
 // ── Result Summary ──────────────────────────────────────
 
 function ResultSummary({ result }: { result: AgentResult }) {
@@ -182,14 +226,38 @@ export function AgentView({ serverId }: AgentViewProps) {
   const [question, setQuestion] = useState('');
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<AgentResult | null>(null);
+  // EX8.24: live progress while it runs
+  const [liveSteps, setLiveSteps] = useState<AgentStep[]>([]);
+  const [pending, setPending] = useState<{ step: number; thought?: string; command?: string } | null>(null);
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [elapsed, setElapsed] = useState(0);
+  const [stopping, setStopping] = useState(false);
+  const sessionRef = useRef<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new steps appear
   useEffect(() => {
-    if (result && scrollRef.current) {
+    if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [result?.steps.length]);
+  }, [result?.steps.length, liveSteps.length, pending?.step, pending?.command]);
+
+  // Elapsed seconds while running
+  useEffect(() => {
+    if (!running || startedAt === null) return;
+    const t = setInterval(() => setElapsed(Math.floor((Date.now() - startedAt) / 1000)), 1000);
+    return () => clearInterval(t);
+  }, [running, startedAt]);
+
+  const onProgress = (e: AgentProgressEvent) => {
+    if (e.kind === 'thought') {
+      setPending({ step: e.step, thought: e.thought, command: e.decision === 'run_command' ? e.command : undefined });
+    } else if (e.kind === 'step') {
+      setLiveSteps((prev) => [...prev.filter((x) => x.stepNumber !== e.data.stepNumber), e.data]);
+      // the next step starts thinking straight away
+      setPending({ step: e.data.stepNumber + 1 });
+    }
+  };
 
   const handleInvestigate = async (q?: string) => {
     const finalQuestion = q ?? question;
@@ -197,11 +265,21 @@ export function AgentView({ serverId }: AgentViewProps) {
 
     setRunning(true);
     setResult(null);
+    setLiveSteps([]);
+    setPending({ step: 1 });
+    setStopping(false);
+    setStartedAt(Date.now());
+    setElapsed(0);
+
+    const sessionId = newSessionId();
+    sessionRef.current = sessionId;
+    const ws = await openProgressSocket(agentProgressWsUrl(serverId, sessionId), onProgress);
 
     try {
       const res = await startAgentInvestigation(serverId, finalQuestion, {
         maxSteps: 10,
         readOnly: true,
+        sessionId,
       });
 
       if (res.success && res.data) {
@@ -212,9 +290,22 @@ export function AgentView({ serverId }: AgentViewProps) {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Investigation failed');
     } finally {
+      ws?.close();
+      sessionRef.current = null;
+      setPending(null);
       setRunning(false);
     }
   };
+
+  const handleStop = () => {
+    const sessionId = sessionRef.current;
+    if (!sessionId || stopping) return;
+    setStopping(true);
+    void abortAgentInvestigation(serverId, sessionId).catch(() => {});
+    toast.info('Stopping after the current step…');
+  };
+
+  const steps = result ? result.steps : liveSteps;
 
   return (
     <div className="flex flex-col h-full">
@@ -249,21 +340,24 @@ export function AgentView({ serverId }: AgentViewProps) {
             </div>
           )}
 
-          {/* Running indicator */}
-          {running && !result && (
-            <div className="flex items-center justify-center gap-3 py-8">
-              <Spinner className="h-5 w-5 text-accent-solid" />
-              <span className="text-sm text-label-2">Investigating…</span>
+          {/* Steps: live while running, then the final list */}
+          {(steps.length > 0 || (running && pending)) && (
+            <div className="space-y-2">
+              <SectionLabel>Investigation Steps</SectionLabel>
+              {steps.map(step => (
+                <StepCard key={step.stepNumber} step={step} />
+              ))}
+              {running && pending && !result && (
+                <PendingStepCard step={pending.step} thought={pending.thought} command={pending.command} />
+              )}
             </div>
           )}
 
-          {/* Steps */}
-          {result && (
-            <div className="space-y-2">
-              <SectionLabel>Investigation Steps</SectionLabel>
-              {result.steps.map(step => (
-                <StepCard key={step.stepNumber} step={step} />
-              ))}
+          {/* Running status */}
+          {running && !result && (
+            <div className="flex items-center justify-center gap-3 py-3 text-[13px] text-label-2">
+              <span>{stopping ? 'Stopping…' : 'Investigating…'}</span>
+              <span className="font-mono text-label-3">{elapsed}s</span>
             </div>
           )}
 
@@ -299,10 +393,9 @@ export function AgentView({ serverId }: AgentViewProps) {
               variant="destructive"
               size="icon"
               className={COMPOSER_BUTTON_CLASS}
-              onClick={() => {
-                // Abort would require session tracking — for now just wait
-                toast.info('Investigation will complete shortly…');
-              }}
+              onClick={handleStop}
+              disabled={stopping}
+              aria-label="Stop investigation"
             >
               <Square strokeWidth={1.75} />
             </Button>
