@@ -84,6 +84,7 @@ The design handoff lives outside the repo tree in `Custom OS UI Design/handoff/`
 | EX8.16 | Colour dock tiles (requested experiment): per-app tile colour with a contrasting glyph; Glass kept as a setting | ✅ |
 | EX8.17 | Idle glance (requested): after N idle minutes the Home hub covers the desktop as a privacy screen; Settings → General → Sessions → Privacy Screen (default 5 min) | ✅ |
 | EX8.18 | Glass shadow artifact in Chrome (user report): window drop shadow moved off the blurred glass element; window open animation no longer fills forwards | ✅ |
+| EX8.19 | App icons (user review): Fluent 2 colour icons for Services, AI Agent, UI Agent and LLM Observatory; Docker whale in the label colour; no shadow under the AI / UI Agent desktop icons | ✅ |
 
 ## Additions beyond the handoff
 
@@ -314,7 +315,7 @@ gear, Server Admin white + shield, Fleet blue + white globe; apps whose icon is
 already a coloured squircle (Services, AI Agent, UI Agent, Observatory) fill the
 tile; the Recycle Bin has no tile. Apps without a tile keep the glass plate.
 `dockIconStyle: 'color' | 'glass'` (Settings → Appearance → Dock Icons, default
-Colour) switches back to the EX8.4 plates.
+Colour) switches back to the EX8.4 plates. (EX8.19: those four are Fluent colour icons on white tiles now.)
 
 ## EX8.17 — Idle glance (privacy screen)
 
@@ -368,6 +369,32 @@ the user's Chrome (Playwright screencast and Windows Graphics Capture of Chrome
 The dock, menus and dialogs still carry their shadows on the glass element.
 Windows stop above the dock and the dock's shadow falls mostly below it, so they
 are left as they are unless the artifact shows there too.
+
+## EX8.19 — App icons
+
+Services, AI Agent, UI Agent and LLM Observatory were the last drawn squircles
+(gradient tile + white glyph, with a 3-layer drop shadow that read as a dark smear
+under the desktop icons). They now use Fluent 2 colour icons from
+`@fluentui/react-icons`, the family of the Dashboard, Task Manager, Settings and
+Server Admin icons. They were picked from a sheet of 30 candidates on launcher plates:
+
+| App | Icon | Why |
+|---|---|---|
+| AI Agent | `BotSparkleColor` | the bot, with the AI sparkle |
+| UI Agent (and Dynamic UI) | `DesignIdeasColor` | Microsoft's design / Designer mark |
+| Services | `ArrowClockwiseDashesSettingsColor` | a gear inside a running cycle: daemons |
+| LLM Observatory | `ChartMultipleColor` | analytics, unlike Dashboard's gauge or Task Manager's area chart |
+
+The Docker whale is a CSS mask filled with `--lumen-label`: white in dark mode (as
+asked), near-black in light, where a white whale would vanish on the light plates.
+The colour dock tile still draws it white on Docker blue. The AI Agent and UI
+Agent desktop icons carry no drop shadow (`flat` in `DESKTOP_ICONS`); the other
+desktop icons keep the 0 2px 3px one. In the colour dock the four apps sit on the
+white tile like Files.
+
+Verified: launcher icons 32×32 like their neighbours, dark and light; Docker whale
+`rgba(255,255,255,.95)` in dark, `rgba(16,30,38,.95)` in light; the 20px title-bar
+whale white; desktop icon boxes unchanged (52×52 in 82px slots).
 
 ## Deviations from the handoff text (prototype wins where they differ)
 

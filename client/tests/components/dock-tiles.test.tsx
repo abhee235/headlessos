@@ -11,8 +11,11 @@ describe('colourTile', () => {
     }
   });
 
-  it('lets squircle icons be the tile, and leaves unknown apps on glass', () => {
-    expect(colourTile('observatory')?.plate).toBeNull();
+  it('puts the Fluent colour apps on white tiles, and leaves unknown apps on glass', () => {
+    for (const id of ['services', 'agent', 'ui-agent', 'observatory']) {
+      expect(DOCK_TILES[id]?.bg, id).toMatch(/#FFFFFF/);
+      expect(colourTile(id)?.plate, id).toBeTruthy();
+    }
     expect(colourTile('container-files')).toBeNull();
   });
 

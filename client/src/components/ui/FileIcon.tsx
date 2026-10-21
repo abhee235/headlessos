@@ -1,15 +1,18 @@
 // M6.1: File Icon — app icons + file type icons
 // EX8.2: LumenOS v3 — app, folder and common file icons are the Fluent SVGs in
-// client/public/icons/fluent (see LICENSE.txt there). Apps with no Fluent
-// counterpart (Services, AI/UI Agent, Observatory) keep the drawn squircles.
+// client/public/icons/fluent (see LICENSE.txt there).
+// EX8.19: Services, AI Agent, UI Agent and Observatory use Fluent 2 colour icons
+// from @fluentui/react-icons (the family of sysdash/activity/settings), replacing
+// the drawn squircles; the Docker whale is drawn in the label colour.
 // @see docs/phases/phase-6.md, docs/phases/phase-ex8.md
 
 import type { FileEntryData } from '../../lib/api';
 import {
-  ServerFilled,
-  BotFilled,
-  WandFilled,
-  EyeFilled,
+  ArrowClockwiseDashesSettingsColor,
+  BotSparkleColor,
+  ChartMultipleColor,
+  DesignIdeasColor,
+  type FluentIcon as FluentIconComponent,
 } from '@fluentui/react-icons';
 
 // ── Fluent SVG icons (client/public/icons/fluent) ──────────────────
@@ -81,113 +84,11 @@ export function FileIcon({ entry, type, name, size = 'md', className = '', style
   return <FileSVG size={s.icon} category={category} ext={ext} className={className} style={style} />;
 }
 
-// ── Desktop App Icons (Apple HIG-inspired, 6-layer) ───────────────
-// Design principles from Apple Human Interface Guidelines:
-// 1. "Subtle top-to-bottom, light-to-dark gradients respond well to system lighting"
-// 2. "Consider basing your icon design around filled, overlapping shapes"
-// 3. "Layered icons produce a sense of depth and vitality"
-// 4. "Prefer clearly defined edges in foreground layers"
-// 5. Corner ratio: 229/1024 ≈ 22.37% (Apple's exact squircle proportion)
-//
-// Pattern: 6-layer gradient rounded-square + centered Fluent UI Filled glyph.
-// Glyphs: @fluentui/react-icons (Microsoft, MIT license)
+// ── EX8.19: Fluent 2 colour app icons (@fluentui/react-icons, MIT) ─────────
 
-/** Apple HIG-inspired 6-layer icon base — supports light & dark themes */
-function AppIconBase({ size, fromColor, toColor, children }: {
-  size: number; fromColor: string; toColor: string; children: React.ReactNode;
-}) {
-  const br = size * 0.2237; // Apple's corner ratio
-  const s = (v: number) => Math.max(0.5, size * v); // scale helper
-
-  return (
-    <div style={{
-      position: 'relative',
-      width: size,
-      height: size,
-      flexShrink: 0,
-      // Multi-layer shadow on outer wrapper (not clipped by overflow:hidden)
-      filter: [
-        `drop-shadow(0 ${s(0.01)}px ${s(0.02)}px rgba(0,0,0,0.10))`,
-        `drop-shadow(0 ${s(0.03)}px ${s(0.06)}px rgba(0,0,0,0.16))`,
-        `drop-shadow(0 ${s(0.05)}px ${s(0.12)}px rgba(0,0,0,0.12))`,
-      ].join(' '),
-    }}>
-      {/* Inner clipped container */}
-      <div style={{
-        position: 'relative',
-        width: size,
-        height: size,
-        borderRadius: br,
-        overflow: 'hidden', // Clip glyph at rounded corners
-      }}>
-        {/* Layer 1: Main gradient background */}
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          borderRadius: br,
-          background: `linear-gradient(180deg, ${fromColor} 0%, ${toColor} 100%)`,
-        }} />
-
-        {/* Layer 2: Specular highlight — simulates light from above */}
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          borderRadius: br,
-          background: 'linear-gradient(180deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.06) 20%, transparent 45%)',
-        }} />
-
-        {/* Layer 3: Radial light (upper-left light source highlight) */}
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          borderRadius: br,
-          background: 'radial-gradient(ellipse 60% 50% at 30% 12%, rgba(255,255,255,0.10) 0%, transparent 65%)',
-        }} />
-
-        {/* Layer 4: Inner shadows — top highlight edge + bottom depth shadow */}
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          borderRadius: br,
-          boxShadow: [
-            `inset 0 ${s(0.015)}px 0 rgba(255,255,255,0.15)`,
-            `inset 0 -${s(0.015)}px ${s(0.03)}px rgba(0,0,0,0.18)`,
-          ].join(', '),
-        }} />
-
-        {/* Layer 5: Dark containment border — crisp on both light & dark bg */}
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          borderRadius: br,
-          boxShadow: [
-            `inset 0 0 0 ${Math.max(0.5, size * 0.008)}px rgba(0,0,0,0.12)`,
-            `inset 0 ${Math.max(0.5, size * 0.01)}px 0 rgba(255,255,255,0.12)`,
-          ].join(', '),
-        }} />
-
-        {/* Layer 6: Centered glyph with subtle drop-shadow for depth */}
-        <div style={{
-          position: 'relative',
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1,
-          filter: size >= 32
-            ? `drop-shadow(0 ${s(0.012)}px ${s(0.02)}px rgba(0,0,0,0.25))`
-            : undefined,
-        }}>
-          {children}
-        </div>
-      </div>
-    </div>
-  );
+function FluentColorIcon({ Icon, size }: { Icon: FluentIconComponent; size: number }) {
+  return <Icon aria-hidden style={{ fontSize: size, width: size, height: size, flexShrink: 0 }} />;
 }
-
-/** Glyph size: ~79% of box (Apple-like fill ratio) */
-const glyphSize = (size: number) => Math.round(size * 0.79);
 
 export function DashboardIcon({ size = 48 }: { size?: number }) {
   return <FluentIcon name="sysdash" size={size} />;
@@ -206,15 +107,16 @@ export function ThisPCIcon({ size = 48 }: { size?: number }) {
 }
 
 /** The real Docker whale (public/icons/brands/docker.svg, see LICENSE.txt there) */
+/** EX8.19: the whale as a mask in the label colour (white in dark mode, as asked) */
 export function DockerIcon({ size = 48 }: { size?: number }) {
+  const mask = 'url(icons/brands/docker.svg) center / contain no-repeat';
   return (
-    <img
-      src="icons/brands/docker.svg"
-      width={size}
-      height={size}
-      alt=""
-      draggable={false}
-      style={{ flexShrink: 0, objectFit: 'contain' }}
+    <span
+      aria-hidden
+      style={{
+        display: 'inline-block', flexShrink: 0, width: size, height: size,
+        backgroundColor: 'var(--lumen-label)', mask, WebkitMask: mask,
+      }}
     />
   );
 }
@@ -224,11 +126,7 @@ export function TaskManagerIcon({ size = 48 }: { size?: number }) {
 }
 
 export function ServicesIcon({ size = 48 }: { size?: number }) {
-  return (
-    <AppIconBase size={size} fromColor="#818CF8" toColor="#4F46E5">
-      <ServerFilled style={{ color: 'white', fontSize: glyphSize(size) }} />
-    </AppIconBase>
-  );
+  return <FluentColorIcon Icon={ArrowClockwiseDashesSettingsColor} size={size} />;
 }
 
 export function SettingsIcon({ size = 48 }: { size?: number }) {
@@ -244,27 +142,15 @@ export function FleetIcon({ size = 48 }: { size?: number }) {
 }
 
 export function AgentIcon({ size = 48 }: { size?: number }) {
-  return (
-    <AppIconBase size={size} fromColor="#A78BFA" toColor="#7C3AED">
-      <BotFilled style={{ color: 'white', fontSize: glyphSize(size) }} />
-    </AppIconBase>
-  );
+  return <FluentColorIcon Icon={BotSparkleColor} size={size} />;
 }
 
 export function UIAgentIcon({ size = 48 }: { size?: number }) {
-  return (
-    <AppIconBase size={size} fromColor="#34D399" toColor="#059669">
-      <WandFilled style={{ color: 'white', fontSize: glyphSize(size) }} />
-    </AppIconBase>
-  );
+  return <FluentColorIcon Icon={DesignIdeasColor} size={size} />;
 }
 
 export function ObservatoryIcon({ size = 48 }: { size?: number }) {
-  return (
-    <AppIconBase size={size} fromColor="#F472B6" toColor="#BE185D">
-      <EyeFilled style={{ color: 'white', fontSize: glyphSize(size) }} />
-    </AppIconBase>
-  );
+  return <FluentColorIcon Icon={ChartMultipleColor} size={size} />;
 }
 
 export function RecycleBinIcon({ size = 48, full = false }: { size?: number; full?: boolean }) {

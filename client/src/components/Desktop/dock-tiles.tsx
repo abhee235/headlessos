@@ -10,10 +10,9 @@ import { AppIcon } from '@/components/ui/FileIcon';
 type Glyph =
   | { kind: 'icon'; size: number; white?: boolean }   // the app's own icon (optionally as a white silhouette)
   | { kind: 'terminal' }                              // a mono ">_" prompt
-  | { kind: 'lucide'; node: ReactNode }               // a white line glyph
-  | { kind: 'full' };                                 // the icon is already a coloured squircle: it is the tile
+  | { kind: 'lucide'; node: ReactNode };              // a white line glyph
 
-interface TileSpec { bg?: string; glyph: Glyph }
+interface TileSpec { bg: string; glyph: Glyph }
 
 const WHITE = 'linear-gradient(180deg,#FFFFFF,#E3E8EF)';
 
@@ -26,11 +25,12 @@ export const DOCK_TILES: Record<string, TileSpec> = {
   settings: { bg: 'linear-gradient(180deg,#A6ACB5,#5B616A)', glyph: { kind: 'icon', size: 32, white: true } },
   serveradmin: { bg: WHITE, glyph: { kind: 'icon', size: 34 } },
   fleet: { bg: 'linear-gradient(180deg,#5AA8FF,#1F63D6)', glyph: { kind: 'lucide', node: <Globe strokeWidth={1.9} className="size-[28px] text-white" /> } },
-  services: { glyph: { kind: 'full' } },
-  agent: { glyph: { kind: 'full' } },
-  'ui-agent': { glyph: { kind: 'full' } },
-  'dynamic-ui': { glyph: { kind: 'full' } },
-  observatory: { glyph: { kind: 'full' } },
+  // EX8.19: Fluent colour glyphs on white, like Files and Server Admin
+  services: { bg: WHITE, glyph: { kind: 'icon', size: 36 } },
+  agent: { bg: WHITE, glyph: { kind: 'icon', size: 36 } },
+  'ui-agent': { bg: WHITE, glyph: { kind: 'icon', size: 36 } },
+  'dynamic-ui': { bg: WHITE, glyph: { kind: 'icon', size: 36 } },
+  observatory: { bg: WHITE, glyph: { kind: 'icon', size: 36 } },
 };
 
 /** Tile chrome shared by the colour tiles: top highlight, hairline, soft drop */
@@ -43,9 +43,6 @@ const TILE_CHROME: CSSProperties = {
 export function colourTile(appId: string): { plate: ReactNode; glyph: ReactNode } | null {
   const spec = DOCK_TILES[appId];
   if (!spec) return null;
-  if (spec.glyph.kind === 'full') {
-    return { plate: null, glyph: <AppIcon appId={appId} size={50} /> };
-  }
   const plate = <span className="absolute inset-0 rounded-[16px]" style={{ background: spec.bg, ...TILE_CHROME }} />;
   const g = spec.glyph;
   let glyph: ReactNode;

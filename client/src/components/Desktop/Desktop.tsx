@@ -54,6 +54,8 @@ interface DesktopIcon {
   appId: string;
   label: string;
   IconComponent: React.FC<{ size?: number }>;
+  /** No drop shadow under the icon (user review: the AI / UI Agent squircles) */
+  flat?: boolean;
 }
 
 const DESKTOP_ICONS: DesktopIcon[] = [
@@ -87,12 +89,14 @@ const DESKTOP_ICONS: DesktopIcon[] = [
     appId: 'agent',
     label: 'AI Agent',
     IconComponent: AgentIcon,
+    flat: true,
   },
   {
     id: 'desktop-ui-agent',
     appId: 'ui-agent',
     label: 'UI Agent',
     IconComponent: UIAgentIcon,
+    flat: true,
   },
   {
     id: 'desktop-recycle-bin',
@@ -221,7 +225,7 @@ export function Desktop() {
             disabled={!isConnected}
             title={isConnected ? icon.label : 'Connect to a server first'}
           >
-            <div className="drop-shadow-[0_2px_3px_rgba(0,0,0,.3)] transition-transform duration-150 group-active:scale-95">
+            <div className={`${icon.flat ? '' : 'drop-shadow-[0_2px_3px_rgba(0,0,0,.3)] '}transition-transform duration-150 group-active:scale-95`}>
               <icon.IconComponent size={iconStyle.icon} />
             </div>
             <span className={`${iconStyle.text} line-clamp-2 max-w-full break-words text-center font-normal text-white [text-shadow:0_1px_2px_rgba(0,0,0,.75),0_0_1px_rgba(0,0,0,.6)]`}>
