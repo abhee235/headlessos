@@ -429,6 +429,10 @@ dialog's close button also deny, once. The legacy `/dynamic-ui/execute-action` r
 (table `command` buttons and form `commandTemplate` submits) now refuses classic rules
 of risk `medium`/`high` with 403.
 
+**Retired:** the EX2 write tools (`exec_write_command`, `sftp_write`; unregistered since
+EX9.0) are deleted, and guardrails refuse any `write`-tier tool: a change is a change
+action behind the gate.
+
 **Wiring:** `index.ts` builds one `ActionAudit` + `ApprovalGate`, a `describeServer` from
 the new sync `ConfigStore.findServer()`, passes them to the investigation agent and the
 new `routes/actions.ts` plugin, and adds `actions` to the auto-reconnect route pattern.

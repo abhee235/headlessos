@@ -7,8 +7,6 @@ import {
   checkGuardrails,
   DENY_COMMANDS,
   DENY_PATHS,
-  WRITE_COMMAND_ALLOWLIST,
-  WRITE_PATH_ALLOWLIST,
 } from '../../src/agent/guardrails.js';
 import type { AgentTool, ToolResult } from '../../src/agent/tools/types.js';
 
@@ -44,10 +42,6 @@ describe('guardrails exports', () => {
   });
 
   it('exports write allowlists', () => {
-    expect(WRITE_COMMAND_ALLOWLIST).toBeInstanceOf(Array);
-    expect(WRITE_COMMAND_ALLOWLIST.length).toBeGreaterThan(5);
-    expect(WRITE_PATH_ALLOWLIST).toBeInstanceOf(Array);
-    expect(WRITE_PATH_ALLOWLIST.length).toBeGreaterThan(5);
   });
 });
 
@@ -211,90 +205,15 @@ describe('ACTION tier', () => {
 
 // ── WRITE Tier ──────────────────────────────────────────
 
-describe('WRITE tier', () => {
-  describe('exec_write_command', () => {
-    const allowedWriteCommands = [
-      'systemctl restart nginx',
-      'systemctl stop myservice',
-      'systemctl enable myservice',
-      'service nginx restart',
-      'nginx -s reload',
-      'docker start mycontainer',
-      'docker stop mycontainer',
-      'docker restart mycontainer',
-      'docker pause mycontainer',
-      'docker unpause mycontainer',
-      'kill -9 12345',
-      'kill -s TERM 12345',
-      'killall nginx',
-    ];
-
-    for (const cmd of allowedWriteCommands) {
-      it(`allows: ${cmd}`, () => {
-        const result = checkGuardrails(execWrite, { command: cmd });
-        expect(result.allowed).toBe(true);
-        expect(result.tier).toBe('write');
-      });
-    }
-
-    it('rejects piped write commands', () => {
-      const result = checkGuardrails(execWrite, { command: 'docker stop x | echo' });
-      expect(result.allowed).toBe(false);
-    });
-
-    it('rejects read-only commands on write tool', () => {
-      const result = checkGuardrails(execWrite, { command: 'docker ps' });
-      expect(result.allowed).toBe(false);
-    });
-
-    it('rejects non-allowlisted write commands', () => {
-      const result = checkGuardrails(execWrite, { command: 'echo hello > /tmp/test' });
-      expect(result.allowed).toBe(false);
-    });
-  });
-
-  describe('sftp_write', () => {
-    const allowedPaths = [
-      '/etc/nginx/sites-available/mysite',
-      '/etc/nginx/nginx.conf',
-      '/etc/systemd/system/myapp.service',
-      '/etc/cron.d/backup',
-      '/opt/myapp/config/app.yml',
-      '/home/user/.bashrc',
-      '/tmp/output.log',
-      '/var/www/html/index.html',
-    ];
-
-    for (const path of allowedPaths) {
-      it(`allows: ${path}`, () => {
-        const result = checkGuardrails(sftpWrite, { path });
-        expect(result.allowed).toBe(true);
-        expect(result.tier).toBe('write');
-      });
-    }
-
-    const rejectedPaths = [
-      '/usr/bin/something',
-      '/root/.bashrc',
-      '/var/lib/mysql/data',
-    ];
-
-    for (const path of rejectedPaths) {
-      it(`rejects: ${path}`, () => {
-        const result = checkGuardrails(sftpWrite, { path });
-        expect(result.allowed).toBe(false);
-      });
-    }
-
-    it('rejects path traversal', () => {
-      const result = checkGuardrails(sftpWrite, { path: '/home/user/../../../etc/passwd' });
-      expect(result.allowed).toBe(false);
-    });
-
-    it('rejects relative paths', () => {
-      const result = checkGuardrails(sftpWrite, { path: 'relative/file' });
-      expect(result.allowed).toBe(false);
-    });
+describe('WRITE tier (retired in EX9.2)', () => {
+  it.each([
+    [execWrite, { command: 'systemctl restart nginx' }],
+    [execWrite, { command: 'docker restart web' }],
+    [sftpWrite, { path: '/var/www/index.html', content: 'x' }],
+  ])('refuses %s even for what the old allowlist accepted', (tool, args) => {
+    const result = checkGuardrails(tool, args);
+    expect(result).toMatchObject({ allowed: false, tier: 'write' });
+    expect(result.reason).toContain('change actions that the owner approves');
   });
 });
 

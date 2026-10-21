@@ -1048,6 +1048,7 @@ None (all changes to existing files).
 - **Tests created:** `server/tests/agent/actions/{approvals-audit,runner-change}.test.ts`, `server/tests/routes/view-actions.test.ts`, `client/tests/components/approvals.test.tsx`
 - **Tests modified:** `server/tests/agent/actions/{catalog,runner}.test.ts`, `server/tests/agent/investigation-agent.test.ts`, `server/tests/parsers/dynamic-view-schema.test.ts`
 - **Verification:** server 2257 passed (+2 skipped: the 0o600 file-mode checks on Windows), client 639, both typechecks clean; Playwright measurements in the phase doc
+- **Follow-up (refactor):** EX2 write tools deleted (`server/src/agent/tools/{exec-write,sftp-write}.ts`); `agent/guardrails.ts` refuses the `write` tier; tests `tests/agent/{guardrails,tools/tools}.test.ts` updated
 
 ## How to Use This File
 

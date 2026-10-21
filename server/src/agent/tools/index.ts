@@ -11,8 +11,6 @@ export { ToolRegistry, createDefaultToolRegistry } from './tool-registry.js';
 export { toolsToOpenAIFunctions } from './tool-converter.js';
 
 // ── Individual Tools ────────────────────────────────────
-export { execWriteCommandTool } from './exec-write.js';
-export { sftpWriteTool } from './sftp-write.js';
 export { searchTemplatesTool } from './search-templates.js';
 export { validateSchemaTool } from './validate-schema.js';
 export { generateSchemaTool } from './generate-schema.js';
@@ -43,9 +41,9 @@ export const LOCAL_AGENT_TOOLS: AgentTool[] = [
 /**
  * The default agent tools, registered by the UI Agent route.
  *
- * EX9.0: the write tools (exec_write_command, sftp_write) are not registered —
- * nothing may change a server without the owner's approval (ADR-024). EX9.2
- * replaces them with change actions behind an approval gate.
+ * EX9.0/EX9.2: the EX2 write tools (exec_write_command, sftp_write) are gone —
+ * nothing may change a server without the owner's approval (ADR-024); changes are
+ * catalog change actions behind the approval gate.
  *
  * EX9.1: the free-form exec_command / sftp_read / sandbox_exec tools are gone.
  * Every read action in the catalog is a tool of its own; each run offers a

@@ -3,8 +3,6 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ToolContext } from '../../../src/agent/tools/types.js';
-import { execWriteCommandTool } from '../../../src/agent/tools/exec-write.js';
-import { sftpWriteTool } from '../../../src/agent/tools/sftp-write.js';
 import { searchTemplatesTool } from '../../../src/agent/tools/search-templates.js';
 import { validateSchemaTool } from '../../../src/agent/tools/validate-schema.js';
 import { generateSchemaTool } from '../../../src/agent/tools/generate-schema.js';
@@ -102,108 +100,6 @@ describe('ALL_AGENT_TOOLS', () => {
     expect(tierMap['get_server_context']).toBe('read');
     expect(tierMap['update_view']).toBe('local');
     for (const id of READ_ACTION_IDS) expect(tierMap[id]).toBe('action');
-  });
-});
-
-// ── exec_write_command (EX2; not registered since EX9.0) ─
-
-describe('exec_write_command', () => {
-  it('executes allowed write command', async () => {
-    const ctx = createMockContext();
-    const result = await execWriteCommandTool.execute(
-      { command: 'docker restart mycontainer' },
-      ctx,
-    );
-
-    expect(result.success).toBe(true);
-    expect(ctx.ssh.exec).toHaveBeenCalledWith('test-server', 'docker restart mycontainer', 30_000);
-  });
-
-  it('rejects non-allowlisted write commands', async () => {
-    const ctx = createMockContext();
-    const result = await execWriteCommandTool.execute(
-      { command: 'rm -rf /tmp' },
-      ctx,
-    );
-
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('not in write allowlist');
-  });
-
-  it('rejects read-only commands', async () => {
-    const ctx = createMockContext();
-    const result = await execWriteCommandTool.execute(
-      { command: 'docker ps' },
-      ctx,
-    );
-
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('not in write allowlist');
-  });
-});
-
-// ── sftp_read ───────────────────────────────────────────
-
-describe('sftp_write', () => {
-  it('rejects relative paths', async () => {
-    const ctx = createMockContext();
-    const result = await sftpWriteTool.execute(
-      { path: 'relative/file.txt', content: 'data' },
-      ctx,
-    );
-
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('must be absolute');
-  });
-
-  it('rejects path traversal', async () => {
-    const ctx = createMockContext();
-    const result = await sftpWriteTool.execute(
-      { path: '/home/user/../../etc/passwd', content: 'bad' },
-      ctx,
-    );
-
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('traversal');
-  });
-
-  it('rejects non-allowed paths', async () => {
-    const ctx = createMockContext();
-    const result = await sftpWriteTool.execute(
-      { path: '/etc/passwd', content: 'bad' },
-      ctx,
-    );
-
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('not in write-allowed directories');
-  });
-
-  it('writes file via SFTP stream', async () => {
-    const mockStream = {
-      on: vi.fn((event: string, cb: () => void) => {
-        if (event === 'close') {
-          setTimeout(() => cb(), 0);
-        }
-        return mockStream;
-      }),
-      end: vi.fn(),
-    };
-
-    const mockSftp = {
-      createWriteStream: vi.fn().mockReturnValue(mockStream),
-    };
-
-    const ctx = createMockContext();
-    (ctx.ssh.getSftp as ReturnType<typeof vi.fn>).mockResolvedValue(mockSftp);
-
-    const result = await sftpWriteTool.execute(
-      { path: '/home/testuser/config.yml', content: 'key: value' },
-      ctx,
-    );
-
-    expect(result.success).toBe(true);
-    expect(result.output).toContain('/home/testuser/config.yml');
-    expect(mockSftp.createWriteStream).toHaveBeenCalledWith('/home/testuser/config.yml', { flags: 'w' });
   });
 });
 
