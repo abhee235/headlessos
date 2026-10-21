@@ -314,7 +314,7 @@ const TURN_2: ChatWithToolsResult = {
   finishReason: 'tool_calls',
 };
 
-// Turn 3: exec system commands (gather data for System section)
+// Turn 3: system actions (gather data for System section)
 const TURN_3: ChatWithToolsResult = {
   message: {
     role: 'assistant',
@@ -323,22 +323,22 @@ const TURN_3: ChatWithToolsResult = {
       {
         id: 'call_sys_1',
         type: 'function',
-        function: { name: 'exec_command', arguments: JSON.stringify({ command: 'uname -a' }) },
+        function: { name: 'kernel_info', arguments: '{}' },
       },
       {
         id: 'call_sys_2',
         type: 'function',
-        function: { name: 'exec_command', arguments: JSON.stringify({ command: 'free -h' }) },
+        function: { name: 'memory_usage', arguments: '{}' },
       },
       {
         id: 'call_sys_3',
         type: 'function',
-        function: { name: 'exec_command', arguments: JSON.stringify({ command: 'df -h' }) },
+        function: { name: 'disk_usage', arguments: '{}' },
       },
       {
         id: 'call_sys_4',
         type: 'function',
-        function: { name: 'exec_command', arguments: JSON.stringify({ command: 'top -bn1 | head -5' }) },
+        function: { name: 'process_list', arguments: JSON.stringify({ sortBy: 'cpu' }) },
       },
     ],
   },
@@ -368,7 +368,7 @@ const TURN_4: ChatWithToolsResult = {
   finishReason: 'tool_calls',
 };
 
-// Turn 5: exec docker commands
+// Turn 5: docker actions
 const TURN_5: ChatWithToolsResult = {
   message: {
     role: 'assistant',
@@ -377,12 +377,12 @@ const TURN_5: ChatWithToolsResult = {
       {
         id: 'call_docker_1',
         type: 'function',
-        function: { name: 'exec_command', arguments: JSON.stringify({ command: 'docker ps -a' }) },
+        function: { name: 'docker_containers', arguments: '{}' },
       },
       {
         id: 'call_docker_2',
         type: 'function',
-        function: { name: 'exec_command', arguments: JSON.stringify({ command: 'docker stats --no-stream' }) },
+        function: { name: 'docker_stats', arguments: '{}' },
       },
     ],
   },
@@ -412,7 +412,7 @@ const TURN_6: ChatWithToolsResult = {
   finishReason: 'tool_calls',
 };
 
-// Turn 7: exec network commands
+// Turn 7: network actions
 const TURN_7: ChatWithToolsResult = {
   message: {
     role: 'assistant',
@@ -421,12 +421,12 @@ const TURN_7: ChatWithToolsResult = {
       {
         id: 'call_net_1',
         type: 'function',
-        function: { name: 'exec_command', arguments: JSON.stringify({ command: 'ss -tlnp' }) },
+        function: { name: 'listening_ports', arguments: '{}' },
       },
       {
         id: 'call_net_2',
         type: 'function',
-        function: { name: 'exec_command', arguments: JSON.stringify({ command: 'ip addr' }) },
+        function: { name: 'network_interfaces', arguments: '{}' },
       },
     ],
   },

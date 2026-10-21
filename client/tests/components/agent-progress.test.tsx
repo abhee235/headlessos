@@ -53,11 +53,11 @@ describe('AgentView live progress', () => {
     expect(ws.url).toContain(`/ws/agent/srv-1/${sessionId}`);
     expect(screen.getByText('Thinking…')).toBeInTheDocument();
 
-    act(() => ws.emit({ kind: 'thought', step: 1, thought: 'Check memory', decision: 'run_command', command: 'free -h' }));
+    act(() => ws.emit({ kind: 'thought', step: 1, thought: 'Check memory', decision: 'run_action', action: 'memory_usage', command: 'free -m' }));
     expect(screen.getByText('Running command…')).toBeInTheDocument();
-    expect(screen.getByText('free -h')).toBeInTheDocument();
+    expect(screen.getByText('free -m')).toBeInTheDocument();
 
-    act(() => ws.emit({ kind: 'step', step: 1, data: { stepNumber: 1, thought: 'Check memory', command: 'free -h', output: 'Mem: 16G', decision: 'continue' } }));
+    act(() => ws.emit({ kind: 'step', step: 1, data: { stepNumber: 1, thought: 'Check memory', action: 'memory_usage', command: 'free -m', output: 'Mem: 16G', decision: 'continue' } }));
     expect(screen.getByText('Check memory')).toBeInTheDocument();
     expect(screen.getByText('Step 2')).toBeInTheDocument(); // the next step is already thinking
 

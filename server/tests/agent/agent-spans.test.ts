@@ -406,13 +406,14 @@ describe('InvestigationAgent tracing (EX4-B.2)', () => {
 
     const mockLLM = {
       parseText: vi.fn()
-        // First call: decide to run a command
+        // First call: decide to run an action (EX9.1)
         .mockResolvedValueOnce({
           data: {
             thought: 'Let me check disk usage',
-            command: 'df -h',
+            action: 'disk_usage',
+            params: '{}',
             answer: null,
-            decision: 'run_command',
+            decision: 'run_action',
           },
           tokensUsed: { input: 100, output: 50 },
         })
@@ -420,7 +421,8 @@ describe('InvestigationAgent tracing (EX4-B.2)', () => {
         .mockResolvedValueOnce({
           data: {
             thought: 'I see the disk is 80% full',
-            command: null,
+            action: null,
+            params: null,
             answer: 'Disk is 80% full on /dev/sda1',
             decision: 'answer',
           },
@@ -451,7 +453,7 @@ describe('InvestigationAgent tracing (EX4-B.2)', () => {
 
     // Verify child spans
     const spans = getSpansForTrace(store, traces.traces[0].traceId);
-    // Root (AGENT) + LLM think[1] + TOOL cmd:df + LLM think[2] = 4 spans
+    // Root (AGENT) + LLM think[1] + TOOL action:disk_usage + LLM think[2] = 4 spans
     expect(spans.length).toBeGreaterThanOrEqual(4);
 
     const llmSpans = spans.filter(s => s.kind === 'LLM');
@@ -460,7 +462,7 @@ describe('InvestigationAgent tracing (EX4-B.2)', () => {
 
     const toolSpans = spans.filter(s => s.kind === 'TOOL');
     expect(toolSpans.length).toBe(1);
-    expect(toolSpans[0].name).toContain('cmd:df');
+    expect(toolSpans[0].name).toBe('action:disk_usage');
   });
 
   it('investigate() without LLM provider returns error without trace', async () => {

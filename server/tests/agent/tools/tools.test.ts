@@ -3,16 +3,17 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ToolContext } from '../../../src/agent/tools/types.js';
-import { execCommandTool } from '../../../src/agent/tools/exec-command.js';
 import { execWriteCommandTool } from '../../../src/agent/tools/exec-write.js';
-import { sftpReadTool } from '../../../src/agent/tools/sftp-read.js';
 import { sftpWriteTool } from '../../../src/agent/tools/sftp-write.js';
 import { searchTemplatesTool } from '../../../src/agent/tools/search-templates.js';
 import { validateSchemaTool } from '../../../src/agent/tools/validate-schema.js';
 import { generateSchemaTool } from '../../../src/agent/tools/generate-schema.js';
 import { grepOutputTool } from '../../../src/agent/tools/grep-output.js';
 import { getServerContextTool, clearServerContextCache } from '../../../src/agent/tools/get-server-context.js';
-import { ALL_AGENT_TOOLS } from '../../../src/agent/tools/index.js';
+import { ALL_AGENT_TOOLS, LOCAL_AGENT_TOOLS } from '../../../src/agent/tools/index.js';
+import { getDefaultCatalog } from '../../../src/agent/actions/index.js';
+
+const READ_ACTION_IDS = getDefaultCatalog().list({ risk: 'read' }).map(a => a.id);
 
 // ── Mock Context ────────────────────────────────────────
 
@@ -46,13 +47,13 @@ function createMockContext(overrides?: Partial<ToolContext>): ToolContext {
 // ── ALL_AGENT_TOOLS ─────────────────────────────────────
 
 describe('ALL_AGENT_TOOLS', () => {
-  it('exports exactly 8 tools', () => {
-    expect(ALL_AGENT_TOOLS).toHaveLength(8);
+  it('is the local tools plus one tool per read action', () => {
+    expect(ALL_AGENT_TOOLS).toHaveLength(LOCAL_AGENT_TOOLS.length + READ_ACTION_IDS.length);
   });
 
   it('all tools have unique names', () => {
     const names = ALL_AGENT_TOOLS.map(t => t.name);
-    expect(new Set(names).size).toBe(8);
+    expect(new Set(names).size).toBe(names.length);
   });
 
   // EX9.0: nothing registered by default may change a server
@@ -63,25 +64,30 @@ describe('ALL_AGENT_TOOLS', () => {
     expect(names).not.toContain('sftp_write');
   });
 
+  // EX9.1: no tool takes a free-form command any more
+  it('registers none of the retired free-form tools', () => {
+    const names = ALL_AGENT_TOOLS.map(t => t.name);
+    for (const retired of ['exec_command', 'sftp_read', 'sandbox_exec']) {
+      expect(names).not.toContain(retired);
+    }
+  });
+
   it('all tools have required properties', () => {
     for (const tool of ALL_AGENT_TOOLS) {
       expect(tool.name).toBeTruthy();
       expect(tool.description).toBeTruthy();
       expect(tool.parameters).toBeDefined();
-      expect(['read', 'write', 'local']).toContain(tool.securityTier);
+      expect(['read', 'local', 'action']).toContain(tool.securityTier);
       expect(typeof tool.execute).toBe('function');
     }
   });
 
-  it('has expected tool names', () => {
-    const names = ALL_AGENT_TOOLS.map(t => t.name).sort();
-    expect(names).toEqual([
-      'exec_command',
+  it('has the expected local tools', () => {
+    expect(LOCAL_AGENT_TOOLS.map(t => t.name).sort()).toEqual([
       'generate_schema',
       'get_server_context',
       'grep_output',
       'search_templates',
-      'sftp_read',
       'update_view',
       'validate_schema',
     ]);
@@ -89,82 +95,17 @@ describe('ALL_AGENT_TOOLS', () => {
 
   it('has correct security tiers', () => {
     const tierMap = Object.fromEntries(ALL_AGENT_TOOLS.map(t => [t.name, t.securityTier]));
-    expect(tierMap['exec_command']).toBe('read');
-    expect(tierMap['sftp_read']).toBe('read');
     expect(tierMap['search_templates']).toBe('local');
     expect(tierMap['validate_schema']).toBe('local');
     expect(tierMap['generate_schema']).toBe('local');
     expect(tierMap['grep_output']).toBe('local');
     expect(tierMap['get_server_context']).toBe('read');
     expect(tierMap['update_view']).toBe('local');
+    for (const id of READ_ACTION_IDS) expect(tierMap[id]).toBe('action');
   });
 });
 
-// ── exec_command ────────────────────────────────────────
-
-describe('exec_command', () => {
-  it('executes allowed read-only command', async () => {
-    const ctx = createMockContext();
-    const result = await execCommandTool.execute({ command: 'hostname' }, ctx);
-
-    expect(result.success).toBe(true);
-    expect(result.output).toBe('mock output');
-    expect(ctx.ssh.exec).toHaveBeenCalledWith('test-server', 'hostname', 15_000);
-  });
-
-  it('caches output in previousOutputs', async () => {
-    const ctx = createMockContext();
-    await execCommandTool.execute({ command: 'hostname' }, ctx);
-    expect(ctx.previousOutputs.get('hostname')).toBe('mock output');
-  });
-
-  it('rejects non-allowlisted commands', async () => {
-    const ctx = createMockContext();
-    const result = await execCommandTool.execute({ command: 'echo hello' }, ctx);
-
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('not in read-only allowlist');
-    expect(ctx.ssh.exec).not.toHaveBeenCalled();
-  });
-
-  it('returns error when SSH exec fails', async () => {
-    const ctx = createMockContext();
-    (ctx.ssh.exec as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('SSH disconnected'));
-
-    const result = await execCommandTool.execute({ command: 'hostname' }, ctx);
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('SSH disconnected');
-  });
-
-  it('handles non-zero exit codes', async () => {
-    const ctx = createMockContext();
-    (ctx.ssh.exec as ReturnType<typeof vi.fn>).mockResolvedValue({
-      stdout: '',
-      stderr: 'command not found',
-      exitCode: 127,
-      durationMs: 10,
-    });
-
-    const result = await execCommandTool.execute({ command: 'hostname' }, ctx);
-    expect(result.success).toBe(false);
-    expect(result.error).toBe('command not found');
-  });
-
-  it('uses custom timeout', async () => {
-    const ctx = createMockContext();
-    await execCommandTool.execute({ command: 'hostname', timeout: 5000 }, ctx);
-    expect(ctx.ssh.exec).toHaveBeenCalledWith('test-server', 'hostname', 5000);
-  });
-
-  it('rejects invalid params', async () => {
-    const ctx = createMockContext();
-    const result = await execCommandTool.execute({}, ctx);
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('exec_command failed');
-  });
-});
-
-// ── exec_write_command ──────────────────────────────────
+// ── exec_write_command (EX2; not registered since EX9.0) ─
 
 describe('exec_write_command', () => {
   it('executes allowed write command', async () => {
@@ -202,63 +143,6 @@ describe('exec_write_command', () => {
 });
 
 // ── sftp_read ───────────────────────────────────────────
-
-describe('sftp_read', () => {
-  it('rejects relative paths', async () => {
-    const ctx = createMockContext();
-    const result = await sftpReadTool.execute({ path: 'relative/path' }, ctx);
-
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('must be absolute');
-  });
-
-  it('rejects path traversal', async () => {
-    const ctx = createMockContext();
-    const result = await sftpReadTool.execute({ path: '/home/user/../../../etc/passwd' }, ctx);
-
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('traversal');
-  });
-
-  it('reads file via SFTP stream', async () => {
-    const chunks = [Buffer.from('hello '), Buffer.from('world')];
-    const mockStream = {
-      on: vi.fn((event: string, cb: (arg?: unknown) => void) => {
-        if (event === 'data') {
-          for (const chunk of chunks) cb(chunk);
-        }
-        if (event === 'end') {
-          setTimeout(() => cb(), 0);
-        }
-        return mockStream;
-      }),
-    };
-
-    const mockSftp = {
-      createReadStream: vi.fn().mockReturnValue(mockStream),
-    };
-
-    const ctx = createMockContext();
-    (ctx.ssh.getSftp as ReturnType<typeof vi.fn>).mockResolvedValue(mockSftp);
-
-    const result = await sftpReadTool.execute({ path: '/etc/os-release' }, ctx);
-
-    expect(result.success).toBe(true);
-    expect(result.output).toBe('hello world');
-    expect(mockSftp.createReadStream).toHaveBeenCalledWith('/etc/os-release', { start: 0, end: 65535 });
-  });
-
-  it('handles SFTP errors', async () => {
-    const ctx = createMockContext();
-    (ctx.ssh.getSftp as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('SFTP not available'));
-
-    const result = await sftpReadTool.execute({ path: '/etc/hosts' }, ctx);
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('SFTP not available');
-  });
-});
-
-// ── sftp_write ──────────────────────────────────────────
 
 describe('sftp_write', () => {
   it('rejects relative paths', async () => {
@@ -490,6 +374,19 @@ describe('grep_output', () => {
     expect(result.metadata?.matchCount).toBe(1);
   });
 
+  // EX9.1: action outputs are cached as "<action>:<params>"; the action name finds them
+  it('finds cached action outputs by action name', async () => {
+    const ctx = createMockContext();
+    ctx.previousOutputs.set('process_list:{"sortBy":"cpu"}', 'nginx  500  0.1');
+    ctx.previousOutputs.set('docker_containers:{}', 'nginx-container  Up');
+
+    const result = await grepOutputTool.execute({ pattern: 'nginx', command: 'process_list' }, ctx);
+
+    expect(result.success).toBe(true);
+    expect(result.metadata?.matchCount).toBe(1);
+    expect(result.output).not.toContain('nginx-container');
+  });
+
   it('searches across all cached outputs', async () => {
     const ctx = createMockContext();
     ctx.previousOutputs.set('ps aux', 'nginx  500  0.1');
@@ -562,8 +459,11 @@ describe('get_server_context', () => {
 
     expect(result.success).toBe(true);
     expect(result.output).toContain('Server Context:');
-    // Should have called exec multiple times for context commands
-    expect(ctx.ssh.exec).toHaveBeenCalled();
+    // EX9.1: it runs catalog actions, so SSH sees exactly the commands they build
+    const commands = (ctx.ssh.exec as ReturnType<typeof vi.fn>).mock.calls.map(c => c[1]).sort();
+    expect(commands).toEqual([
+      'cat /etc/os-release', 'df -hT', 'free -m', 'uname -a', 'uptime', 'which docker', 'which nginx',
+    ]);
   });
 
   it('uses cached context on second call', async () => {

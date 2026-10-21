@@ -92,7 +92,6 @@ export async function agentUIRoutes(
         ssh: connectionManager,
         templateRegistry,
         sandboxManager,
-        toolRegistry,
       });
 
       // ── Helpers ──

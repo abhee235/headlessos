@@ -1,0 +1,141 @@
+// EX9.1: Actions as native agent tools, and per-run selection
+// @see docs/phases/phase-ex9.md §6
+//
+// An earlier agent project: a small model uses what its native tool list holds, so each
+// action is its own tool. A run offers a relevant subset (fixed for the run, so the
+// provider's prompt cache keeps hitting); a call to any other catalog action still
+// runs, because the runner validates everything.
+
+import type { AgentTool, ToolContext, ToolResult } from '../tools/types.js';
+import { ActionRunner, capText } from './runner.js';
+import { getDefaultCatalog, type ActionCatalog } from './catalog/index.js';
+import type { ActionCategory, ActionDef, ActionRunResult } from './types.js';
+
+/** Characters of one result the model sees (EX9.4 makes this per-provider). */
+export const MODEL_OUTPUT_CHARS = 12_000;
+
+/** The text the model gets back from an action. */
+export function formatForModel(result: ActionRunResult, keep: 'head' | 'tail' = 'head'): string {
+  if (!result.command && result.error) return `error: ${result.error}`;
+  const parts: string[] = [];
+  if (!result.ok) parts.push(result.error ? `failed: ${result.error}` : 'failed');
+  const body = result.data !== undefined ? JSON.stringify(result.data) : result.stdout;
+  const capped = capText(body, MODEL_OUTPUT_CHARS, keep);
+  parts.push(capped.text.trim() ? capped.text : '(no output)');
+  if (result.truncated || capped.truncated) {
+    parts.push(keep === 'tail' ? '[earlier output cut]' : '[output cut — ask for less, e.g. fewer lines or a narrower path]');
+  }
+  if (result.stderr.trim()) parts.push(`stderr: ${result.stderr.trim()}`);
+  return parts.join('\n');
+}
+
+/** One native tool for one action. */
+export function actionTool(def: ActionDef): AgentTool {
+  return {
+    name: def.id,
+    description: `${def.title}. ${def.description}`,
+    parameters: def.params,
+    securityTier: 'action',
+    async execute(args: unknown, context: ToolContext): Promise<ToolResult> {
+      const runner = context.actions ?? new ActionRunner({ ssh: context.ssh });
+      const sandboxContainer = context.activeSandboxId
+        ? context.sandboxManager?.getSandbox(context.activeSandboxId)?.containerName
+        : undefined;
+      const result = await runner.run(context.serverId, def.id, args, {
+        ...(context.runId ? { runId: context.runId } : {}),
+        ...(sandboxContainer ? { sandboxContainer } : {}),
+      });
+      return {
+        success: result.ok,
+        output: formatForModel(result, def.keep),
+        ...(result.ok ? {} : { error: result.error ?? 'failed' }),
+        metadata: {
+          actionId: def.id,
+          command: result.command,
+          exitCode: result.exitCode,
+          durationMs: result.durationMs,
+          truncated: result.truncated,
+        },
+      };
+    },
+  };
+}
+
+/** Tools for every read action in the catalog. */
+export function readActionTools(catalog: ActionCatalog = getDefaultCatalog()): AgentTool[] {
+  return catalog.list({ risk: 'read' }).map(actionTool);
+}
+
+// ── Selection ───────────────────────────────────────────
+
+/** Words that point at a category even when no action names them. */
+const CATEGORY_WORDS: Record<ActionCategory, string[]> = {
+  system: ['system', 'server', 'overview', 'health', 'uptime', 'kernel', 'os', 'memory', 'ram', 'load', 'slow'],
+  disk: ['disk', 'disks', 'storage', 'space', 'full', 'mount', 'partition', 'inode', 'inodes', 'volume'],
+  process: ['process', 'processes', 'cpu', 'pid', 'hog', 'slow', 'busy', 'running'],
+  network: ['network', 'port', 'ports', 'dns', 'ip', 'firewall', 'ping', 'http', 'url', 'website', 'connection', 'connections', 'traffic'],
+  service: ['service', 'services', 'systemd', 'daemon', 'unit', 'units', 'nginx', 'apache', 'mysql', 'postgres', 'redis'],
+  logs: ['log', 'logs', 'journal', 'error', 'errors', 'crash', 'crashed', 'why', 'failing', 'failed'],
+  docker: ['docker', 'container', 'containers', 'compose', 'image', 'images'],
+  packages: ['package', 'packages', 'apt', 'update', 'updates', 'upgrade', 'install', 'installed'],
+  web: ['nginx', 'apache', 'web', 'site', 'sites', 'ssl', 'tls', 'certificate', 'certificates', 'https', 'domain'],
+  security: ['security', 'user', 'users', 'sudo', 'fail2ban', 'ban', 'ssh', 'login', 'logins', 'attack', 'permissions'],
+  cron: ['cron', 'schedule', 'scheduled', 'job', 'jobs', 'backup', 'backups'],
+  files: ['file', 'files', 'folder', 'directory', 'config', 'path', 'conf'],
+  cli: ['cli', 'help', 'command', 'tool', 'program', 'version', 'flags', 'options'],
+};
+
+/** Offered to every run: enough to orient on any server. */
+export const CORE_ACTIONS = [
+  'kernel_info', 'os_release', 'uptime', 'memory_usage', 'disk_usage',
+  'process_list', 'service_list', 'file_read', 'dir_list',
+];
+
+function words(text: string): string[] {
+  return text.toLowerCase().split(/[^a-z0-9.]+/).filter((w) => w.length > 1);
+}
+
+/**
+ * Choose the actions to offer for a request: the core set, then the best keyword
+ * matches, up to `max`. Returned in catalog order so the tool list is stable.
+ */
+export function selectActions(
+  request: string,
+  opts: { max?: number; catalog?: ActionCatalog; risk?: ActionDef['risk'] } = {},
+): ActionDef[] {
+  const catalog = opts.catalog ?? getDefaultCatalog();
+  const max = opts.max ?? 40;
+  const pool = catalog.list({ risk: opts.risk ?? 'read' });
+  if (pool.length <= max) return pool;
+
+  const text = request.toLowerCase();
+  const tokens = new Set(words(request));
+  const hotCategories = new Set(
+    (Object.keys(CATEGORY_WORDS) as ActionCategory[]).filter((c) => CATEGORY_WORDS[c].some((w) => tokens.has(w))),
+  );
+
+  const scored = pool.map((def, index) => {
+    let score = 0;
+    for (const w of def.id.split('_')) if (tokens.has(w)) score += 3;
+    for (const w of words(def.title)) if (tokens.has(w)) score += 2;
+    for (const w of words(def.description)) if (tokens.has(w)) score += 1;
+    for (const k of def.keywords ?? []) if (k.includes(' ') ? text.includes(k) : tokens.has(k)) score += 3;
+    if (hotCategories.has(def.category)) score += 2;
+    if (CORE_ACTIONS.includes(def.id)) score += 100;
+    return { def, index, score };
+  });
+
+  const chosen = new Set(
+    scored
+      .filter((s) => s.score > 0)
+      .sort((a, b) => b.score - a.score || a.index - b.index)
+      .slice(0, max)
+      .map((s) => s.def.id),
+  );
+  // Fill any room left with catalog order, so a vague request still gets breadth
+  for (const def of pool) {
+    if (chosen.size >= max) break;
+    chosen.add(def.id);
+  }
+  return pool.filter((def) => chosen.has(def.id));
+}

@@ -7,7 +7,10 @@
 
 import { describe, it, expect } from 'vitest';
 import { shellEscape, validateCommand, SecurityError } from '../../src/security/validators.js';
-import { isReadCommandAllowed, isWritePathAllowed } from '../../src/agent/command-allowlist.js';
+import { isWritePathAllowed } from '../../src/agent/command-allowlist.js';
+import { ActionRunner } from '../../src/agent/actions/index.js';
+import { CommandPolicy } from '../../src/services/policy/command-policy.js';
+import { runAsAgent } from '../../src/services/policy/agent-scope.js';
 
 // ── C1: /dynamic-ui/refresh must validate against the allowlist ──
 // Before the fix, the raw request-body `command` went straight to exec() with no
@@ -84,17 +87,31 @@ describe('H1 — validateCommand allowlist hardening', () => {
   });
 });
 
-// ── H2: agent read-only guardrail hardening ──
-describe('H2 — agent read-only allowlist hardening', () => {
-  it('blocks find -exec in the read-only path', () => {
-    expect(isReadCommandAllowed('find /etc -name x -exec sh -c "id" +')).toBe(false);
+// ── H2: agent read-only escalations ──
+// EX9.1 (ADR-024): the regex read allowlist these tests guarded is gone. Agents run
+// typed actions, and inside an agent run CommandPolicy refuses any other command.
+describe('H2 — agents cannot express the old escalations', () => {
+  it('refuses free-form find -exec / awk system() inside an agent run, in every mode', () => {
+    const policy = new CommandPolicy('command-policy');
+    for (const mode of ['enforce', 'audit', 'off'] as const) {
+      policy.setMode(mode);
+      runAsAgent({ runId: 'h2', agent: 'investigation' }, () => {
+        expect(() => policy.assertAllowed('find /etc -name x -exec sh -c "id" +')).toThrow(SecurityError);
+        expect(() => policy.assertAllowed('cat /proc/uptime | awk "BEGIN{system(\\"id\\")}"')).toThrow(SecurityError);
+      });
+    }
   });
-  it('blocks awk system() exec via pipe filter', () => {
-    expect(isReadCommandAllowed('cat /proc/uptime | awk "BEGIN{system(\\"id\\")}"')).toBe(false);
+
+  it('cannot smuggle -exec through the file_find action', () => {
+    const runner = new ActionRunner({ ssh: {} as never });
+    const preview = runner.preview('file_find', { path: '/etc', name: 'x -exec sh -c id +' });
+    expect(preview.ok).toBe(false);
   });
-  it('still allows safe read pipelines', () => {
-    expect(isReadCommandAllowed('ps aux | grep nginx')).toBe(true);
-    expect(isReadCommandAllowed('df -h | head -5')).toBe(true);
+
+  it('passes a pattern that only looks like an option as the value of -name', () => {
+    const runner = new ActionRunner({ ssh: {} as never });
+    const preview = runner.preview('file_find', { path: '/etc', name: '-delete' });
+    expect(preview).toMatchObject({ ok: true, command: 'find /etc -xdev -maxdepth 2 -name -delete -print' });
   });
 });
 

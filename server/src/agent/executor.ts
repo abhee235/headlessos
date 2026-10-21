@@ -118,7 +118,10 @@ export class ReactiveExecutor {
     context: ToolContext,
     reflectionIssues?: ReflectionIssue[],
   ): AsyncGenerator<AgentEvent> {
-    const tools = this.toolRegistry.getAll();
+    // EX9.1: offer only this run's selected actions (any catalog action still runs if called)
+    const tools = this.toolRegistry.getAll().filter(
+      (t) => t.securityTier !== 'action' || !context.offeredActions || context.offeredActions.has(t.name),
+    );
     const openAITools = toolsToOpenAIFunctions(tools);
 
     const toolRepetitionDetector = new ToolRepetitionDetector(this.config.maxToolRepetitions);
@@ -491,11 +494,11 @@ You MUST follow this exact workflow. The user sees the UI window build up LIVE a
    \`\`\`
    The frontend shows animated skeleton placeholders for empty sections.
 
-3. **exec_command() — gather data for FIRST section** — Run the commands needed for the first section.
+3. **Action tools — gather data for FIRST section** — Call the server actions (e.g. disk_usage, service_status, docker_containers) needed for the first section. You cannot write shell commands; each action is a tool with typed parameters.
 
 4. **update_view() with first section filled** — Send the full view with the first section populated and other sections still empty. Include ALL data gathered so far.
 
-5. **exec_command() — gather data for NEXT section** — Run commands for the next section.
+5. **Action tools — gather data for NEXT section** — Call the actions for the next section.
 
 6. **update_view() with next section filled** — Send the full view with all gathered sections. Each update_view() must include ALL previously gathered data PLUS the new section.
 
@@ -515,9 +518,9 @@ ${this.buildProgressiveExample(hints)}
 
 ## General Rules
 - Gather all needed data BEFORE calling generate_schema()
-- Use specific commands over broad ones
-- If a command fails, try a fallback (e.g., nginx -T failed → try cat /etc/nginx/nginx.conf)
-- If you need to read actual file content for editing, use sftp_read()
+- Use specific actions over broad ones (service_status for one unit rather than service_list)
+- If an action fails, try another one (e.g. nginx_test failed → file_read /etc/nginx/nginx.conf)
+- To read a file, use file_read (or file_tail for the end of a log)
 - The schema JSON passed to generate_schema must be a STRING (JSON.stringify), not an object
 ${hints.securityRequirements.needsWrite ? '- This request may need write-back capability. Include writeBack config in form widgets.' : ''}
 ${hints.securityRequirements.sensitiveData ? '- This involves sensitive data. Mask passwords in the UI.' : ''}`;
@@ -651,10 +654,10 @@ Here is exactly how to build a multi-section view progressively. Follow this pat
 Step 1: get_server_context()
 Step 2: update_view(${JSON.stringify(JSON.stringify({title: hints.intent.substring(0, 30), description: 'Loading...', icon: 'Server', sidebarItems: 'ITEMS', sections: 'SECTIONS'})).replace('"ITEMS"', `[${sidebarItems.join(',')}]`).replace('"SECTIONS"', `{${emptySections.join(',')}}`)})  
   → User sees the sidebar with ${sections.length} empty sections (skeleton placeholders)
-Step 3: exec_command() x N — gather data for "${sections[0]}"
+Step 3: action tools x N — gather data for "${sections[0]}"
 Step 4: update_view(...) — same JSON but "${sections[0].toLowerCase().replace(/\s+/g, '-')}" section now has widgets in its children
   → User sees ${sections[0]} section populate with real data
-${sections.slice(1).map((s, i) => `Step ${5 + i * 2}: exec_command() x N — gather data for "${s}"
+${sections.slice(1).map((s, i) => `Step ${5 + i * 2}: action tools x N — gather data for "${s}"
 Step ${6 + i * 2}: update_view(...) — cumulative, "${s.toLowerCase().replace(/\s+/g, '-')}" section now filled too
   → User sees ${s} section populate`).join('\n')}
 Final: generate_schema(...) — complete view with ALL sections filled

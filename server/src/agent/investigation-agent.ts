@@ -3,27 +3,30 @@
 //
 // A read-only AI agent that investigates server issues by iteratively:
 // 1. Thinking about what to check next
-// 2. Running a command (from the read-only allowlist)
+// 2. Running a catalog action (EX9.1 — never a model-written command)
 // 3. Observing the output
 // 4. Deciding whether to continue or give an answer
 
 import { z } from 'zod';
-import type { ConnectionManager, ExecResult } from '../ssh/connection-manager.js';
+import type { ConnectionManager } from '../ssh/connection-manager.js';
 import type { LLMProvider } from '../llm/provider.js';
 import { EventEmitter } from 'events';
-import { isReadCommandAllowed } from './command-allowlist.js';
 import { withTrace, withSpan, setSpanAttributes } from '../observatory/context.js';
-
-// Re-export for backwards compatibility
-export const isCommandAllowed = isReadCommandAllowed;
+import { runAsAgent } from '../services/policy/agent-scope.js';
+import { ActionRunner, actionSignature, type ActionSsh } from './actions/runner.js';
+import { formatForModel, selectActions } from './actions/tools.js';
+import type { ActionDef } from './actions/types.js';
 
 // ── Agent Step Schema (for structured LLM output) ───────
 
+// EX9.1: the model names an action and its parameters; the server builds the command.
+// Strict structured output cannot hold an open-ended object, so params travel as JSON text.
 const AgentThoughtSchema = z.object({
   thought: z.string().describe('Your reasoning about what to investigate next'),
-  command: z.string().nullable().describe('The Linux command to run (null if you have enough info to answer)'),
+  action: z.string().nullable().describe('The action id to run, e.g. "disk_usage" (null when answering)'),
+  params: z.string().nullable().describe('The action parameters as a JSON object, e.g. {"unit":"nginx"}; "{}" when it takes none'),
   answer: z.string().nullable().describe('Your final answer/diagnosis (only set this when you are confident you have the answer, null otherwise)'),
-  decision: z.enum(['run_command', 'answer']).describe('"run_command" to execute the command, "answer" to provide your final response'),
+  decision: z.enum(['run_action', 'answer']).describe('"run_action" to run the action, "answer" to provide your final response'),
 });
 
 type AgentThought = z.infer<typeof AgentThoughtSchema>;
@@ -33,6 +36,9 @@ type AgentThought = z.infer<typeof AgentThoughtSchema>;
 export interface AgentStep {
   stepNumber: number;
   thought: string;
+  /** EX9.1: catalog action the step ran */
+  action?: string;
+  /** the command the server built for that action (shown to the owner) */
   command?: string;
   output?: string;
   observation?: string;
@@ -53,7 +59,6 @@ export interface AgentResult {
 export interface AgentOptions {
   maxSteps?: number;
   readOnly?: boolean;
-  commandTimeout?: number;
   /** EX8.24: chosen by the client so it can open /ws/agent/:id/:sessionId before the run */
   sessionId?: string;
 }
@@ -66,34 +71,44 @@ function pickSessionId(requested?: string): string {
 // ── ReAct Agent ─────────────────────────────────────────
 
 const DEFAULT_MAX_STEPS = 10;
-const DEFAULT_CMD_TIMEOUT = 15_000;
+/** EX9.1: actions listed in the prompt per question (ADR-024 §6) */
+const OFFERED_ACTIONS = 40;
 
-const AGENT_SYSTEM_PROMPT = `You are an expert Linux system administrator AI agent. You investigate server issues by running read-only diagnostic commands and analyzing the output.
+function buildSystemPrompt(actions: ActionDef[]): string {
+  return `You are an expert Linux system administrator AI agent. You investigate server issues by running read-only diagnostic actions and analyzing the output.
 
 ## How You Work (ReAct Loop)
 1. **Think**: Analyze what you know and what you need to find out next
-2. **Act**: Choose a command to run for diagnosis
-3. **Observe**: Review the command output
+2. **Act**: Choose one action and its parameters
+3. **Observe**: Review the action's output
 4. Repeat until you have enough information to give a confident answer
 
+## Actions
+You cannot write shell commands. You pick an action by id and give its parameters as a JSON object; the server builds and runs the command. Available actions (id(parameters) — what it does):
+${actions.map((a) => `- ${actionSignature(a)} — ${a.description}`).join('\n')}
+
 ## Rules
-- You can ONLY run read-only diagnostic commands (no writes, no modifications)
-- Available commands include: cat, head, tail, grep, find, ls, stat, df, du, free, vmstat, iostat, top, ps, uptime, hostname, uname, who, w, last, ss, netstat, ip, docker ps/inspect/logs, systemctl status, journalctl, etc.
-- Keep commands simple and focused — one diagnostic check at a time
-- After each command output, explain what you learned (observation)
+- Every action is read-only; you cannot change the server
+- One action per step: set decision to "run_action", action to its id and params to a JSON object ("{}" when it takes none)
+- After each output, explain what you learned (observation)
 - When you have enough evidence, provide a clear diagnosis and actionable recommendations
 - Maximum steps: you'll be told the limit. Use your steps wisely.
-- If a command fails, try an alternative
-- Be specific in your diagnosis — cite actual values from command outputs`;
+- If an action fails, read the error: it says what was wrong with the parameters. Fix them or try another action
+- Be specific in your diagnosis — cite actual values from the outputs`;
+}
 
 export class InvestigationAgent {
   private abortedSessions = new Set<string>();
   public events = new EventEmitter();
 
+  private readonly runner: ActionRunner;
+
   constructor(
-    private ssh: ConnectionManager,
+    ssh: ConnectionManager | ActionSsh,
     private llmProvider: LLMProvider | null,
-  ) {}
+  ) {
+    this.runner = new ActionRunner({ ssh });
+  }
 
   setLLMProvider(provider: LLMProvider | null): void {
     this.llmProvider = provider;
@@ -121,20 +136,24 @@ export class InvestigationAgent {
       };
     }
 
-    return withTrace(`Investigation: ${question.slice(0, 50)}`, {
-      trigger: 'investigation-agent',
-      serverId,
-    }, () => this.investigateCore(serverId, question, options));
+    // EX9.1: an agent scope — CommandPolicy refuses anything the action runner did not build
+    const sessionId = pickSessionId(options.sessionId);
+    return runAsAgent({ runId: sessionId, agent: 'investigation' }, () =>
+      withTrace(`Investigation: ${question.slice(0, 50)}`, {
+        trigger: 'investigation-agent',
+        serverId,
+      }, () => this.investigateCore(serverId, question, options, sessionId)),
+    );
   }
 
   private async investigateCore(
     serverId: string,
     question: string,
-    options: AgentOptions = {},
+    options: AgentOptions,
+    sessionId: string,
   ): Promise<AgentResult> {
-    const sessionId = pickSessionId(options.sessionId);
     const maxSteps = options.maxSteps ?? DEFAULT_MAX_STEPS;
-    const cmdTimeout = options.commandTimeout ?? DEFAULT_CMD_TIMEOUT;
+    const systemPrompt = buildSystemPrompt(selectActions(question, { max: OFFERED_ACTIONS }));
     const steps: AgentStep[] = [];
     // EX8.24: every recorded step goes out on the progress socket as it happens
     const record = (s: AgentStep) => {
@@ -153,7 +172,7 @@ export class InvestigationAgent {
     const conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [
       {
         role: 'user',
-        content: `Investigate this server issue:\n\n${question}\n\nYou have up to ${maxSteps} steps. Use diagnostic commands to gather evidence, then provide your diagnosis.`,
+        content: `Investigate this server issue:\n\n${question}\n\nYou have up to ${maxSteps} steps. Use diagnostic actions to gather evidence, then provide your diagnosis.`,
       },
     ];
 
@@ -170,14 +189,14 @@ export class InvestigationAgent {
       try {
         const userPrompt = conversationHistory
           .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
-          .join('\n\n') + `\n\nStep ${step}/${maxSteps}. Respond with your next thought, command to run, or final answer.`;
+          .join('\n\n') + `\n\nStep ${step}/${maxSteps}. Respond with your next thought and the action to run, or your final answer.`;
 
         const parseResult = await withSpan(`InvestigationAgent.think[${step}]`, 'LLM', async () => {
           const result = await this.llmProvider!.parseText({
             rawOutput: '',
             command: 'agent-investigate',
             schema: AgentThoughtSchema,
-            systemPrompt: AGENT_SYSTEM_PROMPT,
+            systemPrompt,
             userPrompt,
           });
           setSpanAttributes({
@@ -202,10 +221,16 @@ export class InvestigationAgent {
         break;
       }
 
+      // EX9.1: build the command now, so the owner sees what will run before it runs
+      const actionId = thought.decision === 'run_action' && thought.action ? thought.action.trim() : null;
+      const parsedParams = actionId ? parseParams(thought.params) : null;
+      const preview = actionId && parsedParams?.ok ? this.runner.preview(actionId, parsedParams.value) : null;
+
       // Emit the thought (and the command about to run) before acting on it
       this.events.emit(`step:${sessionId}`, {
         kind: 'thought', step, thought: thought.thought, decision: thought.decision,
-        ...(thought.command ? { command: thought.command.trim() } : {}),
+        ...(actionId ? { action: actionId } : {}),
+        ...(preview?.ok ? { command: preview.command } : {}),
       });
 
       // If agent decided to answer
@@ -219,73 +244,33 @@ export class InvestigationAgent {
         break;
       }
 
-      // Agent wants to run a command
-      if (thought.decision === 'run_command' && thought.command) {
-        const cmd = thought.command.trim();
-
-        // Validate command against allowlist
-        if (!isCommandAllowed(cmd)) {
-          const blockMsg = `Command blocked: "${cmd}" is not in the read-only allowlist.`;
-          record({
-            stepNumber: step,
-            thought: thought.thought,
-            command: cmd,
-            output: blockMsg,
-            observation: 'Command was blocked by security policy',
-            decision: 'continue',
-          });
-          conversationHistory.push(
-            { role: 'assistant', content: `Thought: ${thought.thought}\nAction: ${cmd}` },
-            { role: 'user', content: `Observation: ${blockMsg}\nTry a different command.` },
-          );
-          continue;
-        }
-
-        // Execute command — wrapped in TOOL span (EX4-B.2)
-        let execResult: ExecResult;
-        try {
-          execResult = await withSpan(`cmd:${cmd.split(' ')[0]}`, 'TOOL', async () => {
-            return this.ssh.exec(serverId, cmd, cmdTimeout);
-          }, { input: cmd });
-        } catch (err) {
-          const errMsg = err instanceof Error ? err.message : 'Command execution failed';
-          record({
-            stepNumber: step,
-            thought: thought.thought,
-            command: cmd,
-            output: errMsg,
-            observation: 'Command execution failed',
-            decision: 'continue',
-          });
-          conversationHistory.push(
-            { role: 'assistant', content: `Thought: ${thought.thought}\nAction: ${cmd}` },
-            { role: 'user', content: `Observation: Command failed with error: ${errMsg}` },
-          );
-          continue;
-        }
-
-        // Truncate very long output to keep context window manageable
-        const output = execResult.stdout.length > 4000
-          ? execResult.stdout.substring(0, 4000) + '\n...(output truncated)...'
-          : execResult.stdout;
-
-        const stderr = execResult.stderr.length > 500
-          ? execResult.stderr.substring(0, 500) + '...'
-          : execResult.stderr;
-
-        const fullOutput = stderr ? `STDOUT:\n${output}\nSTDERR:\n${stderr}` : output;
+      // Agent wants to run an action
+      if (actionId && parsedParams) {
+        const result = parsedParams.ok
+          ? await withSpan(`action:${actionId}`, 'TOOL', () =>
+            this.runner.run(serverId, actionId, parsedParams.value, { runId: sessionId }),
+          { input: { action: actionId, params: parsedParams.value } })
+          : null;
+        const observation = result ? formatForModel(result) : `error: ${parsedParams.ok ? '' : parsedParams.error}`;
 
         record({
           stepNumber: step,
           thought: thought.thought,
-          command: cmd,
-          output: fullOutput,
+          action: actionId,
+          command: result?.command || `${actionId} ${thought.params ?? ''}`.trim(),
+          output: observation,
+          ...(result?.ok ? {} : { observation: 'The action did not succeed' }),
           decision: 'continue',
         });
 
         conversationHistory.push(
-          { role: 'assistant', content: `Thought: ${thought.thought}\nAction: ${cmd}` },
-          { role: 'user', content: `Observation:\n${fullOutput}\n\nAnalyze this output and decide your next step.` },
+          { role: 'assistant', content: `Thought: ${thought.thought}\nAction: ${actionId} ${thought.params ?? '{}'}` },
+          { role: 'user', content: `Observation:\n${observation}\n\nAnalyze this output and decide your next step.` },
+        );
+      } else if (thought.decision === 'run_action') {
+        conversationHistory.push(
+          { role: 'assistant', content: `Thought: ${thought.thought}` },
+          { role: 'user', content: 'Observation: no action was named. Set "action" to an action id from the list, or answer.' },
         );
       }
 
@@ -315,7 +300,7 @@ export class InvestigationAgent {
             rawOutput: '',
             command: 'agent-final-answer',
             schema: AgentThoughtSchema,
-            systemPrompt: AGENT_SYSTEM_PROMPT,
+            systemPrompt,
             userPrompt: finalPrompt,
           });
           setSpanAttributes({
@@ -351,5 +336,20 @@ export class InvestigationAgent {
       totalLatencyMs: Date.now() - startTime,
       status,
     };
+  }
+}
+
+/** Action params arrive as JSON text; an empty or null value means "no params". */
+function parseParams(raw: string | null): { ok: true; value: unknown } | { ok: false; error: string } {
+  const text = (raw ?? '').trim();
+  if (!text) return { ok: true, value: {} };
+  try {
+    const value: unknown = JSON.parse(text);
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+      return { ok: false, error: `params must be a JSON object like {"unit":"nginx"}, you sent ${text.slice(0, 60)}` };
+    }
+    return { ok: true, value };
+  } catch {
+    return { ok: false, error: `params is not valid JSON; send an object like {"unit":"nginx"}, you sent ${text.slice(0, 60)}` };
   }
 }

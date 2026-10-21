@@ -158,7 +158,7 @@ const TURN_2_TOP: ChatWithToolsResult = {
     tool_calls: [{
       id: 'call_top_1',
       type: 'function',
-      function: { name: 'exec_command', arguments: JSON.stringify({ command: 'top -bn1 | head -5' }) },
+      function: { name: 'process_list', arguments: JSON.stringify({ sortBy: 'cpu' }) },
     }],
   },
   tokensUsed: { input: 2000, output: 50 },

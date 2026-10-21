@@ -80,7 +80,8 @@ function createMockToolContext(): ToolContext {
   };
 }
 
-function createMockTool(name: string, tier: 'read' | 'write' | 'local' = 'read'): AgentTool {
+// EX9.1: server-touching tools are catalog actions ('action' tier)
+function createMockTool(name: string, tier: AgentTool['securityTier'] = 'action'): AgentTool {
   return {
     name,
     description: `Mock tool: ${name}`,
@@ -211,14 +212,14 @@ describe('ReactiveExecutor', () => {
     });
 
     it('calls tools before generating schema', async () => {
-      const execTool = createMockTool('exec_command');
+      const execTool = createMockTool('disk_usage');
       const generateTool = createGenerateSchemaTool();
       toolRegistry.register(execTool);
       toolRegistry.register(generateTool);
 
       const modelRouter = createMockModelRouter([
         // Step 1: gather data
-        makeToolCallResponse([{ name: 'exec_command', args: { command: 'df -h' } }]),
+        makeToolCallResponse([{ name: 'disk_usage', args: { command: 'df -h' } }]),
         // Step 2: generate schema
         makeToolCallResponse([{ name: 'generate_schema', args: { schema: VALID_DYNAMIC_VIEW } }]),
       ]);
@@ -229,7 +230,7 @@ describe('ReactiveExecutor', () => {
       );
 
       const toolResults = events.filter((e) => e.type === 'tool_result');
-      expect(toolResults).toHaveLength(2); // exec_command + generate_schema
+      expect(toolResults).toHaveLength(2); // disk_usage + generate_schema
       expect(events.some((e) => e.type === 'generation_complete')).toBe(true);
     });
 
@@ -254,7 +255,7 @@ describe('ReactiveExecutor', () => {
 
   describe('tool execution', () => {
     it('passes tools to LLM as OpenAI functions', async () => {
-      const execTool = createMockTool('exec_command');
+      const execTool = createMockTool('disk_usage');
       const generateTool = createGenerateSchemaTool();
       toolRegistry.register(execTool);
       toolRegistry.register(generateTool);
@@ -274,7 +275,7 @@ describe('ReactiveExecutor', () => {
 
     it('handles tool that returns failure', async () => {
       const failTool: AgentTool = {
-        ...createMockTool('exec_command'),
+        ...createMockTool('disk_usage'),
         execute: vi.fn().mockResolvedValue({
           success: false,
           output: '',
@@ -286,7 +287,7 @@ describe('ReactiveExecutor', () => {
       toolRegistry.register(generateTool);
 
       const modelRouter = createMockModelRouter([
-        makeToolCallResponse([{ name: 'exec_command', args: { command: 'df -h' } }]),
+        makeToolCallResponse([{ name: 'disk_usage', args: { command: 'df -h' } }]),
         makeToolCallResponse([{ name: 'generate_schema', args: { schema: VALID_DYNAMIC_VIEW } }]),
       ]);
 
@@ -298,14 +299,14 @@ describe('ReactiveExecutor', () => {
       const toolResults = events.filter((e) => e.type === 'tool_result');
       expect(toolResults[0]).toMatchObject({
         type: 'tool_result',
-        tool: 'exec_command',
+        tool: 'disk_usage',
         success: false,
       });
     });
 
     it('handles tool that throws exception', async () => {
       const throwTool: AgentTool = {
-        ...createMockTool('exec_command'),
+        ...createMockTool('disk_usage'),
         execute: vi.fn().mockRejectedValue(new Error('SSH connection lost')),
       };
       const generateTool = createGenerateSchemaTool();
@@ -313,7 +314,7 @@ describe('ReactiveExecutor', () => {
       toolRegistry.register(generateTool);
 
       const modelRouter = createMockModelRouter([
-        makeToolCallResponse([{ name: 'exec_command', args: { command: 'df -h' } }]),
+        makeToolCallResponse([{ name: 'disk_usage', args: { command: 'df -h' } }]),
         makeToolCallResponse([{ name: 'generate_schema', args: { schema: VALID_DYNAMIC_VIEW } }]),
       ]);
 
@@ -383,14 +384,14 @@ describe('ReactiveExecutor', () => {
     });
 
     it('caches tool output in previousOutputs', async () => {
-      const execTool = createMockTool('exec_command');
+      const execTool = createMockTool('disk_usage');
       const generateTool = createGenerateSchemaTool();
       toolRegistry.register(execTool);
       toolRegistry.register(generateTool);
 
       const context = createMockToolContext();
       const modelRouter = createMockModelRouter([
-        makeToolCallResponse([{ name: 'exec_command', args: { command: 'df -h' } }]),
+        makeToolCallResponse([{ name: 'disk_usage', args: { command: 'df -h' } }]),
         makeToolCallResponse([{ name: 'generate_schema', args: { schema: VALID_DYNAMIC_VIEW } }]),
       ]);
 
@@ -462,7 +463,7 @@ describe('ReactiveExecutor', () => {
 
     it('does not accept schema when tool failed in same turn', async () => {
       const failTool: AgentTool = {
-        ...createMockTool('exec_command'),
+        ...createMockTool('disk_usage'),
         execute: vi.fn().mockResolvedValue({
           success: false,
           output: '',
@@ -476,7 +477,7 @@ describe('ReactiveExecutor', () => {
       const modelRouter = createMockModelRouter([
         // Both tools called in same turn — exec fails, generate_schema succeeds
         makeToolCallResponse([
-          { name: 'exec_command', args: { command: 'bad' } },
+          { name: 'disk_usage', args: { command: 'bad' } },
           { name: 'generate_schema', args: { schema: VALID_DYNAMIC_VIEW } },
         ]),
         // Retry: just generate
@@ -522,7 +523,7 @@ describe('ReactiveExecutor', () => {
     });
 
     it('resets consecutive mistake counter on tool call', async () => {
-      const execTool = createMockTool('exec_command');
+      const execTool = createMockTool('disk_usage');
       const generateTool = createGenerateSchemaTool();
       toolRegistry.register(execTool);
       toolRegistry.register(generateTool);
@@ -530,7 +531,7 @@ describe('ReactiveExecutor', () => {
       const modelRouter = createMockModelRouter([
         makeTextResponse('Thinking...'), // mistake 1
         makeTextResponse('Thinking...'), // mistake 2
-        makeToolCallResponse([{ name: 'exec_command', args: {} }]), // resets counter
+        makeToolCallResponse([{ name: 'disk_usage', args: {} }]), // resets counter
         makeToolCallResponse([{ name: 'generate_schema', args: { schema: VALID_DYNAMIC_VIEW } }]),
       ]);
 
@@ -552,14 +553,14 @@ describe('ReactiveExecutor', () => {
     });
 
     it('detects tool repetition and warns', async () => {
-      const execTool = createMockTool('exec_command');
+      const execTool = createMockTool('disk_usage');
       const generateTool = createGenerateSchemaTool();
       toolRegistry.register(execTool);
       toolRegistry.register(generateTool);
 
       // Call the same tool with same args 6 times (max is 5)
       const repeatedCalls = Array.from({ length: 6 }, () =>
-        makeToolCallResponse([{ name: 'exec_command', args: { command: 'df -h' } }]),
+        makeToolCallResponse([{ name: 'disk_usage', args: { command: 'df -h' } }]),
       );
       repeatedCalls.push(
         makeToolCallResponse([{ name: 'generate_schema', args: { schema: VALID_DYNAMIC_VIEW } }]),
@@ -581,12 +582,12 @@ describe('ReactiveExecutor', () => {
     });
 
     it('enforces max steps limit', async () => {
-      const execTool = createMockTool('exec_command');
+      const execTool = createMockTool('disk_usage');
       toolRegistry.register(execTool);
 
-      // Always call exec_command, never generate schema — but each call has different args
+      // Always call disk_usage, never generate schema — but each call has different args
       const responses = Array.from({ length: 5 }, (_, i) =>
-        makeToolCallResponse([{ name: 'exec_command', args: { command: `cmd_${i}` } }]),
+        makeToolCallResponse([{ name: 'disk_usage', args: { command: `cmd_${i}` } }]),
       );
       const modelRouter = createMockModelRouter(responses);
 
@@ -710,13 +711,13 @@ describe('ReactiveExecutor', () => {
     });
 
     it('appends assistant and tool messages to history', async () => {
-      const execTool = createMockTool('exec_command');
+      const execTool = createMockTool('disk_usage');
       const generateTool = createGenerateSchemaTool();
       toolRegistry.register(execTool);
       toolRegistry.register(generateTool);
 
       const modelRouter = createMockModelRouter([
-        makeToolCallResponse([{ name: 'exec_command', args: { command: 'df -h' } }]),
+        makeToolCallResponse([{ name: 'disk_usage', args: { command: 'df -h' } }]),
         makeToolCallResponse([{ name: 'generate_schema', args: { schema: VALID_DYNAMIC_VIEW } }]),
       ]);
 

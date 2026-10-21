@@ -357,7 +357,7 @@ const DEFAULT_STRATEGIES: RecoveryStrategy[] = [
  * Usage:
  * ```typescript
  * const manager = new ErrorRecoveryManager();
- * const action = manager.getRecoveryAction(classifyError(err), { currentTool: 'exec_command' });
+ * const action = manager.getRecoveryAction(classifyError(err), { currentTool: 'disk_usage' });
  * ```
  */
 export class ErrorRecoveryManager {

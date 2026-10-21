@@ -5,10 +5,12 @@ import type { z } from 'zod';
 import type { ConnectionManager } from '../../ssh/connection-manager.js';
 import type { TemplateRegistry } from '../../dynamic-ui/template-registry.js';
 import type { SandboxManager } from '../sandbox-manager.js';
+import type { ActionRunner } from '../actions/runner.js';
 
 // ── Security Tier ───────────────────────────────────────
 
-export type SecurityTier = 'read' | 'write' | 'local';
+/** EX9.1: 'action' tools run catalog actions; the ActionRunner does the checking */
+export type SecurityTier = 'read' | 'write' | 'local' | 'action';
 
 // ── Tool Context ────────────────────────────────────────
 
@@ -29,6 +31,12 @@ export interface ToolContext {
   sandboxManager?: SandboxManager;
   /** Active sandbox ID — set when sandbox mode is active */
   activeSandboxId?: string;
+  /** EX9.1: runs catalog actions; action tools build one from `ssh` when absent */
+  actions?: ActionRunner;
+  /** EX9.1: agent run id (audit, approvals) */
+  runId?: string;
+  /** EX9.1: action ids offered to the model this run (others still run if called) */
+  offeredActions?: ReadonlySet<string>;
 }
 
 // ── Tool Result ─────────────────────────────────────────

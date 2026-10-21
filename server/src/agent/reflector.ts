@@ -49,7 +49,7 @@ NOTE: The schema has ALREADY passed Zod validation. You are checking semantic qu
 8. Are card-list items used for entity-like data (network interfaces, services, devices) instead of plain tables?
 9. Do tabs items have appropriate icons?
 10. Does the schema have correctly structured sidebarItems and sections? Every section should have a matching sidebarItem.
-11. Are ALL collected data sections represented in the schema? Every exec_command result should appear in at least one widget — missing data is a critical issue.
+11. Are ALL collected data sections represented in the schema? Every action result should appear in at least one widget — missing data is a critical issue.
 
 ## Typed Feedback (inspired by Aider)
 When reporting issues, include:

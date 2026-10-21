@@ -61,7 +61,9 @@ interface ActionDef<P extends z.ZodObject<z.ZodRawShape>> {
   pipes, no `&&`, no redirection: one action, one program.
 - **`sudo: true`** prefixes `sudo -n` (never prompts; fails fast without passwordless sudo).
 - **`sftp-read`** reads a file over SFTP (AGENTS.md: file contents go through SFTP,
-  never `cat`). Only read actions use it.
+  never `cat`). Only read actions use it. `tailLines` reads from the end instead
+  (`file_tail`). The runner resolves the real path first and re-checks it against the
+  read roots and the secret list, so a symlink under `/tmp` cannot lead to `/etc/shadow`.
 - **Catalog checks at load** (unit-tested): ids unique and well-formed, params are
   strict objects, descriptions ≤ 120 chars, timeouts and caps in range, read actions
   never `kind: 'exec'` with a write verb in argv[0..1] (spot list).
@@ -149,7 +151,8 @@ exists, otherwise the capped stdout, plus stderr and exit code when non-zero.
 
 ### 5. Enforcement: CommandPolicy knows when an agent is calling
 
-`agent/actions/scope.ts` holds an `AsyncLocalStorage<AgentScope>`:
+`services/policy/agent-scope.ts` (next to the policy that reads it) holds an
+`AsyncLocalStorage<AgentScope>`:
 
 ```ts
 interface AgentScope { runId: string; agent: 'ui-agent' | 'investigation' | 'view-action'; grant?: Grant }
@@ -157,6 +160,7 @@ type Grant = { kind: 'exec'; actionId: string; command: string } | { kind: 'sftp
 runAsAgent(scope, fn)            // both agents wrap their whole run
 runGenAsAgent(scope, genFn)      // re-enters the store on every gen.next(), like withTraceGen
 withGrant(grant, fn)             // the runner wraps exactly one exec / getSftp
+outsideAgentScope(fn)            // server plumbing inside a run (the EX5 sandbox lifecycle)
 ```
 
 - `CommandPolicy.assertAllowed(command)`: if an agent scope is active and there is no
@@ -181,6 +185,9 @@ native list of the likely ~30 tools 80–85%. Shortening descriptions did not he
 
 So actions become **native tools**, one per action (`agent/actions/tools.ts`):
 name = action id, parameters = the params JSON schema, description = the one-liner.
+Action tools use plain JSON Schema (`jsonSchema7` target), so optional fields stay
+optional and defaults stay visible; the shared converter's `openAi` target would mark
+every field required-but-nullable. The runner treats a `null` value as "not given".
 `selectActions(catalog, request, { max, risk })` picks the set for a run: keyword
 score over id/title/description/category (plus category synonyms such as
 "port" → network, "container" → docker), always including a small core
@@ -324,7 +331,7 @@ run → runner.run(change action) → approvals.request(...)  ──► event ap
 | Task ID | Task | Status |
 |---------|------|--------|
 | EX9.0 | Remove `exec_write_command` and `sftp_write` from `ALL_AGENT_TOOLS` (UI Agent can no longer change servers) | ✅ |
-| EX9.1 | Action catalog (40–60 read actions), param validators, quoting, runner, agent scope + CommandPolicy enforcement, action tools + selection; both agents on the runner; free-form read allowlist and `exec_command`/`sftp_read`/`sandbox_exec` retired | ⬜ |
+| EX9.1 | Action catalog (40–60 read actions), param validators, quoting, runner, agent scope + CommandPolicy enforcement, action tools + selection; both agents on the runner; free-form read allowlist and `exec_command`/`sftp_read`/`sandbox_exec` retired | ✅ |
 | EX9.2 | Change actions + ApprovalGate + audit log + ApprovalCard; Stop denies pending; investigation agent "Allow changes (asks first)"; generated view buttons through preview/run | ⬜ |
 | EX9.3 | Shared agent loop with typed events; OllamaProvider; Settings → AI provider choice; weak-model input handling (repair, prose calls, aliases, coercion, short errors) | ⬜ |
 | EX9.4 | Loop guard, context trimming, exec/output caps, benchmark script + fake-provider test | ⬜ |
@@ -337,6 +344,41 @@ run → runner.run(change action) → approvals.request(...)  ──► event ap
 not registered anywhere, so a model that asks for them gets "Unknown tool". Tests:
 the registered set has no `write`-tier tool, and the route's registry rejects both
 names.
+
+## EX9.1 — Catalog, runner, enforcement (as built)
+
+**Catalog: 60 read actions** in `agent/actions/catalog/` — system (9), disk (5),
+process (3), network (9), service (5), logs (4), cron (1), docker (7), packages (2),
+web (3), security (4), files (4), cli (4). Every action's exact command is pinned in
+`tests/agent/actions/catalog.test.ts`; adding an action without a row there fails.
+Notes from building it:
+
+- `user_accounts` reads `/etc/passwd` over SFTP: the classic blocklist refuses any
+  command containing the word `passwd`, and the blocklist applies to granted commands.
+- `docker_*` list actions use `--format '{{json .}}'` and a parser that keeps the useful
+  keys; `docker_inspect` drops `Config.Env` (secrets) and keeps state, restart policy,
+  health, mounts, ports.
+- `cli_locate | cli_help | cli_version | cli_manual` replace the EX5-A.1 discovery
+  regexes and `sandbox_exec`: with an active sandbox they run as
+  `docker exec <sandbox> …`; other actions always run on the host.
+
+**Retired:** the `exec_command`, `sftp_read` and `sandbox_exec` tools; the read-only
+allowlist, pipe filters and `isReadCommandAllowed()` in `agent/command-allowlist.ts`
+(the write allowlist stays for form write-back until EX9.2); guardrails' free-form read
+branches (action tools pass guardrails; the runner validates them).
+
+**UI Agent:** registers the local tools plus one tool per read action and offers 40 per
+run (`ToolContext.offeredActions`, chosen from the request). `get_server_context` runs
+seven actions through the runner. The whole run is an agent scope; the sandbox
+lifecycle runs outside it.
+
+**Investigation agent:** until EX9.3 moves it to native tool calls it keeps structured
+output, now `{ thought, action, params (JSON object as text), answer, decision:
+'run_action' | 'answer' }`. Its system prompt lists 40 selected actions with signatures.
+Bad params, malformed JSON and unknown ids come back to the model as short errors
+("…: expected …, you sent …"; "No such action: x. Closest: …") without touching SSH.
+Progress events carry `action` and the server-built `command`; the client accepts
+`decision: 'run_action'`.
 
 ## Inspiration (read-only sibling repos)
 

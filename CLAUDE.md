@@ -61,8 +61,9 @@ The LLM emits `DynamicViewSchema` JSON (`shared/schemas/dynamic-view.ts`). A gen
   - Progressive output streams as `layout_update` events built by `dynamic-ui/working-view.ts`, over the WebSocket in `routes/agent-ui.ts`.
 - **`agent/investigation-agent.ts`** is the older read-only ReAct agent, served by `routes/agent.ts`.
 - **Agent safety:**
-  - `agent/guardrails.ts` enforces read/write/deny tiers at the tool layer.
-  - `agent/command-allowlist.ts` holds the allowlists.
+  - Agents never send command text (ADR-024, EX9). They call typed actions from `agent/actions/catalog/`; `ActionRunner` validates params, builds argv, quotes it and runs it. A new server-touching capability is a new action plus a row in `tests/agent/actions/catalog.test.ts`.
+  - Agent runs execute in an AsyncLocalStorage scope (`services/policy/agent-scope.ts`). Inside it, `CommandPolicy` refuses any command the runner did not grant, in every policy mode, and `getSftp()` needs a grant. Server plumbing inside a run (the EX5 sandbox lifecycle) goes through `outsideAgentScope()`.
+  - `agent/guardrails.ts` passes action tools through (the runner checks them) and keeps the deny/write tiers for the legacy tools. `agent/command-allowlist.ts` now only guards form write-back.
   - Server writes go through `agent/writeback.ts`: SFTP write, backup, validate command, then rollback if validation fails.
 - **Observatory:** `observatory/context.ts` provides AsyncLocalStorage `withTrace`/`withSpan`. Wrap new LLM or tool calls in them so they appear in the trace UI.
 

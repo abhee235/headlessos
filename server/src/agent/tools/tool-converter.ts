@@ -15,11 +15,20 @@ export function toolsToOpenAIFunctions(tools: AgentTool[]): ChatCompletionTool[]
     function: {
       name: tool.name,
       description: tool.description,
-      parameters: zodToJsonSchema(tool.parameters, {
-        // Strip $schema and other top-level metadata for cleaner output
-        $refStrategy: 'none',
-        target: 'openAi',
-      }) as Record<string, unknown>,
+      parameters: toolParameters(tool),
     },
   }));
+}
+
+function toolParameters(tool: AgentTool): Record<string, unknown> {
+  // EX9.1: action params keep plain JSON Schema — optional fields stay optional and
+  // defaults stay visible. The 'openAi' target marks every field required-but-nullable,
+  // which makes models send null for every default.
+  const schema = zodToJsonSchema(tool.parameters, {
+    $refStrategy: 'none',
+    target: tool.securityTier === 'action' ? 'jsonSchema7' : 'openAi',
+  }) as Record<string, unknown>;
+  // Strip $schema and other top-level metadata for cleaner output
+  delete schema.$schema;
+  return schema;
 }

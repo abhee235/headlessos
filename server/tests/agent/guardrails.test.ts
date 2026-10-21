@@ -14,7 +14,7 @@ import type { AgentTool, ToolResult } from '../../src/agent/tools/types.js';
 
 // ── Test Helpers ────────────────────────────────────────
 
-function makeTool(name: string, tier: 'read' | 'write' | 'local'): AgentTool {
+function makeTool(name: string, tier: AgentTool['securityTier']): AgentTool {
   return {
     name,
     description: `Test tool: ${name}`,
@@ -175,69 +175,14 @@ describe('LOCAL tier', () => {
 // ── READ Tier ───────────────────────────────────────────
 
 describe('READ tier', () => {
-  describe('exec_command', () => {
-    const allowedCommands = [
-      'hostname',
-      'uptime',
-      'cat /proc/cpuinfo',
-      'cat /etc/os-release',
-      'df -h',
-      'free -m',
-      'ps aux',
-      'docker ps',
-      'docker ps -a',
-      'docker images',
-      'ss -tlnp',
-      'ip addr',
-      'systemctl status nginx',
-      'journalctl --no-pager -n 100',
-    ];
-
-    for (const cmd of allowedCommands) {
-      it(`allows: ${cmd}`, () => {
-        const result = checkGuardrails(execRead, { command: cmd });
-        expect(result.allowed).toBe(true);
-        expect(result.tier).toBe('read');
-      });
-    }
-
-    it('allows piped read commands', () => {
-      const result = checkGuardrails(execRead, { command: 'ps aux | grep nginx' });
-      expect(result.allowed).toBe(true);
-    });
-
-    it('rejects non-allowlisted commands', () => {
-      const result = checkGuardrails(execRead, { command: 'echo hello' });
-      expect(result.allowed).toBe(false);
-      expect(result.tier).toBe('read');
-    });
-
-    it('rejects missing command', () => {
-      const result = checkGuardrails(execRead, {});
-      expect(result.allowed).toBe(false);
-    });
-  });
-
-  describe('sftp_read', () => {
-    it('allows any absolute path', () => {
-      const result = checkGuardrails(sftpRead, { path: '/etc/nginx/nginx.conf' });
-      expect(result.allowed).toBe(true);
-    });
-
-    it('rejects relative paths', () => {
-      const result = checkGuardrails(sftpRead, { path: 'relative/path' });
-      expect(result.allowed).toBe(false);
-    });
-
-    it('rejects path traversal', () => {
-      const result = checkGuardrails(sftpRead, { path: '/home/user/../../etc/shadow' });
-      expect(result.allowed).toBe(false);
-    });
-
-    it('rejects missing path', () => {
-      const result = checkGuardrails(sftpRead, {});
-      expect(result.allowed).toBe(false);
-    });
+  // EX9.1 (ADR-024): free-form exec_command / sftp_read are gone; their names are no longer known
+  it.each([
+    ['exec_command', { command: 'hostname' }],
+    ['sftp_read', { path: '/etc/nginx/nginx.conf' }],
+  ])('rejects the retired %s tool', (name, args) => {
+    const result = checkGuardrails(makeTool(name, 'read'), args);
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toContain('Unknown read tool');
   });
 
   describe('get_server_context', () => {
@@ -246,6 +191,21 @@ describe('READ tier', () => {
       expect(result.allowed).toBe(true);
       expect(result.tier).toBe('read');
     });
+  });
+});
+
+// ── ACTION Tier (EX9.1) ─────────────────────────────────
+
+describe('ACTION tier', () => {
+  it('passes catalog action tools through — the ActionRunner validates them', () => {
+    const result = checkGuardrails(makeTool('service_status', 'action'), { unit: 'nginx' });
+    expect(result).toEqual({ allowed: true, tier: 'read' });
+  });
+
+  it('does not apply free-text deny regexes to typed action params', () => {
+    // file_read of /etc/passwd is fine (no hashes); the runner owns the path rules
+    const result = checkGuardrails(makeTool('file_read', 'action'), { path: '/etc/passwd' });
+    expect(result.allowed).toBe(true);
   });
 });
 
