@@ -68,6 +68,7 @@ The LLM emits `DynamicViewSchema` JSON (`shared/schemas/dynamic-view.ts`). A gen
   - Agent runs execute in an AsyncLocalStorage scope (`services/policy/agent-scope.ts`). Inside it, `CommandPolicy` refuses any command the runner did not grant, in every policy mode, and `getSftp()` needs a grant. Server plumbing inside a run (the EX5 sandbox lifecycle) goes through `outsideAgentScope()`.
   - `agent/guardrails.ts` passes action tools through (the runner checks them) and keeps the deny/write tiers for the legacy tools. `agent/command-allowlist.ts` now only guards form write-back.
   - Server writes go through `agent/writeback.ts`: SFTP write, backup, validate command, then rollback if validation fails.
+- **Context (EX10, ADR-025):** `llm/model-limits.ts` resolves a model's window: for Ollama, the lowest of the owner's setting (Auto = 64K), the Modelfile `num_ctx` and the trained length; for hosted models, a table capped at 128K. `agent/context/plan.ts` derives every budget from it: reply reserve, compaction trigger and stop point, result cap, offered actions and prompt tier. Agent loops call `ContextManager.prepare()` before each model call and `observe()` after it, and handle `finishReason: 'length'` and overflow errors through it. Never size a budget from `contextWindow` directly.
 - **Observatory:** `observatory/context.ts` provides AsyncLocalStorage `withTrace`/`withSpan`. Wrap new LLM or tool calls in them so they appear in the trace UI.
 
 ## Client architecture

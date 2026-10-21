@@ -1,11 +1,10 @@
-// EX9.4: loop guard, context trimming, output caps
+// EX9.4: loop guard, output caps (context trimming moved to tests/agent/context/, EX10.2)
 // @see docs/phases/phase-ex9.md §9
 
 import { describe, it, expect, vi } from 'vitest';
 import { EventEmitter } from 'events';
 import { z } from 'zod';
 import { LoopGuard, SAME_RESULT_LIMIT } from '../../../src/agent/loop/loop-guard.js';
-import { estimateTokens, historyBudget, trimHistory } from '../../../src/agent/loop/context.js';
 import { runAgentLoop, type LoopEvent } from '../../../src/agent/loop/run-loop.js';
 import { ConnectionManager } from '../../../src/ssh/connection-manager.js';
 import { ActionRunner, channelCap } from '../../../src/agent/actions/runner.js';
@@ -66,52 +65,6 @@ describe('LoopGuard', () => {
     g.foldNarration(text); g.foldNarration(text);
     expect(g.foldNarration(text)).toMatchObject({ kind: 'stop' });
     expect(g.foldNarration('ok')).toBeNull(); // too short to judge
-  });
-});
-
-describe('context trimming', () => {
-  const big = 'x'.repeat(4000);
-  const history = (): ChatMessage[] => {
-    const m: ChatMessage[] = [{ role: 'system', content: 's' }, { role: 'user', content: 'question' }];
-    for (let i = 0; i < 6; i++) {
-      m.push({ role: 'assistant', content: null, tool_calls: [{ id: `c${i}`, type: 'function', function: { name: `act_${i}`, arguments: '{}' } }] });
-      m.push({ role: 'tool', tool_call_id: `c${i}`, content: big });
-    }
-    return m;
-  };
-
-  it('leaves a history that fits alone', () => {
-    const m = history();
-    expect(trimHistory(m, 100_000)).toBe(m);
-  });
-
-  it('stubs older tool results first, keeping the latest four whole', () => {
-    const m = history();
-    const out = trimHistory(m, 4_600);
-    const tools = out.filter((x) => x.role === 'tool').map((x) => x.content!);
-    expect(tools.slice(0, 2)).toEqual([
-      '[output trimmed — act_0, 4000 chars; run it again if you need it]',
-      '[output trimmed — act_1, 4000 chars; run it again if you need it]',
-    ]);
-    expect(tools.slice(2).every((t) => t === big)).toBe(true);
-    expect(estimateTokens(out)).toBeLessThanOrEqual(4_600);
-  });
-
-  it('then drops the oldest call/result pairs, never the question, never orphaning a result', () => {
-    const out = trimHistory(history(), 1_200);
-    expect(out[0]).toEqual({ role: 'system', content: 's' });
-    expect(out[1]).toEqual({ role: 'user', content: 'question' });
-    expect(out[2]!.content).toContain('Earlier steps were removed');
-    const callIds = new Set(out.flatMap((x) => x.tool_calls?.map((t) => t.id) ?? []));
-    for (const t of out.filter((x) => x.role === 'tool')) expect(callIds.has(t.tool_call_id!)).toBe(true);
-    expect(out.filter((x) => x.role === 'assistant').length).toBeGreaterThan(0); // the latest turn stays
-    // trimming again does not stack notes
-    expect(trimHistory(out, 1_200).filter((x) => x.content?.includes('Earlier steps were removed'))).toHaveLength(1);
-  });
-
-  it('budgets the window less a reply reserve and the tool list', () => {
-    expect(historyBudget(8192, 1000)).toBe(8192 - 2048 - 1000);
-    expect(historyBudget(undefined, 0)).toBe(128_000 - 4096);
   });
 });
 

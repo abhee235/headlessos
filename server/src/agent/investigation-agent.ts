@@ -23,6 +23,8 @@ import type { ApprovalGate } from './actions/approvals.js';
 import type { ActionRunResult } from './actions/types.js';
 import type { ToolContext } from './tools/types.js';
 import { runAgentLoop } from './loop/run-loop.js';
+import { planForProvider } from './context/plan.js';
+import { chatSummarizer } from './context/manager.js';
 
 // ── Agent Step (public) ─────────────────────────────────
 
@@ -218,7 +220,9 @@ export class InvestigationAgent {
       maxTurns: maxSteps,
       isAborted: () => this.abortedSessions.has(sessionId),
       spanName: 'InvestigationAgent',
-      contextWindow: provider.contextWindow,
+      // EX10.2: compaction planned from the model's real window; old steps summarized by the same model
+      plan: planForProvider(provider),
+      summarize: chatSummarizer((input) => provider.chatWithTools!(input)),
     })) {
       switch (ev.type) {
         case 'turn':
@@ -266,8 +270,8 @@ export class InvestigationAgent {
             status = 'aborted';
             answer = 'Investigation aborted by user.';
           } else {
-            // EX9.4: a run stopped for repeating itself ends like one that ran out of steps
-            status = ev.reason === 'max_turns' || ev.reason === 'stuck' ? 'max_steps_reached' : 'completed';
+            // EX9.4: a run stopped for repeating itself (or EX10.2: for cut-off replies) ends like one out of steps
+            status = ev.reason === 'max_turns' || ev.reason === 'stuck' || ev.reason === 'length' ? 'max_steps_reached' : 'completed';
             answer = ev.text;
             const headline = ev.text.split('\n').find((l) => l.trim())?.trim().slice(0, 120) ?? 'Answer';
             emit({ kind: 'thought', step: stepNo + 1, thought: headline, decision: 'answer' });

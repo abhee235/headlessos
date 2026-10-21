@@ -43,8 +43,10 @@ describe('runAgentLoop', () => {
       .mockResolvedValueOnce(reply('thinking', [{ name: 'echo', args: '{"text":"hi"}' }]))
       .mockResolvedValueOnce(reply('done'));
     const events = await collect(runAgentLoop({ chat, system: 's', user: 'u', tools: [echoTool()], context: ctx(), maxTurns: 5 }));
-    expect(events.map((e) => e.type)).toEqual(['turn', 'assistant_text', 'tool_call', 'tool_result', 'turn', 'assistant_text', 'final']);
-    expect(events[3]).toMatchObject({ type: 'tool_result', name: 'echo', ok: true, output: 'said hi' });
+    // EX10.2 'context' events (occupancy after each call) are covered in tests/agent/context/
+    const seen = events.filter((e) => e.type !== 'context');
+    expect(seen.map((e) => e.type)).toEqual(['turn', 'assistant_text', 'tool_call', 'tool_result', 'turn', 'assistant_text', 'final']);
+    expect(seen[3]).toMatchObject({ type: 'tool_result', name: 'echo', ok: true, output: 'said hi' });
     expect(events.at(-1)).toMatchObject({ type: 'final', text: 'done', reason: 'answered', turns: 2, tokens: 10 });
     // the result went back as a tool message paired with the call
     expect(chat.mock.calls[1]![0].messages.at(-1)).toEqual({ role: 'tool', tool_call_id: 'c0', content: 'said hi' });
@@ -91,7 +93,7 @@ describe('runAgentLoop', () => {
       events.push(e);
       if (e.type === 'approval_required') queueMicrotask(() => gate.resolve(e.request.approvalId, 'allow'));
     }
-    expect(events.map((e) => e.type)).toEqual(['turn', 'tool_call', 'approval_required', 'approval_resolved', 'tool_result', 'turn', 'assistant_text', 'final']);
+    expect(events.filter((e) => e.type !== 'context').map((e) => e.type)).toEqual(['turn', 'tool_call', 'approval_required', 'approval_resolved', 'tool_result', 'turn', 'assistant_text', 'final']);
     expect(ssh.exec).toHaveBeenCalledWith('srv', 'sudo -n systemctl restart -- nginx', 60_000, expect.anything());
     expect(events.find((e) => e.type === 'tool_result')).toMatchObject({ ok: true, metadata: { approval: { decision: 'allow' } } });
   });

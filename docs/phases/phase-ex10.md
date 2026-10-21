@@ -107,8 +107,8 @@ estimate, so the `chars / 4` guess is corrected by what the model actually count
 ```
 reserve         = min(20 000, maxOutput, floor(window × 0.25))
 effectiveWindow = window − reserve
-trigger         = floor(max(0.7 × window, effectiveWindow − 13 000))
-                  if maxOutput + 1024 < window / 2: trigger = min(trigger, window − maxOutput − 1024)
+trigger         = max(floor(window / 4),
+                      min(floor(max(0.7 × window, effectiveWindow − 13 000)), window − maxOutput − 1024))
 hard            = min(window, max(effectiveWindow − 3 000, trigger + 3 000))
 keepRecent      = floor(effectiveWindow × 0.25)            tokens kept verbatim at the end
 stopAt          = local: min(trigger, max(keepRecent + min(2000, window/8), floor(window × 0.55)))
@@ -153,12 +153,15 @@ well below the trigger). Hosted models compact just enough.
      one user message: `[Original request]` verbatim, the summary, and the latest owner
      instruction. Optional: without a summarizer, or after 3 failures in a row (breaker),
      the older region is dropped with a note instead.
-  5. **Survival** — if still at or over `hard`: the recency shield drops to one group and
-     the oldest groups are dropped.
+  5. **Drop** — the oldest groups before the shield go, with one note saying so.
+  6. **Survival** — if still at or over `hard`, or the compaction was forced: the recency
+     shield drops to one group, its older results are stubbed and older groups dropped.
 
   Kept always: the system prompt, the first user message, the latest four tool calls with
-  their results (the recency shield), and every tool result's own call. A compaction that
-  does not shrink the history is discarded.
+  their results (the recency shield, one in survival), and every tool result's own call.
+  A layer that does not shrink the history is skipped. A forced compaction (after an
+  overflow error) aims for 60% of the estimate or `stopAt`, whichever is lower: the
+  provider has just said the estimate was too low.
 - `observe(realInputTokens, sentEstimate)` after every call: calibrates the overhead (§1).
 - `onLength()` when a reply stopped at the output limit without a usable tool call: up to 3
   times, add "Your last reply was cut off at the output limit. Send your next step as ONE
@@ -244,7 +247,7 @@ default rate: they show no cost.
 | Task ID | Task | Status |
 |---------|------|--------|
 | EX10.1 | Model limits: min(owner setting, Modelfile `num_ctx`, trained length, 64K auto cap); hosted table; `num_ctx` / `num_predict` / `think: false` on the wire; KV estimate + CPU-spill check; Settings → AI context window | ✅ |
-| EX10.2 | Context plan + context manager (layered compaction, calibration, length/overflow handling, events) in the shared loop; EX9.4 trimming and EX2.13 context manager retired | ⬜ |
+| EX10.2 | Context plan + context manager (layered compaction, calibration, length/overflow handling, events) in the shared loop; EX9.4 trimming and EX2.13 context manager retired | ✅ |
 | EX10.3 | Window tiers for both agents' system prompts; offered actions, result caps and reviewer input from the plan | ⬜ |
 | EX10.4 | UI Agent executor on the context manager; cut-off handling; stop with the last good view and an honest reason | ⬜ |
 | EX10.5 | View tools: object or string, JSON repair, error position, no echo of the view, short outputs | ⬜ |
@@ -292,6 +295,41 @@ insets as above; 20 px to the card above and to the Save button. The first descr
 wrapped to two lines (80.5 px row); it was shortened to one line and re-measured at
 62.5 px. Only GET requests reached `/api/llm`. Session file: only `lastActiveAt` /
 `nextZIndex` changed; the probe's Settings window was the only one closed.
+
+## EX10.2 — Context plan and manager (as built)
+
+`server/src/agent/context/`:
+- `plan.ts` — `planContext(limits)`, `planForProvider(provider)`, `windowTier(window)`.
+- `tokens.ts` — `estimateTokens(messages)`, `estimateText`, `estimateToolsTokens(tools)`
+  (tool list JSON / 4 + 256 for the chat template).
+- `layers.ts` — pure layers: `collapseViews`, `stubResults`, `dropOldest`, `transcriptOf`, plus
+  `headLength` / `groupsOf` / `shieldFrom` / `recentFrom`.
+- `manager.ts` — `ContextManager` (`prepare`, `observe`, `used`, `lengthStrike` / `resetLength`,
+  `isOverflowError`), `chatSummarizer(chat)` and `SUMMARY_SYSTEM`.
+
+The wire wall differs from an earlier agent project on purpose: an earlier agent project applies `window − maxOutput − 1024`
+only when the reply cap is under half the window, which on a 4K window with a 2K reply
+lets prompt + reply overflow. Here it always applies, with a floor of a quarter of the
+window. The worked numbers in §2 are unchanged by this.
+
+**Shared loop** (`agent/loop/run-loop.ts`): `LoopOptions.plan` and `summarize` replace
+`contextWindow` (still accepted, planned like a hosted model). Before every model call,
+including the final tools-off turn, `prepare()` runs and its result becomes the history.
+After every call, `observe()` runs and the loop yields
+`context { used, window, trigger }` (the provider's prompt count when it gave one). Each
+compaction yields `compacted { layer, before, after, forced }`. The LLM span gets
+`attributes.contextUsed / contextWindow / contextTrigger / finishReason`.
+- A `length` stop without a tool call drops the cut-off text and sends `CUT_OFF`. After
+  three in a row, the run ends with a tools-off "answer in at most five sentences" turn
+  (`final.reason: 'length'`, reported as `max_steps_reached`).
+- An overflow error forces a compaction and retries the call, at most twice.
+
+**Investigation agent:** `plan: planForProvider(provider)`;
+`summarize: chatSummarizer(provider.chatWithTools)`, which uses the same model with a
+1,024-token reply cap; the provider adds `think: false` on Ollama.
+
+**Retired:** `agent/loop/context.ts` (EX9.4 `historyBudget` / `trimHistory`), and
+`agent/context-manager.ts` (EX2.13), which was never imported, with its test.
 
 ## Inspiration (read-only sibling repos)
 
