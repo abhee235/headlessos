@@ -1,5 +1,6 @@
 // EX9.3: Ollama provider — local models through the same LLMProvider interface
 // EX10.1: num_ctx / num_predict from the model's limits, think: false on every request
+// EX10.1 follow-up: replies stream; the timeout is for silence, never for a long reply
 // @see docs/phases/phase-ex9.md §8, docs/phases/phase-ex10.md §1, docs/DECISIONS.md (ADR-024, ADR-025)
 //
 // POST {baseUrl}/api/chat, stream: false. Tools are passed in the OpenAI function
@@ -20,12 +21,15 @@ import type {
   ParseTextInput,
   ToolCall,
 } from '../provider.js';
-import { SYSTEM_PROMPT, buildTextPrompt } from '../provider.js';
+import { LLMTimeoutError, SYSTEM_PROMPT, buildTextPrompt } from '../provider.js';
 import { extractProseToolCalls, parseToolArgs, repairJson } from '../../agent/loop/tool-input.js';
 import { DEFAULT_LOCAL_WINDOW, recommendedMaxOutput, type ModelLimits } from '../model-limits.js';
 
 export const DEFAULT_OLLAMA_URL = 'http://127.0.0.1:11434';
-const REQUEST_TIMEOUT_MS = 120_000;
+/** EX10.1 follow-up: until the first chunk — loading the model and reading a long prompt */
+export const FIRST_CHUNK_TIMEOUT_MS = 180_000;
+/** EX10.1 follow-up: between chunks once the reply is coming (about one token per chunk) */
+export const IDLE_TIMEOUT_MS = 60_000;
 const PROBE_TIMEOUT_MS = 5_000;
 
 type Fetch = typeof fetch;
@@ -37,7 +41,10 @@ export interface OllamaOptions {
   limits?: ModelLimits;
   /** a fixed window when no limits were resolved (tests) */
   contextWindow?: number;
-  timeoutMs?: number;
+  /** EX10.1 follow-up: wait this long for the first chunk (default 180 s) */
+  firstChunkTimeoutMs?: number;
+  /** EX10.1 follow-up: wait this long between chunks (default 60 s) */
+  idleTimeoutMs?: number;
   fetch?: Fetch;
 }
 
@@ -112,7 +119,8 @@ export class OllamaProvider implements LLMProvider {
   readonly model: string;
   readonly baseUrl: string;
   readonly limits: ModelLimits;
-  private readonly timeoutMs: number;
+  private readonly firstChunkMs: number;
+  private readonly idleMs: number;
   private readonly fetchImpl: Fetch;
   /** EX10.1: this model rejected the `think` field once; stop sending it */
   private thinkUnsupported = false;
@@ -127,7 +135,8 @@ export class OllamaProvider implements LLMProvider {
       maxOutputTokens: recommendedMaxOutput(window),
       local: true,
     };
-    this.timeoutMs = opts.timeoutMs ?? REQUEST_TIMEOUT_MS;
+    this.firstChunkMs = opts.firstChunkTimeoutMs ?? FIRST_CHUNK_TIMEOUT_MS;
+    this.idleMs = opts.idleTimeoutMs ?? IDLE_TIMEOUT_MS;
     this.fetchImpl = opts.fetch ?? fetch;
   }
 
@@ -226,40 +235,144 @@ export class OllamaProvider implements LLMProvider {
   /**
    * EX10.1: every request runs at the model's one window (num_ctx), with the reply capped
    * (num_predict) and thinking off. A model that rejects `think` is asked again without it.
+   * EX10.1 follow-up: the reply streams. It times out only on silence — no first chunk
+   * within 180 s, or none for 60 s after that — so a long reply that keeps coming is never
+   * cut (a fixed 120 s cut a 6,920-token reply on 2026-10-22).
    */
   private async chat(body: { messages: OllamaMessage[]; tools?: unknown; format?: unknown; options?: Record<string, unknown> }): Promise<OllamaChatResponse> {
-    const send = async (withThink: boolean): Promise<Response> => {
-      try {
-        return await this.fetchImpl(`${this.baseUrl}/api/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: this.model,
-            stream: false,
-            ...(withThink ? { think: false } : {}),
-            ...body,
-            options: { num_ctx: this.limits.contextWindow, num_predict: this.limits.maxOutputTokens, ...body.options },
-          }),
-          signal: AbortSignal.timeout(this.timeoutMs),
-        });
-      } catch (err) {
+    const send = (withThink: boolean, watch: Watchdog): Promise<Response> =>
+      this.fetchImpl(`${this.baseUrl}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: this.model,
+          stream: true,
+          ...(withThink ? { think: false } : {}),
+          ...body,
+          options: { num_ctx: this.limits.contextWindow, num_predict: this.limits.maxOutputTokens, ...body.options },
+        }),
+        signal: watch.signal,
+      }).catch((err: unknown) => {
+        watch.stop();
+        if (watch.fired) throw this.timeout(watch);
         throw new Error(`Ollama is not reachable at ${this.baseUrl}: ${err instanceof Error ? err.message : String(err)}`);
-      }
-    };
-    let res = await send(!this.thinkUnsupported);
+      });
+
+    let watch = new Watchdog(this.firstChunkMs);
+    let res = await send(!this.thinkUnsupported, watch);
     if (!res.ok && res.status === 400 && !this.thinkUnsupported) {
       const detail = await res.clone().text().catch(() => '');
       if (/think/i.test(detail)) {
         this.thinkUnsupported = true;
-        res = await send(false);
+        watch.stop();
+        watch = new Watchdog(this.firstChunkMs);
+        res = await send(false, watch);
       }
     }
     if (!res.ok) {
+      watch.stop();
       const detail = await res.text().catch(() => '');
       throw new Error(`Ollama answered ${res.status}: ${detail.slice(0, 200)}`);
     }
-    return (await res.json()) as OllamaChatResponse;
+    try {
+      return await readChatStream(res, () => watch.arm(this.idleMs), watch);
+    } catch (err) {
+      if (watch.fired) throw this.timeout(watch);
+      throw err;
+    } finally {
+      watch.stop();
+    }
   }
+
+  private timeout(watch: Watchdog): LLMTimeoutError {
+    return watch.chunks === 0
+      ? new LLMTimeoutError(
+        `Ollama did not start answering within ${Math.round(this.firstChunkMs / 1000)} s (${this.model} may still be loading, or the prompt is very long)`,
+        'first-token',
+      )
+      : new LLMTimeoutError(
+        `Ollama stopped sending for ${Math.round(this.idleMs / 1000)} s, ${watch.chunks} tokens into the reply`,
+        'idle',
+        watch.chunks,
+      );
+  }
+}
+
+// ── Streaming (EX10.1 follow-up) ────────────────────────
+
+/** Aborts a request when no chunk arrives within the current allowance */
+class Watchdog {
+  private readonly controller = new AbortController();
+  private timer: ReturnType<typeof setTimeout> | undefined;
+  fired = false;
+  chunks = 0;
+
+  constructor(firstMs: number) {
+    this.arm(firstMs);
+  }
+
+  get signal(): AbortSignal {
+    return this.controller.signal;
+  }
+
+  arm(ms: number): void {
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => {
+      this.fired = true;
+      this.controller.abort();
+    }, ms);
+  }
+
+  stop(): void {
+    clearTimeout(this.timer);
+  }
+}
+
+interface OllamaStreamChunk extends OllamaChatResponse {
+  done?: boolean;
+  error?: string;
+}
+
+/**
+ * Ollama's NDJSON reply, assembled: content chunks joined, tool calls collected, the
+ * final chunk's done_reason and counts kept. A body without a stream (a mocked fetch)
+ * is read as one JSON object.
+ */
+async function readChatStream(res: Response, onChunk: () => void, watch: { chunks: number }): Promise<OllamaChatResponse> {
+  const body = res.body as ReadableStream<Uint8Array> | null | undefined;
+  if (!body || typeof body.getReader !== 'function') return (await res.json()) as OllamaChatResponse;
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  const out: OllamaChatResponse = { message: { role: 'assistant', content: '' } };
+  const toolCalls: NonNullable<NonNullable<OllamaChatResponse['message']>['tool_calls']> = [];
+  let buffer = '';
+  const apply = (line: string) => {
+    if (!line.trim()) return;
+    const chunk = JSON.parse(line) as OllamaStreamChunk;
+    if (chunk.error) throw new Error(`Ollama answered: ${chunk.error}`);
+    if (chunk.model) out.model = chunk.model;
+    if (chunk.message?.content) out.message!.content += chunk.message.content;
+    if (chunk.message?.tool_calls?.length) toolCalls.push(...chunk.message.tool_calls);
+    if (chunk.done) {
+      out.done_reason = chunk.done_reason;
+      out.prompt_eval_count = chunk.prompt_eval_count;
+      out.eval_count = chunk.eval_count;
+    }
+  };
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    watch.chunks++;
+    onChunk();
+    buffer += decoder.decode(value, { stream: true });
+    for (let nl = buffer.indexOf('\n'); nl >= 0; nl = buffer.indexOf('\n')) {
+      apply(buffer.slice(0, nl));
+      buffer = buffer.slice(nl + 1);
+    }
+  }
+  apply(buffer + decoder.decode());
+  if (toolCalls.length) out.message!.tool_calls = toolCalls;
+  return out;
 }
 
 /** OpenAI-shaped history → Ollama messages (tool results carry the tool's name). */

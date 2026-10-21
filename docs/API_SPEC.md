@@ -868,6 +868,7 @@ where `limits = { contextWindow, source: "owner"|"modelfile"|"trained"|"auto-cap
 (`onCpu`: part of the model runs on the CPU), and always `contextOptions` (the windows
 the owner can choose).
 Switching back to `{ provider: "openai", model }` needs no key while one is saved.
+Requests to Ollama stream (`stream: true`) and time out only on silence: 180 s for the first chunk, 60 s between chunks (EX10.1 follow-up).
 
 ### `GET /api/llm/ollama/models?baseUrl=…&allowRemote=true`
 

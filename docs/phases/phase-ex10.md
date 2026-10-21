@@ -330,6 +330,26 @@ wrapped to two lines (80.5 px row); it was shortened to one line and re-measured
 62.5 px. Only GET requests reached `/api/llm`. Session file: only `lastActiveAt` /
 `nextZIndex` changed; the probe's Settings window was the only one closed.
 
+**Follow-up (§8b fix 2).** `OllamaProvider.chat` sends `stream: true` and assembles the
+NDJSON reply (`readChatStream`):
+- content chunks are joined and tool calls collected;
+- the final chunk gives `done_reason` and the counts;
+- an `{"error": …}` line throws "Ollama answered: …";
+- a mocked response without a stream body is read as one JSON object.
+
+A `Watchdog` aborts on silence only:
+- 180 s for the first chunk (`FIRST_CHUNK_TIMEOUT_MS`, option `firstChunkTimeoutMs`);
+- 60 s between chunks after that (`IDLE_TIMEOUT_MS`, `idleTimeoutMs`).
+
+The fixed 120 s `timeoutMs` is gone. Timeouts throw `LLMTimeoutError`
+(`llm/provider.ts`, with `phase` and `received`) instead of "not reachable":
+- "Ollama did not start answering within 180 s (ornith:latest may still be loading, or the
+  prompt is very long)";
+- "Ollama stopped sending for 60 s, N tokens into the reply".
+
+"Not reachable" is now only for a failed connection. Streaming was tested against the
+NDJSON format with mocked streams; no model was run here.
+
 ## EX10.2 — Context plan and manager (as built)
 
 `server/src/agent/context/`:

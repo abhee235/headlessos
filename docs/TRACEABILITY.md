@@ -1159,6 +1159,14 @@ None (all changes to existing files).
 - **Tests modified:** `server/tests/agent/tools/view-arg.test.ts`
 - **Verification:** 9 of the 10 failed strings from the 2026-10-22 traces repair into valid views (replayed locally); server suite and `tsc -p server` clean
 
+### EX10.1 follow-up: streaming with a silence timeout
+- **Status:** ✅ Complete
+- **Date:** 2026-10-22
+- **Files modified:** `server/src/llm/providers/ollama.ts` (`stream: true`, `readChatStream`, `Watchdog`, `firstChunkTimeoutMs` / `idleTimeoutMs`, accurate errors), `server/src/llm/provider.ts` (`LLMTimeoutError`, `isLLMTimeout`)
+- **Docs:** `docs/phases/phase-ex10.md` (§8b, EX10.1 follow-up note), `docs/API_SPEC.md`
+- **Tests modified:** `server/tests/llm/ollama.test.ts` (streamed assembly, length stop, long reply not cut, idle and first-token timeouts, refused connection, error line)
+- **Verification:** server suite and `tsc -p server` clean
+
 ## How to Use This File
 
 ### After completing a task:
