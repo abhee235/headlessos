@@ -268,6 +268,24 @@ run → runner.run(change action) → approvals.request(...)  ──► event ap
   `http://127.0.0.1:11434`) and model. Stored in `~/.headlessos/llm.json` (no secret).
   A non-loopback Ollama URL needs an explicit confirm (prompts and server output leave
   the machine).
+  - `llm.json` keeps the encrypted OpenAI key when Ollama is chosen, so switching back
+    needs no re-entry: `{ provider: 'openai' | 'ollama', model?, apiKey?, ollama?: { baseUrl, model, allowRemote } }`.
+  - `PUT /api/llm/config` accepts `{ provider: 'ollama', ollama: { baseUrl, model, allowRemote? } }`.
+    The server checks the URL (http/https, loopback unless `allowRemote`), asks
+    `GET /api/tags` (5 s) and refuses to switch if Ollama is not reachable or the model is
+    not installed. `GET /api/llm/ollama/models?baseUrl=…` lists installed models for the
+    picker, under the same URL rule.
+  - One provider for everything: the pipeline, the investigation agent, Dynamic UI, and
+    the UI Agent's router — `ModelRouter.useProvider(p)` routes every role to the local
+    model (and `useProvider(null)` goes back to the OpenAI role models).
+  - **Tool budget:** `LLMProvider.contextWindow` (Ollama: from `/api/show`, else
+    `num_ctx`, default 8192). Actions offered per run =
+    `clamp(floor(0.10 × contextWindow / 120), 8, 40)`; OpenAI stays at 40.
+- **Investigation agent on the loop:** native tool calls replace the structured-output
+  thought. Each tool call is one recorded step (`stepNumber` counts calls); `maxSteps`
+  counts model turns. The step's thought is the model's text for that turn, or the
+  action's title when it sent none. Progress events keep their shapes (`thought`,
+  `step`, `approval`, `approval_resolved`), so the client does not change.
 - **Weak-model input handling** (`agent/loop/tool-input.ts`), in this order:
   1. Arguments may arrive as an object or a string. Strings are parsed; on failure a
      repair ladder runs, re-parsing after each step: cut to the outermost `{…}`,
@@ -333,7 +351,7 @@ run → runner.run(change action) → approvals.request(...)  ──► event ap
 | EX9.0 | Remove `exec_write_command` and `sftp_write` from `ALL_AGENT_TOOLS` (UI Agent can no longer change servers) | ✅ |
 | EX9.1 | Action catalog (40–60 read actions), param validators, quoting, runner, agent scope + CommandPolicy enforcement, action tools + selection; both agents on the runner; free-form read allowlist and `exec_command`/`sftp_read`/`sandbox_exec` retired | ✅ |
 | EX9.2 | Change actions + ApprovalGate + audit log + ApprovalCard; Stop denies pending; investigation agent "Allow changes (asks first)"; generated view buttons through preview/run | ✅ |
-| EX9.3 | Shared agent loop with typed events; OllamaProvider; Settings → AI provider choice; weak-model input handling (repair, prose calls, aliases, coercion, short errors) | ⬜ |
+| EX9.3 | Shared agent loop with typed events; OllamaProvider; Settings → AI provider choice; weak-model input handling (repair, prose calls, aliases, coercion, short errors) | ✅ |
 | EX9.4 | Loop guard, context trimming, exec/output caps, benchmark script + fake-provider test | ⬜ |
 | EX9.5 | (Optional) agent login per server, untrusted-data marking, secret redaction | ⬜ |
 
@@ -445,6 +463,58 @@ exist; only Deny was clicked) — card inset 24.7 px on all sides, 12 px between
 command, details and buttons, Deny→Allow 8 px, Allow flush right, the dialog's close
 button 20 px clear of the title, Allow focused; the audit log got `asked` then
 `answered deny`, no `ran`. Session files unchanged apart from `lastActiveAt`/`nextZIndex`.
+
+## EX9.3 — Shared loop and local models (as built)
+
+**Input handling** (`agent/loop/tool-input.ts`): `parseToolArgs` (object or string; repair
+ladder: outermost object, trailing commas, bare keys, single quotes, truncation),
+`extractProseToolCalls` (```json fences, `<tool_call>` blocks, arrays, OpenAI-shaped
+objects; only offered tools, case-insensitive), `normalizeKeys` (case/dash folding, then
+`GENERIC_ALIASES` and per-action `aliases`; fills only missing keys, never from a real
+schema key) and `malformedArgsMessage`. The runner validates once, retries once with
+renamed keys, and reads text as meant: numbers, booleans, JSON arrays/objects, and a
+space-separated word list for array params (`"compose up"` → `["compose","up"]`).
+
+**Loop** (`agent/loop/run-loop.ts`): `runAgentLoop` yields `turn`, `assistant_text`,
+`tool_call`, `tool_result`, `approval_required`, `approval_resolved`, `final` (`answered |
+max_turns | aborted`) and `error`. Every call goes through `executeToolCall` (case-
+insensitive lookup with "Closest:" hints, repair, guardrails, Observatory TOOL span
+`action:<id>`). Approval events stream out while a change action waits. A turn with
+neither text nor a call gets a nudge; when turns run out, one more turn with
+`tool_choice: 'none'` asks for a conclusion. Each model call gets a copy of the history.
+
+**Investigation agent** runs on the loop: native tools (selected reads + change actions
+when allowed; the other reads stay callable), `maxSteps` counts turns, each tool call is
+a step. It needs a provider with `chatWithTools`.
+
+**UI Agent executor** keeps its own loop (view building, layout events) but repairs
+arguments with `parseToolArgs`, explains unrepairable ones with `malformedArgsMessage`,
+and runs prose tool calls. Its offered action count is `actionBudget(router.toolProvider)`.
+
+**OllamaProvider** (`llm/providers/ollama.ts`) implements `LLMProvider`:
+`chatWithTools` (`/api/chat`, tools, object arguments → JSON strings, tool results named
+by `tool_name`, prose fallback), `parseText` (`format: <JSON schema>`, plain text for a
+string schema, JSON repair), `parseImage` (images field). `checkOllamaUrl`,
+`listOllamaModels` (`/api/tags`, 5 s) and `ollamaContextWindow` (`/api/show`, capped at
+16 384, default 8 192). `ModelRouter.useProvider(p)` routes every role to it; cost is 0.
+
+**Settings → AI**: a third provider row, "Ollama — a model running on this computer";
+URL field (mono), a consent switch when the host is not loopback (models are listed only
+after consent), the installed models with size/family/GB, Save disabled until a model is
+picked. Status shows `Ollama <url> · <context> tokens` and hides the API-key row.
+`llm.json` keeps the OpenAI key/model while Ollama is chosen and vice versa; the route
+keeps the OpenAI provider in memory, so switching back needs no key. A saved Ollama
+choice is restored at boot (`index.ts`).
+
+**Verified in Playwright** (1440×900, local Ollama with 7 models): sections 20 px apart and
+equal width; the Ollama card's insets match the page (22.7 px top/bottom, 24.6 px sides,
+16 px between title, URL, consent and note); provider and model rows 52 / 62.5 px like the
+other rows; status rows 52 px, values 24.7 px from the edge, no overflow. The consent
+switch was 1 px off-centre against its label (`items-start`) and the note gave no reason
+for the empty list: both fixed (now centred, "Its models are listed once you allow
+sending to that machine"). During the check a `PUT /api/llm/config` choosing
+`ornith:latest` was sent from the Playwright window, though the probe clicked only the
+provider row; it was left as is and reported.
 
 ## Inspiration (read-only sibling repos)
 

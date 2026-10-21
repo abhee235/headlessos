@@ -484,4 +484,36 @@ describe('ModelRouter', () => {
       expect(router.hasProvider('reasoning')).toBe(false);
     });
   });
+
+  // EX9.3: one local model for every role
+  describe('useProvider (Ollama)', () => {
+    const local = {
+      name: 'ollama', model: 'qwen3:8b', contextWindow: 8192,
+      parseText: vi.fn(), parseImage: vi.fn(),
+      chatWithTools: vi.fn().mockResolvedValue({
+        message: { role: 'assistant', content: 'ok' }, tokensUsed: { input: 10, output: 2 }, latencyMs: 5, model: 'qwen3:8b', finishReason: 'stop',
+      }),
+    };
+
+    it('routes every role to the local model and back', async () => {
+      const router = await createRouter();
+      router.useProvider(local as never);
+      for (const role of ['reasoning', 'structured-output', 'fast', 'weak'] as const) {
+        expect(router.getModel(role)).toBe(local);
+      }
+      expect(router.getModelMap()).toEqual({ reasoning: 'qwen3:8b', 'structured-output': 'qwen3:8b', fast: 'qwen3:8b', weak: 'qwen3:8b' });
+      expect(router.toolProvider?.contextWindow).toBe(8192);
+      await router.chat({ messages: [{ role: 'user', content: 'hi' }] });
+      expect(local.chatWithTools).toHaveBeenCalled();
+      router.useProvider(null);
+      expect(router.getModel('fast').name).toBe('openai');
+    });
+
+    it('counts as configured without an OpenAI key', async () => {
+      const router = new ModelRouter('model-router', { apiKey: '' });
+      expect(router.hasApiKey()).toBe(false);
+      router.useProvider(local as never);
+      expect(router.hasApiKey()).toBe(true);
+    });
+  });
 });

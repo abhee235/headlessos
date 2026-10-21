@@ -404,29 +404,18 @@ describe('InvestigationAgent tracing (EX4-B.2)', () => {
   it('investigate() creates a trace with LLM and TOOL child spans', async () => {
     const { InvestigationAgent } = await import('../../src/agent/investigation-agent.js');
 
+    // EX9.3: native tool calls on the shared loop
     const mockLLM = {
-      parseText: vi.fn()
-        // First call: decide to run an action (EX9.1)
+      name: 'openai',
+      model: 'fake',
+      chatWithTools: vi.fn()
         .mockResolvedValueOnce({
-          data: {
-            thought: 'Let me check disk usage',
-            action: 'disk_usage',
-            params: '{}',
-            answer: null,
-            decision: 'run_action',
-          },
-          tokensUsed: { input: 100, output: 50 },
+          message: { role: 'assistant', content: 'Let me check disk usage', tool_calls: [{ id: 'c1', type: 'function', function: { name: 'disk_usage', arguments: '{}' } }] },
+          tokensUsed: { input: 100, output: 50 }, latencyMs: 1, model: 'fake', finishReason: 'tool_calls',
         })
-        // Second call: provide answer
         .mockResolvedValueOnce({
-          data: {
-            thought: 'I see the disk is 80% full',
-            action: null,
-            params: null,
-            answer: 'Disk is 80% full on /dev/sda1',
-            decision: 'answer',
-          },
-          tokensUsed: { input: 200, output: 75 },
+          message: { role: 'assistant', content: 'Disk is 80% full on /dev/sda1' },
+          tokensUsed: { input: 200, output: 75 }, latencyMs: 1, model: 'fake', finishReason: 'stop',
         }),
     };
 

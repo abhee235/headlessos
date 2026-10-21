@@ -2,21 +2,28 @@
 // EX8.20: GPT-6 Luna is the default; a model change without a key keeps the key in memory
 // EX8.21: changes reach the agents and Dynamic UI through onChange
 // EX8.22: saved encrypted to ~/.headlessos/llm.json, so they survive restarts
-// @see docs/PROGRESS.md
+// EX9.3: Ollama (a local model) as a second provider; the OpenAI key stays in memory
+// @see docs/PROGRESS.md, docs/phases/phase-ex9.md §8
 
 import type { FastifyInstance } from 'fastify';
 import type { ParsingPipeline } from '../parsers/pipeline.js';
 import type { LLMProvider } from '../llm/provider.js';
 import { DEFAULT_OPENAI_MODEL, OpenAIProvider } from '../llm/providers/openai.js';
+import {
+  OllamaProvider, checkOllamaUrl, listOllamaModels, ollamaContextWindow,
+} from '../llm/providers/ollama.js';
+import type { LLMSettingsUpdate, OllamaSettings } from '../llm/llm-settings-store.js';
 
 /** EX8.22: where the active key came from */
 export type KeySource = 'settings' | 'env' | null;
 
 interface LLMConfig {
-  provider: 'openai' | 'none';
+  provider: 'openai' | 'ollama' | 'none';
   model: string;
   hasApiKey: boolean;
   keySource: KeySource;
+  /** EX9.3: the active or last saved Ollama settings */
+  ollama?: OllamaSettings & { contextWindow?: number };
 }
 
 interface LLMRouteOpts {
@@ -29,17 +36,34 @@ interface LLMRouteOpts {
   onChange?: (provider: LLMProvider | null, apiKey?: string) => void;
   /** EX8.22: save to / clear from disk (encrypted); omitted in tests */
   persist?: {
-    save: (update: { model: string; apiKey?: string }) => void;
+    save: (update: LLMSettingsUpdate) => void;
     clear: () => void;
   };
   /** EX8.22: where the startup key came from */
   keySource?: KeySource;
+  /** EX9.3: the OpenAI provider kept in memory while Ollama is active (switch back without a key) */
+  openai?: OpenAIProvider | null;
+  /** EX9.3: saved Ollama settings (prefill), and a fetch for tests */
+  ollama?: { saved?: OllamaSettings; fetch?: typeof fetch };
 }
+
+const OllamaBody = (value: unknown): { baseUrl: string; model: string; allowRemote: boolean } | null => {
+  if (typeof value !== 'object' || value === null) return null;
+  const v = value as Record<string, unknown>;
+  if (typeof v.baseUrl !== 'string' || typeof v.model !== 'string') return null;
+  const model = v.model.trim();
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/.test(model)) return null;
+  return { baseUrl: v.baseUrl.trim(), model, allowRemote: v.allowRemote === true };
+};
 
 export async function llmRoutes(app: FastifyInstance, opts: LLMRouteOpts): Promise<void> {
   const { pipeline, onChange, persist } = opts;
   let keySource: KeySource = opts.keySource ?? null;
   const currentProvider = () => (pipeline as unknown as { llmProvider?: LLMProvider & { model?: string } }).llmProvider;
+  const ollamaFetch = opts.ollama?.fetch ?? fetch;
+  // EX9.3: the OpenAI key outlives a switch to Ollama, so switching back needs none
+  let lastOpenAI: OpenAIProvider | null = opts.openai ?? (currentProvider() instanceof OpenAIProvider ? currentProvider() as OpenAIProvider : null);
+  let savedOllama: OllamaSettings | undefined = opts.ollama?.saved;
 
   /** true when saved (or nothing to save); false when the disk write failed */
   function tryPersist(fn: () => void): boolean {
@@ -53,13 +77,28 @@ export async function llmRoutes(app: FastifyInstance, opts: LLMRouteOpts): Promi
   // ── GET /api/llm/config — current LLM configuration ──
   app.get('/api/llm/config', async () => {
     const provider = currentProvider();
+    const isOllama = provider instanceof OllamaProvider;
     const config: LLMConfig = {
-      provider: provider ? (provider.name as 'openai') : 'none',
+      provider: provider ? (isOllama ? 'ollama' : 'openai') : 'none',
       model: provider?.model ?? DEFAULT_OPENAI_MODEL,
       hasApiKey: !!provider,
-      keySource: provider ? keySource : null,
+      keySource: provider && !isOllama ? keySource : null,
+      ...(isOllama
+        ? { ollama: { baseUrl: provider.baseUrl, model: provider.model, contextWindow: provider.contextWindow, ...(savedOllama?.allowRemote ? { allowRemote: true } : {}) } }
+        : savedOllama ? { ollama: savedOllama } : {}),
     };
     return { success: true, data: config };
+  });
+
+  // ── GET /api/llm/ollama/models — EX9.3: installed models, for the picker ──
+  app.get<{ Querystring: { baseUrl?: string; allowRemote?: string } }>('/api/llm/ollama/models', async (req) => {
+    const checked = checkOllamaUrl(req.query.baseUrl ?? '', req.query.allowRemote === 'true');
+    if (!checked.ok) return { success: false, error: checked.error };
+    try {
+      return { success: true, data: await listOllamaModels(checked.url, ollamaFetch) };
+    } catch (err) {
+      return { success: false, error: `Ollama is not reachable at ${checked.url}: ${err instanceof Error ? err.message : String(err)}` };
+    }
   });
 
   // ── PUT /api/llm/config — update LLM configuration ──
@@ -73,6 +112,8 @@ export async function llmRoutes(app: FastifyInstance, opts: LLMRouteOpts): Promi
         pipeline.setLLMProvider(undefined as unknown as import('../llm/provider.js').LLMProvider);
         onChange?.(null, '');
         keySource = null;
+        lastOpenAI = null;
+        savedOllama = undefined;
         const persisted = tryPersist(() => persist?.clear());
         return { success: true, data: { provider: 'none', model: '', hasApiKey: false, keySource, persisted } };
       }
@@ -84,7 +125,9 @@ export async function llmRoutes(app: FastifyInstance, opts: LLMRouteOpts): Promi
         let llmProvider: OpenAIProvider;
         if (apiKey) llmProvider = new OpenAIProvider(apiKey, chosen);
         else if (current instanceof OpenAIProvider) llmProvider = current.withModel(chosen);
+        else if (lastOpenAI) llmProvider = lastOpenAI.withModel(chosen); // EX9.3: back from Ollama
         else return { success: false, error: 'API key is required for OpenAI provider' };
+        lastOpenAI = llmProvider;
         pipeline.setLLMProvider(llmProvider);
         onChange?.(llmProvider, apiKey || undefined);
         if (apiKey) keySource = 'settings';
@@ -100,6 +143,35 @@ export async function llmRoutes(app: FastifyInstance, opts: LLMRouteOpts): Promi
             keySource,
             persisted,
           },
+        };
+      }
+
+      if (provider === 'ollama') {
+        const body = OllamaBody((req.body as { ollama?: unknown }).ollama);
+        if (!body) return { success: false, error: 'Choose an Ollama URL and a model' };
+        const checked = checkOllamaUrl(body.baseUrl, body.allowRemote);
+        if (!checked.ok) return { success: false, error: checked.error };
+        let installed: string[];
+        try {
+          installed = (await listOllamaModels(checked.url, ollamaFetch)).map((m) => m.name);
+        } catch (err) {
+          return { success: false, error: `Ollama is not reachable at ${checked.url}: ${err instanceof Error ? err.message : String(err)}` };
+        }
+        const model = installed.includes(body.model) ? body.model
+          : installed.includes(`${body.model}:latest`) ? `${body.model}:latest` : null;
+        if (!model) {
+          return { success: false, error: `Model "${body.model}" is not installed in Ollama. Installed: ${installed.join(', ') || 'none'}` };
+        }
+        const contextWindow = await ollamaContextWindow(checked.url, model, ollamaFetch);
+        const llmProvider = new OllamaProvider({ baseUrl: checked.url, model, contextWindow, fetch: ollamaFetch });
+        pipeline.setLLMProvider(llmProvider);
+        onChange?.(llmProvider);
+        savedOllama = { baseUrl: checked.url, model, ...(body.allowRemote ? { allowRemote: true } : {}) };
+        const persisted = tryPersist(() => persist?.save({ provider: 'ollama', ollama: savedOllama! }));
+        console.log(`🦙 LLM provider updated: Ollama ${model} at ${checked.url} (context ${contextWindow})${persisted ? ' — saved' : ' — this session only'}`);
+        return {
+          success: true,
+          data: { provider: 'ollama', model, hasApiKey: true, keySource: null, ollama: { ...savedOllama, contextWindow }, persisted },
         };
       }
 

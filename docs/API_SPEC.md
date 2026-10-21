@@ -853,6 +853,19 @@ action sent by id returns 409; a used/expired approval 404.
 
 Drops a staged view approval. → `{ success, decision: "deny", by: "owner" }`.
 
+### `GET /api/llm/config` · `PUT /api/llm/config` (EX9.3: Ollama)
+
+`PUT` body for a local model: `{ "provider": "ollama", "ollama": { "baseUrl": "http://127.0.0.1:11434", "model": "qwen3:8b", "allowRemote"?: true } }`.
+The server checks the URL (http/https, loopback unless `allowRemote`), that Ollama
+answers and that the model is installed (`name` or `name:latest`), then reads its
+context length. Response `data`: `{ provider: "ollama", model, hasApiKey: true, keySource: null, ollama: { baseUrl, model, contextWindow }, persisted }`.
+Switching back to `{ provider: "openai", model }` needs no key while one is saved.
+
+### `GET /api/llm/ollama/models?baseUrl=…&allowRemote=true`
+
+Installed models (`/api/tags`): `[{ name, parameterSize?, family?, sizeBytes? }]`, or
+`{ success: false, error }` when the URL is refused or Ollama does not answer.
+
 ### `POST /api/servers/:id/dynamic-ui/execute-action` (legacy)
 
 Buttons generated before EX9 carry command text. The command must still match the

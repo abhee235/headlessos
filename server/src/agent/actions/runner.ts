@@ -16,6 +16,7 @@ import { callParams, isSecretPath, isUnderRoot, READ_ROOTS } from './params.js';
 import { MAX_STDERR, type ActionDef, type ActionRunResult } from './types.js';
 import type { ApprovalBy, ApprovalGate, ApprovalOutcome, ApprovalRequest, ApprovalTicket } from './approvals.js';
 import type { ActionAudit } from './audit.js';
+import { normalizeKeys } from '../loop/tool-input.js';
 
 export type ActionSsh = Pick<ConnectionManager, 'exec' | 'getSftp'>;
 
@@ -98,9 +99,17 @@ export class ActionRunner {
       return { ok: false, error: `No such action: ${String(actionId)}. Closest: ${this.catalog.closest(actionId).join(', ')}` };
     }
     const schema = callParams(def);
-    const parsed = schema.safeParse(coerceAsMeant(schema, dropNulls(rawParams)));
-    if (!parsed.success) return { ok: false, error: describeParamError(def, parsed.error, rawParams) };
-    return { ok: true, def, params: parsed.data as Record<string, unknown> };
+    const raw = dropNulls(rawParams);
+    const parsed = schema.safeParse(coerceAsMeant(schema, raw));
+    if (parsed.success) return { ok: true, def, params: parsed.data as Record<string, unknown> };
+    // EX9.3: wrong parameter names → the right ones, then one more try
+    const renamed = normalizeKeys(raw, Object.keys(schema.shape), def.aliases);
+    if (renamed) {
+      const again = schema.safeParse(coerceAsMeant(schema, renamed));
+      if (again.success) return { ok: true, def, params: again.data as Record<string, unknown> };
+      return { ok: false, error: describeParamError(def, again.error, renamed) };
+    }
+    return { ok: false, error: describeParamError(def, parsed.error, rawParams) };
   }
 
   /** The exact command an action would run (or the SFTP path it would read). */
@@ -304,8 +313,19 @@ function coerceAsMeant(schema: z.AnyZodObject, raw: unknown): unknown {
   for (const [key, value] of Object.entries(out)) {
     if (typeof value !== 'string' || !shape[key]) continue;
     const type = baseType(shape[key]!);
-    if (type instanceof z.ZodNumber && /^-?\d+(\.\d+)?$/.test(value.trim())) out[key] = Number(value);
-    else if (type instanceof z.ZodBoolean && /^(true|false)$/i.test(value.trim())) out[key] = value.trim().toLowerCase() === 'true';
+    const text = value.trim();
+    if (type instanceof z.ZodNumber && /^-?\d+(\.\d+)?$/.test(text)) out[key] = Number(text);
+    else if (type instanceof z.ZodBoolean && /^(true|false)$/i.test(text)) out[key] = text.toLowerCase() === 'true';
+    else if (type instanceof z.ZodArray) {
+      // EX9.3: '["backup"]' or 'backup snapshots' for a list of words
+      if (text.startsWith('[')) {
+        try { out[key] = JSON.parse(text); } catch { /* leave it for the error message */ }
+      } else if (text) {
+        out[key] = text.split(/\s+/);
+      }
+    } else if (type instanceof z.ZodObject && text.startsWith('{')) {
+      try { out[key] = JSON.parse(text); } catch { /* leave it */ }
+    }
   }
   return out;
 }

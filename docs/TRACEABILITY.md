@@ -1050,6 +1050,16 @@ None (all changes to existing files).
 - **Verification:** server 2257 passed (+2 skipped: the 0o600 file-mode checks on Windows), client 639, both typechecks clean; Playwright measurements in the phase doc
 - **Follow-up (refactor):** EX2 write tools deleted (`server/src/agent/tools/{exec-write,sftp-write}.ts`); `agent/guardrails.ts` refuses the `write` tier; tests `tests/agent/{guardrails,tools/tools}.test.ts` updated
 
+### EX9.3: Shared loop, Ollama, weak-model input handling
+- **Status:** ✅ Complete
+- **Date:** 2026-10-22
+- **Files created:** `server/src/agent/loop/{run-loop,tool-input}.ts`, `server/src/llm/providers/ollama.ts`
+- **Files modified:** server `agent/investigation-agent.ts` (rewritten on the loop), `agent/executor.ts` (repair, prose calls), `agent/ui-agent.ts` (`actionBudget`), `agent/actions/{runner,tools,types}.ts` (aliases, coercion, `actionBudget`, `allowChange` through the context), `agent/tools/types.ts`, `llm/{provider,model-router,llm-settings-store}.ts`, `routes/llm.ts`, `index.ts`; client `lib/api.ts`, `components/Desktop/SettingsView.tsx` (AI page)
+- **Docs:** `docs/phases/phase-ex9.md` (§8 + "EX9.3 — as built"), `docs/API_SPEC.md`, `CLAUDE.md`
+- **Tests created:** `server/tests/agent/loop/{tool-input,run-loop}.test.ts`, `server/tests/llm/ollama.test.ts`, `client/tests/components/settings-ai.test.tsx`
+- **Tests modified:** `server/tests/agent/{investigation-agent,investigation-progress,agent-spans}.test.ts`, `server/tests/llm/{model-router,llm-settings-store}.test.ts`, `server/tests/routes/llm.test.ts`
+- **Verification:** server 2281 passed (+2 skipped), client 643, both typechecks clean; Playwright measurements in the phase doc
+
 ## How to Use This File
 
 ### After completing a task:

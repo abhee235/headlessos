@@ -16,11 +16,9 @@ import type { ToolContext } from './tools/types.js';
 import { withTraceGen, setSpanAttributes } from '../observatory/context.js';
 import type { SandboxManager } from './sandbox-manager.js';
 import { ActionRunner } from './actions/runner.js';
-import { selectActions } from './actions/tools.js';
+import { actionBudget, selectActions } from './actions/tools.js';
 import { outsideAgentScope, runGenAsAgent } from '../services/policy/agent-scope.js';
 
-/** EX9.1: read actions offered to the model per run (ADR-024 §6) */
-const OFFERED_ACTIONS = 40;
 
 // ── Agent Meta ──
 
@@ -154,7 +152,8 @@ export class UIAgent {
       previousOutputs: new Map(),
       actions: new ActionRunner({ ssh: this.ssh }),
       runId: sessionId,
-      offeredActions: new Set(selectActions(request, { max: OFFERED_ACTIONS }).map((a) => a.id)),
+      // EX9.3: sized to the model — 40 for hosted models, ~10% of a local model's window
+      offeredActions: new Set(selectActions(request, { max: actionBudget(this.modelRouter.toolProvider) }).map((a) => a.id)),
     };
 
     // ── EX5-B.3: SANDBOX SETUP (when sandboxMode=true) ──
