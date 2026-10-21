@@ -20,7 +20,7 @@ import type { PlannerHints } from './planner.js';
 // Canonical ReflectionIssue (derived from reflector's Zod schema); re-exported below
 // so existing importers of it from this module keep working and both modules share one type.
 import type { ReflectionIssue } from './reflector.js';
-import type { ChatMessage } from '../llm/provider.js';
+import { isLLMTimeout, type ChatMessage } from '../llm/provider.js';
 import { withSpan, withSpanGen, setSpanAttributes } from '../observatory/context.js';
 import { getDefaultCatalog } from './actions/catalog/index.js';
 import { checkToolArgs, dropNullArgs, extractProseToolCalls, malformedArgsMessage, parseToolArgs } from './loop/tool-input.js';
@@ -234,6 +234,10 @@ const MAX_OVERFLOW_RETRIES = 2;
 export const VIEW_CUT_OFF =
   'Your last reply was cut off at the output limit. Send your next step as ONE tool call. Keep views compact: short titles, no descriptions, at most 20 table rows.';
 
+/** EX10.4 follow-up: the reply was stopped for taking too long (LLMTimeoutError) */
+export const VIEW_TIMED_OUT =
+  'Your last reply took too long and was stopped. Send your next step as ONE tool call. Keep views small: at most 20 table rows or 30 log lines, short descriptions.';
+
 function compactionNote(e: CompactionEvent): string {
   const how = {
     collapse: 'dropped older copies of the view',
@@ -421,6 +425,16 @@ export class ReactiveExecutor {
           tool_choice: 'auto',
         });
       } catch (err) {
+        // EX10.4 follow-up: the reply took too long — like a cut-off: a smaller step (3 times), then stop
+        if (isLLMTimeout(err)) {
+          if (ctx.lengthStrike()) {
+            messages.push({ role: 'user', content: VIEW_TIMED_OUT });
+            yield { type: 'thinking', message: `The model took too long (${err.message}); asking for a smaller step` };
+            continue;
+          }
+          yield* finishEarly(lastPartialView, 'the model kept taking too long to answer');
+          return;
+        }
         // EX10.4: the provider refused the prompt as too long — compact harder and retry (twice)
         if (!ContextManager.isOverflowError(err)) throw err;
         if (overflowRetries++ < MAX_OVERFLOW_RETRIES) {

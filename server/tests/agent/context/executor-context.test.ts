@@ -3,7 +3,9 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { z } from 'zod';
-import { ReactiveExecutor, VIEW_CUT_OFF, emptySections, type AgentEvent } from '../../../src/agent/executor.js';
+import { ReactiveExecutor, VIEW_CUT_OFF, VIEW_TIMED_OUT, emptySections, type AgentEvent } from '../../../src/agent/executor.js';
+import { LLMTimeoutError } from '../../../src/llm/provider.js';
+import { TIMED_OUT, runAgentLoop, type LoopEvent } from '../../../src/agent/loop/run-loop.js';
 import { ToolRegistry } from '../../../src/agent/tools/tool-registry.js';
 import { updateViewTool } from '../../../src/agent/tools/update-view.js';
 import { UIAgent, type UIAgentEvent } from '../../../src/agent/ui-agent.js';
@@ -192,5 +194,38 @@ describe('UI Agent with an early stop', () => {
     const complete = events.at(-1) as Extract<UIAgentEvent, { type: 'complete' }>;
     expect(complete.view).toBe(good);
     expect(complete.meta.warning).toBe('The fix attempt stopped early (it reached the maximum step limit (30)); showing the earlier version');
+  });
+});
+
+// EX10.4 follow-up: a reply stopped for taking too long counts like a cut-off
+describe('timeouts are treated like cut-offs', () => {
+  const timeout = () => new LLMTimeoutError('Ollama stopped sending for 60 s, 6920 tokens into the reply', 'idle', 6920);
+
+  it('the executor asks for a smaller step, then stops with the last good view', async () => {
+    const chat = vi.fn()
+      .mockResolvedValueOnce(reply({ call: 'update_view', args: { view: SKELETON } }))
+      .mockRejectedValueOnce(timeout())
+      .mockRejectedValue(timeout());
+    const events = await run(chat, [updateViewTool]);
+    const second = chat.mock.calls[2]![0].messages as ChatMessage[];
+    expect(second.at(-1)).toEqual({ role: 'user', content: VIEW_TIMED_OUT });
+    expect(events.some((e) => e.type === 'thinking' && e.message.startsWith('The model took too long (Ollama stopped sending'))).toBe(true);
+    expect(events.at(-1)).toMatchObject({ type: 'generation_incomplete', reason: 'the model kept taking too long to answer', emptySections: ['Images'] });
+    expect(chat).toHaveBeenCalledTimes(5); // 1 ok + 3 reminders + the 4th gives up
+  });
+
+  it('the shared loop reminds, and after three asks for a short answer with tools off', async () => {
+    const answer = { message: { role: 'assistant' as const, content: 'Short answer.' }, tokensUsed: { input: 1, output: 1 }, latencyMs: 1, model: 'm', finishReason: 'stop' as const };
+    const chat = vi.fn().mockRejectedValueOnce(timeout()).mockResolvedValueOnce(answer);
+    const out: LoopEvent[] = [];
+    for await (const e of runAgentLoop({ chat, system: 's', user: 'u', tools: [], context: { serverId: 's' } as never, maxTurns: 5 })) out.push(e);
+    expect((chat.mock.calls[1]![0] as { messages: ChatMessage[] }).messages.at(-1)).toEqual({ role: 'user', content: TIMED_OUT });
+    expect(out.at(-1)).toMatchObject({ type: 'final', reason: 'answered', text: 'Short answer.' });
+
+    const slow = vi.fn().mockRejectedValueOnce(timeout()).mockRejectedValueOnce(timeout()).mockRejectedValueOnce(timeout()).mockRejectedValueOnce(timeout()).mockResolvedValueOnce(answer);
+    const out2: LoopEvent[] = [];
+    for await (const e of runAgentLoop({ chat: slow, system: 's', user: 'u', tools: [], context: { serverId: 's' } as never, maxTurns: 8 })) out2.push(e);
+    expect((slow.mock.calls.at(-1)![0] as { tool_choice: string }).tool_choice).toBe('none');
+    expect(out2.at(-1)).toMatchObject({ type: 'final', reason: 'length', text: 'Short answer.' });
   });
 });

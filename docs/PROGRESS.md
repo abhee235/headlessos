@@ -583,6 +583,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-10-22 | **EX10 follow-ups** from the first three 64K runs. View tools show the model an object only, and a view sent with misplaced brackets is repaired when the fix gives a valid view (9 of the 10 failed views from those runs). Ollama replies stream and time out only on silence, so a long reply is no longer cut at 120 s with a false "not reachable". A reply that takes too long is treated like one cut off: the agent asks for a smaller step and, if it keeps happening, keeps the last valid view. |
 | 2026-10-22 | **EX10.7 ✅** Local-model runs no longer show a made-up cost in the Observatory or the usage summary: a model without a known price costs nothing, and the router's $0 for local models is kept. |
 | 2026-10-22 | **EX10.6 ✅** Every agent tool now treats a null argument as "not given" and answers a bad argument with one line naming the parameter and what was sent, instead of a raw validation dump. The template search that failed on a local model's null arguments now runs. |
 | 2026-10-22 | **EX10.5 ✅** The UI Agent's view tools stop wasting the window: views go in as JSON objects instead of escaped strings, a broken string is repaired or the error says exactly where it broke, and nothing echoes the view (or action details) back to the model — each update answers in one short line. |

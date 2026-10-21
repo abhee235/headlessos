@@ -461,6 +461,16 @@ wide, 18 px radius, 16 px / 12 px padding, 16 px icon centred on the title (0 px
 icon → title, 6 px between lines, 16.7 px right inset. A long reason wraps onto two
 lines (32 px) with the same insets. Session files: unchanged.
 
+**Follow-up (§8b fix 3).** An `LLMTimeoutError` from the model call counts as a cut-off;
+the two share the same three strikes.
+- **UI Agent executor:** `VIEW_TIMED_OUT` ("took too long and was stopped … at most 20
+  table rows or 30 log lines") and a progress line naming the timeout. On the fourth, it
+  stops with the last valid partial view (reason "the model kept taking too long to
+  answer").
+- **Shared loop** (investigation agent): `TIMED_OUT`, then the short tools-off answer
+  (`final.reason: 'length'`).
+- Other errors are thrown as before.
+
 ## EX10.5 — View tools (as built)
 
 `server/src/agent/tools/view-arg.ts`:

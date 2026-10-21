@@ -7,7 +7,7 @@
 // action waits) → feed results back. A turn with text and no tool call is the
 // answer. When turns run out, one last turn with tools off asks for a conclusion.
 
-import type { ChatMessage, ChatWithToolsInput, ChatWithToolsResult } from '../../llm/provider.js';
+import { isLLMTimeout, type ChatMessage, type ChatWithToolsInput, type ChatWithToolsResult } from '../../llm/provider.js';
 import type { AgentTool, ToolContext } from '../tools/types.js';
 import { toolsToOpenAIFunctions } from '../tools/tool-converter.js';
 import { checkGuardrails } from '../guardrails.js';
@@ -68,6 +68,8 @@ const NUDGE = 'Call one of the tools, or give your final answer as plain text.';
 /** EX10.2: a reply stopped at the output limit */
 export const CUT_OFF = 'Your last reply was cut off at the output limit. Send your next step as ONE tool call, or give your answer again in fewer words.';
 const CUT_OFF_WRAP_UP = 'Your replies keep getting cut off. In at most five sentences, give your best answer from what you have gathered. Do not call tools.';
+/** EX10.4 follow-up: a reply stopped for taking too long (LLMTimeoutError) counts like a cut-off */
+export const TIMED_OUT = 'Your last reply took too long and was stopped. Send your next step as ONE tool call, or give your answer in fewer words.';
 /** EX10.2: forced compactions + retries after a context-overflow error */
 const MAX_OVERFLOW_RETRIES = 2;
 
@@ -135,6 +137,15 @@ export async function* runAgentLoop(opts: LoopOptions): AsyncGenerator<LoopEvent
       res = await call({ tools: offered, tool_choice: 'auto' }, `${span}.think[${turn}]`, turn);
     } catch (err) {
       yield* pending.splice(0);
+      // EX10.4 follow-up: too slow is treated like cut off — remind, then a short tools-off answer
+      if (isLLMTimeout(err)) {
+        if (ctx.lengthStrike()) {
+          messages.push({ role: 'user', content: TIMED_OUT });
+          continue;
+        }
+        cutOff = true;
+        break;
+      }
       yield { type: 'error', message: err instanceof Error ? err.message : String(err), turns: turn, tokens };
       return;
     }
