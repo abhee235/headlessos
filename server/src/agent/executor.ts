@@ -1,6 +1,8 @@
 // EX2.5: Reactive Executor
 // EX10.3: the system prompt is sized to the model's window tier (full / lean / minimal)
-// @see docs/phases/phase-ex2.md — EX2.5, docs/phases/phase-ex10.md §4
+// EX10.4: a context manager runs before every call (compaction, cut-offs, overflow), and a run
+// that cannot go on finishes with its last valid partial view and the reason
+// @see docs/phases/phase-ex2.md — EX2.5, docs/phases/phase-ex10.md §4–§5
 //
 // A reactive tool-calling loop where the LLM decides which tools to call
 // dynamically based on observed results. Uses native OpenAI function calling.
@@ -23,7 +25,9 @@ import { withSpan, withSpanGen, setSpanAttributes } from '../observatory/context
 import { getDefaultCatalog } from './actions/catalog/index.js';
 import { extractProseToolCalls, malformedArgsMessage, parseToolArgs } from './loop/tool-input.js';
 import { markUntrusted, UNTRUSTED_RULE } from './actions/tools.js';
-import type { PromptTier } from './context/plan.js';
+import { planForProvider, type PromptTier } from './context/plan.js';
+import { ContextManager, chatSummarizer, type CompactionEvent } from './context/manager.js';
+import { estimateToolsTokens } from './context/tokens.js';
 
 /** EX9.2: change actions a generated button may name (params only; the server adds the reason) */
 const CHANGE_ACTION_LINES = getDefaultCatalog()
@@ -222,6 +226,50 @@ You cannot write shell commands; each action is a tool with typed parameters.
 
 `;
 
+// ── EX10.4: context handling ──
+
+/** forced compactions + retries after a context-overflow error */
+const MAX_OVERFLOW_RETRIES = 2;
+
+export const VIEW_CUT_OFF =
+  'Your last reply was cut off at the output limit. Send your next step as ONE tool call. Keep views compact: short titles, no descriptions, at most 20 table rows.';
+
+function compactionNote(e: CompactionEvent): string {
+  const how = {
+    collapse: 'dropped older copies of the view',
+    mask: 'shortened long old results',
+    microcompact: 'shortened old results',
+    summarize: 'summarized earlier steps',
+    drop: 'removed the oldest steps',
+    survival: 'kept only the latest step',
+  }[e.layer];
+  return `Made room in the model’s context: ${how} (${e.before.toLocaleString('en-US')} → ${e.after.toLocaleString('en-US')} tokens)`;
+}
+
+/** Sidebar labels whose section has nothing in it yet */
+export function emptySections(view: DynamicView): string[] {
+  const isEmpty = (layout: unknown): boolean => {
+    const l = layout as { children?: unknown[]; tabs?: Array<{ children?: unknown[] }> } | undefined;
+    if (!l) return true;
+    if (Array.isArray(l.tabs)) return l.tabs.every((t) => !t.children?.length);
+    return !l.children?.length;
+  };
+  return view.sidebarItems.filter((item) => isEmpty(view.sections[item.id])).map((item) => item.label);
+}
+
+/**
+ * EX10.4: the run cannot go on. If the last partial view is a valid view, finish with it
+ * and say why; otherwise report the reason as the error.
+ */
+function* finishEarly(partial: Record<string, unknown> | null, reason: string): Generator<AgentEvent> {
+  const parsed = partial ? DynamicViewSchema.safeParse(partial) : null;
+  if (parsed?.success) {
+    yield { type: 'generation_incomplete', view: parsed.data, reason, emptySections: emptySections(parsed.data) };
+    return;
+  }
+  yield { type: 'error', message: `Stopped: ${reason}, before any complete view was built.` };
+}
+
 // ── Agent Event Types ──
 
 /** EX3-C.2: Layout update phases for progressive rendering */
@@ -233,6 +281,8 @@ export type AgentEvent =
   | { type: 'tool_blocked'; tool: string; reason: string }
   | { type: 'partial_view'; view: Record<string, unknown> }
   | { type: 'generation_complete'; view: DynamicView }
+  /** EX10.4: stopped early; the last valid partial view, why, and which sections are still empty */
+  | { type: 'generation_incomplete'; view: DynamicView; reason: string; emptySections: string[] }
   | { type: 'reflection'; feedback: string; action: 'approve' | 'fix' }
   | { type: 'safety_warning'; warning: 'consecutive_mistakes' | 'tool_repetition'; tool?: string; message?: string }
   | { type: 'error'; message: string }
@@ -342,6 +392,13 @@ export class ReactiveExecutor {
 
     let stepCount = 0;
     let consecutiveMistakes = 0;
+    // EX10.4: context handling from the run's plan (EX10.2), and the last view worth keeping
+    const plan = context.plan ?? planForProvider(this.modelRouter.toolProvider ?? null);
+    const ctx = new ContextManager({ plan, summarize: chatSummarizer((input) => this.modelRouter.chat(input)) });
+    const overhead = estimateToolsTokens(openAITools);
+    let lastPartialView: Record<string, unknown> | null = null;
+    let overflowRetries = 0;
+    let forceCompaction = false;
 
     // ── REACTIVE LOOP ──
     while (stepCount < this.config.maxSteps) {
@@ -349,11 +406,38 @@ export class ReactiveExecutor {
 
       yield { type: 'thinking', message: `Step ${stepCount}...` };
 
+      // EX10.4: compact before the call when the history reached the plan's trigger
+      const prepared = await ctx.prepare(messages, overhead, { force: forceCompaction });
+      forceCompaction = false;
+      if (prepared.messages !== messages) messages.splice(0, messages.length, ...prepared.messages);
+      for (const e of prepared.events) yield { type: 'thinking', message: compactionNote(e) };
+
       // Call LLM with native function calling
-      const response = await this.modelRouter.chat({
-        messages,
-        tools: openAITools,
-        tool_choice: 'auto',
+      let response: Awaited<ReturnType<ModelRouter['chat']>>;
+      try {
+        response = await this.modelRouter.chat({
+          messages,
+          tools: openAITools,
+          tool_choice: 'auto',
+        });
+      } catch (err) {
+        // EX10.4: the provider refused the prompt as too long — compact harder and retry (twice)
+        if (!ContextManager.isOverflowError(err)) throw err;
+        if (overflowRetries++ < MAX_OVERFLOW_RETRIES) {
+          forceCompaction = true;
+          stepCount--;
+          continue;
+        }
+        yield* finishEarly(lastPartialView, 'the model’s context window is full');
+        return;
+      }
+      ctx.observe(response.tokensUsed.input, messages);
+      setSpanAttributes({
+        attributes: {
+          contextUsed: response.tokensUsed.input || ctx.used(messages, overhead),
+          contextWindow: plan.window,
+          contextTrigger: plan.trigger,
+        },
       });
 
       const assistantMessage = response.message;
@@ -370,6 +454,18 @@ export class ReactiveExecutor {
           assistantMessage.content = null;
         }
       }
+
+      // EX10.4: a reply cut off at the output limit is not "text only" — remind (3 times), then stop
+      if (response.finishReason === 'length' && !assistantMessage.tool_calls?.length) {
+        if (ctx.lengthStrike()) {
+          messages.push({ role: 'user', content: VIEW_CUT_OFF });
+          yield { type: 'thinking', message: 'The model’s reply was cut off at its output limit; asking for a smaller step' };
+          continue;
+        }
+        yield* finishEarly(lastPartialView, 'the model’s replies kept getting cut off at its output limit');
+        return;
+      }
+      ctx.resetLength();
 
       // Append assistant message to history
       messages.push(assistantMessage);
@@ -474,6 +570,7 @@ export class ReactiveExecutor {
 
             // Track update_view calls (progressive rendering — non-terminal)
             if (toolName === 'update_view' && result.success && result.metadata?.partialView) {
+              lastPartialView = result.metadata.partialView as Record<string, unknown>;
               yield {
                 type: 'partial_view',
                 view: result.metadata.partialView as Record<string, unknown>,
@@ -545,10 +642,8 @@ export class ReactiveExecutor {
             warning: 'consecutive_mistakes',
             message: `Agent has not called any tools for ${consecutiveMistakes} consecutive turns. Aborting.`,
           };
-          yield {
-            type: 'error',
-            message: 'Agent stopped making progress. Please try rephrasing your request.',
-          };
+          // EX10.4: keep what was built so far
+          yield* finishEarly(lastPartialView, 'the model stopped calling tools');
           return;
         }
 
@@ -560,11 +655,8 @@ export class ReactiveExecutor {
       }
     }
 
-    // Max steps reached
-    yield {
-      type: 'error',
-      message: `Agent reached maximum step limit (${this.config.maxSteps}). Returning best available result.`,
-    };
+    // Max steps reached — EX10.4: keep what was built so far
+    yield* finishEarly(lastPartialView, `it reached the maximum step limit (${this.config.maxSteps})`);
   }
 
   // ── Prompt Builders ──

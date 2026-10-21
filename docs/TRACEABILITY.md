@@ -1118,6 +1118,14 @@ None (all changes to existing files).
 - **Tests modified:** `server/tests/agent/context/plan.test.ts`, `server/tests/agent/loop/{run-loop,guards-budgets}.test.ts`
 - **Verification:** server 2342 passed (+2 skipped), client unchanged (645), `tsc -p server` clean; full-tier prompt compared byte-for-byte with a pre-change dump
 
+### EX10.4: Executor on the context manager
+- **Status:** ✅ Complete
+- **Date:** 2026-10-22
+- **Files created:** `client/src/components/Agent/UIAgentCompletion.tsx`, `server/tests/agent/context/executor-context.test.ts`, `client/tests/components/ui-agent-completion.test.tsx`
+- **Files modified:** `server/src/agent/executor.ts` (context manager, `VIEW_CUT_OFF`, overflow retry, `generation_incomplete`, `finishEarly`, `emptySections`), `server/src/agent/ui-agent.ts` (`meta.incomplete`, incomplete completion, fix attempt fallback), `client/src/components/Agent/{UIAgentView,AgentPanel}.tsx`
+- **Docs:** `docs/phases/phase-ex10.md` ("EX10.4 — as built")
+- **Verification:** server 2351 passed (+2 skipped), client 648, both typechecks clean; Playwright measurements in the phase doc
+
 ## How to Use This File
 
 ### After completing a task:

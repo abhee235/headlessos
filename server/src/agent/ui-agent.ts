@@ -38,6 +38,8 @@ export interface AgentMeta {
   reflectionLoops: number;
   /** Optional warning if schema has known quality issues */
   warning?: string;
+  /** EX10.4: the run stopped early and completed with its last valid partial view */
+  incomplete?: { reason: string; emptySections: string[] };
   /** Map of model roles to model names used */
   models: Record<string, string>;
 }
@@ -235,6 +237,8 @@ export class UIAgent {
         case 'execute': {
           const hints = item.hints!;
           let generatedView: DynamicView | undefined;
+          // EX10.4: set when the executor stopped early with a partial view
+          let incomplete: { reason: string; emptySections: string[] } | undefined;
 
           try {
             for await (const event of this.executor.execute(hints, context)) {
@@ -248,6 +252,9 @@ export class UIAgent {
 
               if (event.type === 'generation_complete') {
                 generatedView = event.view;
+              } else if (event.type === 'generation_incomplete') {
+                generatedView = event.view;
+                incomplete = { reason: event.reason, emptySections: event.emptySections };
               }
             }
           } catch (err) {
@@ -258,6 +265,18 @@ export class UIAgent {
           if (!generatedView) {
             yield { type: 'error', message: 'Executor did not produce a schema' };
             break; // Stack empty → done
+          }
+
+          // EX10.4: a partial view is shown as it is, with why it stopped — no review loop
+          if (incomplete) {
+            const empty = incomplete.emptySections.length;
+            const meta = this.buildMeta(
+              sessionId, startTime, totalSteps, 0,
+              `Stopped early${empty ? ` — ${empty} section${empty === 1 ? '' : 's'} empty` : ''}`,
+            );
+            meta.incomplete = incomplete;
+            yield { type: 'complete', view: generatedView, meta };
+            break;
           }
 
           // Decide: skip reflection or run it?
@@ -319,6 +338,7 @@ export class UIAgent {
             stack.push({
               phase: 're-execute',
               hints,
+              view, // EX10.4: kept if the fix attempt stops early
               reflectionIssues: reflection.issues,
               attempt: item.attempt + 1,
             });
@@ -348,6 +368,8 @@ export class UIAgent {
           };
 
           let generatedView: DynamicView | undefined;
+          // EX10.4: the fix attempt stopped early — keep the view it was fixing
+          let stoppedEarly: string | undefined;
 
           try {
             for await (const event of this.executor.executeWithFixes(
@@ -365,6 +387,8 @@ export class UIAgent {
 
               if (event.type === 'generation_complete') {
                 generatedView = event.view;
+              } else if (event.type === 'generation_incomplete') {
+                stoppedEarly = event.reason;
               }
             }
           } catch (err) {
@@ -379,6 +403,12 @@ export class UIAgent {
               view: generatedView,
               attempt: item.attempt,
             });
+          } else if (stoppedEarly && item.view) {
+            yield {
+              type: 'complete',
+              view: item.view,
+              meta: this.buildMeta(sessionId, startTime, totalSteps, item.attempt, `The fix attempt stopped early (${stoppedEarly}); showing the earlier version`),
+            };
           } else {
             yield { type: 'error', message: 'Re-execution failed to produce a schema' };
           }
