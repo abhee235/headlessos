@@ -9,6 +9,7 @@
 import type { AgentTool, ToolContext, ToolResult } from '../tools/types.js';
 import { ActionRunner, capText } from './runner.js';
 import { getDefaultCatalog, type ActionCatalog } from './catalog/index.js';
+import { callParams } from './params.js';
 import type { ActionCategory, ActionDef, ActionRunResult } from './types.js';
 
 /** Characters of one result the model sees (EX9.4 makes this per-provider). */
@@ -33,8 +34,11 @@ export function formatForModel(result: ActionRunResult, keep: 'head' | 'tail' = 
 export function actionTool(def: ActionDef): AgentTool {
   return {
     name: def.id,
-    description: `${def.title}. ${def.description}`,
-    parameters: def.params,
+    description: def.risk === 'change'
+      ? `${def.title}. ${def.description} Changes the server: pauses until the owner allows it.`
+      : `${def.title}. ${def.description}`,
+    // EX9.2: change actions take a required `reason` the owner reads on the card
+    parameters: callParams(def),
     securityTier: 'action',
     async execute(args: unknown, context: ToolContext): Promise<ToolResult> {
       const runner = context.actions ?? new ActionRunner({ ssh: context.ssh });
@@ -44,6 +48,7 @@ export function actionTool(def: ActionDef): AgentTool {
       const result = await runner.run(context.serverId, def.id, args, {
         ...(context.runId ? { runId: context.runId } : {}),
         ...(sandboxContainer ? { sandboxContainer } : {}),
+        ...(context.onApproval ? { onApproval: context.onApproval } : {}),
       });
       return {
         success: result.ok,
@@ -55,6 +60,7 @@ export function actionTool(def: ActionDef): AgentTool {
           exitCode: result.exitCode,
           durationMs: result.durationMs,
           truncated: result.truncated,
+          ...(result.approval ? { approval: result.approval } : {}),
         },
       };
     },

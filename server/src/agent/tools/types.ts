@@ -5,7 +5,7 @@ import type { z } from 'zod';
 import type { ConnectionManager } from '../../ssh/connection-manager.js';
 import type { TemplateRegistry } from '../../dynamic-ui/template-registry.js';
 import type { SandboxManager } from '../sandbox-manager.js';
-import type { ActionRunner } from '../actions/runner.js';
+import type { ActionRunner, ApprovalEvent } from '../actions/runner.js';
 
 // ── Security Tier ───────────────────────────────────────
 
@@ -37,6 +37,8 @@ export interface ToolContext {
   runId?: string;
   /** EX9.1: action ids offered to the model this run (others still run if called) */
   offeredActions?: ReadonlySet<string>;
+  /** EX9.2: where approval cards for change actions go */
+  onApproval?: (event: ApprovalEvent) => void;
 }
 
 // ── Tool Result ─────────────────────────────────────────

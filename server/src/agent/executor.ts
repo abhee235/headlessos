@@ -19,6 +19,13 @@ import type { PlannerHints } from './planner.js';
 import type { ReflectionIssue } from './reflector.js';
 import type { ChatMessage } from '../llm/provider.js';
 import { withSpan, withSpanGen, setSpanAttributes } from '../observatory/context.js';
+import { getDefaultCatalog } from './actions/catalog/index.js';
+
+/** EX9.2: change actions a generated button may name (params only; the server adds the reason) */
+const CHANGE_ACTION_LINES = getDefaultCatalog()
+  .list({ risk: 'change' })
+  .map((a) => `- ${a.id}(${Object.keys(a.params.shape).join(', ')}) — ${a.description}`)
+  .join('\n');
 
 // ── Agent Event Types ──
 
@@ -426,7 +433,7 @@ Each widget has a \`type\` discriminator. Valid types:
     }],
     "rows": [{column_key: value, ...}, ...],
     "footer": "str?",
-    "actions": [{"id":"str","label":"str","icon":"str?","command":"str","confirm":bool?,"confirmMessage":"str?","variant":"destructive"?}]?,
+    "actions": [{"id":"str","label":"str","icon":"str?","action":{"id":"<catalog action id>","params":{"<param>":"{column_key}"}},"variant":"destructive"?}]?,  // see "Row buttons" below
     "actionStyle": "buttons"|"dropdown"?,  // dropdown shows actions behind a ⋯ menu
     "filters": {
       "search": true, "searchPlaceholder": "str?",
@@ -479,6 +486,11 @@ IMPORTANT:
 - Icon names are Lucide PascalCase: Network, Lock, Shield, Radio, Activity, Cable, Route, Globe, etc.
 - For tables with 0 rows, always include emptyState with a meaningful message.
 - Use actionStyle:"dropdown" when a table has 3+ actions (keeps the UI clean).
+
+## Row buttons (actions that change the server)
+A table button names a catalog action; it never carries a shell command. Fill params from the row with {column_key} placeholders. When the owner clicks it, the server shows an approval card with the exact command first — do not add confirm/confirmMessage.
+${CHANGE_ACTION_LINES}
+Example: {"id":"restart","label":"Restart","icon":"RotateCw","action":{"id":"container_restart","params":{"container":"{name}"}}}
 
 ## Workflow — Progressive Rendering (MANDATORY)
 

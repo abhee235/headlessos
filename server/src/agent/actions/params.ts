@@ -7,6 +7,7 @@
 
 import { posix } from 'node:path';
 import { z } from 'zod';
+import type { ActionDef } from './types.js';
 
 // ── Paths ───────────────────────────────────────────────
 
@@ -154,4 +155,17 @@ export function searchText() {
   return z.string()
     .regex(/^[\x20-\x7e]{1,128}$/, 'expected 1–128 plain characters')
     .describe('text to search for (matched literally)');
+}
+
+// ── Change actions (EX9.2) ──────────────────────────────
+
+/** Every change call carries a reason; the owner reads it on the approval card. */
+export const REASON = z.string().trim()
+  .min(3, 'expected a short reason the owner will read (3–200 characters)')
+  .max(200, 'expected a short reason the owner will read (3–200 characters)')
+  .describe('why this change is needed — the owner reads this before allowing it');
+
+/** The parameters a call to `def` takes: change actions add a required `reason`. */
+export function callParams(def: ActionDef): ActionDef['params'] {
+  return def.risk === 'change' ? def.params.extend({ reason: REASON }) : def.params;
 }

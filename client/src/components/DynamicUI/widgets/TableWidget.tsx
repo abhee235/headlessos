@@ -1,6 +1,7 @@
 // EX1.2 + EX1.14 + EX3-P: Table Widget — tabular data + filters + rich cells + dropdown actions
 // EX8.6: Lumen list-view spec — 34px rows, 11px uppercase sticky header, hairlines, bg-fill hover
-// @see docs/phases/phase-ex1.md, docs/phases/phase-ex3.md
+// EX9.2: row actions run catalog actions; changes show an approval card first
+// @see docs/phases/phase-ex1.md, docs/phases/phase-ex3.md, docs/phases/phase-ex9.md
 
 import { useState, useCallback, useMemo } from 'react';
 import type { z } from 'zod';
@@ -18,8 +19,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useDynamicViewContext } from '../DynamicViewContext';
-import { executeWidgetAction } from '@/lib/api';
-import { toast } from 'sonner';
+import { useViewAction } from '../view-actions';
 import {
   Search, SlidersHorizontal, ChevronDown, MoreHorizontal,
 } from 'lucide-react';
@@ -235,40 +235,11 @@ function ActionDropdown({
   row: Record<string, unknown>;
 }) {
   const { serverId } = useDynamicViewContext();
-  const [executing, setExecuting] = useState(false);
-
-  const handleAction = useCallback(
-    async (action: WidgetAction) => {
-      if (!serverId) {
-        toast.error('No server connected');
-        return;
-      }
-      setExecuting(true);
-      try {
-        const params: Record<string, string> = {};
-        for (const [key, value] of Object.entries(row)) {
-          params[key] = value == null ? '' : String(value);
-        }
-        const result = await executeWidgetAction(serverId, action.command, params);
-        if (result.success) {
-          toast.success(`${action.label}: completed`, {
-            description: result.output?.substring(0, 100),
-          });
-        } else {
-          toast.error(`${action.label}: failed`, { description: result.error });
-        }
-      } catch (err) {
-        toast.error(`${action.label}: failed`, {
-          description: err instanceof Error ? err.message : 'Unknown error',
-        });
-      } finally {
-        setExecuting(false);
-      }
-    },
-    [serverId, row],
-  );
+  // EX9.2: catalog actions (changes show an approval card); legacy commands may only read
+  const { run, executing, dialog } = useViewAction(serverId);
 
   return (
+    <>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
@@ -284,7 +255,7 @@ function ActionDropdown({
           return (
             <DropdownMenuItem
               key={action.id}
-              onClick={() => void handleAction(action)}
+              onClick={() => void run(action, row)}
               className={action.variant === 'destructive' ? 'text-danger' : ''}
             >
               {ActionIcon && <ActionIcon strokeWidth={1.75} />}
@@ -294,6 +265,8 @@ function ActionDropdown({
         })}
       </DropdownMenuContent>
     </DropdownMenu>
+    {dialog}
+    </>
   );
 }
 
@@ -308,50 +281,19 @@ function ActionButton({
 }) {
   const { serverId } = useDynamicViewContext();
   const [confirming, setConfirming] = useState(false);
-  const [executing, setExecuting] = useState(false);
-
-  const executeAction = useCallback(async () => {
-    if (!serverId) {
-      toast.error('No server connected');
-      return;
-    }
-
-    setExecuting(true);
-    try {
-      const params: Record<string, string> = {};
-      for (const [key, value] of Object.entries(row)) {
-        params[key] = value == null ? '' : String(value);
-      }
-
-      const result = await executeWidgetAction(serverId, action.command, params);
-
-      if (result.success) {
-        toast.success(`${action.label}: completed`, {
-          description: result.output
-            ? result.output.substring(0, 100)
-            : undefined,
-        });
-      } else {
-        toast.error(`${action.label}: failed`, {
-          description: result.error,
-        });
-      }
-    } catch (err) {
-      toast.error(`${action.label}: failed`, {
-        description: err instanceof Error ? err.message : 'Unknown error',
-      });
-    } finally {
-      setExecuting(false);
-    }
-  }, [serverId, action, row]);
+  // EX9.2: catalog actions (changes show an approval card); legacy commands may only read
+  const { run, executing, dialog } = useViewAction(serverId);
+  const executeAction = useCallback(() => void run(action, row), [run, action, row]);
+  // an action ref needs no confirm of its own: a change shows the approval card
+  const legacyConfirm = !action.action && !!action.confirm;
 
   const handleClick = useCallback(() => {
-    if (action.confirm) {
+    if (legacyConfirm) {
       setConfirming(true);
     } else {
       executeAction();
     }
-  }, [action.confirm, executeAction]);
+  }, [legacyConfirm, executeAction]);
 
   // Row actions read as glass pills; destructive keeps its danger-text look
   const variant = (action.variant && action.variant !== 'default' ? action.variant : 'secondary') as
@@ -368,7 +310,8 @@ function ActionButton({
       >
         {executing ? 'Running...' : action.label}
       </Button>
-      {action.confirm && (
+      {dialog}
+      {legacyConfirm && (
         <ConfirmDialog
           open={confirming}
           onOpenChange={setConfirming}

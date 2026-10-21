@@ -1423,6 +1423,8 @@ export interface AgentStep {
   /** EX9.1: the catalog action the step ran */
   action?: string;
   command?: string;
+  /** EX9.2: the owner's decision, for a change action */
+  approval?: { approvalId: string; decision: 'allow' | 'deny'; by: ApprovalBy };
   output?: string;
   observation?: string;
   decision: 'continue' | 'answer' | 'error';
@@ -1439,11 +1441,35 @@ export interface AgentResult {
   status: 'completed' | 'aborted' | 'error' | 'max_steps_reached';
 }
 
+// ── EX9.2: approvals ──
+
+export type ApprovalBy = 'owner' | 'stop' | 'timeout';
+
+/** What the owner sees before a change runs (server/src/agent/actions/approvals.ts) */
+export interface ApprovalRequest {
+  approvalId: string;
+  runId: string;
+  source: 'agent' | 'view';
+  serverId: string;
+  serverName: string;
+  host: string;
+  loginUser: string;
+  actionId: string;
+  title: string;
+  command: string;
+  reason: string;
+  requestedAt: string;
+  expiresAt: string;
+}
+
 /** EX8.24: one live event from /ws/agent/:serverId/:sessionId */
 export type AgentProgressEvent =
   // EX9.1: the agent names a catalog action; `command` is what the server built for it
   | { kind: 'thought'; step: number; thought: string; decision: 'run_action' | 'answer'; action?: string; command?: string }
-  | { kind: 'step'; step: number; data: AgentStep };
+  | { kind: 'step'; step: number; data: AgentStep }
+  // EX9.2: a change action is waiting for the owner, then the answer
+  | { kind: 'approval'; step: number; request: ApprovalRequest }
+  | { kind: 'approval_resolved'; step: number; approvalId: string; decision: 'allow' | 'deny'; by: ApprovalBy };
 
 /** EX8.24: the investigation's progress socket (through the Vite proxy in dev) */
 export function agentProgressWsUrl(serverId: string, sessionId: string): string {
@@ -1469,6 +1495,62 @@ export async function abortAgentInvestigation(
   sessionId: string,
 ): Promise<{ success: boolean }> {
   return request(`/servers/${serverId}/agent/${sessionId}/abort`, {
+    method: 'POST',
+  });
+}
+
+/** EX9.2: the owner's answer to an agent's approval card */
+export async function answerAgentApproval(
+  serverId: string,
+  approvalId: string,
+  decision: 'allow' | 'deny',
+): Promise<{ success: boolean; decision?: 'allow' | 'deny'; by?: ApprovalBy }> {
+  return request(`/servers/${encodeURIComponent(serverId)}/agent/approvals/${encodeURIComponent(approvalId)}`, {
+    method: 'POST',
+    body: JSON.stringify({ decision }),
+  });
+}
+
+// ── EX9.2: generated view buttons run catalog actions ──
+
+export type ViewActionPreview =
+  | { success: true; risk: 'read'; actionId: string; title: string; command: string }
+  | { success: true; risk: 'change'; actionId: string; title: string; command: string; approval: ApprovalRequest };
+
+export interface ViewActionResult {
+  success: boolean;
+  actionId?: string;
+  command?: string;
+  exitCode?: number | null;
+  output?: string;
+  error?: string;
+}
+
+export async function previewViewAction(
+  serverId: string,
+  actionId: string,
+  params: Record<string, string>,
+  label?: string,
+): Promise<ViewActionPreview> {
+  return request(`/servers/${encodeURIComponent(serverId)}/actions/preview`, {
+    method: 'POST',
+    body: JSON.stringify({ actionId, params, ...(label ? { label: label.slice(0, 80) } : {}) }),
+  });
+}
+
+/** Read actions by id + params; an approved change by its approvalId (runs the previewed command) */
+export async function runViewAction(
+  serverId: string,
+  body: { actionId: string; params: Record<string, string> } | { approvalId: string },
+): Promise<ViewActionResult> {
+  return request(`/servers/${encodeURIComponent(serverId)}/actions/run`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function denyViewAction(serverId: string, approvalId: string): Promise<{ success: boolean }> {
+  return request(`/servers/${encodeURIComponent(serverId)}/actions/approvals/${encodeURIComponent(approvalId)}/deny`, {
     method: 'POST',
   });
 }

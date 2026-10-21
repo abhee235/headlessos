@@ -28,13 +28,33 @@ export type DataSource = z.infer<typeof DataSourceSchema>;
 
 // ── Widget Actions (EX1.14: Action Execution) ─────────
 
+/**
+ * EX9.2 (ADR-024): a button names a server-side catalog action. The server
+ * validates the params and builds the command; actions that change the server
+ * show the owner an approval card first.
+ */
+export const WidgetActionRefSchema = z.object({
+  /** Catalog action id, e.g. "container_restart" */
+  id: z.string().describe('Catalog action id, e.g. "container_restart"'),
+  /** Action params; values may hold {column} placeholders filled from the row */
+  params: z.record(z.string(), z.string()).nullable().optional()
+    .describe('Action params, e.g. {"container":"{name}"}; {column} placeholders are filled from the row'),
+});
+
+export type WidgetActionRef = z.infer<typeof WidgetActionRefSchema>;
+
 export const WidgetActionSchema = z.object({
   /** Unique action ID within the widget */
   id: z.string(),
   /** Button label */
   label: z.string(),
-  /** Command template — {placeholder} values are substituted from row data */
-  command: z.string(),
+  /** EX9.2: the catalog action this button runs (preferred) */
+  action: WidgetActionRefSchema.nullable().optional(),
+  /**
+   * Legacy command template — {placeholder} values are substituted from row data.
+   * EX9.2: the server only runs it when it reads (risk none/low); use `action` instead.
+   */
+  command: z.string().nullable().optional(),
   /** Whether to show a confirmation dialog before executing */
   confirm: z.boolean().nullable().optional(),
   /** Confirmation message (shown in dialog when confirm=true) */
@@ -43,7 +63,9 @@ export const WidgetActionSchema = z.object({
   variant: z.enum(['default', 'destructive', 'outline', 'secondary', 'ghost']).nullable().optional(),
   /** Lucide icon name */
   icon: z.string().nullable().optional(),
-}).describe('Action button that executes a server command');
+}).refine((a) => Boolean(a.action || a.command), {
+  message: 'A button needs an action (or a legacy read-only command)',
+}).describe('Action button that runs a catalog action (or, legacy, a read-only command)');
 
 export type WidgetAction = z.infer<typeof WidgetActionSchema>;
 

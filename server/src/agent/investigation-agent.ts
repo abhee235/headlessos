@@ -13,9 +13,11 @@ import type { LLMProvider } from '../llm/provider.js';
 import { EventEmitter } from 'events';
 import { withTrace, withSpan, setSpanAttributes } from '../observatory/context.js';
 import { runAsAgent } from '../services/policy/agent-scope.js';
-import { ActionRunner, actionSignature, type ActionSsh } from './actions/runner.js';
+import { ActionRunner, actionSignature, type ActionSsh, type ApprovalEvent, type RunnerDeps } from './actions/runner.js';
 import { formatForModel, selectActions } from './actions/tools.js';
-import type { ActionDef } from './actions/types.js';
+import { getDefaultCatalog } from './actions/catalog/index.js';
+import type { ApprovalGate } from './actions/approvals.js';
+import type { ActionDef, ActionRunResult } from './actions/types.js';
 
 // ── Agent Step Schema (for structured LLM output) ───────
 
@@ -40,6 +42,8 @@ export interface AgentStep {
   action?: string;
   /** the command the server built for that action (shown to the owner) */
   command?: string;
+  /** EX9.2: the owner's decision, for a change action */
+  approval?: ActionRunResult['approval'];
   output?: string;
   observation?: string;
   decision: 'continue' | 'answer' | 'error';
@@ -58,6 +62,7 @@ export interface AgentResult {
 
 export interface AgentOptions {
   maxSteps?: number;
+  /** EX9.2: false offers change actions too; each waits for the owner's approval */
   readOnly?: boolean;
   /** EX8.24: chosen by the client so it can open /ws/agent/:id/:sessionId before the run */
   sessionId?: string;
@@ -74,8 +79,18 @@ const DEFAULT_MAX_STEPS = 10;
 /** EX9.1: actions listed in the prompt per question (ADR-024 §6) */
 const OFFERED_ACTIONS = 40;
 
-function buildSystemPrompt(actions: ActionDef[]): string {
-  return `You are an expert Linux system administrator AI agent. You investigate server issues by running read-only diagnostic actions and analyzing the output.
+const CHANGE_RULES = `
+## Changes (this run may change the server)
+- Actions marked [changes the server] pause the run and show the owner the exact command, the server, the login user and your reason. Nothing happens until the owner allows it.
+- Investigate first. Propose a change only when the evidence shows it will fix the problem, and give a specific "reason" in its params (e.g. "nginx is inactive since 09:12; restarting it should bring the site back").
+- One change at a time. After it runs, check the result with a read action.
+- If the owner declines, that is final for this run: do not retry it or work around it. Explain what you would have done.`;
+
+function buildSystemPrompt(reads: ActionDef[], changes: ActionDef[]): string {
+  const actions = [...reads, ...changes];
+  const line = (a: ActionDef) =>
+    `- ${actionSignature(a)} — ${a.description}${a.risk === 'change' ? ' [changes the server]' : ''}`;
+  return `You are an expert Linux system administrator AI agent. You investigate server issues by running diagnostic actions and analyzing the output.
 
 ## How You Work (ReAct Loop)
 1. **Think**: Analyze what you know and what you need to find out next
@@ -85,16 +100,16 @@ function buildSystemPrompt(actions: ActionDef[]): string {
 
 ## Actions
 You cannot write shell commands. You pick an action by id and give its parameters as a JSON object; the server builds and runs the command. Available actions (id(parameters) — what it does):
-${actions.map((a) => `- ${actionSignature(a)} — ${a.description}`).join('\n')}
+${actions.map(line).join('\n')}
 
 ## Rules
-- Every action is read-only; you cannot change the server
+- ${changes.length ? 'Read actions never change anything; actions marked [changes the server] need the owner\'s approval (see below)' : 'Every action is read-only; you cannot change the server'}
 - One action per step: set decision to "run_action", action to its id and params to a JSON object ("{}" when it takes none)
 - After each output, explain what you learned (observation)
 - When you have enough evidence, provide a clear diagnosis and actionable recommendations
 - Maximum steps: you'll be told the limit. Use your steps wisely.
 - If an action fails, read the error: it says what was wrong with the parameters. Fix them or try another action
-- Be specific in your diagnosis — cite actual values from the outputs`;
+- Be specific in your diagnosis — cite actual values from the outputs${changes.length ? CHANGE_RULES : ''}`;
 }
 
 export class InvestigationAgent {
@@ -102,12 +117,15 @@ export class InvestigationAgent {
   public events = new EventEmitter();
 
   private readonly runner: ActionRunner;
+  private readonly approvals?: ApprovalGate;
 
   constructor(
     ssh: ConnectionManager | ActionSsh,
     private llmProvider: LLMProvider | null,
+    deps: Omit<RunnerDeps, 'ssh'> = {},
   ) {
-    this.runner = new ActionRunner({ ssh });
+    this.runner = new ActionRunner({ ssh, ...deps });
+    this.approvals = deps.approvals;
   }
 
   setLLMProvider(provider: LLMProvider | null): void {
@@ -116,6 +134,8 @@ export class InvestigationAgent {
 
   abort(sessionId: string): void {
     this.abortedSessions.add(sessionId);
+    // EX9.2: Stop answers every approval the run is waiting on with deny
+    this.approvals?.cancelRun(sessionId);
   }
 
   async investigate(
@@ -153,7 +173,16 @@ export class InvestigationAgent {
     sessionId: string,
   ): Promise<AgentResult> {
     const maxSteps = options.maxSteps ?? DEFAULT_MAX_STEPS;
-    const systemPrompt = buildSystemPrompt(selectActions(question, { max: OFFERED_ACTIONS }));
+    const changes = options.readOnly === false ? getDefaultCatalog().list({ risk: 'change' }) : [];
+    const systemPrompt = buildSystemPrompt(selectActions(question, { max: OFFERED_ACTIONS }), changes);
+    // EX9.2: approval cards go out on the progress socket, tagged with the step
+    const approvalEvents = (step: number) => (e: ApprovalEvent) => {
+      if (e.type === 'approval_required') {
+        this.events.emit(`step:${sessionId}`, { kind: 'approval', step, request: e.request });
+      } else {
+        this.events.emit(`step:${sessionId}`, { kind: 'approval_resolved', step, approvalId: e.approvalId, decision: e.decision, by: e.by });
+      }
+    };
     const steps: AgentStep[] = [];
     // EX8.24: every recorded step goes out on the progress socket as it happens
     const record = (s: AgentStep) => {
@@ -248,7 +277,9 @@ export class InvestigationAgent {
       if (actionId && parsedParams) {
         const result = parsedParams.ok
           ? await withSpan(`action:${actionId}`, 'TOOL', () =>
-            this.runner.run(serverId, actionId, parsedParams.value, { runId: sessionId }),
+            this.runner.run(serverId, actionId, parsedParams.value, {
+              runId: sessionId, onApproval: approvalEvents(step), allowChange: options.readOnly === false,
+            }),
           { input: { action: actionId, params: parsedParams.value } })
           : null;
         const observation = result ? formatForModel(result) : `error: ${parsedParams.ok ? '' : parsedParams.error}`;
@@ -258,6 +289,7 @@ export class InvestigationAgent {
           thought: thought.thought,
           action: actionId,
           command: result?.command || `${actionId} ${thought.params ?? ''}`.trim(),
+          ...(result?.approval ? { approval: result.approval } : {}),
           output: observation,
           ...(result?.ok ? {} : { observation: 'The action did not succeed' }),
           decision: 'continue',

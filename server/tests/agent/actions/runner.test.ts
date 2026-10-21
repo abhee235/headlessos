@@ -54,12 +54,18 @@ describe('ActionRunner.validate', () => {
 
   it('reports missing, mistyped and unknown params', () => {
     expect((runner.validate('service_status', {}) as { error: string }).error).toContain('unit: required (string)');
-    expect((runner.validate('recent_logins', { lines: '10' }) as { error: string }).error).toContain('lines: expected number, you sent "10"');
+    expect((runner.validate('recent_logins', { lines: 'ten' }) as { error: string }).error).toContain('lines: expected number, you sent "ten"');
     expect((runner.validate('uptime', { verbose: true }) as { error: string }).error).toContain('unknown parameter(s) verbose');
   });
 
   it('applies defaults', () => {
     expect(runner.validate('service_logs', { unit: 'nginx' })).toMatchObject({ ok: true, params: { unit: 'nginx', lines: 100 } });
+  });
+
+  it('reads plain numeric and boolean strings as meant (table cells are text)', () => {
+    expect(runner.validate('recent_logins', { lines: '10' })).toMatchObject({ ok: true, params: { lines: 10 } });
+    expect(runner.validate('process_detail', { pid: ' 1234 ' })).toMatchObject({ ok: true, params: { pid: 1234 } });
+    expect(runner.validate('process_detail', { pid: '12a' }).ok).toBe(false);
   });
 
   it('treats null as "not given" (models send null for optional params)', () => {
@@ -136,15 +142,16 @@ describe('ActionRunner.run — exec actions', () => {
     expect(result.command).toBe('uptime');
   });
 
-  it('refuses change actions until approvals exist (EX9.2)', async () => {
+  it('refuses change actions when the runner has no approval gate', async () => {
     const change: ActionDef = {
       ...readAction({ id: 'restart_it', title: 'r', description: 'd', category: 'service', run: { kind: 'exec', build: () => ['systemctl', 'restart', 'nginx'] } }),
       risk: 'change',
     };
     const ssh = sshReturning({});
-    const result = await new ActionRunner({ ssh: ssh as never, catalog: new ActionCatalog([change]) }).run('srv', 'restart_it', {});
+    const result = await new ActionRunner({ ssh: ssh as never, catalog: new ActionCatalog([change]) })
+      .run('srv', 'restart_it', { reason: 'testing the gate' }, { allowChange: true });
     expect(result).toMatchObject({ ok: false, command: 'systemctl restart nginx' });
-    expect(result.error).toContain("owner's approval");
+    expect(result.error).toContain("needs the owner's approval, which this agent cannot ask for");
     expect(ssh.exec).not.toHaveBeenCalled();
   });
 

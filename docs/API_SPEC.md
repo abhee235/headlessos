@@ -808,6 +808,59 @@ Storage information: directory sizes, mount points, swap.
 
 ---
 
+## Agent Actions & Approvals (EX9, ADR-024)
+
+Agents and generated view buttons run typed **catalog actions**
+(`server/src/agent/actions/`), never command text. Actions that change a server
+(`risk: 'change'`) wait for the owner's approval; every asked / answered / ran
+event is appended to `~/.headlessos/audit/actions.jsonl`.
+
+### `POST /api/servers/:id/agent/investigate`
+
+Body: `{ question, maxSteps?, sessionId?, readOnly? }`. `readOnly` defaults to
+`true`; only an explicit `false` offers change actions, each of which pauses the
+run with an approval card. Progress events on `/ws/agent/:id/:sessionId`:
+
+```json
+{ "kind": "thought", "step": 1, "thought": "…", "decision": "run_action", "action": "service_restart", "command": "sudo -n systemctl restart -- nginx" }
+{ "kind": "approval", "step": 1, "request": { "approvalId": "…", "command": "…", "serverName": "web-1", "host": "10.0.0.5", "loginUser": "deploy", "reason": "…", "title": "Restart service", "expiresAt": "…" } }
+{ "kind": "approval_resolved", "step": 1, "approvalId": "…", "decision": "allow", "by": "owner" }
+{ "kind": "step", "step": 1, "data": { "stepNumber": 1, "action": "service_restart", "command": "…", "approval": { "decision": "allow", "by": "owner" } } }
+```
+
+### `POST /api/servers/:id/agent/approvals/:approvalId`
+
+Body: `{ "decision": "allow" | "deny" }` → `{ success, approvalId, decision, by }`.
+404 when the approval is unknown, already answered, expired (10 min) or for another
+server. Stop (`POST /api/servers/:id/agent/:sessionId/abort`) denies every approval
+the run is waiting on.
+
+### `POST /api/servers/:id/actions/preview`
+
+Body: `{ actionId, params, label? }` (generated view buttons; `{column}` placeholders
+already filled by the client). Read action → `{ success, risk: "read", command }`.
+Change action → records exactly what would run and returns the card:
+`{ success, risk: "change", command, approval: { approvalId, … } }`. The reason is
+the button label. 400 with a "field: expected …, you sent …" message on bad params.
+
+### `POST /api/servers/:id/actions/run`
+
+Body: `{ actionId, params }` for a read action, or `{ approvalId }` for an approved
+change — the server runs the command it recorded at preview time, once. A change
+action sent by id returns 409; a used/expired approval 404.
+
+### `POST /api/servers/:id/actions/approvals/:approvalId/deny`
+
+Drops a staged view approval. → `{ success, decision: "deny", by: "owner" }`.
+
+### `POST /api/servers/:id/dynamic-ui/execute-action` (legacy)
+
+Buttons generated before EX9 carry command text. The command must still match the
+classic allowlist, and since EX9.2 only rules with risk `none`/`low` run; anything
+that would change the server returns 403 ("regenerate the view").
+
+---
+
 ## WebSocket Endpoints
 
 ### `ws://localhost:3001/ws/terminal/:serverId`

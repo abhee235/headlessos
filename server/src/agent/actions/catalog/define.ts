@@ -24,6 +24,18 @@ export function readAction<P extends ActionParams = typeof NO_PARAMS>(input: Rea
   };
 }
 
+type ChangeInput<P extends ActionParams> =
+  Omit<ActionDef<P>, 'risk' | 'maxOutputBytes' | 'params' | 'run'> & {
+    params: P;
+    run: Extract<ActionDef<P>['run'], { kind: 'exec' }>;
+    maxOutputBytes?: number;
+  };
+
+/** EX9.2: an action that changes the server; it runs only after the owner allows it. */
+export function changeAction<P extends ActionParams>(input: ChangeInput<P>): ActionDef<P> {
+  return { ...input, risk: 'change', maxOutputBytes: input.maxOutputBytes ?? 16 * 1024 };
+}
+
 /** Parse `--format '{{json .}}'` output (one JSON object per line) and keep chosen keys. */
 export function jsonLines(keys: string[]) {
   return (stdout: string): Array<Record<string, unknown>> =>

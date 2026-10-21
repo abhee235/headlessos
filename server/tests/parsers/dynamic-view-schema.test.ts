@@ -1255,6 +1255,16 @@ describe('WidgetActionSchema (EX1.14)', () => {
     expect(() => WidgetActionSchema.parse({ id: 'x', label: 'Y' })).toThrow(ZodError);
   });
 
+  // EX9.2: a button names a catalog action; the legacy command becomes optional
+  it('accepts a catalog action reference without a command', () => {
+    const parsed = WidgetActionSchema.parse({
+      id: 'restart', label: 'Restart', action: { id: 'container_restart', params: { container: '{name}' } },
+    });
+    expect(parsed.action).toEqual({ id: 'container_restart', params: { container: '{name}' } });
+    expect(parsed.command).toBeUndefined();
+    expect(() => WidgetActionSchema.parse({ id: 'r', label: 'R', action: { id: 'x', params: { n: 1 } } })).toThrow(ZodError);
+  });
+
   it('validates variant enum values', () => {
     const validVariants = ['default', 'destructive', 'outline', 'secondary', 'ghost'];
     for (const v of validVariants) {
