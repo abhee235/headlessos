@@ -1167,6 +1167,14 @@ None (all changes to existing files).
 - **Tests modified:** `server/tests/llm/ollama.test.ts` (streamed assembly, length stop, long reply not cut, idle and first-token timeouts, refused connection, error line)
 - **Verification:** server suite and `tsc -p server` clean
 
+### EX10.4 follow-up: timeouts count as cut-offs
+- **Status:** ✅ Complete
+- **Date:** 2026-10-22
+- **Files modified:** `server/src/agent/executor.ts` (`VIEW_TIMED_OUT`, timeout branch), `server/src/agent/loop/run-loop.ts` (`TIMED_OUT`, timeout branch)
+- **Docs:** `docs/phases/phase-ex10.md` (§8b, EX10.4 follow-up note), `docs/PROGRESS.md` (changelog)
+- **Tests modified:** `server/tests/agent/context/executor-context.test.ts`
+- **Verification:** server and client suites, both typechecks clean
+
 ## How to Use This File
 
 ### After completing a task:
