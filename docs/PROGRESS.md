@@ -40,7 +40,7 @@
 | **EX6: Multi-Session Desktop & Hibernation** | **Experimental** | **✅** | **34/34 tasks** | [phase-ex6](phases/phase-ex6.md) |
 | **EX7: Container Target Mode** | **Experimental** | **✅** | **10/10 tasks** | [phase-ex7](phases/phase-ex7.md) |
 | **EX8: LumenOS v3 Design System** | **Experimental** | **✅** | **9/9 tasks** | [phase-ex8](phases/phase-ex8.md) |
-| **EX9: Safe Agents (Actions, Approvals, Local Models)** | **Experimental** | **🔄** | **0/6 tasks** | [phase-ex9](phases/phase-ex9.md) |
+| **EX9: Safe Agents (Actions, Approvals, Local Models)** | **Experimental** | **🔄** | **1/6 tasks** | [phase-ex9](phases/phase-ex9.md) |
 
 ---
 
@@ -51,7 +51,7 @@
 
 | Task ID | Task | Status | Verification |
 |---------|------|--------|--------------|
-| EX9.0 | Remove the UI Agent's write tools (`exec_write_command`, `sftp_write`) from `ALL_AGENT_TOOLS` | ⬜ | |
+| EX9.0 | Remove the UI Agent's write tools (`exec_write_command`, `sftp_write`) from `ALL_AGENT_TOOLS` | ✅ | Default registry has no write-tier tool; a model calling either name gets "Unknown tool" and SSH/SFTP are never touched (3 new tests) |
 | EX9.1 | Action catalog + validators + quoting + runner; agent scope enforced by CommandPolicy; both agents on the runner | ⬜ | |
 | EX9.2 | Change actions, ApprovalGate, append-only audit log, ApprovalCard; Stop denies pending; view buttons via preview/run | ⬜ | |
 | EX9.3 | Shared agent loop (typed events), OllamaProvider, Settings → AI provider choice, weak-model input handling | ⬜ | |
