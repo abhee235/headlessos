@@ -3,15 +3,19 @@
 // EX8.21: changes reach the agents and Dynamic UI through onChange
 // EX8.22: saved encrypted to ~/.headlessos/llm.json, so they survive restarts
 // EX9.3: Ollama (a local model) as a second provider; the OpenAI key stays in memory
-// @see docs/PROGRESS.md, docs/phases/phase-ex9.md §8
+// EX10.1: the Ollama window is the lowest of the owner's setting (or 64K), the Modelfile and
+// the trained length; GET reports it, where it came from, and whether the model spilled to the CPU
+// @see docs/PROGRESS.md, docs/phases/phase-ex9.md §8, docs/phases/phase-ex10.md §1
 
 import type { FastifyInstance } from 'fastify';
 import type { ParsingPipeline } from '../parsers/pipeline.js';
 import type { LLMProvider } from '../llm/provider.js';
 import { DEFAULT_OPENAI_MODEL, OpenAIProvider } from '../llm/providers/openai.js';
+import { OllamaProvider, checkOllamaUrl, listOllamaModels } from '../llm/providers/ollama.js';
 import {
-  OllamaProvider, checkOllamaUrl, listOllamaModels, ollamaContextWindow,
-} from '../llm/providers/ollama.js';
+  CONTEXT_WINDOW_OPTIONS, ollamaResidency, probeOllamaLimits, validContextSetting,
+  type ModelLimits, type OllamaResidency,
+} from '../llm/model-limits.js';
 import type { LLMSettingsUpdate, OllamaSettings } from '../llm/llm-settings-store.js';
 
 /** EX8.22: where the active key came from */
@@ -23,7 +27,14 @@ interface LLMConfig {
   hasApiKey: boolean;
   keySource: KeySource;
   /** EX9.3: the active or last saved Ollama settings */
-  ollama?: OllamaSettings & { contextWindow?: number };
+  ollama?: OllamaSettings & {
+    /** EX10.1: the window in use and why (active provider only) */
+    limits?: ModelLimits;
+    /** EX10.1: GET /api/ps for the model; null when Ollama did not answer */
+    residency?: OllamaResidency | null;
+  };
+  /** EX10.1: the windows the owner can choose for a local model */
+  contextOptions?: readonly number[];
 }
 
 interface LLMRouteOpts {
@@ -47,13 +58,17 @@ interface LLMRouteOpts {
   ollama?: { saved?: OllamaSettings; fetch?: typeof fetch };
 }
 
-const OllamaBody = (value: unknown): { baseUrl: string; model: string; allowRemote: boolean } | null => {
+const OllamaBody = (value: unknown): { baseUrl: string; model: string; allowRemote: boolean; contextWindow?: number } | null => {
   if (typeof value !== 'object' || value === null) return null;
   const v = value as Record<string, unknown>;
   if (typeof v.baseUrl !== 'string' || typeof v.model !== 'string') return null;
   const model = v.model.trim();
   if (!/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/.test(model)) return null;
-  return { baseUrl: v.baseUrl.trim(), model, allowRemote: v.allowRemote === true };
+  // EX10.1: absent / null / 'auto' = Auto; anything else must be one of the offered windows
+  const auto = v.contextWindow === undefined || v.contextWindow === null || v.contextWindow === 'auto';
+  const contextWindow = validContextSetting(v.contextWindow);
+  if (!auto && !contextWindow) return null;
+  return { baseUrl: v.baseUrl.trim(), model, allowRemote: v.allowRemote === true, ...(contextWindow ? { contextWindow } : {}) };
 };
 
 export async function llmRoutes(app: FastifyInstance, opts: LLMRouteOpts): Promise<void> {
@@ -84,8 +99,18 @@ export async function llmRoutes(app: FastifyInstance, opts: LLMRouteOpts): Promi
       hasApiKey: !!provider,
       keySource: provider && !isOllama ? keySource : null,
       ...(isOllama
-        ? { ollama: { baseUrl: provider.baseUrl, model: provider.model, contextWindow: provider.contextWindow, ...(savedOllama?.allowRemote ? { allowRemote: true } : {}) } }
+        ? {
+            ollama: {
+              baseUrl: provider.baseUrl,
+              model: provider.model,
+              ...(savedOllama?.allowRemote ? { allowRemote: true } : {}),
+              ...(savedOllama?.contextWindow ? { contextWindow: savedOllama.contextWindow } : {}),
+              limits: provider.limits,
+              residency: await ollamaResidency(provider.baseUrl, provider.model, ollamaFetch),
+            },
+          }
         : savedOllama ? { ollama: savedOllama } : {}),
+      contextOptions: CONTEXT_WINDOW_OPTIONS,
     };
     return { success: true, data: config };
   });
@@ -148,7 +173,7 @@ export async function llmRoutes(app: FastifyInstance, opts: LLMRouteOpts): Promi
 
       if (provider === 'ollama') {
         const body = OllamaBody((req.body as { ollama?: unknown }).ollama);
-        if (!body) return { success: false, error: 'Choose an Ollama URL and a model' };
+        if (!body) return { success: false, error: `Choose an Ollama URL, a model, and a context window of Auto or ${CONTEXT_WINDOW_OPTIONS.join(', ')}` };
         const checked = checkOllamaUrl(body.baseUrl, body.allowRemote);
         if (!checked.ok) return { success: false, error: checked.error };
         let installed: string[];
@@ -162,16 +187,21 @@ export async function llmRoutes(app: FastifyInstance, opts: LLMRouteOpts): Promi
         if (!model) {
           return { success: false, error: `Model "${body.model}" is not installed in Ollama. Installed: ${installed.join(', ') || 'none'}` };
         }
-        const contextWindow = await ollamaContextWindow(checked.url, model, ollamaFetch);
-        const llmProvider = new OllamaProvider({ baseUrl: checked.url, model, contextWindow, fetch: ollamaFetch });
+        const limits = await probeOllamaLimits(checked.url, model, body.contextWindow, ollamaFetch);
+        const llmProvider = new OllamaProvider({ baseUrl: checked.url, model, limits, fetch: ollamaFetch });
         pipeline.setLLMProvider(llmProvider);
         onChange?.(llmProvider);
-        savedOllama = { baseUrl: checked.url, model, ...(body.allowRemote ? { allowRemote: true } : {}) };
+        savedOllama = {
+          baseUrl: checked.url,
+          model,
+          ...(body.allowRemote ? { allowRemote: true } : {}),
+          ...(body.contextWindow ? { contextWindow: body.contextWindow } : {}),
+        };
         const persisted = tryPersist(() => persist?.save({ provider: 'ollama', ollama: savedOllama! }));
-        console.log(`🦙 LLM provider updated: Ollama ${model} at ${checked.url} (context ${contextWindow})${persisted ? ' — saved' : ' — this session only'}`);
+        console.log(`🦙 LLM provider updated: Ollama ${model} at ${checked.url} (context ${limits.contextWindow}, ${limits.source})${persisted ? ' — saved' : ' — this session only'}`);
         return {
           success: true,
-          data: { provider: 'ollama', model, hasApiKey: true, keySource: null, ollama: { ...savedOllama, contextWindow }, persisted },
+          data: { provider: 'ollama', model, hasApiKey: true, keySource: null, ollama: { ...savedOllama, limits }, persisted },
         };
       }
 

@@ -41,7 +41,7 @@ describe('LLM config routes', () => {
   it('defaults to GPT-6 Luna, and reports no key without one', async () => {
     const { app } = await build();
     const cfg = (await app.inject({ method: 'GET', url: '/api/llm/config' })).json().data;
-    expect(cfg).toEqual({ provider: 'none', model: 'gpt-6-luna', hasApiKey: false, keySource: null });
+    expect(cfg).toEqual({ provider: 'none', model: 'gpt-6-luna', hasApiKey: false, keySource: null, contextOptions: [8192, 16384, 32768, 65536, 131072] });
     const put = await app.inject({ method: 'PUT', url: '/api/llm/config', payload: { provider: 'openai', apiKey: 'sk-x' } });
     expect(put.json()).toMatchObject({ success: true, data: { model: 'gpt-6-luna' } });
   });
@@ -123,6 +123,9 @@ describe('LLM config routes — Ollama', () => {
     expect(allowed.success).toBe(true);
   });
 
+  // EX10.1: Auto = the lowest of the trained length (40,960 here) and 64K
+  const TRAINED = { contextWindow: 40960, source: 'trained', trainedContext: 40960, maxOutputTokens: 5120, local: true };
+
   it('switches to an installed model, sized to its context, and saves it', async () => {
     const { app, pipeline, persist, onChange } = await buildOllama();
     const res = await put(app, { provider: 'ollama', ollama: { baseUrl: 'http://localhost:11434/', model: 'qwen3:8b' } });
@@ -130,14 +133,45 @@ describe('LLM config routes — Ollama', () => {
       success: true,
       data: {
         provider: 'ollama', model: 'qwen3:8b', hasApiKey: true, keySource: null, persisted: true,
-        ollama: { baseUrl: 'http://localhost:11434', model: 'qwen3:8b', contextWindow: 16384 },
+        ollama: { baseUrl: 'http://localhost:11434', model: 'qwen3:8b', limits: TRAINED },
       },
     });
     expect((pipeline.llmProvider as { name: string }).name).toBe('ollama');
     expect(onChange).toHaveBeenCalledWith(pipeline.llmProvider);
     expect(persist.save).toHaveBeenLastCalledWith({ provider: 'ollama', ollama: { baseUrl: 'http://localhost:11434', model: 'qwen3:8b' } });
     const cfg = (await app.inject({ method: 'GET', url: '/api/llm/config' })).json().data;
-    expect(cfg).toMatchObject({ provider: 'ollama', model: 'qwen3:8b', keySource: null, ollama: { contextWindow: 16384 } });
+    expect(cfg).toMatchObject({
+      provider: 'ollama', model: 'qwen3:8b', keySource: null,
+      ollama: { limits: TRAINED, residency: { loaded: false, onCpu: false } },
+      contextOptions: [8192, 16384, 32768, 65536, 131072],
+    });
+  });
+
+  it('applies and saves the owner’s window, and refuses one that is not offered (EX10.1)', async () => {
+    const { app, pipeline, persist } = await buildOllama();
+    const res = await put(app, { provider: 'ollama', ollama: { baseUrl: 'http://127.0.0.1:11434', model: 'qwen3:8b', contextWindow: 16384 } });
+    expect(res.data.ollama.limits).toMatchObject({ contextWindow: 16384, source: 'owner', trainedContext: 40960 });
+    expect(persist.save).toHaveBeenLastCalledWith({ provider: 'ollama', ollama: { baseUrl: 'http://127.0.0.1:11434', model: 'qwen3:8b', contextWindow: 16384 } });
+    expect((pipeline.llmProvider as { contextWindow: number }).contextWindow).toBe(16384);
+    // a window above the trained length is held to it
+    const big = await put(app, { provider: 'ollama', ollama: { baseUrl: 'http://127.0.0.1:11434', model: 'qwen3:8b', contextWindow: 131072 } });
+    expect(big.data.ollama.limits).toMatchObject({ contextWindow: 40960, source: 'trained' });
+    const auto = await put(app, { provider: 'ollama', ollama: { baseUrl: 'http://127.0.0.1:11434', model: 'qwen3:8b', contextWindow: 'auto' } });
+    expect(auto.data.ollama).not.toHaveProperty('contextWindow');
+    const bad = await put(app, { provider: 'ollama', ollama: { baseUrl: 'http://127.0.0.1:11434', model: 'qwen3:8b', contextWindow: 12345 } });
+    expect(bad).toMatchObject({ success: false, error: expect.stringContaining('context window of Auto or 8192') });
+  });
+
+  it('reports a model that spilled to the CPU (EX10.1)', async () => {
+    const fetchImpl = vi.fn(async (url: string) => {
+      const body = url.endsWith('/api/tags') ? TAGS : url.endsWith('/api/show') ? SHOW
+        : url.endsWith('/api/ps') ? { models: [{ name: 'qwen3:8b', size: 9_000_000_000, size_vram: 6_000_000_000, context_length: 40960 }] } : {};
+      return { ok: true, status: 200, json: async () => body, text: async () => '' } as unknown as Response;
+    });
+    const { app } = await buildOllama(fetchImpl as never);
+    await put(app, { provider: 'ollama', ollama: { baseUrl: 'http://127.0.0.1:11434', model: 'qwen3:8b' } });
+    const cfg = (await app.inject({ method: 'GET', url: '/api/llm/config' })).json().data;
+    expect(cfg.ollama.residency).toEqual({ loaded: true, contextLength: 40960, sizeBytes: 9_000_000_000, vramBytes: 6_000_000_000, onCpu: true });
   });
 
   it('accepts a model name without its :latest tag', async () => {
@@ -158,7 +192,7 @@ describe('LLM config routes — Ollama', () => {
     const r3 = await put(app, { provider: 'ollama', ollama: { baseUrl: 'http://10.0.0.7:11434', model: 'qwen3:8b' } });
     expect(r3.success).toBe(false);
     const r4 = await put(app, { provider: 'ollama', ollama: { baseUrl: 'http://127.0.0.1:11434', model: 'bad name; rm' } });
-    expect(r4).toEqual({ success: false, error: 'Choose an Ollama URL and a model' });
+    expect(r4).toMatchObject({ success: false, error: expect.stringContaining('Choose an Ollama URL, a model') });
     expect(pipeline.llmProvider).toBeNull();
   });
 

@@ -1331,13 +1331,35 @@ export async function fetchStorageInfo(serverId: string): Promise<{ success: boo
 
 // ── LLM Configuration (M10.7) ───────────────────────────
 
+/** EX10.1: the window a model is planned against, and which limit won */
+export interface ModelLimits {
+  contextWindow: number;
+  source: 'owner' | 'modelfile' | 'trained' | 'auto-cap' | 'table' | 'default';
+  trainedContext?: number;
+  maxOutputTokens: number;
+  kvBytesPerToken?: number;
+  local: boolean;
+}
+
+/** EX10.1: is the model loaded in Ollama, and does it fit in GPU memory? */
+export interface OllamaResidency {
+  loaded: boolean;
+  contextLength?: number;
+  sizeBytes?: number;
+  vramBytes?: number;
+  onCpu: boolean;
+}
+
 /** EX9.3: a local Ollama server (no secret) */
 export interface OllamaConfig {
   baseUrl: string;
   model: string;
   allowRemote?: boolean;
-  /** tokens per request (num_ctx), when active */
+  /** EX10.1: the owner's window; absent = Auto */
   contextWindow?: number;
+  /** EX10.1: the window in use (active provider) */
+  limits?: ModelLimits;
+  residency?: OllamaResidency | null;
 }
 
 export interface LLMConfig {
@@ -1351,6 +1373,8 @@ export interface LLMConfig {
   persisted?: boolean;
   /** EX9.3: the active or last saved Ollama settings */
   ollama?: OllamaConfig;
+  /** EX10.1: the windows the owner can choose for a local model */
+  contextOptions?: number[];
 }
 
 /** EX9.3: a model installed in Ollama */
@@ -1373,7 +1397,12 @@ export async function fetchLLMConfig(): Promise<{ success: boolean; data?: LLMCo
 }
 
 export async function updateLLMConfig(
-  config: { provider: string; apiKey?: string; model?: string; ollama?: { baseUrl: string; model: string; allowRemote?: boolean } },
+  config: {
+    provider: string;
+    apiKey?: string;
+    model?: string;
+    ollama?: { baseUrl: string; model: string; allowRemote?: boolean; contextWindow?: number | 'auto' };
+  },
 ): Promise<{ success: boolean; data?: LLMConfig; error?: string }> {
   return request('/llm/config', { method: 'PUT', body: JSON.stringify(config) });
 }

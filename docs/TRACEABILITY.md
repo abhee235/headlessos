@@ -1090,6 +1090,15 @@ None (all changes to existing files).
 - **Files created:** `docs/phases/phase-ex10.md`
 - **Files modified:** `docs/DECISIONS.md` (ADR-025), `docs/PROGRESS.md` (EX10 row + section + changelog), `docs/TRACEABILITY.md`
 
+### EX10.1: Model limits
+- **Status:** ✅ Complete
+- **Date:** 2026-10-22
+- **Files created:** `server/src/llm/model-limits.ts`, `server/tests/llm/model-limits.test.ts`
+- **Files modified:** `server/src/llm/provider.ts` (`limits`), `server/src/llm/providers/ollama.ts` (limits, `num_ctx`/`num_predict`/`think: false`, think fallback; `ollamaContextWindow`/`MAX_OLLAMA_CONTEXT` removed), `server/src/llm/providers/openai.ts` (`limits`, `contextWindow`), `server/src/llm/llm-settings-store.ts` (`ollama.contextWindow`), `server/src/routes/llm.ts` (owner window, `limits`, `residency`, `contextOptions`), `server/src/index.ts` (startup probe), `client/src/lib/api.ts` (`ModelLimits`, `OllamaResidency`), `client/src/components/Desktop/SettingsView.tsx` (Context window rows, Memory warning)
+- **Docs:** `docs/phases/phase-ex10.md` ("EX10.1 — as built"), `docs/API_SPEC.md` (LLM config)
+- **Tests modified:** `server/tests/llm/{ollama,llm-settings-store}.test.ts`, `server/tests/routes/llm.test.ts`, `client/tests/components/settings-ai.test.tsx`
+- **Verification:** server 2346 passed (+2 skipped), client 645, both typechecks clean; Playwright measurements in the phase doc
+
 ## How to Use This File
 
 ### After completing a task:

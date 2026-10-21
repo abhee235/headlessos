@@ -57,7 +57,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { toast } from 'sonner';
 import {
   fetchLLMConfig, updateLLMConfig, fetchLLMModels, fetchOllamaModels,
-  type LLMConfig, type LLMModelInfo, type OllamaModel,
+  type LLMConfig, type LLMModelInfo, type ModelLimits, type OllamaModel,
 } from '../../lib/api';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -1060,6 +1060,28 @@ function formatGB(bytes?: number): string | null {
   return bytes ? `${(bytes / 1e9).toFixed(1)} GB` : null;
 }
 
+/** EX10.1: 65536 → "64K" */
+function formatWindow(tokens: number): string {
+  return tokens % 1024 === 0 ? `${tokens / 1024}K` : tokens.toLocaleString();
+}
+
+const DEFAULT_CONTEXT_OPTIONS = [8192, 16384, 32768, 65536, 131072];
+
+/** EX10.1: why the window is what it is, in one line */
+function describeLimits(limits: ModelLimits): string {
+  const why = {
+    owner: 'Your setting',
+    modelfile: 'Set by the model’s Modelfile',
+    trained: 'All the model was trained for',
+    'auto-cap': 'Auto (at most 64K)',
+    table: 'From the model',
+    default: 'Default — Ollama did not report the model’s length',
+  }[limits.source];
+  const trained = limits.trainedContext && limits.source !== 'trained' ? ` · trained for ${formatWindow(limits.trainedContext)}` : '';
+  const cache = limits.kvBytesPerToken ? ` · cache ≈ ${formatGB(limits.kvBytesPerToken * limits.contextWindow)}` : '';
+  return `${why}${trained}${cache}`;
+}
+
 function AIPage() {
   const [config, setConfig] = useState<LLMConfig | null>(null);
   const [models, setModels] = useState<Record<string, LLMModelInfo[]>>({});
@@ -1074,6 +1096,8 @@ function AIPage() {
   const [ollamaUrl, setOllamaUrl] = useState(DEFAULT_OLLAMA_URL);
   const [ollamaModel, setOllamaModel] = useState('');
   const [allowRemote, setAllowRemote] = useState(false);
+  // EX10.1: 'auto' = the lowest of 64K and the model's own limits
+  const [ollamaContext, setOllamaContext] = useState<number | 'auto'>('auto');
   const [ollamaModels, setOllamaModels] = useState<OllamaModel[]>([]);
   const [ollamaStatus, setOllamaStatus] = useState<{ loading: boolean; error?: string }>({ loading: false });
 
@@ -1089,6 +1113,7 @@ function AIPage() {
             setOllamaUrl(configRes.data.ollama.baseUrl);
             setOllamaModel(configRes.data.ollama.model);
             setAllowRemote(!!configRes.data.ollama.allowRemote);
+            setOllamaContext(configRes.data.ollama.contextWindow ?? 'auto');
           }
         }
         if (modelsRes.data) setModels(modelsRes.data);
@@ -1129,7 +1154,12 @@ function AIPage() {
         if (apiKey) body.apiKey = apiKey;
         body.model = model;
       } else if (provider === 'ollama') {
-        body.ollama = { baseUrl: ollamaUrl.trim(), model: ollamaModel, ...(remote && allowRemote ? { allowRemote: true } : {}) };
+        body.ollama = {
+          baseUrl: ollamaUrl.trim(),
+          model: ollamaModel,
+          ...(remote && allowRemote ? { allowRemote: true } : {}),
+          contextWindow: ollamaContext,
+        };
       }
       const res = await updateLLMConfig(body);
       if (res.success && res.data) {
@@ -1180,9 +1210,17 @@ function AIPage() {
         )}
         {activeOllama && (
           <Row label="Ollama" className="min-h-[52px]">
-            <RowValue className="font-mono text-[14px]">
-              {activeOllama.baseUrl}{activeOllama.contextWindow ? ` · ${activeOllama.contextWindow.toLocaleString()} tokens` : ''}
-            </RowValue>
+            <RowValue className="font-mono text-[14px]">{activeOllama.baseUrl}</RowValue>
+          </Row>
+        )}
+        {activeOllama?.limits && (
+          <Row label="Context window" description={describeLimits(activeOllama.limits)} className="min-h-[52px]">
+            <RowValue>{activeOllama.limits.contextWindow.toLocaleString()} tokens</RowValue>
+          </Row>
+        )}
+        {activeOllama?.residency?.onCpu && (
+          <Row label="Memory" description="Choose a smaller context window, or a smaller model." className="min-h-[52px]">
+            <RowValue className="text-warning">Part of the model runs on the CPU</RowValue>
           </Row>
         )}
       </RowSection>
@@ -1248,6 +1286,25 @@ function AIPage() {
               {ollamaModel === m.name ? <SelectedCheck /> : null}
             </Row>
           ))}
+        </RowSection>
+      )}
+      {provider === 'ollama' && ollamaModels.length > 0 && (
+        <RowSection>
+          <Row
+            label="Context window"
+            description="Auto: up to 64K, never more than the model supports."
+            className="min-h-[52px]"
+          >
+            <SelectPill
+              value={ollamaContext}
+              onChange={setOllamaContext}
+              options={[
+                { value: 'auto' as const, label: 'Auto' },
+                ...(config?.contextOptions ?? DEFAULT_CONTEXT_OPTIONS).map((w) => ({ value: w, label: formatWindow(w) })),
+              ]}
+              testId="ollama-context"
+            />
+          </Row>
         </RowSection>
       )}
 

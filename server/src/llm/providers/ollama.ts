@@ -1,5 +1,6 @@
 // EX9.3: Ollama provider — local models through the same LLMProvider interface
-// @see docs/phases/phase-ex9.md §8, docs/DECISIONS.md (ADR-024)
+// EX10.1: num_ctx / num_predict from the model's limits, think: false on every request
+// @see docs/phases/phase-ex9.md §8, docs/phases/phase-ex10.md §1, docs/DECISIONS.md (ADR-024, ADR-025)
 //
 // POST {baseUrl}/api/chat, stream: false. Tools are passed in the OpenAI function
 // shape (Ollama accepts it); tool-call arguments come back as objects. A model that
@@ -21,11 +22,9 @@ import type {
 } from '../provider.js';
 import { SYSTEM_PROMPT, buildTextPrompt } from '../provider.js';
 import { extractProseToolCalls, parseToolArgs, repairJson } from '../../agent/loop/tool-input.js';
+import { DEFAULT_LOCAL_WINDOW, recommendedMaxOutput, type ModelLimits } from '../model-limits.js';
 
 export const DEFAULT_OLLAMA_URL = 'http://127.0.0.1:11434';
-export const DEFAULT_OLLAMA_CONTEXT = 8192;
-/** a bigger window costs local RAM; models that support more still run at this */
-export const MAX_OLLAMA_CONTEXT = 16384;
 const REQUEST_TIMEOUT_MS = 120_000;
 const PROBE_TIMEOUT_MS = 5_000;
 
@@ -34,7 +33,9 @@ type Fetch = typeof fetch;
 export interface OllamaOptions {
   baseUrl: string;
   model: string;
-  /** num_ctx sent with every request */
+  /** EX10.1: resolved by probeOllamaLimits(); num_ctx and num_predict come from it */
+  limits?: ModelLimits;
+  /** a fixed window when no limits were resolved (tests) */
   contextWindow?: number;
   timeoutMs?: number;
   fetch?: Fetch;
@@ -88,26 +89,6 @@ export async function listOllamaModels(baseUrl: string, fetchImpl: Fetch = fetch
     }));
 }
 
-/** The model's context length (POST /api/show), capped at MAX_OLLAMA_CONTEXT. */
-export async function ollamaContextWindow(baseUrl: string, model: string, fetchImpl: Fetch = fetch): Promise<number> {
-  try {
-    const res = await fetchImpl(`${baseUrl}/api/show`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model }),
-      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
-    });
-    if (!res.ok) return DEFAULT_OLLAMA_CONTEXT;
-    const body = (await res.json()) as { parameters?: string; model_info?: Record<string, unknown> };
-    const fromParams = /^\s*num_ctx\s+(\d+)/m.exec(body.parameters ?? '')?.[1];
-    const fromInfo = Object.entries(body.model_info ?? {}).find(([k, v]) => k.endsWith('.context_length') && typeof v === 'number')?.[1];
-    const n = Number(fromParams ?? fromInfo);
-    return Number.isFinite(n) && n > 0 ? Math.min(n, MAX_OLLAMA_CONTEXT) : DEFAULT_OLLAMA_CONTEXT;
-  } catch {
-    return DEFAULT_OLLAMA_CONTEXT;
-  }
-}
-
 // ── Provider ────────────────────────────────────────────
 
 interface OllamaMessage {
@@ -130,16 +111,28 @@ export class OllamaProvider implements LLMProvider {
   readonly name = 'ollama';
   readonly model: string;
   readonly baseUrl: string;
-  readonly contextWindow: number;
+  readonly limits: ModelLimits;
   private readonly timeoutMs: number;
   private readonly fetchImpl: Fetch;
+  /** EX10.1: this model rejected the `think` field once; stop sending it */
+  private thinkUnsupported = false;
 
   constructor(opts: OllamaOptions) {
     this.baseUrl = opts.baseUrl.replace(/\/+$/, '');
     this.model = opts.model;
-    this.contextWindow = opts.contextWindow ?? DEFAULT_OLLAMA_CONTEXT;
+    const window = opts.contextWindow ?? DEFAULT_LOCAL_WINDOW;
+    this.limits = opts.limits ?? {
+      contextWindow: window,
+      source: opts.contextWindow ? 'owner' : 'default',
+      maxOutputTokens: recommendedMaxOutput(window),
+      local: true,
+    };
     this.timeoutMs = opts.timeoutMs ?? REQUEST_TIMEOUT_MS;
     this.fetchImpl = opts.fetch ?? fetch;
+  }
+
+  get contextWindow(): number {
+    return this.limits.contextWindow;
   }
 
   async parseText<T>(input: ParseTextInput<T>): Promise<ParseResult<T>> {
@@ -230,22 +223,36 @@ export class OllamaProvider implements LLMProvider {
     };
   }
 
+  /**
+   * EX10.1: every request runs at the model's one window (num_ctx), with the reply capped
+   * (num_predict) and thinking off. A model that rejects `think` is asked again without it.
+   */
   private async chat(body: { messages: OllamaMessage[]; tools?: unknown; format?: unknown; options?: Record<string, unknown> }): Promise<OllamaChatResponse> {
-    let res: Response;
-    try {
-      res = await this.fetchImpl(`${this.baseUrl}/api/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: this.model,
-          stream: false,
-          ...body,
-          options: { num_ctx: this.contextWindow, ...body.options },
-        }),
-        signal: AbortSignal.timeout(this.timeoutMs),
-      });
-    } catch (err) {
-      throw new Error(`Ollama is not reachable at ${this.baseUrl}: ${err instanceof Error ? err.message : String(err)}`);
+    const send = async (withThink: boolean): Promise<Response> => {
+      try {
+        return await this.fetchImpl(`${this.baseUrl}/api/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: this.model,
+            stream: false,
+            ...(withThink ? { think: false } : {}),
+            ...body,
+            options: { num_ctx: this.limits.contextWindow, num_predict: this.limits.maxOutputTokens, ...body.options },
+          }),
+          signal: AbortSignal.timeout(this.timeoutMs),
+        });
+      } catch (err) {
+        throw new Error(`Ollama is not reachable at ${this.baseUrl}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    };
+    let res = await send(!this.thinkUnsupported);
+    if (!res.ok && res.status === 400 && !this.thinkUnsupported) {
+      const detail = await res.clone().text().catch(() => '');
+      if (/think/i.test(detail)) {
+        this.thinkUnsupported = true;
+        res = await send(false);
+      }
     }
     if (!res.ok) {
       const detail = await res.text().catch(() => '');
