@@ -1052,7 +1052,7 @@ function AIPage() {
   // Form state
   const [provider, setProvider] = useState('none');
   const [apiKey, setApiKey] = useState('');
-  const [model, setModel] = useState('gpt-4o-mini');
+  const [model, setModel] = useState('gpt-6-luna'); // EX8.20: default model
 
   useEffect(() => {
     (async () => {
@@ -1140,8 +1140,9 @@ function AIPage() {
           />
           <p className="text-[13px] text-label-2">
             {config?.hasApiKey
-              ? 'API key is configured. Enter a new key to change it.'
-              : 'Enter your OpenAI API key. It is stored in server memory only (not saved to disk).'}
+              ? 'A key is set. Leave this empty to keep it, or enter a new key to replace it.'
+              : 'Enter your OpenAI API key. It is kept in server memory only: never saved to disk, cleared when the server restarts.'}
+            {' '}AI Agent and UI Agent use OPENAI_API_KEY from .env instead.
           </p>
         </Section>
       )}

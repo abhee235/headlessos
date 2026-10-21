@@ -54,6 +54,7 @@ export interface ListOpts {
 // ── Model Pricing (shared with usage-tracker) ──
 
 const MODEL_PRICING: Record<string, { input: number; output: number }> = {
+  'gpt-6-luna': { input: 0.0001, output: 0.0005 },
   'gpt-4.1': { input: 0.002, output: 0.008 },
   'gpt-4.1-mini': { input: 0.0004, output: 0.0016 },
   'gpt-4.1-nano': { input: 0.0001, output: 0.0004 },
