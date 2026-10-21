@@ -3,8 +3,7 @@
 //
 // EX9.1 (ADR-024): the read-only allowlist for model-written commands is gone —
 // agents run catalog actions (agent/actions/). What remains guards the
-// owner-driven form write-back (agent/writeback.ts) and the unregistered
-// EX2 write tools until EX9.2 replaces them with change actions.
+// owner-driven form write-back (agent/writeback.ts).
 
 // ── Write Allowlist ─────────────────────────────────────
 
