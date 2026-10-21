@@ -237,7 +237,7 @@ export function LogsSection({ serverId }: { serverId: string }) {
         <div className="flex min-w-48 flex-1 items-center gap-2">
           <SearchField
             wrapperClassName="w-auto flex-1"
-            className="h-[34px]"
+            className="h-[36px]"
             placeholder="Search logs (grep)..."
             value={grepInput}
             onValueChange={setGrepInput}

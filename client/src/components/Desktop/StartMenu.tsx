@@ -85,12 +85,12 @@ const APP_COLS = 5;
 function QuickAction({ icon: Icon, label, onClick, disabled }: { icon: LucideIcon; label: string; onClick: () => void; disabled?: boolean }) {
   return (
     <button
-      className="lumen-card flex h-[66px] min-w-0 flex-col items-center justify-center gap-[7px] rounded-[18px] text-foreground transition-colors hover:bg-dock-hover disabled:pointer-events-none disabled:opacity-40"
+      className="lumen-card flex h-[96px] min-w-0 flex-col items-center justify-center gap-[7px] rounded-[18px] text-foreground transition-colors hover:bg-dock-hover disabled:pointer-events-none disabled:opacity-40"
       onClick={onClick}
       disabled={disabled}
       title={label}
     >
-      <Icon className="h-5 w-5 shrink-0" strokeWidth={1.75} />
+      <Icon className="h-6 w-6 shrink-0" strokeWidth={1.75} />
       <span className="max-w-full truncate px-1 text-xs font-medium">{label}</span>
     </button>
   );
@@ -261,7 +261,7 @@ export function StartMenu() {
   return (
     <div
       ref={menuRef}
-      className="glass-heavy absolute bottom-[100px] left-1/2 z-[10000] flex max-h-[calc(100%-116px)] w-[640px] max-w-[calc(100vw-28px)] -translate-x-1/2 flex-col overflow-hidden rounded-[30px] animate-panelIn"
+      className="glass-heavy absolute bottom-[100px] left-1/2 z-[10000] flex max-h-[calc(100%-116px)] w-[780px] max-w-[calc(100vw-28px)] -translate-x-1/2 flex-col overflow-hidden rounded-[30px] animate-panelIn"
       onClick={(e) => e.stopPropagation()}
       onKeyDown={handleKeyDown}
       role="dialog"
@@ -306,7 +306,7 @@ export function StartMenu() {
         {!searching ? (
           <>
             {/* Quick actions */}
-            <div className="grid grid-cols-3 gap-2 min-[680px]:grid-cols-6">
+            <div className="grid grid-cols-3 gap-4 min-[680px]:grid-cols-6">
               <QuickAction icon={SquareTerminal} label="Terminal" disabled={!isConnected} onClick={() => handleOpenApp('terminal', 'Terminal')} />
               <QuickAction icon={FolderOpen} label="Files" disabled={!isConnected} onClick={() => handleOpenApp('files', 'File Explorer')} />
               <QuickAction icon={Palette} label="Personalize" onClick={() => handleOpenApp('settings', 'Personalize', { initialPage: 'wallpaper' })} />

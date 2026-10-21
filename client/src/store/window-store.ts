@@ -94,14 +94,14 @@ export function useDockInsets(): DockInsets {
 }
 
 const APP_DEFAULTS: Record<string, { width: number; height: number }> = {
-  dashboard: { width: 900, height: 650 },
-  files: { width: 850, height: 600 },
+  dashboard: { width: 1100, height: 850 },
+  files: { width: 950, height: 700 },
   terminal: { width: 800, height: 500 },
-  settings: { width: 860, height: 580 },
-  taskmanager: { width: 1000, height: 650 },
+  settings: { width: 900, height: 750 },
+  taskmanager: { width: 1100, height: 750 },
   docker: { width: 950, height: 600 },
   services: { width: 900, height: 600 },
-  serveradmin: { width: 1000, height: 650 },
+  serveradmin: { width: 1100, height: 850 },
   'dynamic-ui': { width: 900, height: 650 },
   observatory: { width: 1100, height: 700 },
 };

@@ -487,7 +487,23 @@ function WallpaperPage() {
         </div>
       </Section>
 
-      {/* ── Built-in ─────────────────────────────── */}
+      {/* ── System ───────────────────────────────── */}
+      {systemWps.length > 0 && (
+        <Section title="System" aside={<CountLabel count={systemWps.length} />}>
+          <div className={WALLPAPER_GRID}>
+            {systemWps.map((wp) => (
+              <WallpaperThumb
+                key={wp.id}
+                wp={wp}
+                selected={wallpaperId === wp.id}
+                onSelect={() => setWallpaperId(wp.id)}
+              />
+            ))}
+          </div>
+        </Section>
+      )}
+
+       {/* ── Built-in ─────────────────────────────── */}
       <Section title="Built-in" aside={<CountLabel count={BUILTIN_WALLPAPERS.length} />}>
         <div className={WALLPAPER_GRID}>
           {BUILTIN_WALLPAPERS.map((wp) => (
@@ -516,22 +532,6 @@ function WallpaperPage() {
           ))}
         </div>
       </Section>
-
-      {/* ── System ───────────────────────────────── */}
-      {systemWps.length > 0 && (
-        <Section title="System" aside={<CountLabel count={systemWps.length} />}>
-          <div className={WALLPAPER_GRID}>
-            {systemWps.map((wp) => (
-              <WallpaperThumb
-                key={wp.id}
-                wp={wp}
-                selected={wallpaperId === wp.id}
-                onSelect={() => setWallpaperId(wp.id)}
-              />
-            ))}
-          </div>
-        </Section>
-      )}
 
       {loading && allWallpapers.length <= BUILTIN_WALLPAPERS.length && (
         <p className="px-1 text-[13px] text-label-3">Loading wallpapers…</p>
@@ -844,34 +844,6 @@ function GeneralPage() {
         </Row>
       </RowSection>
 
-      {/* ── EX8.15: Weather for the Home hub ─── */}
-      <RowSection title="Weather" footer="Shown in the Home hub. Forecasts come from Open-Meteo; only the chosen city's coordinates are sent.">
-        <Row label="City">
-          <WeatherCityPicker />
-        </Row>
-        <Row label="Units">
-          <Segmented
-            value={weatherUnits}
-            onChange={setWeatherUnits}
-            options={[
-              { value: 'celsius', label: '°C' },
-              { value: 'fahrenheit', label: '°F' },
-            ]}
-        <Row
-          label="Privacy Screen"
-          description="Show the Home hub over the desktop after this long without input. Any key brings your windows back. It hides the screen; it is not a lock."
-        >
-          <SelectPill
-            value={idleGlanceMinutes}
-            onChange={setIdleGlanceMinutes}
-            options={IDLE_GLANCE_OPTIONS}
-            testId="idle-glance-select"
-          />
-        </Row>
-          />
-        </Row>
-      </RowSection>
-
       {/* ── EX6-D.5: Sessions ───────────────── */}
       <RowSection title="Sessions">
         <Row
@@ -883,6 +855,17 @@ function GeneralPage() {
             onChange={setAutoHibernateMinutes}
             options={AUTO_HIBERNATE_OPTIONS}
             testId="auto-hibernate-select"
+          />
+        </Row>
+        <Row
+          label="Privacy Screen"
+          description="Show the Home hub over the desktop after this long without input. Any key brings your windows back. It hides the screen; it is not a lock."
+        >
+          <SelectPill
+            value={idleGlanceMinutes}
+            onChange={setIdleGlanceMinutes}
+            options={IDLE_GLANCE_OPTIONS}
+            testId="idle-glance-select"
           />
         </Row>
       </RowSection>
@@ -900,6 +883,23 @@ function GeneralPage() {
         </Row>
         <Row label="Session Timeout" className="min-h-[52px]">
           <RowValue>Never</RowValue>
+        </Row>
+      </RowSection>
+
+        {/* ── EX8.15: Weather for the Home hub ─── */}
+      <RowSection title="Weather" footer="Shown in the Home hub. Forecasts come from Open-Meteo; only the chosen city's coordinates are sent.">
+        <Row label="City">
+          <WeatherCityPicker />
+        </Row>
+        <Row label="Units">
+          <Segmented
+            value={weatherUnits}
+            onChange={setWeatherUnits}
+            options={[
+              { value: 'celsius', label: '°C' },
+              { value: 'fahrenheit', label: '°F' },
+            ]}
+          />
         </Row>
       </RowSection>
     </div>

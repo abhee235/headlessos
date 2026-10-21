@@ -208,7 +208,7 @@ export function WindowFrame({ win, children }: WindowFrameProps) {
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
-            className="flex h-11 shrink-0 select-none items-center gap-2.5 pl-3.5 pr-2"
+            className="flex h-13 shrink-0 select-none items-center gap-2.5 pl-3.5 pr-3"
             onMouseDown={handleDragStart}
             onDoubleClick={handleDoubleClickTitle}
           >
