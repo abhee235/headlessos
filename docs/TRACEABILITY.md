@@ -1135,6 +1135,14 @@ None (all changes to existing files).
 - **Tests modified:** `server/tests/agent/tools/{tools,update-view}.test.ts`
 - **Verification:** server 2360 passed (+2 skipped), `tsc -p server` clean
 
+### EX10.6: Tool input for every tool
+- **Status:** ✅ Complete
+- **Date:** 2026-10-22
+- **Files modified:** `server/src/agent/tools/tool-converter.ts` (`jsonSchema7` for all), `server/src/agent/loop/tool-input.ts` (`dropNullArgs`, `describeZodIssues`, `zodSignature`, `checkToolArgs`), `server/src/agent/actions/runner.ts` (uses the shared wording), `server/src/agent/loop/run-loop.ts` and `server/src/agent/executor.ts` (nulls dropped, arguments checked after the guardrails)
+- **Docs:** `docs/phases/phase-ex10.md` ("EX10.6 — as built")
+- **Tests created:** `server/tests/agent/tools/tool-input-all.test.ts`
+- **Verification:** server 2365 passed (+2 skipped), `tsc -p server` clean
+
 ## How to Use This File
 
 ### After completing a task:

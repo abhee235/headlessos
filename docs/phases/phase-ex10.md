@@ -253,7 +253,7 @@ default rate: they show no cost.
 | EX10.3 | Window tiers for both agents' system prompts; offered actions, result caps and reviewer input from the plan | ✅ |
 | EX10.4 | UI Agent executor on the context manager; cut-off handling; stop with the last good view and an honest reason | ✅ |
 | EX10.5 | View tools: object or string, JSON repair, error position, no echo of the view, short outputs | ✅ |
-| EX10.6 | Tool input for every tool: `jsonSchema7`, nulls dropped, one-line errors | ⬜ |
+| EX10.6 | Tool input for every tool: `jsonSchema7`, nulls dropped, one-line errors | ✅ |
 | EX10.7 | Trace cost keeps the span's own cost; no default price | ⬜ |
 | EX10.8 | Action selection favours request words; `cpu_usage`, `network_traffic`; actions reuse deterministic parsers | ⬜ |
 | EX10.9 | Follow-up requests refine the open view; unclear requests get a question | ⬜ |
@@ -437,6 +437,23 @@ progressive example shows `update_view({"view": {…}})`. Its old double-stringi
 never had its placeholders filled in.
 
 Strings still work, so the fake-mode scenarios (which send strings) pass unchanged.
+
+## EX10.6 — Tool input for every tool (as built)
+
+- `tool-converter.ts` uses the `jsonSchema7` target for every tool, so `search_templates`'
+  optional `tag` / `command` are no longer "required, string or null".
+- `loop/tool-input.ts` gains:
+  - `dropNullArgs` — top-level nulls removed; nested ones stay, because view fields may be null.
+  - `describeZodIssues` — the runner's one-line wording, moved here and shared.
+  - `zodSignature` — `name(a, b?)`.
+  - `checkToolArgs(tool, input)`.
+- The shared loop (`executeToolCall`) and the UI Agent executor drop nulls for every tool.
+  After the guardrails, which decide whatever the arguments are, they check a non-action
+  tool's arguments. The error is "search_templates: query: expected string, you sent 42.
+  Parameters: search_templates(query?, tag?, command?)" instead of a Zod JSON dump.
+  Actions keep their own validation (aliases, coercion, EX9.3).
+- The exact call that failed at 01:41 (`{"query":"planner","tag":null,"command":null}`) is a
+  test, in both loops.
 
 ## Inspiration (read-only sibling repos)
 

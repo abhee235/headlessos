@@ -8,7 +8,10 @@
 //    gets that call executed, if it names a tool it was offered.
 // 3. Wrong argument names are mapped to the right ones — only after validation
 //    fails, and never over a key the model actually sent.
+// 4. EX10.6: for every tool, top-level nulls mean "not given", and a non-action tool's
+//    arguments are checked against its schema with one-line errors (as actions are).
 
+import type { ZodError } from 'zod';
 export interface ParsedArgs {
   input: unknown;
   via: 'exact' | 'repaired' | 'raw';
@@ -232,4 +235,66 @@ export function malformedArgsMessage(tool: string, raw: string, keys: string[]):
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+// ── EX10.6: arguments for every tool ───────────────────
+
+/** Top-level nulls mean "not given" (models send them for optional parameters). */
+export function dropNullArgs(raw: unknown): unknown {
+  if (raw === null || raw === undefined) return {};
+  if (typeof raw !== 'object' || Array.isArray(raw)) return raw;
+  return Object.fromEntries(Object.entries(raw as Record<string, unknown>).filter(([, v]) => v !== null));
+}
+
+/** One short line per Zod issue: "tag: expected string, you sent null" */
+export function describeZodIssues(error: ZodError, raw: unknown, max = 3): string[] {
+  return error.issues.slice(0, max).map((issue) => {
+    const field = issue.path.join('.') || 'params';
+    if (issue.code === 'unrecognized_keys') return `unknown parameter(s) ${issue.keys.join(', ')}`;
+    const sent = describeValue(valueAt(raw, issue.path));
+    if (issue.code === 'invalid_type') {
+      return sent === 'nothing' ? `${field}: required (${issue.expected})` : `${field}: expected ${issue.expected}, you sent ${sent}`;
+    }
+    const message = issue.message.startsWith('expected') ? issue.message : `expected ${lowerFirst(issue.message)}`;
+    return `${field}: ${message}, you sent ${sent}`;
+  });
+}
+
+/** name(a, b?) from a Zod object schema */
+export function zodSignature(name: string, schema: unknown): string {
+  const shape = (schema as { shape?: Record<string, { isOptional?: () => boolean }> })?.shape;
+  if (!shape) return `${name}(…)`;
+  return `${name}(${Object.entries(shape).map(([k, v]) => (v.isOptional?.() ? `${k}?` : k)).join(', ')})`;
+}
+
+/**
+ * Validate a tool call's arguments against the tool's own schema before running it.
+ * Errors are one line, like the action runner's: what was wrong, and the signature.
+ */
+export function checkToolArgs(
+  tool: { name: string; parameters: { safeParse: (v: unknown) => { success: true } | { success: false; error: ZodError } } },
+  input: unknown,
+): { ok: true } | { ok: false; error: string } {
+  const result = tool.parameters.safeParse(input);
+  if (result.success) return { ok: true };
+  return { ok: false, error: `${tool.name}: ${describeZodIssues(result.error, input).join('; ')}. Parameters: ${zodSignature(tool.name, tool.parameters)}` };
+}
+
+function valueAt(raw: unknown, path: (string | number)[]): unknown {
+  let cur: unknown = raw;
+  for (const key of path) {
+    if (cur === null || typeof cur !== 'object') return undefined;
+    cur = (cur as Record<string | number, unknown>)[key];
+  }
+  return cur;
+}
+
+function describeValue(value: unknown): string {
+  if (value === undefined) return 'nothing';
+  const text = typeof value === 'string' ? JSON.stringify(value) : JSON.stringify(value) ?? String(value);
+  return text.length > 60 ? `${text.slice(0, 57)}...` : text;
+}
+
+function lowerFirst(text: string): string {
+  return text ? text[0]!.toLowerCase() + text.slice(1) : text;
 }

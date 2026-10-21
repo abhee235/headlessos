@@ -41,7 +41,7 @@
 | **EX7: Container Target Mode** | **Experimental** | **✅** | **10/10 tasks** | [phase-ex7](phases/phase-ex7.md) |
 | **EX8: LumenOS v3 Design System** | **Experimental** | **✅** | **9/9 tasks** | [phase-ex8](phases/phase-ex8.md) |
 | **EX9: Safe Agents (Actions, Approvals, Local Models)** | **Experimental** | **✅** | **6/6 tasks** | [phase-ex9](phases/phase-ex9.md) |
-| **EX10: Context Engineering for Agents** | **Experimental** | **🔄** | **5/10 tasks** | [phase-ex10](phases/phase-ex10.md) |
+| **EX10: Context Engineering for Agents** | **Experimental** | **🔄** | **6/10 tasks** | [phase-ex10](phases/phase-ex10.md) |
 
 ---
 
@@ -57,7 +57,7 @@
 | EX10.3 | Window tiers for system prompts; actions offered, result caps and reviewer input from the plan | ✅ | Executor prompt 3,105 → 2,246 (lean, 64K) → 780 tokens (minimal, 16K); full tier byte-identical to EX9; reviewer sees head + tail of each output |
 | EX10.4 | UI Agent executor on the context manager; stop with the last good view and an honest reason | ✅ | Compaction, cut-off reminders and overflow retries in the executor; early stops keep the last valid partial view ("View Partly Generated" + reason + empty sections); fix attempts that stop early keep the reviewed view; Playwright-measured card |
 | EX10.5 | View tools: object or string, JSON repair, error position, no echo, short outputs | ✅ | Views as objects; broken strings repaired or located ("at character N (…excerpt…)"); the model never gets the view, schema or action metadata back; prompts no longer ask for strings or "partial JSON" |
-| EX10.6 | Tool input for every tool: `jsonSchema7`, nulls dropped, one-line errors | ⬜ | |
+| EX10.6 | Tool input for every tool: `jsonSchema7`, nulls dropped, one-line errors | ✅ | The 01:41 `search_templates` call with null optionals now runs; bad arguments get one line with the signature; guardrails still decide first |
 | EX10.7 | Trace cost keeps the span's own cost; no default price | ⬜ | |
 | EX10.8 | Action selection favours request words; `cpu_usage`, `network_traffic`; actions reuse deterministic parsers | ⬜ | |
 | EX10.9 | Follow-up requests refine the open view; unclear requests get a question | ⬜ | |
@@ -583,6 +583,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-10-22 | **EX10.6 ✅** Every agent tool now treats a null argument as "not given" and answers a bad argument with one line naming the parameter and what was sent, instead of a raw validation dump. The template search that failed on a local model's null arguments now runs. |
 | 2026-10-22 | **EX10.5 ✅** The UI Agent's view tools stop wasting the window: views go in as JSON objects instead of escaped strings, a broken string is repaired or the error says exactly where it broke, and nothing echoes the view (or action details) back to the model — each update answers in one short line. |
 | 2026-10-22 | **EX10.4 ✅** The UI Agent now manages its context: it compacts old steps before each call, answers a cut-off reply with a short reminder instead of a "use tools" nudge, and retries after an overflow. When it still cannot finish, it keeps the last valid view and says so — "View Partly Generated: stopped early because …, still empty: Docker, Network" — instead of "Agent stopped making progress". |
 | 2026-10-22 | **EX10.3 ✅** Small models get smaller instructions: the UI Agent's system prompt drops from about 3,100 tokens to about 2,200 on a 64K window and about 800 on a 16K one, keeping every rule. The tool list, per-result caps and the reviewer's input now all come from the same context plan. |
