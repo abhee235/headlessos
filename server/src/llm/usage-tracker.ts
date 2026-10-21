@@ -46,8 +46,6 @@ const MODEL_PRICING: Record<string, { input: number; output: number }> = {
   'claude-4-sonnet': { input: 0.003, output: 0.015 },
 };
 
-// Default pricing for unknown models
-const DEFAULT_PRICING = { input: 0.005, output: 0.015 };
 
 /**
  * In-memory LLM usage tracker.
@@ -71,11 +69,13 @@ export class LLMUsageTracker {
     this.totalOutputTokens += entry.outputTokens;
     this.totalLatencyMs += entry.latencyMs;
 
-    // Cost estimate
+    // Cost estimate — EX10.7: only models with a known price count (local models cost nothing)
     const pricing = this.getPricing(entry.model);
-    this.totalCostUsd +=
-      (entry.inputTokens / 1000) * pricing.input +
-      (entry.outputTokens / 1000) * pricing.output;
+    if (pricing) {
+      this.totalCostUsd +=
+        (entry.inputTokens / 1000) * pricing.input +
+        (entry.outputTokens / 1000) * pricing.output;
+    }
 
     // Per-model count
     const modelCount = this.callsByModel.get(entry.model) ?? 0;
@@ -126,7 +126,7 @@ export class LLMUsageTracker {
 
   // ── Internal ──
 
-  private getPricing(model: string): { input: number; output: number } {
+  private getPricing(model: string): { input: number; output: number } | undefined {
     // Try exact match first
     if (MODEL_PRICING[model]) return MODEL_PRICING[model];
 
@@ -135,6 +135,7 @@ export class LLMUsageTracker {
       if (model.startsWith(key)) return pricing;
     }
 
-    return DEFAULT_PRICING;
+    // EX10.7: no guessed price — an unknown model (e.g. a local Ollama one) adds nothing
+    return undefined;
   }
 }

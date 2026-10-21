@@ -149,6 +149,21 @@ describe('TraceStore', () => {
       expect(ended!.modelRole).toBe('fast');
     });
 
+    // EX10.7: local model runs were priced at a default rate ($0.16–$0.69 per run)
+    it('keeps the cost the span carries, and does not guess one for unknown models', () => {
+      const { trace, rootSpan } = store.startTrace('test');
+      const span = (name: string) => store.startSpan({ traceId: trace.traceId, parentSpanId: rootSpan.spanId, name, kind: 'LLM' });
+      const tokens = { inputTokens: 15_000, outputTokens: 900, totalTokens: 15_900 };
+      const local = store.endSpan(span('router').spanId, { model: 'ornith:latest', tokenUsage: tokens, costUsd: 0 });
+      expect(local!.costUsd).toBe(0);
+      const unpriced = store.endSpan(span('loop').spanId, { model: 'ornith:latest', tokenUsage: tokens });
+      expect(unpriced!.costUsd).toBeNull();
+      const hosted = store.endSpan(span('hosted').spanId, { model: 'gpt-4.1', tokenUsage: tokens });
+      expect(hosted!.costUsd).toBeCloseTo(15 * 0.002 + 0.9 * 0.008, 6);
+      const root = store.endSpan(rootSpan.spanId);
+      expect(root!.cumulative!.costUsd).toBeCloseTo(15 * 0.002 + 0.9 * 0.008, 6);
+    });
+
     it('stores output', () => {
       const { trace, rootSpan } = store.startTrace('test');
       const child = store.startSpan({

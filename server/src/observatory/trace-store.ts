@@ -71,18 +71,18 @@ const MODEL_PRICING: Record<string, { input: number; output: number }> = {
   'claude-3.5-sonnet': { input: 0.003, output: 0.015 },
   'claude-4-sonnet': { input: 0.003, output: 0.015 },
 };
-const DEFAULT_PRICING = { input: 0.005, output: 0.015 };
-
-function getPricing(model: string): { input: number; output: number } {
+/** EX10.7: a model not in the table has no known price (local models cost nothing) */
+function getPricing(model: string): { input: number; output: number } | undefined {
   if (MODEL_PRICING[model]) return MODEL_PRICING[model];
   for (const [key, pricing] of Object.entries(MODEL_PRICING)) {
     if (model.startsWith(key)) return pricing;
   }
-  return DEFAULT_PRICING;
+  return undefined;
 }
 
-function computeCost(model: string, tokenUsage: TokenUsage): number {
+function computeCost(model: string, tokenUsage: TokenUsage): number | null {
   const pricing = getPricing(model);
+  if (!pricing) return null;
   return (tokenUsage.inputTokens / 1000) * pricing.input +
          (tokenUsage.outputTokens / 1000) * pricing.output;
 }
@@ -266,7 +266,10 @@ export class TraceStore extends EventEmitter {
     const status = result?.error ? 'ERROR' : (result?.status ?? 'OK');
     const tokenUsage = result?.tokenUsage ?? span.tokenUsage ?? null;
     const model = result?.model ?? span.model;
-    const costUsd = (model && tokenUsage) ? computeCost(model, tokenUsage) : (result?.costUsd ?? span.costUsd ?? null);
+    // EX10.7: a cost the span already carries wins (the router sets 0 for local models);
+    // otherwise known models are priced and unknown ones left unpriced, never guessed
+    const setCost = result?.costUsd ?? span.costUsd;
+    const costUsd = typeof setCost === 'number' ? setCost : (model && tokenUsage) ? computeCost(model, tokenUsage) : null;
 
     // Compute cumulative for this span
     const childCumulative = this.computeChildrenCumulative(spanId, span.traceId);

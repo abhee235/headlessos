@@ -254,7 +254,7 @@ default rate: they show no cost.
 | EX10.4 | UI Agent executor on the context manager; cut-off handling; stop with the last good view and an honest reason | ✅ |
 | EX10.5 | View tools: object or string, JSON repair, error position, no echo of the view, short outputs | ✅ |
 | EX10.6 | Tool input for every tool: `jsonSchema7`, nulls dropped, one-line errors | ✅ |
-| EX10.7 | Trace cost keeps the span's own cost; no default price | ⬜ |
+| EX10.7 | Trace cost keeps the span's own cost; no default price | ✅ |
 | EX10.8 | Action selection favours request words; `cpu_usage`, `network_traffic`; actions reuse deterministic parsers | ⬜ |
 | EX10.9 | Follow-up requests refine the open view; unclear requests get a question | ⬜ |
 | EX10.10 | Widget-by-widget building with server-filled data (`add_widget`, `WorkingView`, `finish`) — own ADR | ⬜ |
@@ -454,6 +454,17 @@ Strings still work, so the fake-mode scenarios (which send strings) pass unchang
   Actions keep their own validation (aliases, coercion, EX9.3).
 - The exact call that failed at 01:41 (`{"query":"planner","tag":null,"command":null}`) is a
   test, in both loops.
+
+## EX10.7 — Cost (as built)
+
+- `observatory/trace-store.ts` `endSpan` keeps the span's own `costUsd` when one was set.
+  The router sets 0 for local models. Otherwise it prices models in its table and leaves
+  the rest `null`; the $0.005/$0.015 per 1K default is gone.
+- `llm/usage-tracker.ts` (the usage summary's estimated cost) likewise adds nothing for a
+  model without a known price.
+- Tokens are still counted everywhere.
+
+The three `ornith:latest` runs priced at $0.16, $0.56 and $0.69 would now show $0.
 
 ## Inspiration (read-only sibling repos)
 
