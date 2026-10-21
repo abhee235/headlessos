@@ -1158,6 +1158,47 @@ We also want agents to work with small local models (Ollama). Those models write
 
 ---
 
+## ADR-025: One Context Plan per Model Window
+
+**Status:** Accepted
+**Date:** 2026-10-22
+**Supersedes:** the context parts of EX9.4 (`historyBudget`, `trimHistory`, `MAX_OLLAMA_CONTEXT = 16384`) and the unused EX2.13 context manager.
+
+**Context:**
+Agent runs on a local model failed because the window filled up. The Ollama window was capped at 16,384 for a model trained for 262,144. The UI Agent executor never trimmed its history. A reply cut off at the output limit got a "please use tools" nudge, which made things worse. Token counts were `chars / 4`, never checked against what the provider reported. Each budget (offered actions, result caps, history) was sized on its own.
+
+**Options Considered:**
+1. **Raise the cap and keep EX9.4 trimming** — fixes this one model, leaves the executor, the planner and the reviewer unmanaged, and keeps four separate budget formulas.
+2. **The earlier agent projects' precedence chain** — owner setting, else Modelfile `num_ctx`, else trained length capped at 32K, else a table. Proven, but an owner setting can exceed what the model was trained for.
+3. **Minimum of all known limits, one plan derived from it** — window = min(owner setting or 64K auto cap, Modelfile `num_ctx`, trained length) for Ollama, a model table capped at 128K for hosted models; every budget, the prompt tier and the compaction thresholds come from one pure `planContext(window, maxOutput)`; one context manager per run in both agents.
+
+**Decision:** Option 3, with an earlier agent project's plan formulas and compaction layers.
+
+- Window: minimum of the limits we know (Ollama), table ∧ 128K (hosted). Free VRAM is not an input (Ollama does not report it); the KV-cache cost is estimated from `model_info` and shown, and `/api/ps` shows whether the model spilled to the CPU.
+- Wire: `num_ctx = window`, `num_predict = min(max(window/8, 2048), 16384)`, `think: false` on every Ollama request.
+- Plan: reserve, trigger, hard, keep-recent, stop point, mask size, result cap, action budget and prompt tier, all from the window and the output cap (constants from an earlier agent project's `compactionPlan.ts`).
+- Compaction before every call, cheapest first: collapse superseded views, mask long old results, stub old action results, summarize (optional, with a 3-failure breaker), then drop. The system prompt, the request and the latest four tool calls always stay.
+- Token estimates are corrected from the provider's real prompt-token count.
+- Cut-off replies and overflow errors are handled explicitly (reminder + compaction, at most 3; forced compaction + retry, at most 2).
+
+**Rationale:**
+- One number drives every budget, so they cannot disagree (EX9 had separate formulas for actions, result caps and history).
+- The minimum is the conservative reading of "what the model can do here": it never asks Ollama for more than the model was trained for, and the 64K auto cap keeps the KV cache to ~2 GiB on the model that failed.
+- An earlier agent project's formulas are proven on the same class of local models, and its golden tests carry over.
+- HeadlessOS-specific waste (resending and echoing whole views) is removed at the source and collapsed by the first compaction layer.
+
+**Consequences:**
+- (+) Local models get 4× the window they had, and runs that still fill it compact instead of failing.
+- (+) The UI Agent executor, planner and reviewer are managed like the investigation agent.
+- (+) Context use is visible per call in the Observatory.
+- (–) Summarization is one more LLM call when it runs; it is skipped when cheaper layers suffice and stops after 3 failures.
+- (–) A Modelfile `num_ctx` lower than the owner's setting wins; the owner changes the Modelfile to go higher.
+- (–) The KV estimate is arithmetic, not a measurement; `/api/ps` is the check.
+
+**Reference:** See [phases/phase-ex10.md](phases/phase-ex10.md) for the design and task breakdown.
+
+---
+
 ## Template for New ADRs
 
 ```markdown

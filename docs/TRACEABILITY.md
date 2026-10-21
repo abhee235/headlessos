@@ -1080,6 +1080,16 @@ None (all changes to existing files).
 - **Tests modified:** `server/tests/agent/executor.test.ts` (wrapping), `server/tests/agent/investigation-agent.test.ts` (prompt rule)
 - **Verification:** server 2329 passed (+2 skipped), client 643, both typechecks clean
 
+## EX10: Context Engineering for Agents
+
+> One context plan per model window drives every agent budget. Spec: [phase-ex10.md](phases/phase-ex10.md), decision: ADR-025.
+
+### EX10 docs: spec + ADR
+- **Status:** ✅ Complete
+- **Date:** 2026-10-22
+- **Files created:** `docs/phases/phase-ex10.md`
+- **Files modified:** `docs/DECISIONS.md` (ADR-025), `docs/PROGRESS.md` (EX10 row + section + changelog), `docs/TRACEABILITY.md`
+
 ## How to Use This File
 
 ### After completing a task:
