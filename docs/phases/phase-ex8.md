@@ -86,6 +86,8 @@ The design handoff lives outside the repo tree in `Custom OS UI Design/handoff/`
 | EX8.18 | Glass shadow artifact in Chrome (user report): window drop shadow moved off the blurred glass element; window open animation no longer fills forwards | ✅ |
 | EX8.19 | App icons (user review): Fluent 2 colour icons for Services, AI Agent, UI Agent and LLM Observatory; Docker whale in the label colour; no shadow under the AI / UI Agent desktop icons | ✅ |
 | EX8.20 | GPT-6 Luna (requested): listed and default for LLM parsing; model change keeps the key; Luna-safe tool calls | ✅ |
+| EX8.21 | Settings key reaches the agents (user report): AI Agent, Dynamic UI and UI Agent use the key saved in Settings → AI, no restart | ✅ |
+| EX8.22 | Settings key saved encrypted (requested): survives restarts; wins over `.env` | ✅ |
 
 ## Additions beyond the handoff
 
@@ -418,14 +420,50 @@ model router) know it.
   `gpt-4.1-mini`, weak `gpt-4.1-nano`); `MODEL_REASONING` / `MODEL_STRUCTURED` /
   `MODEL_FAST` / `MODEL_WEAK` in `.env` move them to Luna.
 
-**Where keys live:** a key typed in Settings goes to the local server (127.0.0.1,
-API token required) and stays in that process's memory only: not written to disk,
-never returned by the API (`hasApiKey` only), not logged, gone on restart. It
-serves LLM parsing only. The agents (and parsing at startup) read
-`OPENAI_API_KEY` from `.env` at the repo root: plaintext, git-ignored, readable by
-anything running as the user.
+**Where keys live:** see EX8.22 (until then a Settings key lived in server memory only and served parsing only).
 
 Tests: `server/tests/routes/llm.test.ts`.
+
+## EX8.21 — The Settings key reaches the agents
+
+**Report:** after saving a key in Settings → AI, the AI Agent still said "LLM
+provider is not configured". The PUT only re-keyed the parsing pipeline. The
+investigation agent and Dynamic UI got their provider once at startup from
+`OPENAI_API_KEY`, and the UI Agent's model router (and its WebSocket) existed only
+when `.env` had a key.
+
+**Fix:** `llmRoutes` takes an `onChange(provider, apiKey?)` hook. `index.ts` passes
+the same provider to the investigation agent and `DynamicUIGenerator.setLLMProvider`
+(new; it also rebuilds the design classifier). A new key re-keys the model router
+(`ModelRouter.setApiKey`, which rebuilds every role's provider). The router is now
+always created, keyless when there is no key, and the UI Agent WebSocket is always
+registered: without a key it answers with the same "not configured" message
+(`NO_KEY_MESSAGE`). Startup no longer replaces the generator, which had left the
+AppStore wired to the old generator's template registry whenever `.env` had a key.
+
+## EX8.22 — Settings key saved encrypted
+
+A key saved in Settings → AI is written to `~/.headlessos/llm.json` (0600, temp
+file + rename), AES-256-GCM encrypted by `security/encryption.ts`, the same as
+SSH passwords (per-install secret in `~/.headlessos/enc-key` + machine facts). A
+model change saves the model and keeps the saved key. Choosing None deletes the
+file. At startup the saved key wins over `.env`, and its model is used.
+`GET /api/llm/config` reports `keySource` (`settings` | `env`), and Settings shows
+it ("Saved on this computer, encrypted" / "From .env"). A failed disk write is
+reported (`persisted: false`, a warning toast) instead of claiming it was saved.
+
+What the encryption covers: the file alone (a backup, a copy, a shared folder or
+a screenshot of it) gives nothing away, and the key never reaches the browser or
+the logs. It does not stop a program already running as the same Windows user,
+which can read both files. The OS keychain (DPAPI, or Electron `safeStorage` in
+the desktop build) would close that gap.
+
+Verified on an isolated server (its own home folder): "not configured" before a
+key; after saving a dummy key in Settings the investigation agent reached OpenAI
+(401 "Incorrect API key"), proving the key got through; `llm.json` held only
+`enc:…`; after a restart the server logged "key from Settings, encrypted" and
+reported the key and model. Tests: `server/tests/llm/{llm-settings-store,model-router-key}.test.ts`,
+`server/tests/routes/llm.test.ts`.
 
 ## Deviations from the handoff text (prototype wins where they differ)
 

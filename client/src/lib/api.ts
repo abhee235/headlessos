@@ -1335,6 +1335,10 @@ export interface LLMConfig {
   provider: 'openai' | 'none';
   model: string;
   hasApiKey: boolean;
+  /** EX8.22: where the active key came from */
+  keySource?: 'settings' | 'env' | null;
+  /** EX8.22: false when the server could not save the change to disk */
+  persisted?: boolean;
 }
 
 export interface LLMModelInfo {

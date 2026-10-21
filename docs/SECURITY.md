@@ -182,7 +182,7 @@ SSH credentials stored in `~/.headlessos/servers.json`:
 
 - **Passwords:** Encrypted using AES-256-GCM with a key derived from machine-specific data (`os.hostname()` + `os.userInfo().uid` + app-specific salt)
 - **Private keys:** Referenced by path only (not stored, read at connection time)
-- **API keys (LLM):** Stored in `~/.headlessos/config.json`, encrypted same as passwords
+- **API keys (LLM):** A key saved in Settings → AI is stored in `~/.headlessos/llm.json` (0600), AES-256-GCM encrypted like passwords (per-install secret in `~/.headlessos/enc-key` + machine facts); never returned by the API. It wins over `OPENAI_API_KEY` in `.env`, which stays plaintext. Choosing None deletes it (EX8.22).
 - **File permissions:** `~/.headlessos/` directory is `0700` (owner only)
 
 **Note:** This is baseline security for a local tool. It's not bulletproof against a determined local attacker with root access, but it prevents casual reading of credentials.

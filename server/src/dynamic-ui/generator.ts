@@ -153,6 +153,14 @@ export class DynamicUIGenerator {
       : null;
   }
 
+  /** EX8.21: set or clear the LLM at runtime (Settings → AI), with the classifier on it */
+  setLLMProvider(provider: LLMProvider | null): void {
+    this.llmProvider = provider;
+    this.classifier = provider
+      ? new DesignClassifier({ llmProvider: provider, usageTracker: this.usageTracker ?? undefined })
+      : null;
+  }
+
   /** Get the template registry (for external search/listing). */
   getRegistry(): TemplateRegistry {
     return this.registry;

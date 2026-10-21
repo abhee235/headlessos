@@ -33,7 +33,8 @@ import { dockerRoutes } from "./routes/docker.js";
 import { servicesRoutes } from "./routes/services.js";
 import { serverAdminRoutes } from "./routes/serveradmin.js";
 import { statsRoutes } from "./routes/stats.js";
-import { llmRoutes } from "./routes/llm.js";
+import { llmRoutes, type KeySource } from "./routes/llm.js";
+import { loadLLMSettings, saveLLMSettings, clearLLMSettings } from "./llm/llm-settings-store.js";
 import { fleetRoutes } from "./routes/fleet.js";
 import { sessionRoutes } from "./routes/sessions.js";
 import { agentRoutes } from "./routes/agent.js";
@@ -125,7 +126,7 @@ async function main(): Promise<void> {
   await diskCache.init();
   const appStore = new AppStore();
   await appStore.init();
-  let dynamicUIGenerator = new DynamicUIGenerator({
+  const dynamicUIGenerator = new DynamicUIGenerator({
     outputCache,
     usageTracker,
     diskCache,
@@ -189,29 +190,33 @@ async function main(): Promise<void> {
         name: string;
       } = connectionManager;
 
-  if (
-    process.env.OPENAI_API_KEY &&
-    process.env.OPENAI_API_KEY !== "sk-your-key-here"
-  ) {
+  // EX8.22: a key saved in Settings → AI (encrypted on disk) wins over .env
+  const savedLLM = loadLLMSettings();
+  const envKey =
+    process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== "sk-your-key-here"
+      ? process.env.OPENAI_API_KEY
+      : "";
+  const startKey = savedLLM?.apiKey || envKey;
+  const keySource: KeySource = savedLLM?.apiKey ? "settings" : envKey ? "env" : null;
+
+  if (startKey) {
     const { OpenAIProvider } = await import("./llm/providers/openai.js");
-    const llmProvider = new OpenAIProvider(process.env.OPENAI_API_KEY);
+    const llmProvider = new OpenAIProvider(startKey, savedLLM?.model);
     pipeline.setLLMProvider(llmProvider);
     investigationAgent.setLLMProvider(llmProvider);
-    dynamicUIGenerator = new DynamicUIGenerator({
-      llmProvider,
-      outputCache,
-      usageTracker,
-      diskCache,
-    });
+    // EX8.21: set, not replaced — the AppStore is already wired to this registry
+    dynamicUIGenerator.setLLMProvider(llmProvider);
 
     // EX2.1: Multi-Model Router
     modelRouter = new ModelRouter("model-router", {
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey: startKey,
       usageTracker,
     });
     container.register("model-router", modelRouter);
 
-    console.log("🤖 LLM provider: OpenAI");
+    console.log(
+      `🤖 LLM provider: OpenAI (${llmProvider.model}, key from ${keySource === "settings" ? "Settings, encrypted" : ".env"})`,
+    );
   } else if (process.env.LLM_PROVIDER === "fake") {
     // ── FakeLLM mode — scripted responses for live UI testing ──
     const { FakeLLMProvider, createFakeModelRouter } =
@@ -244,8 +249,11 @@ async function main(): Promise<void> {
     console.log('   Use serverId "fake-server" to test the agent pipeline');
   } else {
     console.log(
-      "⚠️  No OPENAI_API_KEY set — LLM parsing disabled (deterministic parsers only)",
+      "⚠️  No OPENAI_API_KEY set — LLM parsing disabled until a key is saved in Settings → AI",
     );
+    // EX8.21: a keyless router, so a key saved in Settings → AI enables the UI Agent
+    modelRouter = new ModelRouter("model-router", { apiKey: "", usageTracker });
+    container.register("model-router", modelRouter);
   }
 
   await container.boot();
@@ -431,7 +439,20 @@ async function main(): Promise<void> {
     storage: storageAdmin,
   });
   await app.register(statsRoutes, { usageTracker, outputCache });
-  await app.register(llmRoutes, { pipeline });
+  await app.register(llmRoutes, {
+    pipeline,
+    keySource,
+    persist: { save: (update) => saveLLMSettings(update), clear: () => clearLLMSettings() },
+    // EX8.21: one provider for parsing, the investigation agent and Dynamic UI;
+    // a new key also re-keys the UI Agent's model router
+    onChange: (provider, apiKey) => {
+      investigationAgent.setLLMProvider(provider);
+      dynamicUIGenerator.setLLMProvider(provider);
+      if (apiKey !== undefined && modelRouter && typeof modelRouter.setApiKey === "function") {
+        modelRouter.setApiKey(apiKey);
+      }
+    },
+  });
   await app.register(fleetRoutes, { fleetService });
   await app.register(sessionRoutes, { sessionStore, connectionManager });
   await app.register(agentRoutes, {

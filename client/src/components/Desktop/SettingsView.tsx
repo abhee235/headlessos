@@ -1081,7 +1081,8 @@ function AIPage() {
       if (res.success && res.data) {
         setConfig(res.data);
         setApiKey('');
-        toast.success('LLM configuration saved');
+        if (res.data.persisted === false) toast.warning('Applied, but not saved to disk: it lasts until the server restarts');
+        else toast.success('LLM configuration saved');
       } else {
         toast.error(res.error ?? 'Failed to save configuration');
       }
@@ -1116,6 +1117,11 @@ function AIPage() {
         <Row label="Model" className="min-h-[52px]">
           <RowValue className="font-mono text-[14px]">{config?.model || '—'}</RowValue>
         </Row>
+        {config?.hasApiKey && (
+          <Row label="API Key" className="min-h-[52px]">
+            <RowValue>{config.keySource === 'env' ? 'From .env' : 'Saved on this computer, encrypted'}</RowValue>
+          </Row>
+        )}
       </RowSection>
 
       {/* Provider Selection */}
@@ -1141,8 +1147,9 @@ function AIPage() {
           <p className="text-[13px] text-label-2">
             {config?.hasApiKey
               ? 'A key is set. Leave this empty to keep it, or enter a new key to replace it.'
-              : 'Enter your OpenAI API key. It is kept in server memory only: never saved to disk, cleared when the server restarts.'}
-            {' '}AI Agent and UI Agent use OPENAI_API_KEY from .env instead.
+              : 'Enter your OpenAI API key.'}
+            {' '}Used for parsing, AI Agent and UI Agent. Saved encrypted in ~/.headlessos/llm.json so it survives
+            restarts, and never sent back to the browser. Choosing None deletes it.
           </p>
         </Section>
       )}
