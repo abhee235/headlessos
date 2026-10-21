@@ -1,6 +1,7 @@
 // M1.2: LLM Provider Interface
 // @see docs/phases/phase-1.md
 
+import type { ModelLimits } from './model-limits.js';
 import type { ZodSchema } from 'zod';
 
 export interface ParseTextInput<T> {
@@ -77,6 +78,8 @@ export interface LLMProvider {
   model: string;
   /** EX9.3: tokens the model can see per request (local models: num_ctx); sizes the tool list */
   contextWindow?: number;
+  /** EX10.1: the window and reply cap every budget is planned from, and where they came from */
+  limits?: ModelLimits;
   parseText<T>(input: ParseTextInput<T>): Promise<ParseResult<T>>;
   parseImage<T>(input: ParseImageInput<T>): Promise<ParseResult<T>>;
 

@@ -243,7 +243,7 @@ default rate: they show no cost.
 
 | Task ID | Task | Status |
 |---------|------|--------|
-| EX10.1 | Model limits: min(owner setting, Modelfile `num_ctx`, trained length, 64K auto cap); hosted table; `num_ctx` / `num_predict` / `think: false` on the wire; KV estimate + CPU-spill check; Settings → AI context window | ⬜ |
+| EX10.1 | Model limits: min(owner setting, Modelfile `num_ctx`, trained length, 64K auto cap); hosted table; `num_ctx` / `num_predict` / `think: false` on the wire; KV estimate + CPU-spill check; Settings → AI context window | ✅ |
 | EX10.2 | Context plan + context manager (layered compaction, calibration, length/overflow handling, events) in the shared loop; EX9.4 trimming and EX2.13 context manager retired | ⬜ |
 | EX10.3 | Window tiers for both agents' system prompts; offered actions, result caps and reviewer input from the plan | ⬜ |
 | EX10.4 | UI Agent executor on the context manager; cut-off handling; stop with the last good view and an honest reason | ⬜ |
@@ -253,6 +253,45 @@ default rate: they show no cost.
 | EX10.8 | Action selection favours request words; `cpu_usage`, `network_traffic`; actions reuse deterministic parsers | ⬜ |
 | EX10.9 | Follow-up requests refine the open view; unclear requests get a question | ⬜ |
 | EX10.10 | Widget-by-widget building with server-filled data (`add_widget`, `WorkingView`, `finish`) — own ADR | ⬜ |
+
+## EX10.1 — Model limits (as built)
+
+`server/src/llm/model-limits.ts`: `resolveOllamaLimits(facts, ownerSetting)` (pure),
+`parseOllamaShow`, `kvBytesPerToken`, `fetchOllamaShow` / `probeOllamaLimits` (`POST /api/show`,
+5 s timeout), `ollamaResidency` (`GET /api/ps`), `hostedLimits(model)`,
+`recommendedMaxOutput(window)`, `validContextSetting`, `CONTEXT_WINDOW_OPTIONS`.
+`LLMProvider.limits` is new; `OllamaProvider` takes `limits` (the old
+`ollamaContextWindow()` and `MAX_OLLAMA_CONTEXT` are gone) and `OpenAIProvider.limits` /
+`contextWindow` come from the table. OpenAI requests are unchanged.
+
+On the wire every Ollama request now carries `think: false` and
+`options: { num_ctx, num_predict }`; a call's own `maxTokens` overrides `num_predict`.
+A 400 whose body mentions "think" is retried once without the field, and the provider
+stops sending it.
+
+The owner's window lives in `llm.json` → `ollama.contextWindow` (absent = Auto). Startup
+(`index.ts`) and `PUT /api/llm/config` both resolve the limits; the log line names the
+window and its source.
+
+For `ornith:latest` (qwen35 9B, trained 262,144) on this machine: **65,536 tokens**, source
+`auto-cap`, reply cap 8,192, 32 KiB/token → about 2.1 GB of KV cache at 64K. The model was
+still loaded at the old 16,384 when checked; Ollama reloads it at 64K on the next request.
+
+**Settings → AI** (Status card): a "Context window" row shows the window in use and why
+(`Auto (at most 64K) · trained for 256K · cache ≈ 2.1 GB`); a "Memory" row with a
+warning appears only when `/api/ps` says part of the model runs on the CPU. Below the
+model list, a "Context window" row with a pill (Auto, 8K, 16K, 32K, 64K, 128K) is saved
+with the provider.
+
+**Verified in Playwright** (1440×900, signed in to Local Ubuntu Dev, nothing saved): Status
+rows 52 px, the Context window row 62.5 px (like the other rows with a description), its
+value flush right and centred within 0.1 px, description 13 px in the shared description
+colour 2 px under the label; card insets 24.6 px at the sides, 6.6/6.7 px top/bottom. The
+form row: pill 150×36, flush right, centred (0 px), 16 px from the description; card
+insets as above; 20 px to the card above and to the Save button. The first description
+wrapped to two lines (80.5 px row); it was shortened to one line and re-measured at
+62.5 px. Only GET requests reached `/api/llm`. Session file: only `lastActiveAt` /
+`nextZIndex` changed; the probe's Settings window was the only one closed.
 
 ## Inspiration (read-only sibling repos)
 

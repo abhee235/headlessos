@@ -219,17 +219,19 @@ async function main(): Promise<void> {
 
   if (savedLLM?.provider === "ollama" && savedLLM.ollama) {
     // ── EX9.3: a local model chosen in Settings → AI ──
-    const { OllamaProvider, ollamaContextWindow } = await import("./llm/providers/ollama.js");
-    const { baseUrl, model } = savedLLM.ollama;
-    const contextWindow = await ollamaContextWindow(baseUrl, model); // default 8192 if Ollama is down
-    const ollama = new OllamaProvider({ baseUrl, model, contextWindow });
+    const { OllamaProvider } = await import("./llm/providers/ollama.js");
+    const { probeOllamaLimits } = await import("./llm/model-limits.js");
+    const { baseUrl, model, contextWindow: setting } = savedLLM.ollama;
+    // EX10.1: the lowest of the owner's setting (or 64K), the Modelfile and the trained length
+    const limits = await probeOllamaLimits(baseUrl, model, setting); // 8192 if Ollama is down
+    const ollama = new OllamaProvider({ baseUrl, model, limits });
     pipeline.setLLMProvider(ollama);
     investigationAgent.setLLMProvider(ollama);
     dynamicUIGenerator.setLLMProvider(ollama);
     modelRouter = new ModelRouter("model-router", { apiKey: startKey, usageTracker });
     modelRouter.useProvider(ollama);
     container.register("model-router", modelRouter);
-    console.log(`🦙 LLM provider: Ollama ${model} at ${baseUrl} (context ${contextWindow})`);
+    console.log(`🦙 LLM provider: Ollama ${model} at ${baseUrl} (context ${limits.contextWindow}, ${limits.source})`);
   } else if (startKey) {
     const llmProvider = openaiProvider!;
     pipeline.setLLMProvider(llmProvider);

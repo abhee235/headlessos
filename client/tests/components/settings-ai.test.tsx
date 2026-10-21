@@ -1,4 +1,5 @@
 // EX9.3: Settings → AI — Ollama as a provider
+// EX10.1: the context window row, its explanation and the CPU-spill warning
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
@@ -34,7 +35,10 @@ describe('Settings → AI with Ollama', () => {
       { name: 'qwen3:8b', parameterSize: '8.2B', family: 'qwen3', sizeBytes: 5_200_000_000 },
       { name: 'llama3.2:latest', parameterSize: '3.2B', family: 'llama' },
     ] });
-    api.updateLLMConfig.mockResolvedValue({ success: true, data: { provider: 'ollama', model: 'qwen3:8b', hasApiKey: true, keySource: null, ollama: { baseUrl: 'http://127.0.0.1:11434', model: 'qwen3:8b', contextWindow: 16384 } } });
+    api.updateLLMConfig.mockResolvedValue({ success: true, data: {
+      provider: 'ollama', model: 'qwen3:8b', hasApiKey: true, keySource: null,
+      ollama: { baseUrl: 'http://127.0.0.1:11434', model: 'qwen3:8b', limits: { contextWindow: 16384, source: 'trained', maxOutputTokens: 2048, local: true } },
+    } });
     api.fetchOllamaModels.mockClear();
     api.updateLLMConfig.mockClear();
   });
@@ -55,9 +59,10 @@ describe('Settings → AI with Ollama', () => {
     expect(save).not.toBeDisabled();
     fireEvent.click(save);
     await waitFor(() => expect(api.updateLLMConfig).toHaveBeenCalledWith({
-      provider: 'ollama', ollama: { baseUrl: 'http://127.0.0.1:11434', model: 'qwen3:8b' },
+      provider: 'ollama', ollama: { baseUrl: 'http://127.0.0.1:11434', model: 'qwen3:8b', contextWindow: 'auto' },
     }));
-    expect(await screen.findByText('http://127.0.0.1:11434 · 16,384 tokens')).toBeInTheDocument();
+    expect(await screen.findByText('16,384 tokens')).toBeInTheDocument();
+    expect(screen.getByText('All the model was trained for')).toBeInTheDocument();
   });
 
   it('asks before sending prompts to another machine', async () => {
@@ -85,10 +90,44 @@ describe('Settings → AI with Ollama', () => {
   it('shows the active Ollama model in the status', async () => {
     api.fetchLLMConfig.mockResolvedValue({ success: true, data: {
       provider: 'ollama', model: 'qwen3:8b', hasApiKey: true, keySource: null,
-      ollama: { baseUrl: 'http://127.0.0.1:11434', model: 'qwen3:8b', contextWindow: 8192 },
+      ollama: { baseUrl: 'http://127.0.0.1:11434', model: 'qwen3:8b', limits: { contextWindow: 8192, source: 'default', maxOutputTokens: 2048, local: true } },
     } });
     renderAI();
-    expect(await screen.findByText('http://127.0.0.1:11434 · 8,192 tokens')).toBeInTheDocument();
+    expect(await screen.findByText('http://127.0.0.1:11434')).toBeInTheDocument();
+    expect(screen.getByText('8,192 tokens')).toBeInTheDocument();
     expect(screen.queryByText('API Key')).toBeNull();
+  });
+
+  // EX10.1: the window in use, why, what it costs, and a spill warning
+  it('explains the context window and warns when the model spilled to the CPU', async () => {
+    api.fetchLLMConfig.mockResolvedValue({ success: true, data: {
+      provider: 'ollama', model: 'ornith:latest', hasApiKey: true, keySource: null,
+      ollama: {
+        baseUrl: 'http://127.0.0.1:11434', model: 'ornith:latest',
+        limits: { contextWindow: 65536, source: 'auto-cap', trainedContext: 262144, maxOutputTokens: 8192, kvBytesPerToken: 32768, local: true },
+        residency: { loaded: true, sizeBytes: 9e9, vramBytes: 6e9, onCpu: true },
+      },
+      contextOptions: [8192, 16384, 32768, 65536, 131072],
+    } });
+    renderAI();
+    expect(await screen.findByText('65,536 tokens')).toBeInTheDocument();
+    expect(screen.getByText('Auto (at most 64K) · trained for 256K · cache ≈ 2.1 GB')).toBeInTheDocument();
+    expect(screen.getByText('Part of the model runs on the CPU')).toBeInTheDocument();
+  });
+
+  it('keeps the saved window and sends it on save', async () => {
+    api.fetchLLMConfig.mockResolvedValue({ success: true, data: {
+      provider: 'ollama', model: 'qwen3:8b', hasApiKey: true, keySource: null,
+      ollama: { baseUrl: 'http://127.0.0.1:11434', model: 'qwen3:8b', contextWindow: 16384, limits: { contextWindow: 16384, source: 'owner', maxOutputTokens: 2048, local: true } },
+      contextOptions: [8192, 16384, 32768, 65536, 131072],
+    } });
+    renderAI();
+    const pill = await screen.findByTestId('ollama-context');
+    expect(pill).toHaveTextContent('16K');
+    expect(screen.queryByText('Part of the model runs on the CPU')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Save Configuration' }));
+    await waitFor(() => expect(api.updateLLMConfig).toHaveBeenCalledWith({
+      provider: 'ollama', ollama: { baseUrl: 'http://127.0.0.1:11434', model: 'qwen3:8b', contextWindow: 16384 },
+    }));
   });
 });

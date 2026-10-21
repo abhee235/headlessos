@@ -4,12 +4,14 @@
 // EX9.3: the provider can be Ollama (a local model). The OpenAI key and model stay
 // saved while Ollama is chosen, and the Ollama settings stay while OpenAI is, so
 // switching back needs no re-entry.
-// @see docs/phases/phase-ex8.md, docs/phases/phase-ex9.md §8
+// EX10.1: the Ollama settings carry the owner's context window (absent = Auto)
+// @see docs/phases/phase-ex8.md, docs/phases/phase-ex9.md §8, docs/phases/phase-ex10.md §1
 
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync, chmodSync } from 'fs';
 import { homedir } from 'os';
 import { dirname, join } from 'path';
 import { decrypt, encrypt, isEncrypted } from '../security/encryption.js';
+import { validContextSetting } from './model-limits.js';
 
 export const LLM_SETTINGS_FILE = join(homedir(), '.headlessos', 'llm.json');
 
@@ -19,6 +21,8 @@ export interface OllamaSettings {
   model: string;
   /** the owner confirmed a non-loopback URL */
   allowRemote?: boolean;
+  /** EX10.1: the owner's window; absent = Auto (the lowest of the model's limits and 64K) */
+  contextWindow?: number;
 }
 
 export interface SavedLLMSettings {
@@ -54,7 +58,13 @@ function validOllama(value: unknown): OllamaSettings | undefined {
   if (typeof value !== 'object' || value === null) return undefined;
   const v = value as Record<string, unknown>;
   if (typeof v.baseUrl !== 'string' || typeof v.model !== 'string' || !v.baseUrl || !v.model) return undefined;
-  return { baseUrl: v.baseUrl, model: v.model, ...(v.allowRemote === true ? { allowRemote: true } : {}) };
+  const contextWindow = validContextSetting(v.contextWindow);
+  return {
+    baseUrl: v.baseUrl,
+    model: v.model,
+    ...(v.allowRemote === true ? { allowRemote: true } : {}),
+    ...(contextWindow ? { contextWindow } : {}),
+  };
 }
 
 /** Read and decrypt the saved settings; null when none are saved or they cannot be read */

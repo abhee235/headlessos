@@ -61,6 +61,15 @@ describe('LLM settings store', () => {
     });
   });
 
+  // EX10.1: the owner's context window is kept; anything not offered reads as Auto
+  it('keeps the owner’s context window, and drops one that is not offered', () => {
+    const f = tempFile();
+    saveLLMSettings({ provider: 'ollama', ollama: { baseUrl: 'http://127.0.0.1:11434', model: 'qwen3:8b', contextWindow: 32768 } }, f);
+    expect(loadLLMSettings(f)?.ollama).toEqual({ baseUrl: 'http://127.0.0.1:11434', model: 'qwen3:8b', contextWindow: 32768 });
+    writeFileSync(f, JSON.stringify({ provider: 'ollama', ollama: { baseUrl: 'http://127.0.0.1:11434', model: 'qwen3:8b', contextWindow: 999 } }));
+    expect(loadLLMSettings(f)?.ollama).toEqual({ baseUrl: 'http://127.0.0.1:11434', model: 'qwen3:8b' });
+  });
+
   it('ignores an Ollama choice without a usable URL and model', () => {
     const f = tempFile();
     saveLLMSettings({ model: 'x' }, f);

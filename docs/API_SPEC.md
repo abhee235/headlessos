@@ -853,12 +853,20 @@ action sent by id returns 409; a used/expired approval 404.
 
 Drops a staged view approval. → `{ success, decision: "deny", by: "owner" }`.
 
-### `GET /api/llm/config` · `PUT /api/llm/config` (EX9.3: Ollama)
+### `GET /api/llm/config` · `PUT /api/llm/config` (EX9.3: Ollama, EX10.1: context window)
 
-`PUT` body for a local model: `{ "provider": "ollama", "ollama": { "baseUrl": "http://127.0.0.1:11434", "model": "qwen3:8b", "allowRemote"?: true } }`.
+`PUT` body for a local model: `{ "provider": "ollama", "ollama": { "baseUrl": "http://127.0.0.1:11434", "model": "qwen3:8b", "allowRemote"?: true, "contextWindow"?: 8192 | 16384 | 32768 | 65536 | 131072 | "auto" } }`.
 The server checks the URL (http/https, loopback unless `allowRemote`), that Ollama
-answers and that the model is installed (`name` or `name:latest`), then reads its
-context length. Response `data`: `{ provider: "ollama", model, hasApiKey: true, keySource: null, ollama: { baseUrl, model, contextWindow }, persisted }`.
+answers and that the model is installed (`name` or `name:latest`), then resolves the
+model's limits (`POST /api/show`): the window is the lowest of the owner's
+`contextWindow` (absent, `null` or `"auto"` = 64K), the Modelfile `num_ctx` and the trained
+length. Any other `contextWindow` value is refused. Response `data`:
+`{ provider: "ollama", model, hasApiKey: true, keySource: null, ollama: { baseUrl, model, contextWindow?, limits }, persisted }`,
+where `limits = { contextWindow, source: "owner"|"modelfile"|"trained"|"auto-cap"|"default", trainedContext?, maxOutputTokens, kvBytesPerToken?, local: true }`.
+`GET` returns the same `limits` for the active Ollama model plus
+`residency: { loaded, contextLength?, sizeBytes?, vramBytes?, onCpu } | null` from `GET /api/ps`
+(`onCpu`: part of the model runs on the CPU), and always `contextOptions` (the windows
+the owner can choose).
 Switching back to `{ provider: "openai", model }` needs no key while one is saved.
 
 ### `GET /api/llm/ollama/models?baseUrl=…&allowRemote=true`

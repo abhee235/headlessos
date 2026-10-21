@@ -14,6 +14,7 @@ import type {
   ToolCall,
 } from '../provider.js';
 import { SYSTEM_PROMPT, buildTextPrompt } from '../provider.js';
+import { hostedLimits, type ModelLimits } from '../model-limits.js';
 
 /** EX8.20: default model for LLM parsing (Settings → AI) */
 export const DEFAULT_OPENAI_MODEL = 'gpt-6-luna';
@@ -37,6 +38,15 @@ export class OpenAIProvider implements LLMProvider {
   constructor(apiKey: string, model = DEFAULT_OPENAI_MODEL, client?: OpenAI) {
     this.client = client ?? new OpenAI({ apiKey });
     this.model = model;
+  }
+
+  /** EX10.1: the window comes from the model-name table, capped at 128K */
+  get limits(): ModelLimits {
+    return hostedLimits(this.model);
+  }
+
+  get contextWindow(): number {
+    return this.limits.contextWindow;
   }
 
   /** Same key (same client), another model: switching model in Settings keeps the key */

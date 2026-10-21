@@ -3,10 +3,8 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { z } from 'zod';
-import {
-  OllamaProvider, checkOllamaUrl, listOllamaModels, ollamaContextWindow, toOllamaMessages,
-  DEFAULT_OLLAMA_CONTEXT,
-} from '../../src/llm/providers/ollama.js';
+import { OllamaProvider, checkOllamaUrl, listOllamaModels, toOllamaMessages } from '../../src/llm/providers/ollama.js';
+import { resolveOllamaLimits } from '../../src/llm/model-limits.js';
 
 function fakeFetch(...bodies: unknown[]) {
   const fn = vi.fn();
@@ -45,10 +43,41 @@ describe('probes', () => {
     expect(fetch.mock.calls[0]![0]).toBe('http://127.0.0.1:11434/api/tags');
   });
 
-  it('reads the context window from num_ctx or model_info, capped', async () => {
-    expect(await ollamaContextWindow('http://h', 'm', fakeFetch({ parameters: 'temperature 0.7\nnum_ctx 4096' }))).toBe(4096);
-    expect(await ollamaContextWindow('http://h', 'm', fakeFetch({ model_info: { 'qwen3.context_length': 40960 } }))).toBe(16384);
-    expect(await ollamaContextWindow('http://h', 'm', vi.fn().mockRejectedValue(new Error('down')))).toBe(DEFAULT_OLLAMA_CONTEXT);
+});
+
+// EX10.1: one window and one reply cap per model, thinking off
+describe('OllamaProvider wire options', () => {
+  const ok = { model: 'm', message: { role: 'assistant', content: 'hi' }, done_reason: 'stop' };
+
+  it('sends num_ctx, num_predict and think: false from the model limits', async () => {
+    const fetch = fakeFetch(ok, ok);
+    const limits = resolveOllamaLimits({ trainedContext: 262144 });
+    const p = new OllamaProvider({ baseUrl: 'http://h', model: 'm', limits, fetch });
+    expect(p.contextWindow).toBe(65536);
+    await p.chatWithTools({ messages: [{ role: 'user', content: 'x' }] });
+    expect(sentBody(fetch, 0)).toMatchObject({ think: false, options: { num_ctx: 65536, num_predict: 8192 } });
+    await p.chatWithTools({ messages: [{ role: 'user', content: 'x' }], maxTokens: 300 });
+    expect(sentBody(fetch, 1).options).toMatchObject({ num_ctx: 65536, num_predict: 300 });
+  });
+
+  it('asks again without think when the model rejects it, and remembers', async () => {
+    const fetch = vi.fn()
+      .mockResolvedValueOnce({ ok: false, status: 400, clone() { return this; }, text: async () => '{"error":"\"m\" does not support thinking"}' })
+      .mockResolvedValue({ ok: true, status: 200, json: async () => ok, text: async () => '' });
+    const p = new OllamaProvider({ baseUrl: 'http://h', model: 'm', contextWindow: 8192, fetch });
+    const r = await p.chatWithTools({ messages: [{ role: 'user', content: 'x' }] });
+    expect(r.message.content).toBe('hi');
+    expect(sentBody(fetch, 0)).toHaveProperty('think', false);
+    expect(sentBody(fetch, 1)).not.toHaveProperty('think');
+    await p.chatWithTools({ messages: [{ role: 'user', content: 'x' }] });
+    expect(sentBody(fetch, 2)).not.toHaveProperty('think');
+  });
+
+  it('does not retry other 400s', async () => {
+    const fetch = vi.fn().mockResolvedValue({ ok: false, status: 400, clone() { return this; }, text: async () => 'bad request' });
+    const p = new OllamaProvider({ baseUrl: 'http://h', model: 'm', fetch });
+    await expect(p.chatWithTools({ messages: [{ role: 'user', content: 'x' }] })).rejects.toThrow('Ollama answered 400: bad request');
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 });
 

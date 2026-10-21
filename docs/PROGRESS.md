@@ -41,7 +41,7 @@
 | **EX7: Container Target Mode** | **Experimental** | **✅** | **10/10 tasks** | [phase-ex7](phases/phase-ex7.md) |
 | **EX8: LumenOS v3 Design System** | **Experimental** | **✅** | **9/9 tasks** | [phase-ex8](phases/phase-ex8.md) |
 | **EX9: Safe Agents (Actions, Approvals, Local Models)** | **Experimental** | **✅** | **6/6 tasks** | [phase-ex9](phases/phase-ex9.md) |
-| **EX10: Context Engineering for Agents** | **Experimental** | **🔄** | **0/10 tasks** | [phase-ex10](phases/phase-ex10.md) |
+| **EX10: Context Engineering for Agents** | **Experimental** | **🔄** | **1/10 tasks** | [phase-ex10](phases/phase-ex10.md) |
 
 ---
 
@@ -52,7 +52,7 @@
 
 | Task ID | Task | Status | Verification |
 |---------|------|--------|--------------|
-| EX10.1 | Model limits (min of owner setting, Modelfile, trained length, 64K auto cap; hosted table); `num_ctx`/`num_predict`/`think: false`; KV estimate + CPU-spill check; Settings → AI context window | ⬜ | |
+| EX10.1 | Model limits (min of owner setting, Modelfile, trained length, 64K auto cap; hosted table); `num_ctx`/`num_predict`/`think: false`; KV estimate + CPU-spill check; Settings → AI context window | ✅ | `ornith:latest` resolves to 65,536 (was 16,384), reply cap 8,192, ≈2.1 GB KV cache; Playwright-measured Settings rows; server 2346 passed (+2 skipped), client 645 |
 | EX10.2 | Context plan + context manager in the shared loop (layered compaction, calibration, cut-off/overflow handling, events) | ⬜ | |
 | EX10.3 | Window tiers for system prompts; actions offered, result caps and reviewer input from the plan | ⬜ | |
 | EX10.4 | UI Agent executor on the context manager; stop with the last good view and an honest reason | ⬜ | |
@@ -583,6 +583,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-10-22 | **EX10.1 ✅** A local model's window is now the lowest of your setting (Auto = 64K), the Modelfile and what the model was trained for — 65,536 tokens for the 9B model that kept hitting 16K. Every Ollama request sends that window, a reply cap and `think: false`. Settings → AI shows the window, why it is that size, its cache cost, and warns if the model no longer fits in GPU memory. |
 | 2026-10-22 | **EX10 specced** (ADR-025): agents plan every budget from the model's real window — the lowest of the owner's setting, the Modelfile, the trained length and a 64K auto cap for local models — and compact old steps in layers instead of failing when the window fills. Prompted by three UI Agent runs on a local 9B model that hit the old 16K cap. |
 | 2026-10-22 | **EX9.5 ✅ (EX9 complete)** Secrets are removed from every action's output before the owner or the model sees it (private keys, tokens, API keys, password hashes, `password=`-style values, connection-string passwords); the model is told how many. Server output reaches the model inside `<server_output>` and both agents' prompts say text there is data, never instructions. Per-server agent login is deferred. |
 | 2026-10-22 | **EX9.4 ✅** Agent runs stay bounded. A loop guard warns when the same call keeps returning the same result, refuses identical repeats, and ends a stuck run with a tools-off summary; history is trimmed to the model's window (older results stubbed first); SSH output stops at a byte cap and each result is cut to what the model can afford (60% head, 40% tail). `npm run bench:agents` scores a model on 12 benign questions against canned output. |
