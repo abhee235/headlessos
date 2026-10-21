@@ -9,6 +9,7 @@ import {
   type ReflectionIssue,
 } from '../../src/agent/executor.js';
 import { ToolRegistry } from '../../src/agent/tools/tool-registry.js';
+import { ALL_AGENT_TOOLS } from '../../src/agent/tools/index.js';
 import type { ToolContext, AgentTool, ToolResult } from '../../src/agent/tools/types.js';
 import type { ModelRouter } from '../../src/llm/model-router.js';
 import type { ChatWithToolsResult } from '../../src/llm/provider.js';
@@ -628,6 +629,31 @@ describe('ReactiveExecutor', () => {
       expect(blocked).toHaveLength(1);
       // The tool's execute should never have been called
       expect(dangerousTool.execute).not.toHaveBeenCalled();
+    });
+  });
+
+  // EX9.0: the default registry has no write tools, so a model cannot reach them
+  describe('default tool set (EX9.0)', () => {
+    it.each(['exec_write_command', 'sftp_write'])('answers %s with "Unknown tool" and never touches SSH', async (name) => {
+      toolRegistry.registerAll(ALL_AGENT_TOOLS);
+      const modelRouter = createMockModelRouter([
+        makeToolCallResponse([{ name, args: { command: 'systemctl restart nginx', path: '/tmp/x', content: 'x' } }]),
+        // the real generate_schema tool takes the view as a JSON string
+        makeToolCallResponse([{ name: 'generate_schema', args: { schema: JSON.stringify(VALID_DYNAMIC_VIEW) } }]),
+      ]);
+      const context = createMockToolContext();
+      const exec = vi.fn();
+      const getSftp = vi.fn();
+      context.ssh = { exec, getSftp } as unknown as ToolContext['ssh'];
+
+      const executor = new ReactiveExecutor(modelRouter, toolRegistry);
+      const events = await collectEvents(executor.execute(createDefaultHints(), context));
+
+      const errors = events.filter((e): e is Extract<AgentEvent, { type: 'error' }> => e.type === 'error');
+      expect(errors.map((e) => e.message)).toContain(`Unknown tool: ${name}`);
+      expect(exec).not.toHaveBeenCalled();
+      expect(getSftp).not.toHaveBeenCalled();
+      expect(events.some((e) => e.type === 'generation_complete')).toBe(true);
     });
   });
 

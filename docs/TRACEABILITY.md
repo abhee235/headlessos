@@ -1021,6 +1021,13 @@ None (all changes to existing files).
 - **Files created:** `docs/phases/phase-ex9.md`
 - **Files modified:** `docs/DECISIONS.md` (ADR-024; ADR-014 status line points to it), `docs/PROGRESS.md` (EX9 row + section + changelog; backlog B.1 → EX9.3), `docs/SECURITY.md` (§4b agents: typed actions only)
 
+### EX9.0: Remove the UI Agent's write tools
+- **Status:** ✅ Complete
+- **Date:** 2026-10-22
+- **Files modified:** `server/src/agent/tools/index.ts` (`ALL_AGENT_TOOLS` drops `execWriteCommandTool`, `sftpWriteTool`; modules kept for EX9.2)
+- **Tests:** `server/tests/agent/tools/tools.test.ts` (8 tools, none write-tier), `server/tests/agent/executor.test.ts` ("default tool set (EX9.0)": both names → Unknown tool, no exec/getSftp)
+- **Verification:** server 2180 passed (+1 skipped), `tsc -p server` clean
+
 ## How to Use This File
 
 ### After completing a task:

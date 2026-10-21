@@ -46,13 +46,21 @@ function createMockContext(overrides?: Partial<ToolContext>): ToolContext {
 // ── ALL_AGENT_TOOLS ─────────────────────────────────────
 
 describe('ALL_AGENT_TOOLS', () => {
-  it('exports exactly 9 tools', () => {
-    expect(ALL_AGENT_TOOLS).toHaveLength(10);
+  it('exports exactly 8 tools', () => {
+    expect(ALL_AGENT_TOOLS).toHaveLength(8);
   });
 
   it('all tools have unique names', () => {
     const names = ALL_AGENT_TOOLS.map(t => t.name);
-    expect(new Set(names).size).toBe(10);
+    expect(new Set(names).size).toBe(8);
+  });
+
+  // EX9.0: nothing registered by default may change a server
+  it('registers no write-tier tool', () => {
+    expect(ALL_AGENT_TOOLS.filter(t => t.securityTier === 'write')).toEqual([]);
+    const names = ALL_AGENT_TOOLS.map(t => t.name);
+    expect(names).not.toContain('exec_write_command');
+    expect(names).not.toContain('sftp_write');
   });
 
   it('all tools have required properties', () => {
@@ -69,13 +77,11 @@ describe('ALL_AGENT_TOOLS', () => {
     const names = ALL_AGENT_TOOLS.map(t => t.name).sort();
     expect(names).toEqual([
       'exec_command',
-      'exec_write_command',
       'generate_schema',
       'get_server_context',
       'grep_output',
       'search_templates',
       'sftp_read',
-      'sftp_write',
       'update_view',
       'validate_schema',
     ]);
@@ -84,9 +90,7 @@ describe('ALL_AGENT_TOOLS', () => {
   it('has correct security tiers', () => {
     const tierMap = Object.fromEntries(ALL_AGENT_TOOLS.map(t => [t.name, t.securityTier]));
     expect(tierMap['exec_command']).toBe('read');
-    expect(tierMap['exec_write_command']).toBe('write');
     expect(tierMap['sftp_read']).toBe('read');
-    expect(tierMap['sftp_write']).toBe('write');
     expect(tierMap['search_templates']).toBe('local');
     expect(tierMap['validate_schema']).toBe('local');
     expect(tierMap['generate_schema']).toBe('local');

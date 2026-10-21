@@ -25,9 +25,7 @@ export { sandboxExecTool } from './sandbox-exec.js';
 
 // ── All Default Tools ───────────────────────────────────
 import { execCommandTool } from './exec-command.js';
-import { execWriteCommandTool } from './exec-write.js';
 import { sftpReadTool } from './sftp-read.js';
-import { sftpWriteTool } from './sftp-write.js';
 import { searchTemplatesTool } from './search-templates.js';
 import { validateSchemaTool } from './validate-schema.js';
 import { generateSchemaTool } from './generate-schema.js';
@@ -37,14 +35,15 @@ import { updateViewTool } from './update-view.js';
 import type { AgentTool } from './types.js';
 
 /**
- * All 10 default agent tools.
- * Register these in a ToolRegistry for use by the orchestrator.
+ * The default agent tools, registered by the UI Agent route.
+ *
+ * EX9.0: the write tools (exec_write_command, sftp_write) are not registered —
+ * nothing may change a server without the owner's approval (ADR-024). EX9.2
+ * replaces them with change actions behind an approval gate.
  */
 export const ALL_AGENT_TOOLS: AgentTool[] = [
   execCommandTool,
-  execWriteCommandTool,
   sftpReadTool,
-  sftpWriteTool,
   searchTemplatesTool,
   validateSchemaTool,
   generateSchemaTool,

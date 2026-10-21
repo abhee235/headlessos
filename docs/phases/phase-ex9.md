@@ -323,7 +323,7 @@ run → runner.run(change action) → approvals.request(...)  ──► event ap
 
 | Task ID | Task | Status |
 |---------|------|--------|
-| EX9.0 | Remove `exec_write_command` and `sftp_write` from `ALL_AGENT_TOOLS` (UI Agent can no longer change servers) | ⬜ |
+| EX9.0 | Remove `exec_write_command` and `sftp_write` from `ALL_AGENT_TOOLS` (UI Agent can no longer change servers) | ✅ |
 | EX9.1 | Action catalog (40–60 read actions), param validators, quoting, runner, agent scope + CommandPolicy enforcement, action tools + selection; both agents on the runner; free-form read allowlist and `exec_command`/`sftp_read`/`sandbox_exec` retired | ⬜ |
 | EX9.2 | Change actions + ApprovalGate + audit log + ApprovalCard; Stop denies pending; investigation agent "Allow changes (asks first)"; generated view buttons through preview/run | ⬜ |
 | EX9.3 | Shared agent loop with typed events; OllamaProvider; Settings → AI provider choice; weak-model input handling (repair, prose calls, aliases, coercion, short errors) | ⬜ |
