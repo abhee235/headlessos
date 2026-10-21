@@ -20,6 +20,7 @@ import type { ReflectionIssue } from './reflector.js';
 import type { ChatMessage } from '../llm/provider.js';
 import { withSpan, withSpanGen, setSpanAttributes } from '../observatory/context.js';
 import { getDefaultCatalog } from './actions/catalog/index.js';
+import { extractProseToolCalls, malformedArgsMessage, parseToolArgs } from './loop/tool-input.js';
 
 /** EX9.2: change actions a generated button may name (params only; the server adds the reason) */
 const CHANGE_ACTION_LINES = getDefaultCatalog()
@@ -163,6 +164,19 @@ export class ReactiveExecutor {
 
       const assistantMessage = response.message;
 
+      // EX9.3: a model that wrote its tool call as text gets it run (first offered tool it names)
+      if (!assistantMessage.tool_calls?.length && assistantMessage.content) {
+        const prose = extractProseToolCalls(assistantMessage.content, tools.map((t) => t.name));
+        if (prose.length > 0) {
+          assistantMessage.tool_calls = [{
+            id: `prose_${stepCount}`,
+            type: 'function',
+            function: { name: prose[0]!.name, arguments: JSON.stringify(prose[0]!.input) },
+          }];
+          assistantMessage.content = null;
+        }
+      }
+
       // Append assistant message to history
       messages.push(assistantMessage);
 
@@ -175,19 +189,20 @@ export class ReactiveExecutor {
 
         for (const toolCall of assistantMessage.tool_calls) {
           const toolName = toolCall.function.name;
-          let toolArgs: unknown;
-          try {
-            toolArgs = JSON.parse(toolCall.function.arguments);
-          } catch {
+          // EX9.3: repair broken JSON before giving up (small models)
+          const parsedArgs = parseToolArgs(toolCall.function.arguments);
+          if (parsedArgs.via === 'raw') {
+            const shape = (this.toolRegistry.get(toolName)?.parameters as { shape?: Record<string, unknown> } | undefined)?.shape;
             const errorResult = JSON.stringify({
               success: false,
-              error: 'Invalid JSON in tool arguments',
+              error: malformedArgsMessage(toolName, parsedArgs.raw ?? '', shape ? Object.keys(shape) : []),
             });
             messages.push({ role: 'tool', content: errorResult, tool_call_id: toolCall.id });
             yield { type: 'error', message: `${toolName}: invalid JSON arguments` };
             didToolFailInCurrentTurn = true;
             continue;
           }
+          const toolArgs = parsedArgs.input;
 
           const tool = this.toolRegistry.get(toolName);
           if (!tool) {

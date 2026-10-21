@@ -1331,14 +1331,34 @@ export async function fetchStorageInfo(serverId: string): Promise<{ success: boo
 
 // ── LLM Configuration (M10.7) ───────────────────────────
 
-export interface LLMConfig {
-  provider: 'openai' | 'none';
+/** EX9.3: a local Ollama server (no secret) */
+export interface OllamaConfig {
+  baseUrl: string;
   model: string;
+  allowRemote?: boolean;
+  /** tokens per request (num_ctx), when active */
+  contextWindow?: number;
+}
+
+export interface LLMConfig {
+  provider: 'openai' | 'ollama' | 'none';
+  model: string;
+  /** true when a provider is active (an OpenAI key, or an Ollama model) */
   hasApiKey: boolean;
   /** EX8.22: where the active key came from */
   keySource?: 'settings' | 'env' | null;
   /** EX8.22: false when the server could not save the change to disk */
   persisted?: boolean;
+  /** EX9.3: the active or last saved Ollama settings */
+  ollama?: OllamaConfig;
+}
+
+/** EX9.3: a model installed in Ollama */
+export interface OllamaModel {
+  name: string;
+  parameterSize?: string;
+  family?: string;
+  sizeBytes?: number;
 }
 
 export interface LLMModelInfo {
@@ -1352,8 +1372,16 @@ export async function fetchLLMConfig(): Promise<{ success: boolean; data?: LLMCo
   return request('/llm/config');
 }
 
-export async function updateLLMConfig(config: { provider: string; apiKey?: string; model?: string }): Promise<{ success: boolean; data?: LLMConfig; error?: string }> {
+export async function updateLLMConfig(
+  config: { provider: string; apiKey?: string; model?: string; ollama?: { baseUrl: string; model: string; allowRemote?: boolean } },
+): Promise<{ success: boolean; data?: LLMConfig; error?: string }> {
   return request('/llm/config', { method: 'PUT', body: JSON.stringify(config) });
+}
+
+/** EX9.3: models installed in the Ollama at `baseUrl` (loopback unless allowRemote) */
+export async function fetchOllamaModels(baseUrl: string, allowRemote = false): Promise<{ success: boolean; data?: OllamaModel[]; error?: string }> {
+  const q = new URLSearchParams({ baseUrl, ...(allowRemote ? { allowRemote: 'true' } : {}) });
+  return request(`/llm/ollama/models?${q.toString()}`);
 }
 
 export async function fetchLLMModels(): Promise<{ success: boolean; data?: Record<string, LLMModelInfo[]> }> {

@@ -91,6 +91,88 @@ describe('LLM config routes', () => {
   });
 });
 
+// EX9.3: Ollama (a local model) as the provider
+describe('LLM config routes — Ollama', () => {
+  const TAGS = { models: [{ name: 'qwen3:8b', details: { parameter_size: '8.2B', family: 'qwen3' } }, { name: 'llama3.2:latest' }] };
+  const SHOW = { model_info: { 'qwen3.context_length': 40960 } };
+  function ollamaFetch(opts: { down?: boolean } = {}) {
+    return vi.fn(async (url: string) => {
+      if (opts.down) throw new TypeError('fetch failed');
+      const body = url.endsWith('/api/tags') ? TAGS : url.endsWith('/api/show') ? SHOW : {};
+      return { ok: true, status: 200, json: async () => body, text: async () => '' } as unknown as Response;
+    });
+  }
+  async function buildOllama(fetchImpl = ollamaFetch()) {
+    const pipeline = new FakePipeline();
+    const persist = { save: vi.fn(), clear: vi.fn() };
+    const onChange = vi.fn();
+    const app = Fastify();
+    await app.register(llmRoutes, { pipeline: pipeline as never, persist, onChange, ollama: { fetch: fetchImpl as never } });
+    return { app, pipeline, persist, onChange };
+  }
+  const put = (app: Awaited<ReturnType<typeof buildOllama>>['app'], payload: unknown) =>
+    app.inject({ method: 'PUT', url: '/api/llm/config', payload: payload as Record<string, unknown> }).then((r) => r.json());
+
+  it('lists installed models for the picker, loopback only unless allowed', async () => {
+    const { app } = await buildOllama();
+    const list = (await app.inject({ method: 'GET', url: '/api/llm/ollama/models?baseUrl=http://127.0.0.1:11434' })).json();
+    expect(list).toEqual({ success: true, data: [{ name: 'qwen3:8b', parameterSize: '8.2B', family: 'qwen3' }, { name: 'llama3.2:latest' }] });
+    const remote = (await app.inject({ method: 'GET', url: '/api/llm/ollama/models?baseUrl=http://10.0.0.7:11434' })).json();
+    expect(remote).toMatchObject({ success: false, error: expect.stringContaining('another machine') });
+    const allowed = (await app.inject({ method: 'GET', url: '/api/llm/ollama/models?baseUrl=http://10.0.0.7:11434&allowRemote=true' })).json();
+    expect(allowed.success).toBe(true);
+  });
+
+  it('switches to an installed model, sized to its context, and saves it', async () => {
+    const { app, pipeline, persist, onChange } = await buildOllama();
+    const res = await put(app, { provider: 'ollama', ollama: { baseUrl: 'http://localhost:11434/', model: 'qwen3:8b' } });
+    expect(res).toEqual({
+      success: true,
+      data: {
+        provider: 'ollama', model: 'qwen3:8b', hasApiKey: true, keySource: null, persisted: true,
+        ollama: { baseUrl: 'http://localhost:11434', model: 'qwen3:8b', contextWindow: 16384 },
+      },
+    });
+    expect((pipeline.llmProvider as { name: string }).name).toBe('ollama');
+    expect(onChange).toHaveBeenCalledWith(pipeline.llmProvider);
+    expect(persist.save).toHaveBeenLastCalledWith({ provider: 'ollama', ollama: { baseUrl: 'http://localhost:11434', model: 'qwen3:8b' } });
+    const cfg = (await app.inject({ method: 'GET', url: '/api/llm/config' })).json().data;
+    expect(cfg).toMatchObject({ provider: 'ollama', model: 'qwen3:8b', keySource: null, ollama: { contextWindow: 16384 } });
+  });
+
+  it('accepts a model name without its :latest tag', async () => {
+    const { app } = await buildOllama();
+    const res = await put(app, { provider: 'ollama', ollama: { baseUrl: 'http://127.0.0.1:11434', model: 'llama3.2' } });
+    expect(res.data.model).toBe('llama3.2:latest');
+  });
+
+  it('refuses to switch when Ollama is down, the model is missing, or the URL is remote', async () => {
+    const down = await buildOllama(ollamaFetch({ down: true }));
+    const r1 = await put(down.app, { provider: 'ollama', ollama: { baseUrl: 'http://127.0.0.1:11434', model: 'qwen3:8b' } });
+    expect(r1).toMatchObject({ success: false, error: expect.stringContaining('Ollama is not reachable at http://127.0.0.1:11434') });
+    expect(down.pipeline.llmProvider).toBeNull();
+
+    const { app, pipeline } = await buildOllama();
+    const r2 = await put(app, { provider: 'ollama', ollama: { baseUrl: 'http://127.0.0.1:11434', model: 'mistral' } });
+    expect(r2).toEqual({ success: false, error: 'Model "mistral" is not installed in Ollama. Installed: qwen3:8b, llama3.2:latest' });
+    const r3 = await put(app, { provider: 'ollama', ollama: { baseUrl: 'http://10.0.0.7:11434', model: 'qwen3:8b' } });
+    expect(r3.success).toBe(false);
+    const r4 = await put(app, { provider: 'ollama', ollama: { baseUrl: 'http://127.0.0.1:11434', model: 'bad name; rm' } });
+    expect(r4).toEqual({ success: false, error: 'Choose an Ollama URL and a model' });
+    expect(pipeline.llmProvider).toBeNull();
+  });
+
+  it('goes back to OpenAI without asking for the key again', async () => {
+    const { app, pipeline } = await buildOllama();
+    await put(app, { provider: 'openai', apiKey: 'sk-mem', model: 'gpt-4.1' });
+    const openai = pipeline.llmProvider as OpenAIProvider;
+    await put(app, { provider: 'ollama', ollama: { baseUrl: 'http://127.0.0.1:11434', model: 'qwen3:8b' } });
+    const back = await put(app, { provider: 'openai', model: 'gpt-6-luna' });
+    expect(back).toMatchObject({ success: true, data: { provider: 'openai', model: 'gpt-6-luna' } });
+    expect((pipeline.llmProvider as unknown as { client: unknown }).client).toBe((openai as unknown as { client: unknown }).client);
+  });
+});
+
 describe('OpenAI tool calls', () => {
   it('sends reasoning_effort none only for GPT-6 Luna with tools', () => {
     expect(toolCallParams('gpt-6-luna', true)).toEqual({ reasoning_effort: 'none' });

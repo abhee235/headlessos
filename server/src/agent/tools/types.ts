@@ -39,6 +39,8 @@ export interface ToolContext {
   offeredActions?: ReadonlySet<string>;
   /** EX9.2: where approval cards for change actions go */
   onApproval?: (event: ApprovalEvent) => void;
+  /** EX9.2: this run may propose change actions (each still waits for the owner) */
+  allowChange?: boolean;
 }
 
 // ── Tool Result ─────────────────────────────────────────

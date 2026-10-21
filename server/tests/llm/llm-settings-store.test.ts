@@ -43,4 +43,28 @@ describe('LLM settings store', () => {
     writeFileSync(f, JSON.stringify({ provider: 'openai', model: 'm', apiKey: 'sk-plain' }));
     expect(loadLLMSettings(f)).toEqual({ provider: 'openai', model: 'm' });
   });
+
+  // EX9.3: Ollama as the provider; switching keeps the other side's settings
+  it('saves Ollama without losing the OpenAI key or model, and back again', () => {
+    const f = tempFile();
+    saveLLMSettings({ model: 'gpt-6-luna', apiKey: 'sk-keep' }, f);
+    saveLLMSettings({ provider: 'ollama', ollama: { baseUrl: 'http://127.0.0.1:11434', model: 'qwen3:8b' } }, f);
+    expect(loadLLMSettings(f)).toEqual({
+      provider: 'ollama', model: 'gpt-6-luna', apiKey: 'sk-keep',
+      ollama: { baseUrl: 'http://127.0.0.1:11434', model: 'qwen3:8b' },
+    });
+    expect(readFileSync(f, 'utf8')).not.toContain('sk-keep');
+    saveLLMSettings({ model: 'gpt-4.1' }, f);
+    expect(loadLLMSettings(f)).toEqual({
+      provider: 'openai', model: 'gpt-4.1', apiKey: 'sk-keep',
+      ollama: { baseUrl: 'http://127.0.0.1:11434', model: 'qwen3:8b' },
+    });
+  });
+
+  it('ignores an Ollama choice without a usable URL and model', () => {
+    const f = tempFile();
+    saveLLMSettings({ model: 'x' }, f);
+    writeFileSync(f, JSON.stringify({ provider: 'ollama', ollama: { baseUrl: 'http://127.0.0.1:11434' } }));
+    expect(loadLLMSettings(f)).toBeNull();
+  });
 });

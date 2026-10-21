@@ -55,7 +55,10 @@ import { Badge } from '../ui/badge';
 import { Slider } from '../ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { toast } from 'sonner';
-import { fetchLLMConfig, updateLLMConfig, fetchLLMModels, type LLMConfig, type LLMModelInfo } from '../../lib/api';
+import {
+  fetchLLMConfig, updateLLMConfig, fetchLLMModels, fetchOllamaModels,
+  type LLMConfig, type LLMModelInfo, type OllamaModel,
+} from '../../lib/api';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1043,6 +1046,20 @@ function SelectedCheck() {
   return <Check className="h-[18px] w-[18px] text-accent-text" strokeWidth={2} />;
 }
 
+/** EX9.3: Ollama on this computer needs no confirm; anything else does */
+const DEFAULT_OLLAMA_URL = 'http://127.0.0.1:11434';
+function isLoopbackUrl(url: string): boolean {
+  try {
+    return /^(localhost|127(?:\.\d{1,3}){3}|\[::1\])$/i.test(new URL(url).hostname);
+  } catch {
+    return true; // not a URL yet: no remote warning while typing
+  }
+}
+
+function formatGB(bytes?: number): string | null {
+  return bytes ? `${(bytes / 1e9).toFixed(1)} GB` : null;
+}
+
 function AIPage() {
   const [config, setConfig] = useState<LLMConfig | null>(null);
   const [models, setModels] = useState<Record<string, LLMModelInfo[]>>({});
@@ -1053,6 +1070,12 @@ function AIPage() {
   const [provider, setProvider] = useState('none');
   const [apiKey, setApiKey] = useState('');
   const [model, setModel] = useState('gpt-6-luna'); // EX8.20: default model
+  // EX9.3: Ollama (a local model)
+  const [ollamaUrl, setOllamaUrl] = useState(DEFAULT_OLLAMA_URL);
+  const [ollamaModel, setOllamaModel] = useState('');
+  const [allowRemote, setAllowRemote] = useState(false);
+  const [ollamaModels, setOllamaModels] = useState<OllamaModel[]>([]);
+  const [ollamaStatus, setOllamaStatus] = useState<{ loading: boolean; error?: string }>({ loading: false });
 
   useEffect(() => {
     (async () => {
@@ -1061,7 +1084,12 @@ function AIPage() {
         if (configRes.data) {
           setConfig(configRes.data);
           setProvider(configRes.data.provider);
-          setModel(configRes.data.model);
+          if (configRes.data.provider !== 'ollama') setModel(configRes.data.model);
+          if (configRes.data.ollama) {
+            setOllamaUrl(configRes.data.ollama.baseUrl);
+            setOllamaModel(configRes.data.ollama.model);
+            setAllowRemote(!!configRes.data.ollama.allowRemote);
+          }
         }
         if (modelsRes.data) setModels(modelsRes.data);
       } catch { /* ignore */ }
@@ -1069,13 +1097,39 @@ function AIPage() {
     })();
   }, []);
 
+  // EX9.3: list the models installed in Ollama while that provider is picked
+  const remote = !isLoopbackUrl(ollamaUrl);
+  useEffect(() => {
+    if (provider !== 'ollama') return;
+    if (remote && !allowRemote) {
+      setOllamaModels([]);
+      setOllamaStatus({ loading: false });
+      return;
+    }
+    let cancelled = false;
+    setOllamaStatus({ loading: true });
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetchOllamaModels(ollamaUrl.trim(), allowRemote);
+        if (cancelled) return;
+        setOllamaModels(res.data ?? []);
+        setOllamaStatus({ loading: false, ...(res.success ? {} : { error: res.error }) });
+      } catch (err) {
+        if (!cancelled) setOllamaStatus({ loading: false, error: err instanceof Error ? err.message : 'Could not reach Ollama' });
+      }
+    }, 400);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [provider, ollamaUrl, allowRemote, remote]);
+
   const handleSave = async () => {
     setSaving(true);
     try {
-      const body: { provider: string; apiKey?: string; model?: string } = { provider };
-      if (provider !== 'none') {
+      const body: Parameters<typeof updateLLMConfig>[0] = { provider };
+      if (provider === 'openai') {
         if (apiKey) body.apiKey = apiKey;
         body.model = model;
+      } else if (provider === 'ollama') {
+        body.ollama = { baseUrl: ollamaUrl.trim(), model: ollamaModel, ...(remote && allowRemote ? { allowRemote: true } : {}) };
       }
       const res = await updateLLMConfig(body);
       if (res.success && res.data) {
@@ -1100,7 +1154,9 @@ function AIPage() {
     );
   }
 
-  const providerModels = models[provider] ?? [];
+  const providerModels = provider === 'openai' ? models.openai ?? [] : [];
+  const activeOllama = config?.provider === 'ollama' ? config.ollama : undefined;
+  const canSave = provider !== 'ollama' || (!!ollamaModel && (!remote || allowRemote));
 
   return (
     <div className="space-y-5">
@@ -1112,14 +1168,21 @@ function AIPage() {
           </RowValue>
         </Row>
         <Row label="Provider" className="min-h-[52px]">
-          <RowValue>{config?.provider === 'none' ? 'None' : 'OpenAI'}</RowValue>
+          <RowValue>{config?.provider === 'none' ? 'None' : config?.provider === 'ollama' ? 'Ollama' : 'OpenAI'}</RowValue>
         </Row>
         <Row label="Model" className="min-h-[52px]">
           <RowValue className="font-mono text-[14px]">{config?.model || '—'}</RowValue>
         </Row>
-        {config?.hasApiKey && (
+        {config?.hasApiKey && config.provider === 'openai' && (
           <Row label="API Key" className="min-h-[52px]">
             <RowValue>{config.keySource === 'env' ? 'From .env' : 'Saved on this computer, encrypted'}</RowValue>
+          </Row>
+        )}
+        {activeOllama && (
+          <Row label="Ollama" className="min-h-[52px]">
+            <RowValue className="font-mono text-[14px]">
+              {activeOllama.baseUrl}{activeOllama.contextWindow ? ` · ${activeOllama.contextWindow.toLocaleString()} tokens` : ''}
+            </RowValue>
           </Row>
         )}
       </RowSection>
@@ -1132,7 +1195,61 @@ function AIPage() {
         <Row label="OpenAI" onClick={() => setProvider('openai')} className="min-h-[52px]">
           {provider === 'openai' ? <SelectedCheck /> : null}
         </Row>
+        <Row
+          label="Ollama"
+          description="A model running on this computer. Nothing leaves the machine."
+          onClick={() => setProvider('ollama')}
+          className="min-h-[52px]"
+        >
+          {provider === 'ollama' ? <SelectedCheck /> : null}
+        </Row>
       </RowSection>
+
+      {/* EX9.3: Ollama URL and installed models */}
+      {provider === 'ollama' && (
+        <Section title="Ollama">
+          <Input
+            value={ollamaUrl}
+            onChange={(e) => setOllamaUrl(e.target.value)}
+            placeholder={DEFAULT_OLLAMA_URL}
+            aria-label="Ollama URL"
+            className="font-mono"
+          />
+          {remote && (
+            <label className="flex items-center gap-3 text-[13px] text-label-2">
+              <Switch checked={allowRemote} onCheckedChange={setAllowRemote} aria-label="Send prompts to this machine" />
+              <span>
+                This Ollama is on another machine. Turn this on to send prompts and server output there.
+              </span>
+            </label>
+          )}
+          <p className="text-[13px] text-label-2">
+            {ollamaStatus.loading
+              ? 'Looking for installed models…'
+              : remote && !allowRemote
+                ? 'Its models are listed once you allow sending to that machine.'
+                : ollamaStatus.error
+                ? ollamaStatus.error
+                : ollamaModels.length === 0 && (!remote || allowRemote)
+                  ? 'No models installed. Install one with: ollama pull qwen3:8b'
+                  : 'Used for parsing, AI Agent and UI Agent. Small models get fewer tools at a time.'}
+          </p>
+        </Section>
+      )}
+      {provider === 'ollama' && ollamaModels.length > 0 && (
+        <RowSection title="Model">
+          {ollamaModels.map((m) => (
+            <Row
+              key={m.name}
+              label={m.name}
+              description={[m.parameterSize, m.family, formatGB(m.sizeBytes)].filter(Boolean).join(' · ') || undefined}
+              onClick={() => setOllamaModel(m.name)}
+            >
+              {ollamaModel === m.name ? <SelectedCheck /> : null}
+            </Row>
+          ))}
+        </RowSection>
+      )}
 
       {/* API Key (only for OpenAI) */}
       {provider === 'openai' && (
@@ -1155,7 +1272,7 @@ function AIPage() {
       )}
 
       {/* Model Selection */}
-      {provider !== 'none' && providerModels.length > 0 && (
+      {provider === 'openai' && providerModels.length > 0 && (
         <RowSection title="Model">
           {providerModels.map((m) => (
             <Row
@@ -1172,7 +1289,7 @@ function AIPage() {
 
       {/* Save */}
       <div className="flex flex-col items-start gap-3">
-        <Button type="button" variant="primary" onClick={handleSave} disabled={saving}>
+        <Button type="button" variant="primary" onClick={handleSave} disabled={saving || !canSave}>
           {saving ? 'Saving…' : 'Save Configuration'}
         </Button>
 

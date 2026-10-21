@@ -49,6 +49,7 @@ export function actionTool(def: ActionDef): AgentTool {
         ...(context.runId ? { runId: context.runId } : {}),
         ...(sandboxContainer ? { sandboxContainer } : {}),
         ...(context.onApproval ? { onApproval: context.onApproval } : {}),
+        ...(context.allowChange ? { allowChange: true } : {}),
       });
       return {
         success: result.ok,
@@ -65,6 +66,16 @@ export function actionTool(def: ActionDef): AgentTool {
       };
     },
   };
+}
+
+/**
+ * EX9.3: how many actions to offer a model natively. An earlier agent project: list
+ * tools natively within ~10% of the context window (~120 tokens each). Hosted
+ * models with large windows get 40.
+ */
+export function actionBudget(provider?: { name?: string; contextWindow?: number } | null): number {
+  if (!provider?.contextWindow || provider.name === 'openai') return 40;
+  return Math.max(8, Math.min(40, Math.floor((0.10 * provider.contextWindow) / 120)));
 }
 
 /** Tools for every read action in the catalog. */

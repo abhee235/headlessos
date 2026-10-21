@@ -1,4 +1,5 @@
-// M11.5 / EX9.1: Investigation agent — runs catalog actions, never model-written commands
+// M11.5 / EX9.1–EX9.3: Investigation agent — native tool calls on the shared loop,
+// catalog actions only, change actions behind the owner's approval
 // @see docs/phases/phase-ex9.md, docs/DECISIONS.md (ADR-024)
 
 import { describe, it, expect, vi } from 'vitest';
@@ -6,18 +7,27 @@ import { InvestigationAgent } from '../../src/agent/investigation-agent.js';
 import { CommandPolicy } from '../../src/services/policy/command-policy.js';
 import { currentAgentScope } from '../../src/services/policy/agent-scope.js';
 import { ApprovalGate } from '../../src/agent/actions/approvals.js';
+import type { ChatWithToolsInput, ChatWithToolsResult } from '../../src/llm/provider.js';
 
-type Thought = { thought: string; action: string | null; params: string | null; answer: string | null; decision: 'run_action' | 'answer' };
+type Turn = { calls?: Array<{ name: string; args: unknown }>; text?: string };
 
-const act = (action: string, params = '{}', thought = `run ${action}`): Thought =>
-  ({ thought, action, params, answer: null, decision: 'run_action' });
-const answer = (text: string): Thought => ({ thought: 'done', action: null, params: null, answer: text, decision: 'answer' });
-
-function scripted(thoughts: Thought[]) {
-  const parseText = vi.fn();
-  for (const data of thoughts) parseText.mockResolvedValueOnce({ data, tokensUsed: { input: 10, output: 5 }, model: 'fake' });
-  return { parseText };
+/** A provider that answers each turn from a script; records what it was sent. */
+function scripted(turns: Turn[], opts: { name?: string; contextWindow?: number } = {}) {
+  let n = 0;
+  const chatWithTools = vi.fn(async (_input: ChatWithToolsInput): Promise<ChatWithToolsResult> => {
+    const t = turns[n++] ?? { text: 'done' };
+    const calls = (t.calls ?? []).map((c, i) => ({
+      id: `call_${n}_${i}`, type: 'function' as const,
+      function: { name: c.name, arguments: typeof c.args === 'string' ? c.args : JSON.stringify(c.args) },
+    }));
+    return {
+      message: { role: 'assistant', content: t.text ?? null, ...(calls.length ? { tool_calls: calls } : {}) },
+      tokensUsed: { input: 10, output: 5 }, latencyMs: 1, model: 'fake', finishReason: calls.length ? 'tool_calls' : 'stop',
+    };
+  });
+  return { name: opts.name ?? 'openai', model: 'fake', contextWindow: opts.contextWindow, parseText: vi.fn(), parseImage: vi.fn(), chatWithTools };
 }
+const toolMessages = (input: ChatWithToolsInput) => input.messages.filter((m) => m.role === 'tool').map((m) => m.content);
 
 /** SSH stub that behaves like ConnectionManager: the policy checks every command first. */
 function policedSsh(stdout = 'output') {
@@ -38,55 +48,94 @@ function policedSsh(stdout = 'output') {
   };
 }
 
-describe('InvestigationAgent (EX9.1)', () => {
-  it('runs the action the model names and records the command the server built', async () => {
+describe('InvestigationAgent on the shared loop (EX9.1 / EX9.3)', () => {
+  it('runs the actions the model calls and records the commands the server built', async () => {
     const ssh = policedSsh('Filesystem  Size  Used Avail Use% Mounted on\n/dev/sda1  50G  45G  5G  90% /');
-    const llm = scripted([act('disk_usage'), answer('The root filesystem is 90% full.')]);
-    const agent = new InvestigationAgent(ssh as never, llm as never);
-
-    const result = await agent.investigate('srv', 'Why is the disk full?');
+    const llm = scripted([{ text: 'Checking disk.', calls: [{ name: 'disk_usage', args: {} }] }, { text: 'The root filesystem is 90% full.' }]);
+    const result = await new InvestigationAgent(ssh as never, llm as never).investigate('srv', 'Why is the disk full?');
 
     expect(result.status).toBe('completed');
     expect(result.answer).toBe('The root filesystem is 90% full.');
     expect(ssh.seen).toEqual(['df -hT']);
-    expect(result.steps[0]).toMatchObject({ action: 'disk_usage', command: 'df -hT', decision: 'continue' });
+    expect(result.steps[0]).toMatchObject({ stepNumber: 1, thought: 'Checking disk.', action: 'disk_usage', command: 'df -hT', decision: 'continue' });
     expect(result.steps[0]!.output).toContain('90%');
+    expect(result.steps[1]).toMatchObject({ stepNumber: 2, thought: 'The root filesystem is 90% full.', decision: 'answer' });
+    expect(result.totalTokens).toBe(30);
   });
 
-  it('passes typed params through validation before building the command', async () => {
-    const ssh = policedSsh('active (running)');
-    const llm = scripted([act('service_status', '{"unit":"nginx","lines":5}'), answer('nginx is running')]);
-    const result = await new InvestigationAgent(ssh as never, llm as never).investigate('srv', 'is nginx up?');
-    expect(ssh.seen).toEqual(['systemctl status --no-pager --lines=5 -- nginx']);
-    expect(result.steps[0]!.command).toBe('systemctl status --no-pager --lines=5 -- nginx');
-  });
-
-  it('feeds a parameter error back to the model and never touches SSH', async () => {
-    const ssh = policedSsh();
-    const llm = scripted([act('service_status', '{"unit":"nginx; rm -rf /"}'), answer('gave up')]);
+  it('runs several calls from one turn as separate steps', async () => {
+    const ssh = policedSsh('ok');
+    const llm = scripted([{ calls: [{ name: 'uptime', args: {} }, { name: 'memory_usage', args: {} }] }, { text: 'fine' }]);
     const result = await new InvestigationAgent(ssh as never, llm as never).investigate('srv', 'q');
+    expect(ssh.seen).toEqual(['uptime', 'free -m']);
+    expect(result.steps.map((s) => [s.stepNumber, s.action, s.thought])).toEqual([[1, 'uptime', 'Uptime and load'], [2, 'memory_usage', 'Memory usage'], [3, undefined, 'fine']]);
+  });
 
+  it('feeds a parameter error back and never touches SSH for it', async () => {
+    const ssh = policedSsh();
+    const llm = scripted([{ calls: [{ name: 'service_status', args: { unit: 'nginx; rm -rf /' } }] }, { text: 'gave up' }]);
+    const result = await new InvestigationAgent(ssh as never, llm as never).investigate('srv', 'q');
     expect(ssh.exec).not.toHaveBeenCalled();
     expect(result.steps[0]!.output).toMatch(/^error: service_status: unit: expected a systemd unit name/);
-    // the next prompt shows the model what was wrong
-    const secondPrompt = llm.parseText.mock.calls[1]![0].userPrompt as string;
-    expect(secondPrompt).toContain('you sent "nginx; rm -rf /"');
+    expect(toolMessages(llm.chatWithTools.mock.calls[1]![0])[0]).toContain('you sent "nginx; rm -rf /"');
   });
 
-  it('explains malformed params JSON and unknown actions', async () => {
-    const ssh = policedSsh();
-    const llm = scripted([act('disk_usage', '{unit:'), act('rm_rf'), answer('ok')]);
+  it('accepts what small models send: misnamed keys, text numbers, broken JSON', async () => {
+    const ssh = policedSsh('active');
+    const llm = scripted([
+      { calls: [{ name: 'service_status', args: '{service: "nginx", n: "5",}' }] },
+      { text: 'nginx is active' },
+    ]);
     const result = await new InvestigationAgent(ssh as never, llm as never).investigate('srv', 'q');
-
-    expect(ssh.exec).not.toHaveBeenCalled();
-    expect(result.steps[0]!.output).toContain('params is not valid JSON');
-    expect(result.steps[1]!.output).toMatch(/No such action: rm_rf\. Closest:/);
+    expect(ssh.seen).toEqual(['systemctl status --no-pager --lines=5 -- nginx']);
+    expect(result.status).toBe('completed');
   });
 
-  it('nudges a model that says run_action but names no action', async () => {
-    const llm = scripted([{ thought: 'hmm', action: null, params: null, answer: null, decision: 'run_action' }, answer('ok')]);
+  it('explains unrepairable arguments and unknown tools', async () => {
+    const llm = scripted([
+      { calls: [{ name: 'service_status', args: 'unit=nginx' }, { name: 'rm_rf', args: {} }] },
+      { text: 'ok' },
+    ]);
     await new InvestigationAgent(policedSsh() as never, llm as never).investigate('srv', 'q');
-    expect(llm.parseText.mock.calls[1]![0].userPrompt).toContain('no action was named');
+    const [bad, unknown] = toolMessages(llm.chatWithTools.mock.calls[1]![0]);
+    expect(bad).toContain('service_status was called with arguments that are not valid JSON');
+    expect(bad).toContain('using these keys: unit, lines');
+    expect(unknown).toMatch(/^No such tool: rm_rf\. Closest: /);
+  });
+
+  it('runs a catalog action that was not offered this run', async () => {
+    const ssh = policedSsh('Linux');
+    const llm = scripted([{ calls: [{ name: 'kernel_info', args: {} }] }, { text: 'Linux' }], { name: 'ollama', contextWindow: 8192 });
+    await new InvestigationAgent(ssh as never, llm as never).investigate('srv', 'what docker containers are running?');
+    const offered = (llm.chatWithTools.mock.calls[0]![0].tools ?? []).map((t) => t.function.name);
+    expect(offered).toHaveLength(8); // 10% of an 8k window
+    expect(ssh.seen).toEqual(['uname -a']);
+  });
+
+  it('offers OpenAI models 40 actions natively, with plain JSON schemas', async () => {
+    const llm = scripted([{ text: 'ok' }]);
+    await new InvestigationAgent(policedSsh() as never, llm as never).investigate('srv', 'why does nginx keep failing?');
+    const input = llm.chatWithTools.mock.calls[0]![0];
+    const tools = input.tools ?? [];
+    expect(tools).toHaveLength(40);
+    const status = tools.find((t) => t.function.name === 'service_status')!;
+    expect(status.function.parameters).toMatchObject({ type: 'object', required: ['unit'] });
+    expect(input.messages[0]!.content).toContain('You cannot write shell commands');
+    expect(input.messages[0]!.content).toContain('you cannot change the server');
+  });
+
+  it('nudges a turn with neither text nor a tool call', async () => {
+    const llm = scripted([{}, { text: 'ok' }]);
+    await new InvestigationAgent(policedSsh() as never, llm as never).investigate('srv', 'q');
+    expect(llm.chatWithTools.mock.calls[1]![0].messages.at(-1)).toMatchObject({ role: 'user', content: expect.stringContaining('final answer') });
+  });
+
+  it('asks for a conclusion with tools off when turns run out', async () => {
+    const llm = scripted([{ calls: [{ name: 'uptime', args: {} }] }, { calls: [{ name: 'uptime', args: {} }] }, { text: 'Up 3 days, load is low.' }]);
+    const result = await new InvestigationAgent(policedSsh('up') as never, llm as never).investigate('srv', 'q', { maxSteps: 2 });
+    expect(result.status).toBe('max_steps_reached');
+    expect(result.answer).toBe('Up 3 days, load is low.');
+    expect(llm.chatWithTools.mock.calls[2]![0].tool_choice).toBe('none');
   });
 
   it('runs the whole investigation inside an agent scope', async () => {
@@ -95,20 +144,24 @@ describe('InvestigationAgent (EX9.1)', () => {
       exec: vi.fn(async () => { scopes.push(currentAgentScope()); return { stdout: '', stderr: '', exitCode: 0, durationMs: 1 }; }),
       getSftp: vi.fn(),
     };
-    const llm = scripted([act('uptime'), answer('fine')]);
+    const llm = scripted([{ calls: [{ name: 'uptime', args: {} }] }, { text: 'fine' }]);
     const result = await new InvestigationAgent(ssh as never, llm as never).investigate('srv', 'q', { sessionId: 'session-abc-123' });
     expect(result.sessionId).toBe('session-abc-123');
     expect(scopes).toEqual([{ runId: 'session-abc-123', agent: 'investigation', grant: { kind: 'exec', actionId: 'uptime', command: 'uptime' } }]);
   });
 
-  it('lists actions (with signatures) in the system prompt and asks for no shell commands', async () => {
-    const llm = scripted([answer('ok')]);
-    await new InvestigationAgent(policedSsh() as never, llm as never).investigate('srv', 'why does nginx keep failing?');
-    const system = llm.parseText.mock.calls[0]![0].systemPrompt as string;
-    expect(system).toContain('You cannot write shell commands');
-    expect(system).toContain('- service_status(unit: systemd unit, e.g. nginx or nginx.service; lines?: ');
-    expect(system).toContain('- service_logs(');
-    expect(system).not.toMatch(/Available commands include/);
+  it('reports an LLM failure as an error step', async () => {
+    const llm = scripted([]);
+    llm.chatWithTools.mockRejectedValueOnce(new Error('Ollama is not reachable at http://127.0.0.1:11434'));
+    const result = await new InvestigationAgent(policedSsh() as never, llm as never).investigate('srv', 'q');
+    expect(result.status).toBe('error');
+    expect(result.answer).toContain('Ollama is not reachable');
+  });
+
+  it('needs a provider that can call tools', async () => {
+    const noTools = { name: 'x', model: 'old', parseText: vi.fn(), parseImage: vi.fn() };
+    const result = await new InvestigationAgent(policedSsh() as never, noTools as never).investigate('srv', 'q');
+    expect(result).toMatchObject({ status: 'error', answer: expect.stringContaining('cannot call tools') });
   });
 
   it('answers without a provider by asking for a key', async () => {
@@ -119,12 +172,12 @@ describe('InvestigationAgent (EX9.1)', () => {
 });
 
 describe('InvestigationAgent changes (EX9.2)', () => {
-  const RESTART = act('service_restart', '{"unit":"nginx","reason":"nginx is inactive since 09:12"}', 'restart it');
+  const RESTART: Turn = { text: 'restart it', calls: [{ name: 'service_restart', args: { unit: 'nginx', reason: 'nginx is inactive since 09:12' } }] };
 
-  function changeAgent(thoughts: Thought[], answerWith: (gate: ApprovalGate, approvalId: string, agent: InvestigationAgent) => void) {
+  function changeAgent(turns: Turn[], answerWith: (gate: ApprovalGate, approvalId: string, agent: InvestigationAgent) => void) {
     const ssh = policedSsh('ok');
     const gate = new ApprovalGate();
-    const llm = scripted(thoughts);
+    const llm = scripted(turns);
     const agent = new InvestigationAgent(ssh as never, llm as never, {
       approvals: gate,
       describeServer: () => ({ name: 'web-1', host: '10.0.0.5', username: 'deploy' }),
@@ -137,26 +190,26 @@ describe('InvestigationAgent changes (EX9.2)', () => {
     return { ssh, gate, llm, agent, events };
   }
 
-  it('offers change actions only when readOnly is false', async () => {
-    const readOnly = scripted([answer('ok')]);
+  it('offers change tools only when readOnly is false', async () => {
+    const readOnly = scripted([{ text: 'ok' }]);
     await new InvestigationAgent(policedSsh() as never, readOnly as never).investigate('srv', 'nginx is down');
-    expect(readOnly.parseText.mock.calls[0]![0].systemPrompt).not.toContain('service_restart(');
+    expect((readOnly.chatWithTools.mock.calls[0]![0].tools ?? []).map((t) => t.function.name)).not.toContain('service_restart');
 
-    const changes = scripted([answer('ok')]);
+    const changes = scripted([{ text: 'ok' }]);
     await new InvestigationAgent(policedSsh() as never, changes as never).investigate('srv', 'nginx is down', { readOnly: false });
-    const system = changes.parseText.mock.calls[0]![0].systemPrompt as string;
-    expect(system).toContain('- service_restart(unit: systemd unit, e.g. nginx or nginx.service; reason: why this change is needed');
-    expect(system).toContain('[changes the server]');
-    expect(system).toContain('If the owner declines, that is final for this run');
+    const input = changes.chatWithTools.mock.calls[0]![0];
+    const restart = (input.tools ?? []).find((t) => t.function.name === 'service_restart')!;
+    expect(restart.function.description).toContain('Changes the server: pauses until the owner allows it.');
+    expect(restart.function.parameters).toMatchObject({ required: ['unit', 'reason'] });
+    expect(input.messages[0]!.content).toContain('If the owner declines, that is final for this run');
   });
 
   it('runs a change only after the owner allows it, and streams the card with the step', async () => {
-    const t = changeAgent([RESTART, answer('restarted')], (gate, id) => gate.resolve(id, 'allow'));
+    const t = changeAgent([RESTART, { text: 'restarted' }], (gate, id) => gate.resolve(id, 'allow'));
     const result = await t.agent.investigate('srv', 'nginx is down', { readOnly: false, sessionId: 'sess-change-1' });
 
     expect(t.ssh.seen).toEqual(['sudo -n systemctl restart -- nginx']);
-    const card = t.events.find((e) => e.kind === 'approval')!;
-    expect(card).toMatchObject({
+    expect(t.events.find((e) => e.kind === 'approval')).toMatchObject({
       step: 1,
       request: { command: 'sudo -n systemctl restart -- nginx', serverName: 'web-1', loginUser: 'deploy', reason: 'nginx is inactive since 09:12' },
     });
@@ -165,7 +218,7 @@ describe('InvestigationAgent changes (EX9.2)', () => {
   });
 
   it('does not run a denied change and tells the model not to retry', async () => {
-    const t = changeAgent([RESTART, answer('owner declined')], (gate, id) => gate.resolve(id, 'deny'));
+    const t = changeAgent([RESTART, { text: 'owner declined' }], (gate, id) => gate.resolve(id, 'deny'));
     const result = await t.agent.investigate('srv', 'nginx is down', { readOnly: false, sessionId: 'sess-change-1' });
     expect(t.ssh.exec).not.toHaveBeenCalled();
     expect(result.steps[0]!.approval).toMatchObject({ decision: 'deny', by: 'owner' });
@@ -173,7 +226,7 @@ describe('InvestigationAgent changes (EX9.2)', () => {
   });
 
   it('Stop while a card is waiting denies it and ends the run', async () => {
-    const t = changeAgent([RESTART, answer('never reached')], (_gate, _id, agent) => agent.abort('sess-change-1'));
+    const t = changeAgent([RESTART, { text: 'never reached' }], (_gate, _id, agent) => agent.abort('sess-change-1'));
     const result = await t.agent.investigate('srv', 'nginx is down', { readOnly: false, sessionId: 'sess-change-1' });
     expect(t.ssh.exec).not.toHaveBeenCalled();
     expect(result.steps[0]!.approval).toMatchObject({ decision: 'deny', by: 'stop' });
@@ -181,11 +234,11 @@ describe('InvestigationAgent changes (EX9.2)', () => {
     expect(t.gate.pending()).toEqual([]);
   });
 
-  it('refuses change actions in a read-only run even if the model names one', async () => {
-    const t = changeAgent([RESTART, answer('ok')], (gate, id) => gate.resolve(id, 'allow'));
+  it('refuses a change action in a read-only run even if the model names it', async () => {
+    const t = changeAgent([RESTART, { text: 'ok' }], (gate, id) => gate.resolve(id, 'allow'));
     const result = await t.agent.investigate('srv', 'nginx is down', { sessionId: 'sess-change-1' });
     expect(t.ssh.exec).not.toHaveBeenCalled();
     expect(t.events.some((e) => e.kind === 'approval')).toBe(false);
-    expect(result.steps[0]!.output).toContain('read-only');
+    expect(result.steps[0]!.output).toMatch(/^No such tool: service_restart/);
   });
 });

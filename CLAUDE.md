@@ -91,7 +91,7 @@ The LLM emits `DynamicViewSchema` JSON (`shared/schemas/dynamic-view.ts`). A gen
 
 ## Where AGENTS.md / CONTEXT.md / README disagree with the code
 
-- **LLM providers:** only `llm/providers/openai.ts` (plus the `fake-*` files) exists. Anthropic and Ollama providers are not implemented.
+- **LLM providers:** `llm/providers/openai.ts` and `llm/providers/ollama.ts` (EX9.3; chosen in Settings → AI, saved in `~/.headlessos/llm.json`), plus the `fake-*` files. There is no Anthropic provider.
 - **Service container:** the "every module extends `BaseService`" rule is aspirational. See the container list above for what is actually registered.
 - **Client tabs:** the `openTab`/tabs pattern and `components/Shell/` are legacy. Shell is imported nowhere, and windows replaced tabs.
 - **Route example:** CONTEXT.md's route example imports a global `connectionManager`. Real routes take it from plugin options.

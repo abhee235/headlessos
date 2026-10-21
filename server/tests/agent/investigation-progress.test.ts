@@ -2,16 +2,24 @@
 import { describe, it, expect, vi } from 'vitest';
 import { InvestigationAgent } from '../../src/agent/investigation-agent.js';
 
-function agentWith(thoughts: Array<Record<string, unknown>>) {
-  const parseText = vi.fn();
-  for (const data of thoughts) parseText.mockResolvedValueOnce({ data, tokensUsed: { input: 10, output: 5 } });
+// EX9.3: the agent calls actions as native tools (chatWithTools)
+type Turn = { text?: string; call?: string };
+function agentWith(turns: Turn[]) {
+  const chatWithTools = vi.fn();
+  turns.forEach((t, i) => chatWithTools.mockResolvedValueOnce({
+    message: {
+      role: 'assistant', content: t.text ?? null,
+      ...(t.call ? { tool_calls: [{ id: `c${i}`, type: 'function', function: { name: t.call, arguments: '{}' } }] } : {}),
+    },
+    tokensUsed: { input: 10, output: 5 }, latencyMs: 1, model: 'fake', finishReason: t.call ? 'tool_calls' : 'stop',
+  }));
   const ssh = { exec: vi.fn().mockResolvedValue({ stdout: 'Mem: 16G 9G', stderr: '', exitCode: 0 }) };
-  return new InvestigationAgent(ssh as never, { parseText } as never);
+  return new InvestigationAgent(ssh as never, { name: 'openai', model: 'fake', chatWithTools } as never);
 }
 
 // EX9.1: the model names an action; the server builds the command
-const RUN_FREE = { thought: 'Check memory', action: 'memory_usage', params: '{}', answer: null, decision: 'run_action' };
-const ANSWER = { thought: 'Enough data', action: null, params: null, answer: '9 of 16 GB used', decision: 'answer' };
+const RUN_FREE: Turn = { text: 'Check memory', call: 'memory_usage' };
+const ANSWER: Turn = { text: '9 of 16 GB used' };
 
 describe('InvestigationAgent progress (EX8.24)', () => {
   it('uses the session id the client chose and streams thought → step for every step', async () => {

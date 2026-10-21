@@ -213,10 +213,25 @@ async function main(): Promise<void> {
       : "";
   const startKey = savedLLM?.apiKey || envKey;
   const keySource: KeySource = savedLLM?.apiKey ? "settings" : envKey ? "env" : null;
+  // EX9.3: the OpenAI provider is kept for switching back even while Ollama is active
+  const { OpenAIProvider } = await import("./llm/providers/openai.js");
+  const openaiProvider = startKey ? new OpenAIProvider(startKey, savedLLM?.model) : null;
 
-  if (startKey) {
-    const { OpenAIProvider } = await import("./llm/providers/openai.js");
-    const llmProvider = new OpenAIProvider(startKey, savedLLM?.model);
+  if (savedLLM?.provider === "ollama" && savedLLM.ollama) {
+    // ── EX9.3: a local model chosen in Settings → AI ──
+    const { OllamaProvider, ollamaContextWindow } = await import("./llm/providers/ollama.js");
+    const { baseUrl, model } = savedLLM.ollama;
+    const contextWindow = await ollamaContextWindow(baseUrl, model); // default 8192 if Ollama is down
+    const ollama = new OllamaProvider({ baseUrl, model, contextWindow });
+    pipeline.setLLMProvider(ollama);
+    investigationAgent.setLLMProvider(ollama);
+    dynamicUIGenerator.setLLMProvider(ollama);
+    modelRouter = new ModelRouter("model-router", { apiKey: startKey, usageTracker });
+    modelRouter.useProvider(ollama);
+    container.register("model-router", modelRouter);
+    console.log(`🦙 LLM provider: Ollama ${model} at ${baseUrl} (context ${contextWindow})`);
+  } else if (startKey) {
+    const llmProvider = openaiProvider!;
     pipeline.setLLMProvider(llmProvider);
     investigationAgent.setLLMProvider(llmProvider);
     // EX8.21: set, not replaced — the AppStore is already wired to this registry
@@ -458,11 +473,18 @@ async function main(): Promise<void> {
     pipeline,
     keySource,
     persist: { save: (update) => saveLLMSettings(update), clear: () => clearLLMSettings() },
+    // EX9.3: Ollama settings + the OpenAI key kept for switching back
+    openai: openaiProvider,
+    ollama: { saved: savedLLM?.ollama },
     // EX8.21: one provider for parsing, the investigation agent and Dynamic UI;
     // a new key also re-keys the UI Agent's model router
     onChange: (provider, apiKey) => {
       investigationAgent.setLLMProvider(provider);
       dynamicUIGenerator.setLLMProvider(provider);
+      // EX9.3: a local model serves every UI Agent role; OpenAI goes back to the role models
+      if (modelRouter && typeof modelRouter.useProvider === "function") {
+        modelRouter.useProvider(provider?.name === "ollama" ? provider : null);
+      }
       if (apiKey !== undefined && modelRouter && typeof modelRouter.setApiKey === "function") {
         modelRouter.setApiKey(apiKey);
       }

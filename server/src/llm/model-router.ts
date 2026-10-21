@@ -49,6 +49,8 @@ export class ModelRouter extends BaseService {
   private apiKey: string;
   private configOverride?: Partial<ModelConfig>;
   private usageTracker?: LLMUsageTracker;
+  /** EX9.3: a local model (Ollama) that serves every role */
+  private override: LLMProvider | null = null;
 
   constructor(name: string, options: ModelRouterOptions) {
     super(name);
@@ -77,6 +79,7 @@ export class ModelRouter extends BaseService {
    * Falls back to 'fast' if the requested role's provider can't be created.
    */
   getModel(role: ModelRole): LLMProvider {
+    if (this.override) return this.override;
     const provider = this.providers.get(role);
     if (provider) return provider;
 
@@ -101,7 +104,24 @@ export class ModelRouter extends BaseService {
   }
 
   hasApiKey(): boolean {
-    return this.apiKey.length > 0;
+    return this.override !== null || this.apiKey.length > 0;
+  }
+
+  /**
+   * EX9.3: route every role to one provider (a local Ollama model chosen in
+   * Settings → AI); null goes back to the OpenAI role models.
+   */
+  useProvider(provider: LLMProvider | null): void {
+    this.override = provider;
+  }
+
+  /** EX9.3: the provider serving tool calls, for sizing the tool list */
+  get toolProvider(): LLMProvider | null {
+    try {
+      return this.getModel('structured-output');
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -209,8 +229,7 @@ export class ModelRouter extends BaseService {
   getModelMap(): Record<ModelRole, string> {
     const map = {} as Record<ModelRole, string>;
     for (const role of MODEL_ROLES) {
-      const config = this.getRoleConfig(role);
-      map[role] = config.model;
+      map[role] = this.override ? this.override.model : this.getRoleConfig(role).model;
     }
     return map;
   }
@@ -298,6 +317,7 @@ export class ModelRouter extends BaseService {
   }
 
   private computeSpanCost(model: string, tokensUsed: { input: number; output: number }): number {
+    if (this.override) return 0; // EX9.3: local models cost nothing per token
     // Reuse MODEL_PRICING from usage-tracker module pattern
     const SPAN_PRICING: Record<string, { input: number; output: number }> = {
       'gpt-6-luna': { input: 0.0001, output: 0.0005 },

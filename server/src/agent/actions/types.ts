@@ -59,6 +59,8 @@ export interface ActionDef<P extends ActionParams = ActionParams> {
   okExitCodes?: number[];
   /** extra words that should select this action for a request (EX9.1 selection) */
   keywords?: string[];
+  /** EX9.3: other names models use for a parameter, e.g. { unit: ['daemon'] } */
+  aliases?: Record<string, string[]>;
 }
 
 /** Identity helper that keeps the params type flowing into build()/path(). */

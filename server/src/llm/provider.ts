@@ -75,6 +75,8 @@ export interface ChatWithToolsResult {
 export interface LLMProvider {
   name: string;
   model: string;
+  /** EX9.3: tokens the model can see per request (local models: num_ctx); sizes the tool list */
+  contextWindow?: number;
   parseText<T>(input: ParseTextInput<T>): Promise<ParseResult<T>>;
   parseImage<T>(input: ParseImageInput<T>): Promise<ParseResult<T>>;
 
