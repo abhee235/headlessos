@@ -13,9 +13,12 @@ import type {
   TraceTrigger,
 } from 'headlessos-shared/schemas/observatory';
 
-import { BACKEND_ORIGIN } from '../lib/api';
+import { BACKEND_ORIGIN, isElectronProd } from '../lib/api';
 
-const API_BASE = BACKEND_ORIGIN;
+// EX8.23: same-origin in the browser, so the Vite proxy adds the API token (a direct
+// call to :3001 has none and is refused, which showed as "Failed to fetch"); the
+// backend origin only in Electron, where fetch is patched to add the token.
+const API_BASE = isElectronProd ? BACKEND_ORIGIN : '';
 
 interface ObservatoryFilters {
   trigger?: TraceTrigger;

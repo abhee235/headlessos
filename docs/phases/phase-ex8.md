@@ -88,6 +88,7 @@ The design handoff lives outside the repo tree in `Custom OS UI Design/handoff/`
 | EX8.20 | GPT-6 Luna (requested): listed and default for LLM parsing; model change keeps the key; Luna-safe tool calls | ✅ |
 | EX8.21 | Settings key reaches the agents (user report): AI Agent, Dynamic UI and UI Agent use the key saved in Settings → AI, no restart | ✅ |
 | EX8.22 | Settings key saved encrypted (requested): survives restarts; wins over `.env` | ✅ |
+| EX8.23 | Observatory "Failed to fetch" (user report): its REST calls go through the dev proxy | ✅ |
 
 ## Additions beyond the handoff
 
@@ -464,6 +465,16 @@ key; after saving a dummy key in Settings the investigation agent reached OpenAI
 `enc:…`; after a restart the server logged "key from Settings, encrypted" and
 reported the key and model. Tests: `server/tests/llm/{llm-settings-store,model-router-key}.test.ts`,
 `server/tests/routes/llm.test.ts`.
+
+## EX8.23 — Observatory "Failed to fetch"
+
+`store/observatory-store.ts` called `http://localhost:3001/api/observatory/...`
+directly in the browser too. Since the C3 API token, only the Vite proxy adds the
+token, so the server answered 401 without CORS headers and the browser reported a
+CORS failure ("Failed to fetch"; Playwright: `ERR_FAILED` on `/traces` and
+`/stats`). Its base is now same-origin in the browser and the backend origin only
+in Electron (where fetch is patched to add the token), like `useObservatorySocket`.
+Verified live: Traces (1) and stats load; no failed requests.
 
 ## Deviations from the handoff text (prototype wins where they differ)
 
