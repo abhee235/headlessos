@@ -17,6 +17,7 @@ import { MAX_STDERR, type ActionDef, type ActionRunResult } from './types.js';
 import type { ApprovalBy, ApprovalGate, ApprovalOutcome, ApprovalRequest, ApprovalTicket } from './approvals.js';
 import type { ActionAudit } from './audit.js';
 import { normalizeKeys } from '../loop/tool-input.js';
+import { redactSecrets } from './redact.js';
 
 export type ActionSsh = Pick<ConnectionManager, 'exec' | 'getSftp'>;
 
@@ -219,13 +220,18 @@ export class ActionRunner {
       );
       const out = capText(res.stdout, def.maxOutputBytes, def.keep ?? 'head');
       const ok = (def.okExitCodes ?? [0]).includes(res.exitCode);
+      // EX9.5: no secret leaves the runner
+      const stdout = redactSecrets(out.text);
+      const stderr = redactSecrets(capText(res.stderr, MAX_STDERR, 'tail').text);
+      const redacted = stdout.count + stderr.count;
       return {
         ok,
         actionId: def.id,
         command,
         exitCode: res.exitCode,
-        stdout: out.text,
-        stderr: capText(res.stderr, MAX_STDERR, 'tail').text,
+        stdout: stdout.text,
+        stderr: stderr.text,
+        ...(redacted ? { redacted } : {}),
         truncated: out.truncated || !!res.truncated,
         ...(def.parse && ok && !res.truncated ? tryParse(def, res.stdout) : {}),
         durationMs: Date.now() - started,
@@ -282,8 +288,10 @@ export class ActionRunner {
       if (lines.length > tailLines) truncated = true;
       text = lines.slice(-tailLines).join('\n') + (lines.length ? '\n' : '');
     }
+    const clean = redactSecrets(text); // EX9.5
     return {
-      ok: true, actionId: def.id, command, exitCode: 0, stdout: text, stderr: '', truncated,
+      ok: true, actionId: def.id, command, exitCode: 0, stdout: clean.text, stderr: '', truncated,
+      ...(clean.count ? { redacted: clean.count } : {}),
       durationMs: Date.now() - started,
     };
   }

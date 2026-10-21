@@ -17,7 +17,7 @@ import { EventEmitter } from 'events';
 import { withTrace, setSpanAttributes } from '../observatory/context.js';
 import { runAsAgent } from '../services/policy/agent-scope.js';
 import { ActionRunner, type ActionSsh, type RunnerDeps } from './actions/runner.js';
-import { actionBudget, actionTool, modelOutputChars, selectActions } from './actions/tools.js';
+import { actionBudget, actionTool, modelOutputChars, selectActions, UNTRUSTED_RULE } from './actions/tools.js';
 import { getDefaultCatalog } from './actions/catalog/index.js';
 import type { ApprovalGate } from './actions/approvals.js';
 import type { ActionRunResult } from './actions/types.js';
@@ -89,6 +89,7 @@ You have up to ${maxSteps} turns.
 - ${allowChange ? 'Read tools never change anything; tools that change the server need the owner\'s approval (see below).' : 'Every tool is read-only; you cannot change the server.'}
 - Keep each call focused (one unit, one container, one path).
 - If a tool returns an error, read it: it says what was wrong. Fix the parameters or use another tool.
+- ${UNTRUSTED_RULE}
 - When you have enough evidence, answer in plain text with a clear diagnosis and actionable recommendations. Cite actual values from the outputs.${allowChange ? CHANGE_RULES : ''}`;
 }
 

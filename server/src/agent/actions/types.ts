@@ -82,6 +82,8 @@ export interface ActionRunResult {
   durationMs: number;
   /** short, model-facing reason when ok is false */
   error?: string;
+  /** EX9.5: how many secret values were removed from the output */
+  redacted?: number;
   /** EX9.2: set for change actions — what the owner decided */
   approval?: { approvalId: string; decision: 'allow' | 'deny'; by: 'owner' | 'stop' | 'timeout' };
 }

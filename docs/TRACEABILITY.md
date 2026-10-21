@@ -1070,6 +1070,16 @@ None (all changes to existing files).
 - **Tests modified:** exec-call assertions in `server/tests/agent/{actions/runner,actions/runner-change,actions/tools,loop/run-loop,ui-agent-sandbox}.test.ts`, `server/tests/routes/view-actions.test.ts`
 - **Verification:** server 2302 passed (+2 skipped), client 643, both typechecks clean; `scripts/agent-bench.ts` typechecked and `--help` run (no model calls)
 
+### EX9.5: Secret redaction, untrusted-data marking
+- **Status:** ✅ Complete (per-server agent login deferred — phase doc §10)
+- **Date:** 2026-10-22
+- **Files created:** `server/src/agent/actions/redact.ts`
+- **Files modified:** `server/src/agent/actions/{types,runner,tools}.ts` (`redacted` count, redaction in the runner and `formatForModel`, `markUntrusted`, `UNTRUSTED_RULE`), `server/src/agent/loop/run-loop.ts` (wraps action results for the model), `server/src/agent/executor.ts` (wraps action results, prompt rule), `server/src/agent/investigation-agent.ts` (prompt rule)
+- **Docs:** `docs/phases/phase-ex9.md` (§10 scope note, "EX9.5 — as built"), `docs/SECURITY.md` §4b
+- **Tests created:** `server/tests/agent/actions/redact-untrusted.test.ts`
+- **Tests modified:** `server/tests/agent/executor.test.ts` (wrapping), `server/tests/agent/investigation-agent.test.ts` (prompt rule)
+- **Verification:** server 2329 passed (+2 skipped), client 643, both typechecks clean
+
 ## How to Use This File
 
 ### After completing a task:
