@@ -14,6 +14,8 @@ import { withSpan, setSpanAttributes } from '../../observatory/context.js';
 import type { ApprovalEvent } from '../actions/runner.js';
 import type { ApprovalRequest } from '../actions/approvals.js';
 import { malformedArgsMessage, parseToolArgs } from './tool-input.js';
+import { LoopGuard, stopMessage, type FoldedCall, type LoopFinding } from './loop-guard.js';
+import { estimateTokens, historyBudget, trimHistory } from './context.js';
 
 export type LoopEvent =
   | { type: 'turn'; turn: number }
@@ -22,7 +24,8 @@ export type LoopEvent =
   | { type: 'tool_result'; turn: number; callId: string; name: string; ok: boolean; output: string; metadata?: Record<string, unknown> }
   | { type: 'approval_required'; turn: number; request: ApprovalRequest }
   | { type: 'approval_resolved'; turn: number; approvalId: string; decision: 'allow' | 'deny'; by: 'owner' | 'stop' | 'timeout' }
-  | { type: 'final'; text: string; reason: 'answered' | 'max_turns' | 'aborted'; turns: number; tokens: number }
+  | { type: 'loop_warning'; turn: number; kind: 'warn' | 'stop'; rule: LoopFinding['rule']; message: string }
+  | { type: 'final'; text: string; reason: 'answered' | 'max_turns' | 'aborted' | 'stuck'; turns: number; tokens: number }
   | { type: 'error'; message: string; turns: number; tokens: number };
 
 export interface LoopOptions {
@@ -41,7 +44,12 @@ export interface LoopOptions {
   wrapUp?: string;
   /** span name prefix in the Observatory */
   spanName?: string;
+  /** EX9.4: the model's context window in tokens; history is trimmed to fit */
+  contextWindow?: number;
 }
+
+/** EX9.4: turns before the end at which the model is told to wrap up */
+const STEPS_LEFT_WARNING = 3;
 
 const DEFAULT_WRAP_UP = 'You have used all your steps. Using only what you have gathered, give your best answer now. Do not call tools.';
 const NUDGE = 'Call one of the tools, or give your final answer as plain text.';
@@ -56,6 +64,10 @@ export async function* runAgentLoop(opts: LoopOptions): AsyncGenerator<LoopEvent
     { role: 'user', content: opts.user },
   ];
   let tokens = 0;
+  // EX9.4: loop guard and history budget
+  const guard = new LoopGuard();
+  const budget = historyBudget(opts.contextWindow, Math.ceil(JSON.stringify(offered).length / 4));
+  let stuck = false;
   const call = async (input: ChatWithToolsInput, label: string) => {
     const res = await withSpan(label, 'LLM', async () => {
       const r = await opts.chat(input);
@@ -70,12 +82,19 @@ export async function* runAgentLoop(opts: LoopOptions): AsyncGenerator<LoopEvent
     return res;
   };
 
-  for (let turn = 1; turn <= opts.maxTurns; turn++) {
+  let lastTurn = 0;
+  for (let turn = 1; turn <= opts.maxTurns && !stuck; turn++) {
+    lastTurn = turn;
     if (opts.isAborted?.()) {
       yield { type: 'final', text: 'Stopped by the owner.', reason: 'aborted', turns: turn - 1, tokens };
       return;
     }
     yield { type: 'turn', turn };
+    if (opts.maxTurns > STEPS_LEFT_WARNING + 1 && turn === opts.maxTurns - STEPS_LEFT_WARNING + 1) {
+      messages.push({ role: 'user', content: `${STEPS_LEFT_WARNING} turns left. Start wrapping up: gather only what you still need, then answer.` });
+    }
+    const trimmed = trimHistory(messages, budget);
+    if (trimmed !== messages) messages.splice(0, messages.length, ...trimmed);
     let res: ChatWithToolsResult;
     try {
       res = await call({ messages: [...messages], tools: offered, tool_choice: 'auto' }, `${span}.think[${turn}]`);
@@ -86,6 +105,9 @@ export async function* runAgentLoop(opts: LoopOptions): AsyncGenerator<LoopEvent
     messages.push(res.message);
     const text = res.message.content?.trim() ?? '';
     if (text) yield { type: 'assistant_text', turn, text };
+    const findings: LoopFinding[] = [];
+    const narration = text ? guard.foldNarration(text) : null;
+    if (narration) findings.push(narration);
 
     const calls = res.message.tool_calls ?? [];
     if (calls.length === 0) {
@@ -97,12 +119,20 @@ export async function* runAgentLoop(opts: LoopOptions): AsyncGenerator<LoopEvent
       continue;
     }
 
+    const folded: FoldedCall[] = [];
     for (const tc of calls) {
       if (opts.isAborted?.()) {
         messages.push({ role: 'tool', tool_call_id: tc.id, content: 'Not run: the owner stopped the run.' });
         continue;
       }
       const parsed = parseToolArgs(tc.function.arguments);
+      // EX9.4: an identical repeat of a call already warned about is not run
+      if (guard.blocked(tc.function.name, parsed.input)) {
+        const finding = guard.refused(tc.function.name, parsed.input);
+        messages.push({ role: 'tool', tool_call_id: tc.id, content: finding.kind === 'stop' ? `Not run. ${finding.message}` : finding.message });
+        findings.push(finding);
+        continue;
+      }
       yield { type: 'tool_call', turn, callId: tc.id, name: tc.function.name, input: parsed.input, repaired: parsed.via === 'repaired' };
       const outcome = yield* streamEvents(turn, (emit) =>
         executeToolCall(tc.function.name, tc.function.arguments, byName, { ...opts.context, onApproval: emit }),
@@ -112,23 +142,36 @@ export async function* runAgentLoop(opts: LoopOptions): AsyncGenerator<LoopEvent
         type: 'tool_result', turn, callId: tc.id, name: tc.function.name, ok: outcome.ok, output: outcome.output,
         ...(outcome.metadata ? { metadata: outcome.metadata } : {}),
       };
+      folded.push({ name: tc.function.name, input: outcome.input, ok: outcome.ok, output: outcome.output, mutating: !!byName.get(tc.function.name)?.mutating });
+    }
+
+    findings.push(...guard.fold(folded));
+    for (const f of findings) yield { type: 'loop_warning', turn, kind: f.kind, rule: f.rule, message: f.message };
+    if (findings.some((f) => f.kind === 'stop')) {
+      stuck = true;
+    } else if (findings.length) {
+      messages.push({ role: 'user', content: findings.map((f) => f.message).join('\n') });
     }
   }
 
-  // Out of turns: one more, tools off
+  // Out of turns, or stuck: one more turn, tools off
   if (opts.isAborted?.()) {
-    yield { type: 'final', text: 'Stopped by the owner.', reason: 'aborted', turns: opts.maxTurns, tokens };
+    yield { type: 'final', text: 'Stopped by the owner.', reason: 'aborted', turns: lastTurn, tokens };
     return;
   }
-  messages.push({ role: 'user', content: opts.wrapUp ?? DEFAULT_WRAP_UP });
+  messages.push({ role: 'user', content: stuck ? stopMessage() : opts.wrapUp ?? DEFAULT_WRAP_UP });
+  const finalMessages = trimHistory(messages, budget);
   try {
-    const res = await call({ messages: [...messages], tools: offered, tool_choice: 'none' }, `${span}.finalAnswer`);
+    const res = await call({ messages: [...finalMessages], tools: offered, tool_choice: 'none' }, `${span}.finalAnswer`);
     const text = res.message.content?.trim() || 'No conclusion was reached in the steps available.';
-    yield { type: 'final', text, reason: 'max_turns', turns: opts.maxTurns, tokens };
+    yield { type: 'final', text, reason: stuck ? 'stuck' : 'max_turns', turns: lastTurn, tokens };
   } catch (err) {
-    yield { type: 'error', message: err instanceof Error ? err.message : String(err), turns: opts.maxTurns, tokens };
+    yield { type: 'error', message: err instanceof Error ? err.message : String(err), turns: lastTurn, tokens };
   }
 }
+
+/** EX9.4: rough token count of a message list (chars / 4), for budgets and tests */
+export { estimateTokens };
 
 // ── One tool call ───────────────────────────────────────
 

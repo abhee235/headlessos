@@ -92,7 +92,7 @@ describe('runAgentLoop', () => {
       if (e.type === 'approval_required') queueMicrotask(() => gate.resolve(e.request.approvalId, 'allow'));
     }
     expect(events.map((e) => e.type)).toEqual(['turn', 'tool_call', 'approval_required', 'approval_resolved', 'tool_result', 'turn', 'assistant_text', 'final']);
-    expect(ssh.exec).toHaveBeenCalledWith('srv', 'sudo -n systemctl restart -- nginx', 60_000);
+    expect(ssh.exec).toHaveBeenCalledWith('srv', 'sudo -n systemctl restart -- nginx', 60_000, expect.anything());
     expect(events.find((e) => e.type === 'tool_result')).toMatchObject({ ok: true, metadata: { approval: { decision: 'allow' } } });
   });
 });

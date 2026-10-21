@@ -48,7 +48,7 @@ describe('change actions in an agent run', () => {
       },
     });
     expect(t.events[1]).toMatchObject({ type: 'approval_resolved', decision: 'allow', by: 'owner' });
-    expect(t.ssh.exec).toHaveBeenCalledWith('srv', 'sudo -n systemctl restart -- nginx', 60_000);
+    expect(t.ssh.exec).toHaveBeenCalledWith('srv', 'sudo -n systemctl restart -- nginx', 60_000, { maxBytes: 262_144 });
     expect(result).toMatchObject({ ok: true, approval: { decision: 'allow', by: 'owner' } });
     expect(t.lines.map((l) => l.event)).toEqual(['asked', 'answered', 'ran']);
     expect(t.lines[2]).toMatchObject({ loginUser: 'deploy', exitCode: 0, command: 'sudo -n systemctl restart -- nginx' });

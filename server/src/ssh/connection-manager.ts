@@ -12,6 +12,14 @@ export interface ExecResult {
   stderr: string;
   exitCode: number;
   durationMs: number;
+  /** EX9.4: output passed `maxBytes`; the channel was closed early */
+  truncated?: boolean;
+}
+
+/** EX9.4: per-call limits */
+export interface ExecOptions {
+  /** stop collecting stdout past this many bytes and close the channel */
+  maxBytes?: number;
 }
 
 export interface ShellOptions {
@@ -190,7 +198,7 @@ export class ConnectionManager extends BaseService {
 
   // ── Command execution ─────────────────────────────────
 
-  async exec(serverId: string, command: string, timeout = DEFAULT_EXEC_TIMEOUT): Promise<ExecResult> {
+  async exec(serverId: string, command: string, timeout = DEFAULT_EXEC_TIMEOUT, opts: ExecOptions = {}): Promise<ExecResult> {
     // M12.1: Central policy chokepoint — every command crossing SSH passes here.
     // Throws SecurityError if the command is blocked or (in enforce mode) not
     // in the allowlist. No-op when no policy is wired (test mocks, etc.).
@@ -202,18 +210,18 @@ export class ConnectionManager extends BaseService {
     const release = await acquireExecSlot(conn.client);
     try {
       try {
-        return await this.execOnce(conn.client, command, timeout);
+        return await this.execOnce(conn.client, command, timeout, opts.maxBytes);
       } catch (err) {
         if (!isChannelOpenFailure(err)) throw err;
         await new Promise((r) => setTimeout(r, CHANNEL_RETRY_DELAY_MS));
-        return await this.execOnce(conn.client, command, timeout);
+        return await this.execOnce(conn.client, command, timeout, opts.maxBytes);
       }
     } finally {
       release();
     }
   }
 
-  private execOnce(client: Client, command: string, timeout: number): Promise<ExecResult> {
+  private execOnce(client: Client, command: string, timeout: number, maxBytes?: number): Promise<ExecResult> {
     const start = Date.now();
 
     return new Promise<ExecResult>((resolve, reject) => {
@@ -229,13 +237,25 @@ export class ConnectionManager extends BaseService {
 
         let stdout = '';
         let stderr = '';
+        // EX9.4: a byte cap keeps a runaway output (a huge log, a binary) out of memory
+        let bytes = 0;
+        let truncated = false;
 
         stream.on('data', (data: Buffer) => {
+          if (truncated) return;
+          if (maxBytes !== undefined && bytes + data.length > maxBytes) {
+            stdout += data.subarray(0, Math.max(0, maxBytes - bytes)).toString();
+            bytes = maxBytes;
+            truncated = true;
+            stream.close();
+            return;
+          }
+          bytes += data.length;
           stdout += data.toString();
         });
 
         stream.stderr.on('data', (data: Buffer) => {
-          stderr += data.toString();
+          if (stderr.length < 64 * 1024) stderr += data.toString();
         });
 
         stream.on('close', (code: number) => {
@@ -245,6 +265,7 @@ export class ConnectionManager extends BaseService {
             stderr,
             exitCode: code ?? 0,
             durationMs: Date.now() - start,
+            ...(truncated ? { truncated: true } : {}),
           });
         });
 

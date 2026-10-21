@@ -12,18 +12,37 @@ import { getDefaultCatalog, type ActionCatalog } from './catalog/index.js';
 import { callParams } from './params.js';
 import type { ActionCategory, ActionDef, ActionRunResult } from './types.js';
 
-/** Characters of one result the model sees (EX9.4 makes this per-provider). */
-export const MODEL_OUTPUT_CHARS = 12_000;
+/** Characters of one result a hosted model sees (EX9.4). */
+export const MODEL_OUTPUT_CHARS = 8_000;
+
+/**
+ * EX9.4: characters of one result a model sees — 8 000 for hosted models; for a
+ * local model about 15% of its window (4 chars per token), at least 1 500.
+ */
+export function modelOutputChars(provider?: { name?: string; contextWindow?: number } | null): number {
+  if (!provider?.contextWindow || provider.name === 'openai') return MODEL_OUTPUT_CHARS;
+  return Math.max(1_500, Math.min(MODEL_OUTPUT_CHARS, Math.floor(provider.contextWindow * 4 * 0.15)));
+}
+
+/** Keep 60% from the head and 40% from the tail, marking the cut. */
+function headAndTail(text: string, maxChars: number): { text: string; cut: boolean } {
+  if (text.length <= maxChars) return { text, cut: false };
+  const head = Math.floor(maxChars * 0.6);
+  const tail = maxChars - head;
+  return { text: `${text.slice(0, head)}\n[… ${text.length - maxChars} chars cut …]\n${text.slice(text.length - tail)}`, cut: true };
+}
 
 /** The text the model gets back from an action. */
-export function formatForModel(result: ActionRunResult, keep: 'head' | 'tail' = 'head'): string {
+export function formatForModel(result: ActionRunResult, keep: 'head' | 'tail' = 'head', maxChars = MODEL_OUTPUT_CHARS): string {
   if (!result.command && result.error) return `error: ${result.error}`;
   const parts: string[] = [];
   if (!result.ok) parts.push(result.error ? `failed: ${result.error}` : 'failed');
   const body = result.data !== undefined ? JSON.stringify(result.data) : result.stdout;
-  const capped = capText(body, MODEL_OUTPUT_CHARS, keep);
+  const capped = keep === 'tail'
+    ? (() => { const t = capText(body, maxChars, 'tail'); return { text: t.text, cut: t.truncated }; })()
+    : headAndTail(body, maxChars);
   parts.push(capped.text.trim() ? capped.text : '(no output)');
-  if (result.truncated || capped.truncated) {
+  if (result.truncated || capped.cut) {
     parts.push(keep === 'tail' ? '[earlier output cut]' : '[output cut — ask for less, e.g. fewer lines or a narrower path]');
   }
   if (result.stderr.trim()) parts.push(`stderr: ${result.stderr.trim()}`);
@@ -40,6 +59,7 @@ export function actionTool(def: ActionDef): AgentTool {
     // EX9.2: change actions take a required `reason` the owner reads on the card
     parameters: callParams(def),
     securityTier: 'action',
+    ...(def.risk === 'change' ? { mutating: true } : {}),
     async execute(args: unknown, context: ToolContext): Promise<ToolResult> {
       const runner = context.actions ?? new ActionRunner({ ssh: context.ssh });
       const sandboxContainer = context.activeSandboxId
@@ -53,7 +73,7 @@ export function actionTool(def: ActionDef): AgentTool {
       });
       return {
         success: result.ok,
-        output: formatForModel(result, def.keep),
+        output: formatForModel(result, def.keep, context.modelOutputChars),
         ...(result.ok ? {} : { error: result.error ?? 'failed' }),
         metadata: {
           actionId: def.id,

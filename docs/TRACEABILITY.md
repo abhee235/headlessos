@@ -1060,6 +1060,16 @@ None (all changes to existing files).
 - **Tests modified:** `server/tests/agent/{investigation-agent,investigation-progress,agent-spans}.test.ts`, `server/tests/llm/{model-router,llm-settings-store}.test.ts`, `server/tests/routes/llm.test.ts`
 - **Verification:** server 2281 passed (+2 skipped), client 643, both typechecks clean; Playwright measurements in the phase doc
 
+### EX9.4: Loop guard, context trimming, output caps, benchmark
+- **Status:** ✅ Complete
+- **Date:** 2026-10-22
+- **Files created:** `server/src/agent/loop/{loop-guard,context}.ts`, `server/src/agent/bench/bench.ts`, `server/scripts/agent-bench.ts`
+- **Files modified:** `server/src/agent/loop/run-loop.ts` (guard, trimming, steps-left note, `stuck`), `server/src/agent/investigation-agent.ts` (context window, output budget, `repaired` flag), `server/src/agent/ui-agent.ts` (output budget), `server/src/agent/actions/{runner,tools}.ts` (`channelCap`, `modelOutputChars`, 60/40 cut), `server/src/agent/tools/types.ts` (`mutating`, `modelOutputChars`), `server/src/ssh/connection-manager.ts` (`ExecOptions.maxBytes`, `truncated`), `server/src/llm/providers/fake-ssh-proxy.ts` (bench outputs), `package.json` + `server/package.json` (`bench:agents`)
+- **Docs:** `docs/phases/phase-ex9.md` ("EX9.4 — as built"), `CLAUDE.md` (bench command)
+- **Tests created:** `server/tests/agent/loop/guards-budgets.test.ts`, `server/tests/agent/bench.test.ts`
+- **Tests modified:** exec-call assertions in `server/tests/agent/{actions/runner,actions/runner-change,actions/tools,loop/run-loop,ui-agent-sandbox}.test.ts`, `server/tests/routes/view-actions.test.ts`
+- **Verification:** server 2302 passed (+2 skipped), client 643, both typechecks clean; `scripts/agent-bench.ts` typechecked and `--help` run (no model calls)
+
 ## How to Use This File
 
 ### After completing a task:

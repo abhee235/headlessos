@@ -9,7 +9,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "bench:agents": "tsx scripts/agent-bench.ts"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.0",

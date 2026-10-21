@@ -352,7 +352,7 @@ run → runner.run(change action) → approvals.request(...)  ──► event ap
 | EX9.1 | Action catalog (40–60 read actions), param validators, quoting, runner, agent scope + CommandPolicy enforcement, action tools + selection; both agents on the runner; free-form read allowlist and `exec_command`/`sftp_read`/`sandbox_exec` retired | ✅ |
 | EX9.2 | Change actions + ApprovalGate + audit log + ApprovalCard; Stop denies pending; investigation agent "Allow changes (asks first)"; generated view buttons through preview/run | ✅ |
 | EX9.3 | Shared agent loop with typed events; OllamaProvider; Settings → AI provider choice; weak-model input handling (repair, prose calls, aliases, coercion, short errors) | ✅ |
-| EX9.4 | Loop guard, context trimming, exec/output caps, benchmark script + fake-provider test | ⬜ |
+| EX9.4 | Loop guard, context trimming, exec/output caps, benchmark script + fake-provider test | ✅ |
 | EX9.5 | (Optional) agent login per server, untrusted-data marking, secret redaction | ⬜ |
 
 ## EX9.0 — Remove the UI Agent's write tools
@@ -515,6 +515,43 @@ for the empty list: both fixed (now centred, "Its models are listed once you all
 sending to that machine"). During the check a `PUT /api/llm/config` choosing
 `ornith:latest` was sent from the Playwright window, though the probe clicked only the
 provider row; it was left as is and reported.
+
+## EX9.4 — Guards and budgets (as built)
+
+**Loop guard** (`agent/loop/loop-guard.ts`), used by the shared loop: limits 3 (same call,
+same result → warning), 6 (→ stop), 4 in a row (one nudge, never a stop), 2 refusals
+(→ stop), narration 3 within 6 turns (warn, then stop). Keys are `name + JSON(input)`,
+results are SHA-1 fingerprints including ok/error. A tool with `mutating: true` (change
+actions) clears the history. Warnings go to the model as one user message before the
+next turn and out as `loop_warning` events; a stop ends the turn loop and the last turn
+runs with tools off and the "you are stuck" instruction (`final.reason: 'stuck'`, which
+the investigation agent reports as `max_steps_reached`). Three turns before the end the
+model is told to wrap up. The UI Agent executor keeps its EX2 repetition detector: its
+`update_view` calls change on every turn, so the guard would never fire there.
+
+**Context trimming** (`agent/loop/context.ts`): history budget = window − min(4 096, 25%)
+− the tool list's own tokens (window: the provider's `contextWindow`, else 128 000).
+Over budget, older tool results become a stub, the latest four stay whole; still over,
+the oldest call/result groups go (never the system prompt, the question, or the latest
+turn), with one note saying so. Applied before every model call, including the final one.
+
+**Output caps:** `ConnectionManager.exec(…, { maxBytes })` stops collecting stdout past the
+cap, closes the channel and returns `truncated: true` (stderr is kept to 64 KiB). The
+runner passes `channelCap(def)`: 4 MiB for actions that keep the tail (their commands bound
+their own output by lines), otherwise max(4 × `maxOutputBytes`, 256 KiB). A cut-off
+output is not parsed. What the model sees is capped per model (`modelOutputChars`: 8 000
+for hosted models, 15% of a local model's window in chars, at least 1 500), keeping 60%
+of the head and 40% of the tail with a `[… N chars cut …]` marker; logs keep the tail.
+
+**Benchmark:** `src/agent/bench/bench.ts` (12 benign questions, each with the actions that
+count as a good pick) and `scripts/agent-bench.ts`
+(`npm run bench:agents -- --provider ollama --model qwen3:8b`, or `--provider openai`).
+It runs the read-only investigation agent against `fake-server` through `FakeSSHProxy`
+(new canned outputs for the questions) and reports per question: picked, answered,
+steps, tokens, seconds, actions, plus repaired / malformed calls, unknown tools,
+parameter errors and failed actions. `tests/agent/bench.test.ts` drives it with a
+scripted provider. It was not run against a real model here: that is an LLM run for the
+owner to start.
 
 ## Inspiration (read-only sibling repos)
 

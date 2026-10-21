@@ -17,7 +17,7 @@ import { EventEmitter } from 'events';
 import { withTrace, setSpanAttributes } from '../observatory/context.js';
 import { runAsAgent } from '../services/policy/agent-scope.js';
 import { ActionRunner, type ActionSsh, type RunnerDeps } from './actions/runner.js';
-import { actionBudget, actionTool, selectActions } from './actions/tools.js';
+import { actionBudget, actionTool, modelOutputChars, selectActions } from './actions/tools.js';
 import { getDefaultCatalog } from './actions/catalog/index.js';
 import type { ApprovalGate } from './actions/approvals.js';
 import type { ActionRunResult } from './actions/types.js';
@@ -197,6 +197,7 @@ export class InvestigationAgent {
       actions: this.runner,
       runId: sessionId,
       allowChange,
+      modelOutputChars: modelOutputChars(provider),
     };
 
     let stepNo = 0;
@@ -216,6 +217,7 @@ export class InvestigationAgent {
       maxTurns: maxSteps,
       isAborted: () => this.abortedSessions.has(sessionId),
       spanName: 'InvestigationAgent',
+      contextWindow: provider.contextWindow,
     })) {
       switch (ev.type) {
         case 'turn':
@@ -232,6 +234,7 @@ export class InvestigationAgent {
           emit({
             kind: 'thought', step: stepNo, thought: turnText || def?.title || ev.name, decision: 'run_action', action: ev.name,
             ...(preview?.ok ? { command: preview.command } : {}),
+            ...(ev.repaired ? { repaired: true } : {}), // EX9.4: counted by the benchmark
           });
           break;
         }
@@ -262,7 +265,8 @@ export class InvestigationAgent {
             status = 'aborted';
             answer = 'Investigation aborted by user.';
           } else {
-            status = ev.reason === 'max_turns' ? 'max_steps_reached' : 'completed';
+            // EX9.4: a run stopped for repeating itself ends like one that ran out of steps
+            status = ev.reason === 'max_turns' || ev.reason === 'stuck' ? 'max_steps_reached' : 'completed';
             answer = ev.text;
             const headline = ev.text.split('\n').find((l) => l.trim())?.trim().slice(0, 120) ?? 'Answer';
             emit({ kind: 'thought', step: stepNo + 1, thought: headline, decision: 'answer' });

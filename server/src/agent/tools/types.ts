@@ -41,6 +41,8 @@ export interface ToolContext {
   onApproval?: (event: ApprovalEvent) => void;
   /** EX9.2: this run may propose change actions (each still waits for the owner) */
   allowChange?: boolean;
+  /** EX9.4: characters of one result the model sees (sized to the model) */
+  modelOutputChars?: number;
 }
 
 // ── Tool Result ─────────────────────────────────────────
@@ -72,6 +74,8 @@ export interface AgentTool {
   parameters: z.ZodType;
   /** Security tier: determines which guardrail checks apply */
   securityTier: SecurityTier;
+  /** EX9.4: the tool changes the server (a change action); the loop guard resets after it */
+  mutating?: boolean;
   /**
    * Execute the tool with validated arguments.
    * Must always return a ToolResult — never throw.

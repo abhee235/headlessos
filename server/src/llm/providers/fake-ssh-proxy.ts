@@ -185,6 +185,30 @@ www-data    1234  5.7  2.8 131072  46080 ?      S    Apr03   9:44 nginx: worker 
 root           1  0.0  0.1 167744  11264 ?      Ss   Apr03   0:12 /sbin/init`)],
 
     ['cat /proc/loadavg', ok('0.45 0.38 0.32 1/142 45321')],
+
+    // EX9.4: outputs for the agent benchmark's questions (catalog action commands)
+    ['systemctl status --no-pager --lines=20 -- nginx', ok(
+`● nginx.service - A high performance web server and a reverse proxy server
+     Loaded: loaded (/lib/systemd/system/nginx.service; enabled; vendor preset: enabled)
+     Active: active (running) since Mon 2026-04-06 07:17:30 UTC; 2 days ago
+   Main PID: 1234 (nginx)
+      Tasks: 5 (limit: 9387)
+     Memory: 45.2M`)],
+    ['systemctl --failed --no-pager --no-legend', ok(
+`● certbot.service loaded failed failed Certbot`)],
+    ['cat /etc/resolv.conf', ok(
+`nameserver 1.1.1.1
+nameserver 8.8.8.8
+search internal.example`)],
+    ['who', ok(
+`admin    pts/0        2026-04-08 10:12 (10.0.1.1)
+deploy   pts/1        2026-04-08 09:40 (10.0.1.7)`)],
+    ['journalctl -n 100 --no-pager --output=short-iso -p err', ok(
+`2026-04-08T09:58:12+0000 web-prod-01 certbot[2201]: Challenge failed for domain old.example.com
+2026-04-08T10:02:44+0000 web-prod-01 kernel: EXT4-fs warning (device sda1): ext4_dx_add_entry: directory index full`)],
+    ['pgrep -a nginx', ok(
+`1234 nginx: master process /usr/sbin/nginx -g daemon on; master_process on;
+1235 nginx: worker process`)],
     ['cat /proc/cpuinfo', slow(
 `processor\t: 0
 model name\t: Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz
