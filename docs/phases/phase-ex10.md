@@ -251,7 +251,7 @@ default rate: they show no cost.
 | EX10.1 | Model limits: min(owner setting, Modelfile `num_ctx`, trained length, 64K auto cap); hosted table; `num_ctx` / `num_predict` / `think: false` on the wire; KV estimate + CPU-spill check; Settings → AI context window | ✅ |
 | EX10.2 | Context plan + context manager (layered compaction, calibration, length/overflow handling, events) in the shared loop; EX9.4 trimming and EX2.13 context manager retired | ✅ |
 | EX10.3 | Window tiers for both agents' system prompts; offered actions, result caps and reviewer input from the plan | ✅ |
-| EX10.4 | UI Agent executor on the context manager; cut-off handling; stop with the last good view and an honest reason | ⬜ |
+| EX10.4 | UI Agent executor on the context manager; cut-off handling; stop with the last good view and an honest reason | ✅ |
 | EX10.5 | View tools: object or string, JSON repair, error position, no echo of the view, short outputs | ⬜ |
 | EX10.6 | Tool input for every tool: `jsonSchema7`, nulls dropped, one-line errors | ⬜ |
 | EX10.7 | Trace cost keeps the span's own cost; no default price | ⬜ |
@@ -363,6 +363,51 @@ result cap keeps EX9.4's 15% share but of the effective window: 3,686 chars at 8
 **Reviewer.** `PostGenerationReflector.reflect(…, plan)` gives each output
 `min(2,000, half the effective window less the view, shared)` chars, at least 300, head
 and tail kept (`headAndTail`, now exported). Without a plan it keeps EX2's 500-char cut.
+
+## EX10.4 — Executor on the context manager (as built)
+
+`ReactiveExecutor` builds a `ContextManager` from `context.plan` (or the tool provider's
+plan). Its summarizer is `chatSummarizer(modelRouter.chat)`, so a summary is one more call
+to the same model.
+
+**Every turn:**
+- `prepare()` runs before the call. A compaction is reported as a progress line, e.g.
+  "Made room in the model's context: shortened long old results (6,812 → 4,301 tokens)".
+- `observe()` runs after the call, and the executor span gets
+  `attributes.contextUsed / contextWindow / contextTrigger`.
+
+**A reply cut off at the output limit** with no usable tool call gets `VIEW_CUT_OFF`
+("Send your next step as ONE tool call. Keep views compact …") three times. It does not
+count as a "text only" mistake, and the cut-off text is not kept.
+
+**An overflow error** forces a compaction and retries the call (twice). Other errors are
+thrown as before.
+
+**Stopping early.** The executor stops in four cases: cut-offs exhausted, overflow retries
+exhausted, no tool calls three turns in a row (the safety warning still fires), or the
+step limit. In each case `finishEarly()` checks the last successful `update_view` against
+`DynamicViewSchema`.
+- **The view is valid:** the executor yields `generation_incomplete { view, reason,
+  emptySections }`.
+- **No valid view:** the error says why, e.g. "Stopped: the model's replies kept getting cut
+  off at its output limit, before any complete view was built."
+
+**UI Agent.**
+- On `generation_incomplete` it completes with that view and skips the reviewer.
+  `meta.warning` is short ("Stopped early — 1 section empty"), and
+  `meta.incomplete = { reason, emptySections }`.
+- If a reviewer-requested fix attempt stops early, the reviewed view is kept, with
+  "The fix attempt stopped early (…); showing the earlier version".
+
+**Client.** The completion summary moved into `components/Agent/UIAgentCompletion.tsx`.
+The finished variant is unchanged. A partial run shows "View Partly Generated" in warning
+colours with "Stopped early: <reason>. Still empty: <sections>."
+
+**Verified in Playwright.** Both variants were rendered on the app's own page with its
+styles, at a 520 px column, without signing in or touching any store. Both cards: 488 px
+wide, 18 px radius, 16 px / 12 px padding, 16 px icon centred on the title (0 px), 8 px
+icon → title, 6 px between lines, 16.7 px right inset. A long reason wraps onto two
+lines (32 px) with the same insets. Session files: unchanged.
 
 ## Inspiration (read-only sibling repos)
 

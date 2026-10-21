@@ -40,6 +40,8 @@ export interface AgentMetaType {
   reflectionLoops: number;
   warning?: string;
   models: Record<string, string>;
+  /** EX10.4: the run stopped early and kept its last valid partial view */
+  incomplete?: { reason: string; emptySections: string[] };
 }
 
 // ── Step item for timeline display ──

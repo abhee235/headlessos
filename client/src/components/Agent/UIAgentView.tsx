@@ -26,6 +26,7 @@ import { useUIAgent } from '../../hooks/useUIAgent';
 import { useAgentStore, type AgentSession } from '../../store/agent-store';
 import { useSessionsStore } from '../../store/sessions-store';
 import { AgentPanel } from './AgentPanel';
+import { UIAgentCompletion } from './UIAgentCompletion';
 import { useDynamicUIStore } from '@/store/dynamic-ui-store';
 import { useDesktopStore } from '@/store/window-store';
 import { DynamicViewSchema } from 'headlessos-shared/schemas/dynamic-view';
@@ -275,27 +276,9 @@ export function UIAgentView({ serverId }: UIAgentViewProps) {
             />
           )}
 
-          {/* Completion summary */}
+          {/* Completion summary (EX10.4: or how far it got before stopping) */}
           {activeSession?.status === 'complete' && activeSession.meta && (
-            <div className="space-y-4">
-              <div className="space-y-1.5 rounded-[18px] border border-success/30 bg-success/10 px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-success" strokeWidth={1.75} />
-                  <span className="text-sm font-semibold text-success">
-                    View Generated
-                  </span>
-                </div>
-                <p className="text-xs text-label-2">
-                  Completed in {((activeSession.meta.latencyMs ?? 0) / 1000).toFixed(1)}s
-                  {' · '}
-                  {activeSession.meta.stepsCompleted} step{activeSession.meta.stepsCompleted !== 1 ? 's' : ''}
-                  {activeSession.meta.reflectionLoops > 0 && (
-                    <> · {activeSession.meta.reflectionLoops} reflection{activeSession.meta.reflectionLoops !== 1 ? 's' : ''}</>
-                  )}
-                  {' · '}View is open in a desktop window
-                </p>
-              </div>
-            </div>
+            <UIAgentCompletion meta={activeSession.meta} />
           )}
 
           {/* Error state */}
