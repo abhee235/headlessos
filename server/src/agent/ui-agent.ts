@@ -16,7 +16,8 @@ import type { ToolContext } from './tools/types.js';
 import { withTraceGen, setSpanAttributes } from '../observatory/context.js';
 import type { SandboxManager } from './sandbox-manager.js';
 import { ActionRunner } from './actions/runner.js';
-import { actionBudget, modelOutputChars, selectActions } from './actions/tools.js';
+import { selectActions } from './actions/tools.js';
+import { planForProvider } from './context/plan.js';
 import { outsideAgentScope, runGenAsAgent } from '../services/policy/agent-scope.js';
 
 
@@ -145,6 +146,9 @@ export class UIAgent {
     // Record the user's request as input on the root AGENT span
     setSpanAttributes({ input: request });
 
+    // EX10.3: every budget of the run comes from the tool-calling model's window
+    const plan = planForProvider(this.modelRouter.toolProvider);
+
     const context: ToolContext = {
       serverId,
       ssh: this.ssh,
@@ -152,10 +156,11 @@ export class UIAgent {
       previousOutputs: new Map(),
       actions: new ActionRunner({ ssh: this.ssh }),
       runId: sessionId,
-      // EX9.3: sized to the model — 40 for hosted models, ~10% of a local model's window
-      offeredActions: new Set(selectActions(request, { max: actionBudget(this.modelRouter.toolProvider) }).map((a) => a.id)),
-      // EX9.4: what one action result may cost in the model's window
-      modelOutputChars: modelOutputChars(this.modelRouter.toolProvider),
+      // EX9.3 / EX10.3: sized to the model by the plan — 40 for hosted models, ~10% of a local window
+      offeredActions: new Set(selectActions(request, { max: plan.actionBudget }).map((a) => a.id)),
+      // EX9.4 / EX10.3: what one action result may cost in the model's window
+      modelOutputChars: plan.resultChars,
+      plan,
     };
 
     // ── EX5-B.3: SANDBOX SETUP (when sandboxMode=true) ──
@@ -285,6 +290,7 @@ export class UIAgent {
               hints,
               context.previousOutputs,
               view,
+              plan,
             );
           } catch (err) {
             // Reflection failure should not block — use best attempt

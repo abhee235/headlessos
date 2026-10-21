@@ -17,13 +17,13 @@ import { EventEmitter } from 'events';
 import { withTrace, setSpanAttributes } from '../observatory/context.js';
 import { runAsAgent } from '../services/policy/agent-scope.js';
 import { ActionRunner, type ActionSsh, type RunnerDeps } from './actions/runner.js';
-import { actionBudget, actionTool, modelOutputChars, selectActions, UNTRUSTED_RULE } from './actions/tools.js';
+import { actionTool, selectActions, UNTRUSTED_RULE } from './actions/tools.js';
 import { getDefaultCatalog } from './actions/catalog/index.js';
 import type { ApprovalGate } from './actions/approvals.js';
 import type { ActionRunResult } from './actions/types.js';
 import type { ToolContext } from './tools/types.js';
 import { runAgentLoop } from './loop/run-loop.js';
-import { planForProvider } from './context/plan.js';
+import { planForProvider, type PromptTier } from './context/plan.js';
 import { chatSummarizer } from './context/manager.js';
 
 // ── Agent Step (public) ─────────────────────────────────
@@ -78,15 +78,21 @@ const CHANGE_RULES = `
 - One change at a time. After it runs, check the result with a read action.
 - If the owner declines, that is final for this run: do not retry it or work around it. Explain what you would have done.`;
 
-function buildSystemPrompt(allowChange: boolean, maxSteps: number): string {
-  return `You are an expert Linux system administrator AI agent. You investigate server issues by calling diagnostic tools and analyzing their output.
-
-## How you work
+/** EX10.3: a small window (minimal tier) gets the short "how you work" */
+function buildSystemPrompt(allowChange: boolean, maxSteps: number, tier: PromptTier = 'full'): string {
+  const howYouWork = tier === 'minimal'
+    ? `## How you work
+Call tools (server actions with typed parameters; you cannot write shell commands), read the outputs, then call more or answer. You have up to ${maxSteps} turns.
+`
+    : `## How you work
 1. Think about what you know and what you need to find out next.
 2. Call one or more tools. Each tool is a server action with typed parameters; the server builds and runs the command. You cannot write shell commands.
 3. Read the outputs, then decide: call more tools, or answer.
 You have up to ${maxSteps} turns.
+`;
+  return `You are an expert Linux system administrator AI agent. You investigate server issues by calling diagnostic tools and analyzing their output.
 
+${howYouWork}
 ## Rules
 - ${allowChange ? 'Read tools never change anything; tools that change the server need the owner\'s approval (see below).' : 'Every tool is read-only; you cannot change the server.'}
 - Keep each call focused (one unit, one container, one path).
@@ -185,8 +191,10 @@ export class InvestigationAgent {
     }
 
     // EX9.3: the tool list is sized to the model (ADR-055): offered natively, fixed for the run
+    // EX10.3: from the plan, like every other budget of the run
+    const plan = planForProvider(provider);
     const catalog = getDefaultCatalog();
-    const offeredReads = selectActions(question, { max: actionBudget(provider) });
+    const offeredReads = selectActions(question, { max: plan.actionBudget });
     const offeredIds = new Set(offeredReads.map((a) => a.id));
     const changes = allowChange ? catalog.list({ risk: 'change' }) : [];
     const tools = [...offeredReads, ...changes].map(actionTool);
@@ -200,7 +208,8 @@ export class InvestigationAgent {
       actions: this.runner,
       runId: sessionId,
       allowChange,
-      modelOutputChars: modelOutputChars(provider),
+      modelOutputChars: plan.resultChars,
+      plan,
     };
 
     let stepNo = 0;
@@ -212,7 +221,7 @@ export class InvestigationAgent {
 
     for await (const ev of runAgentLoop({
       chat: (input) => provider.chatWithTools!(input),
-      system: buildSystemPrompt(allowChange, maxSteps),
+      system: buildSystemPrompt(allowChange, maxSteps, plan.tier),
       user: `Investigate this server issue:\n\n${question}`,
       tools,
       extraTools,
@@ -221,7 +230,7 @@ export class InvestigationAgent {
       isAborted: () => this.abortedSessions.has(sessionId),
       spanName: 'InvestigationAgent',
       // EX10.2: compaction planned from the model's real window; old steps summarized by the same model
-      plan: planForProvider(provider),
+      plan,
       summarize: chatSummarizer((input) => provider.chatWithTools!(input)),
     })) {
       switch (ev.type) {

@@ -114,7 +114,7 @@ keepRecent      = floor(effectiveWindow × 0.25)            tokens kept verbatim
 stopAt          = local: min(trigger, max(keepRecent + min(2000, window/8), floor(window × 0.55)))
                   hosted: trigger
 maskChars       = clamp(floor(window × 4 × 0.01), 1 000, 8 000)   older results longer than this are stubbed first
-resultChars     = clamp(floor(effectiveWindow × 4 × 0.06), 1 500, 8 000)   cap on one tool result as the model first sees it
+resultChars     = clamp(floor(effectiveWindow × 4 × 0.15), 1 500, 8 000)   cap on one tool result as the model first sees it
 actionBudget    = hosted 40, local clamp(floor(0.10 × window / 120), 8, 40)
 tier            = window < 24 000 ? 'minimal' : window < 96 000 ? 'lean' : 'full'
 ```
@@ -123,8 +123,8 @@ Invariant (tested): `stopAt ≤ trigger ≤ hard ≤ window`. Worked numbers:
 
 | Window | Out | Reserve | Trigger | Hard | Keep recent | stopAt (local) | resultChars | Actions | Tier |
 |--------|-----|---------|---------|------|-------------|----------------|-------------|---------|------|
-| 8,192 | 2,048 | 2,048 | 5,120 | 8,120 | 1,536 | 4,505 | 1,500 | 8 | minimal |
-| 16,384 | 2,048 | 2,048 | 11,468 | 14,468 | 3,584 | 9,011 | 3,440 | 13 | minimal |
+| 8,192 | 2,048 | 2,048 | 5,120 | 8,120 | 1,536 | 4,505 | 3,686 | 8 | minimal |
+| 16,384 | 2,048 | 2,048 | 11,468 | 14,468 | 3,584 | 9,011 | 8,000 | 13 | minimal |
 | 65,536 | 8,192 | 8,192 | 45,875 | 54,344 | 14,336 | 36,044 | 8,000 | 40 | lean |
 | 128,000 (hosted) | 16,000 | 16,000 | 99,000 | 109,000 | 28,000 | — | 8,000 | 40 | full |
 
@@ -184,8 +184,10 @@ This replaces `agent/loop/context.ts` (EX9.4 trimming) and the never-imported
   Token sizes per tier are pinned by tests.
 - Offered actions, the per-result cap and the history budget come from the plan, replacing
   `actionBudget()` / `modelOutputChars()` / `historyBudget()` (EX9.3/EX9.4).
-- The reviewer (post-reflector) gets every tool output cut to fit half the effective window,
-  60% head / 40% tail per output.
+- The reviewer (post-reflector) gets each tool output cut to at most 2,000 chars (60% head /
+  40% tail), and all of them together cut to fit half the effective window less the view under
+  review. Before, it got 500 chars each, too little to judge whether data was shown. Sending
+  more would make each review on a hosted reasoning model noticeably more expensive.
 
 ### 5. UI Agent executor on the context manager (EX10.4)
 
@@ -248,7 +250,7 @@ default rate: they show no cost.
 |---------|------|--------|
 | EX10.1 | Model limits: min(owner setting, Modelfile `num_ctx`, trained length, 64K auto cap); hosted table; `num_ctx` / `num_predict` / `think: false` on the wire; KV estimate + CPU-spill check; Settings → AI context window | ✅ |
 | EX10.2 | Context plan + context manager (layered compaction, calibration, length/overflow handling, events) in the shared loop; EX9.4 trimming and EX2.13 context manager retired | ✅ |
-| EX10.3 | Window tiers for both agents' system prompts; offered actions, result caps and reviewer input from the plan | ⬜ |
+| EX10.3 | Window tiers for both agents' system prompts; offered actions, result caps and reviewer input from the plan | ✅ |
 | EX10.4 | UI Agent executor on the context manager; cut-off handling; stop with the last good view and an honest reason | ⬜ |
 | EX10.5 | View tools: object or string, JSON repair, error position, no echo of the view, short outputs | ⬜ |
 | EX10.6 | Tool input for every tool: `jsonSchema7`, nulls dropped, one-line errors | ⬜ |
@@ -330,6 +332,37 @@ compaction yields `compacted { layer, before, after, forced }`. The LLM span get
 
 **Retired:** `agent/loop/context.ts` (EX9.4 `historyBudget` / `trimHistory`), and
 `agent/context-manager.ts` (EX2.13), which was never imported, with its test.
+
+## EX10.3 — Prompt tiers and plan budgets (as built)
+
+**UI Agent executor.** The prompt blocks moved into constants. The `full` tier is
+reassembled from them and is byte-for-byte the EX9 prompt (checked against a dump taken
+before the change). `lean` replaces the column-type and rich-cell details with one line,
+and the step-by-step workflow and worked example with a 6-line workflow. `minimal` uses
+a one-line-per-shape reference and leaves out the row-button catalog for display-only
+views. The tier is `context.plan.tier`; with no plan the prompt is `full`.
+
+Measured for the same request (Docker containers, two sections):
+
+| Tier | System prompt |
+|------|---------------|
+| full (hosted, or no plan) | 12,420 chars ≈ 3,105 tokens |
+| lean (64K local) | 8,984 chars ≈ 2,246 tokens |
+| minimal (16K local) | 3,119 chars ≈ 780 tokens |
+
+**Investigation agent.** At the `minimal` tier, "How you work" shrinks to two lines. The
+rules are the same at every tier.
+
+**Budgets from the plan.** Both agents compute `planForProvider(...)` once per run.
+Offered actions come from `plan.actionBudget` and the per-result cap from
+`plan.resultChars`, and `ToolContext.plan` carries the plan to the executor and the
+reviewer. `actionBudget()` and `modelOutputChars()` (EX9.3/EX9.4) are removed. The
+result cap keeps EX9.4's 15% share but of the effective window: 3,686 chars at 8K
+(was 4,915), 8,000 from 16K up.
+
+**Reviewer.** `PostGenerationReflector.reflect(…, plan)` gives each output
+`min(2,000, half the effective window less the view, shared)` chars, at least 300, head
+and tail kept (`headAndTail`, now exported). Without a plan it keeps EX2's 500-char cut.
 
 ## Inspiration (read-only sibling repos)
 

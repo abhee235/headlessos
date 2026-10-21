@@ -8,7 +8,8 @@ import type { AgentTool, ToolContext } from '../../../src/agent/tools/types.js';
 import type { ChatWithToolsResult } from '../../../src/llm/provider.js';
 import { ApprovalGate } from '../../../src/agent/actions/approvals.js';
 import { ActionRunner } from '../../../src/agent/actions/runner.js';
-import { actionTool, actionBudget } from '../../../src/agent/actions/tools.js';
+import { actionTool } from '../../../src/agent/actions/tools.js';
+import { planForProvider } from '../../../src/agent/context/plan.js';
 import { getDefaultCatalog } from '../../../src/agent/actions/catalog/index.js';
 
 const reply = (content: string | null, calls: Array<{ name: string; args: string }> = []): ChatWithToolsResult => ({
@@ -125,12 +126,13 @@ describe('executeToolCall', () => {
   });
 });
 
-describe('actionBudget', () => {
+describe('action budget (EX10.3: from the plan)', () => {
   it('gives hosted models 40 and local ones about 10% of their window', () => {
-    expect(actionBudget({ name: 'openai' })).toBe(40);
-    expect(actionBudget(null)).toBe(40);
-    expect(actionBudget({ name: 'ollama', contextWindow: 4096 })).toBe(8);
-    expect(actionBudget({ name: 'ollama', contextWindow: 16384 })).toBe(13);
-    expect(actionBudget({ name: 'ollama', contextWindow: 128000 })).toBe(40);
+    const budget = (p: Parameters<typeof planForProvider>[0]) => planForProvider(p).actionBudget;
+    expect(budget({ name: 'openai' })).toBe(40);
+    expect(budget(null)).toBe(40);
+    expect(budget({ name: 'ollama', contextWindow: 4096 })).toBe(8);
+    expect(budget({ name: 'ollama', contextWindow: 16384 })).toBe(13);
+    expect(budget({ name: 'ollama', contextWindow: 128000 })).toBe(40);
   });
 });

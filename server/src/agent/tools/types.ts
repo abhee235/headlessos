@@ -6,6 +6,7 @@ import type { ConnectionManager } from '../../ssh/connection-manager.js';
 import type { TemplateRegistry } from '../../dynamic-ui/template-registry.js';
 import type { SandboxManager } from '../sandbox-manager.js';
 import type { ActionRunner, ApprovalEvent } from '../actions/runner.js';
+import type { ContextPlan } from '../context/plan.js';
 
 // ── Security Tier ───────────────────────────────────────
 
@@ -41,8 +42,10 @@ export interface ToolContext {
   onApproval?: (event: ApprovalEvent) => void;
   /** EX9.2: this run may propose change actions (each still waits for the owner) */
   allowChange?: boolean;
-  /** EX9.4: characters of one result the model sees (sized to the model) */
+  /** EX9.4: characters of one result the model sees (EX10.3: the plan's resultChars) */
   modelOutputChars?: number;
+  /** EX10.3: every budget of this run, from the model's window */
+  plan?: ContextPlan;
 }
 
 // ── Tool Result ─────────────────────────────────────────

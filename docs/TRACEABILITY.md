@@ -1109,6 +1109,15 @@ None (all changes to existing files).
 - **Tests modified:** `server/tests/agent/loop/{run-loop,guards-budgets}.test.ts`
 - **Verification:** server 2336 passed (+2 skipped; the EX2.13 context-manager tests were retired with it), client 645, `tsc -p server` clean
 
+### EX10.3: Prompt tiers and plan budgets
+- **Status:** ✅ Complete
+- **Date:** 2026-10-22
+- **Files modified:** `server/src/agent/executor.ts` (prompt blocks per tier), `server/src/agent/investigation-agent.ts` (tiered "how you work", plan budgets), `server/src/agent/ui-agent.ts` (plan, `context.plan`, reviewer budget), `server/src/agent/reflector.ts` (`plan` parameter, head/tail per output), `server/src/agent/actions/tools.ts` (`actionBudget`/`modelOutputChars` removed, `headAndTail` exported), `server/src/agent/tools/types.ts` (`ToolContext.plan`), `server/src/agent/context/plan.ts` (result share 15%)
+- **Docs:** `docs/phases/phase-ex10.md` (§2 result cap, §4 reviewer, "EX10.3 — as built")
+- **Tests created:** `server/tests/agent/context/prompt-tiers.test.ts`
+- **Tests modified:** `server/tests/agent/context/plan.test.ts`, `server/tests/agent/loop/{run-loop,guards-budgets}.test.ts`
+- **Verification:** server 2342 passed (+2 skipped), client unchanged (645), `tsc -p server` clean; full-tier prompt compared byte-for-byte with a pre-change dump
+
 ## How to Use This File
 
 ### After completing a task:

@@ -10,6 +10,11 @@ import type { DynamicView } from 'headlessos-shared/schemas/dynamic-view';
 import type { ModelRouter } from '../llm/model-router.js';
 import type { PlannerHints } from './planner.js';
 import { withSpan } from '../observatory/context.js';
+import type { ContextPlan } from './context/plan.js';
+import { headAndTail } from './actions/tools.js';
+
+/** EX10.3: the most of one tool output the reviewer sees */
+const REVIEW_CHARS_PER_OUTPUT = 2_000;
 
 // ── Reflection Schema ──
 
@@ -96,12 +101,14 @@ export class PostGenerationReflector {
    * @param hints - PlannerHints from the planning phase
    * @param collectedData - Map of tool outputs collected during generation
    * @param generatedSchema - The DynamicView JSON to review
+   * @param plan - EX10.3: the run's context plan; bounds what the reviewer is sent
    */
   async reflect(
     originalRequest: string,
     hints: PlannerHints,
     collectedData: Map<string, string>,
     generatedSchema: DynamicView,
+    plan?: ContextPlan,
   ): Promise<Reflection> {
     return withSpan('PostReflector.reflect', 'CHAIN', async () => {
       const inputPayload = JSON.stringify({
@@ -114,7 +121,7 @@ export class PostGenerationReflector {
           suggestedLayout: hints.suggestedLayout,
           suggestedSections: hints.suggestedSections,
         },
-        dataCollected: this.summarizeCollectedData(collectedData),
+        dataCollected: this.summarizeCollectedData(collectedData, plan, JSON.stringify(generatedSchema).length),
         generatedSchema,
       });
 
@@ -141,16 +148,24 @@ export class PostGenerationReflector {
 
   /**
    * Summarize collected data for the reflector prompt.
-   * Truncates long outputs to keep the context manageable.
+   * EX10.3: each output keeps up to 2,000 chars (60% head / 40% tail), and all of them
+   * together fit in half the plan's effective window, less the view under review.
+   * Without a plan, 500 chars each (EX2).
    */
-  private summarizeCollectedData(data: Map<string, string>): Record<string, string> {
-    const MAX_VALUE_LENGTH = 500;
+  private summarizeCollectedData(data: Map<string, string>, plan?: ContextPlan, schemaChars = 0): Record<string, string> {
     const summary: Record<string, string> = {};
+    if (data.size === 0) return summary;
+    const total = plan ? Math.max(4_000, Math.floor(plan.effectiveWindow * 4 * 0.5) - schemaChars) : Infinity;
+    const each = plan ? Math.max(300, Math.min(REVIEW_CHARS_PER_OUTPUT, Math.floor(total / data.size))) : 500;
 
     for (const [key, value] of data) {
-      summary[key] = value.length > MAX_VALUE_LENGTH
-        ? value.substring(0, MAX_VALUE_LENGTH) + `... (${value.length} chars total)`
-        : value;
+      if (value.length <= each) {
+        summary[key] = value;
+      } else if (plan) {
+        summary[key] = `${headAndTail(value, each).text} (${value.length} chars total)`;
+      } else {
+        summary[key] = value.substring(0, each) + `... (${value.length} chars total)`;
+      }
     }
 
     return summary;
