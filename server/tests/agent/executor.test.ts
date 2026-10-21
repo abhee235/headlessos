@@ -846,6 +846,10 @@ describe('ReactiveExecutor', () => {
       const systemPrompt = chatCall.messages[0].content as string;
       expect(systemPrompt).toContain('CLI Tool Introspection Workflow');
       expect(systemPrompt).toContain('Phase 1: Discovery');
+      // EX9.1: discovery goes through the cli_* actions, never raw commands
+      expect(systemPrompt).toContain('cli_locate({ program: "<tool>" })');
+      expect(systemPrompt).toContain('cli_help({ program: "<tool>", subcommands: ["<subcmd>"] })');
+      expect(systemPrompt).not.toContain('command -v');
       expect(systemPrompt).toContain('Phase 2: UI Mapping');
       expect(systemPrompt).toContain('Phase 3: Form CommandTemplate Wiring');
       expect(systemPrompt).toContain('commandTemplate');
