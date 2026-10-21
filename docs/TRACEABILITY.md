@@ -1099,6 +1099,16 @@ None (all changes to existing files).
 - **Tests modified:** `server/tests/llm/{ollama,llm-settings-store}.test.ts`, `server/tests/routes/llm.test.ts`, `client/tests/components/settings-ai.test.tsx`
 - **Verification:** server 2346 passed (+2 skipped), client 645, both typechecks clean; Playwright measurements in the phase doc
 
+### EX10.2: Context plan and manager
+- **Status:** ✅ Complete
+- **Date:** 2026-10-22
+- **Files created:** `server/src/agent/context/{plan,tokens,layers,manager}.ts`, `server/tests/agent/context/{plan,manager}.test.ts`
+- **Files modified:** `server/src/agent/loop/run-loop.ts` (`plan`, `summarize`, prepare/observe around every call, `context`/`compacted` events, cut-off and overflow handling, `final.reason: 'length'`), `server/src/agent/investigation-agent.ts` (plan + summarizer; `length` → `max_steps_reached`)
+- **Files deleted:** `server/src/agent/loop/context.ts`, `server/src/agent/context-manager.ts`, `server/tests/agent/context-manager.test.ts`
+- **Docs:** `docs/phases/phase-ex10.md` (§2 wire wall, §3 drop/survival/forced, "EX10.2 — as built"), `CLAUDE.md` (context bullet)
+- **Tests modified:** `server/tests/agent/loop/{run-loop,guards-budgets}.test.ts`
+- **Verification:** server 2336 passed (+2 skipped; the EX2.13 context-manager tests were retired with it), client 645, `tsc -p server` clean
+
 ## How to Use This File
 
 ### After completing a task:
