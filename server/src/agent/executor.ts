@@ -211,8 +211,8 @@ You MUST follow this exact workflow. The user sees the UI window build up LIVE a
 - Every update_view() call must be CUMULATIVE — include all previously gathered data plus new data.
 - Do NOT skip update_view() calls between sections — the progressive feel depends on frequent updates.
 - generate_schema() is the LAST tool you call. It validates strictly and ends the session.
-- update_view() accepts partial/incomplete JSON — generate_schema() does NOT.
-- Pass view JSON as a STRING to both update_view() and generate_schema().
+- update_view() accepts a view whose sections are still empty — generate_schema() needs every section filled and valid.
+- Pass the view to update_view() and generate_schema() as a JSON object, not a string.
 
 `;
 
@@ -222,7 +222,7 @@ const WORKFLOW_SHORT = `## Workflow — build the view live
 3. Call the actions for one section, then update_view() with that section filled. Each update_view() includes everything gathered so far.
 4. Repeat step 3 for each section.
 5. generate_schema() with the complete view. It is checked strictly and ends the run.
-You cannot write shell commands; each action is a tool with typed parameters.
+Pass the view as a JSON object, not a string. You cannot write shell commands; each action is a tool with typed parameters.
 
 `;
 
@@ -540,9 +540,12 @@ export class ReactiveExecutor {
             const latencyMs = Date.now() - startTime;
 
             // EX9.5: server output reaches the model marked as data
-            const forModel = tool.securityTier === 'action' && result.metadata?.command
-              ? { ...result, output: markUntrusted(toolName, result.output) }
-              : result;
+            // EX10.5: metadata (partialView, schema, action details) stays server-side
+            const forModel = {
+              success: result.success,
+              output: tool.securityTier === 'action' && result.metadata?.command ? markUntrusted(toolName, result.output) : result.output,
+              ...(result.error ? { error: result.error } : {}),
+            };
             messages.push({
               role: 'tool',
               content: JSON.stringify(forModel),
@@ -697,7 +700,7 @@ ${schemaReference(tier)}${rowButtons}${tier === 'full' ? WORKFLOW_FULL : WORKFLO
 - If an action fails, try another one (e.g. nginx_test failed → file_read /etc/nginx/nginx.conf)
 - To read a file, use file_read (or file_tail for the end of a log)
 - ${UNTRUSTED_RULE}
-- The schema JSON passed to generate_schema must be a STRING (JSON.stringify), not an object
+- update_view() and generate_schema() take the view as a JSON object, not a string
 ${hints.securityRequirements.needsWrite ? '- This request may need write-back capability. Include writeBack config in form widgets.' : ''}
 ${hints.securityRequirements.sensitiveData ? '- This involves sensitive data. Mask passwords in the UI.' : ''}`;
 
@@ -828,7 +831,7 @@ Here is exactly how to build a multi-section view progressively. Follow this pat
 
 \`\`\`
 Step 1: get_server_context()
-Step 2: update_view(${JSON.stringify(JSON.stringify({title: hints.intent.substring(0, 30), description: 'Loading...', icon: 'Server', sidebarItems: 'ITEMS', sections: 'SECTIONS'})).replace('"ITEMS"', `[${sidebarItems.join(',')}]`).replace('"SECTIONS"', `{${emptySections.join(',')}}`)})  
+Step 2: update_view({"view": ${JSON.stringify({title: hints.intent.substring(0, 30), description: 'Loading...', icon: 'Server', sidebarItems: 'ITEMS', sections: 'SECTIONS'}).replace('"ITEMS"', `[${sidebarItems.join(',')}]`).replace('"SECTIONS"', `{${emptySections.join(',')}}`)}})  
   → User sees the sidebar with ${sections.length} empty sections (skeleton placeholders)
 Step 3: action tools x N — gather data for "${sections[0]}"
 Step 4: update_view(...) — same JSON but "${sections[0].toLowerCase().replace(/\s+/g, '-')}" section now has widgets in its children

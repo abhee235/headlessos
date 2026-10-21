@@ -1,5 +1,7 @@
 // Progressive Rendering: update_view tool (LOCAL tier, non-terminal)
-// @see docs/PROGRESSIVE_RENDERING.md
+// EX10.5: the view is a JSON object (a string still works, repaired when broken); the
+// answer is short and never echoes the view back into the model's context
+// @see docs/PROGRESSIVE_RENDERING.md, docs/phases/phase-ex10.md §6
 //
 // Sends a partial DynamicView to the frontend during generation.
 // Unlike generate_schema (terminal), this tool does NOT end the loop —
@@ -8,11 +10,12 @@
 
 import { z } from 'zod';
 import type { AgentTool, ToolContext, ToolResult } from './types.js';
+import { describeCounts, readViewArg, viewArgSchema, viewCounts } from './view-arg.js';
 
 const UpdateViewParams = z.object({
-  view: z.string().describe(
-    'A DynamicViewSchema JSON string. Does NOT need to be complete — sections can be empty ' +
-    '(empty arrays) and the frontend shows animated skeleton placeholders for them. ' +
+  view: viewArgSchema(
+    'The DynamicViewSchema view as a JSON object. Sections may be empty (children: []) — ' +
+    'the frontend shows skeleton placeholders for them. ' +
     'Each call MUST include ALL previously gathered data plus any new data (cumulative). ' +
     'Call pattern: skeleton → +section1 → +section2 → ... → generate_schema(final).'
   ),
@@ -33,17 +36,10 @@ export const updateViewTool: AgentTool = {
     try {
       const args = UpdateViewParams.parse(rawArgs);
 
-      // Parse JSON loosely — we accept partial/incomplete views
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(args.view);
-      } catch {
-        return {
-          success: false,
-          output: '',
-          error: 'Invalid JSON: could not parse the view string. Check your JSON syntax.',
-        };
-      }
+      // EX10.5: an object, or a string that parses (or can be repaired)
+      const arg = readViewArg(args.view, 'view');
+      if (!arg.ok) return { success: false, output: '', error: arg.error };
+      const parsed = arg.value;
 
       // Basic shape check — must have at least a title or root
       if (typeof parsed !== 'object' || parsed === null) {
@@ -67,7 +63,7 @@ export const updateViewTool: AgentTool = {
       // IMPORTANT: metadata.partialView MUST be set for the executor to emit partial_view event
       return {
         success: true,
-        output: 'Partial view sent to frontend. Continue gathering data and call update_view again, or call generate_schema when done.',
+        output: `View updated: ${describeCounts(viewCounts(parsed))}.${arg.repaired ? ' (Its JSON was broken and has been repaired; send an object next time.)' : ''} Gather the next section, or call generate_schema when every section is filled.`,
         metadata: {
           partialView: parsed,
           isProgressiveUpdate: true,

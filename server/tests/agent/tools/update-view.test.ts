@@ -72,7 +72,7 @@ describe('update_view tool', () => {
       mockContext,
     );
     expect(result.success).toBe(true);
-    expect(result.output).toContain('Partial view sent');
+    expect(result.output).toMatch(/^View updated: 1 section, 1 widget\./);
   });
 
   it('rejects invalid JSON', async () => {

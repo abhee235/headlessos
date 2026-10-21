@@ -225,9 +225,9 @@ describe('generate_schema', () => {
 
     expect(result.success).toBe(true);
     expect(result.metadata?.isTerminalTool).toBe(true);
-    // Output is the validated schema JSON
-    const parsed = JSON.parse(result.output);
-    expect(parsed.title).toBe('Generated View');
+    // EX10.5: the schema stays in metadata; the model gets a short answer
+    expect((result.metadata?.schema as { title: string }).title).toBe('Generated View');
+    expect(result.output).toBe('Schema accepted: 1 section, 0 widgets.');
   });
 
   it('rejects invalid schema', async () => {
