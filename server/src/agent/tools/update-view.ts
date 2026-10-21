@@ -10,15 +10,16 @@
 
 import { z } from 'zod';
 import type { AgentTool, ToolContext, ToolResult } from './types.js';
-import { describeCounts, readViewArg, viewArgSchema, viewCounts } from './view-arg.js';
+import { describeCounts, readViewArg, viewArgSchema, viewCounts, viewInputSchema } from './view-arg.js';
+
+const VIEW_DESCRIPTION =
+  'The DynamicViewSchema view as a JSON object (not a string). Sections may be empty (children: []) — ' +
+  'the frontend shows skeleton placeholders for them. ' +
+  'Each call MUST include ALL previously gathered data plus any new data (cumulative). ' +
+  'Call pattern: skeleton → +section1 → +section2 → ... → generate_schema(final).';
 
 const UpdateViewParams = z.object({
-  view: viewArgSchema(
-    'The DynamicViewSchema view as a JSON object. Sections may be empty (children: []) — ' +
-    'the frontend shows skeleton placeholders for them. ' +
-    'Each call MUST include ALL previously gathered data plus any new data (cumulative). ' +
-    'Call pattern: skeleton → +section1 → +section2 → ... → generate_schema(final).'
-  ),
+  view: viewArgSchema(VIEW_DESCRIPTION),
 });
 
 export const updateViewTool: AgentTool = {
@@ -30,6 +31,7 @@ export const updateViewTool: AgentTool = {
     'Each call is CUMULATIVE: include all previous data plus the newly gathered section. ' +
     'This is NOT the final output — use generate_schema() when all sections are complete.',
   parameters: UpdateViewParams,
+  inputSchema: viewInputSchema('view', VIEW_DESCRIPTION),
   securityTier: 'local',
 
   async execute(rawArgs: unknown, _context: ToolContext): Promise<ToolResult> {

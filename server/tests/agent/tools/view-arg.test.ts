@@ -10,6 +10,7 @@ import { ReactiveExecutor } from '../../../src/agent/executor.js';
 import { ToolRegistry } from '../../../src/agent/tools/tool-registry.js';
 import type { ToolContext } from '../../../src/agent/tools/types.js';
 import type { ChatMessage } from '../../../src/llm/provider.js';
+import { toolsToOpenAIFunctions } from '../../../src/agent/tools/tool-converter.js';
 
 const ctx = { serverId: 's', previousOutputs: new Map() } as unknown as ToolContext;
 const VIEW = {
@@ -95,5 +96,35 @@ describe('the executor never echoes a view back to the model', () => {
     const toolMessage = (chat.mock.calls[1]![0].messages as ChatMessage[]).find((m) => m.role === 'tool')!;
     expect(Object.keys(JSON.parse(toolMessage.content!))).toEqual(['success', 'output']);
     expect(toolMessage.content).not.toContain('Running');
+  });
+});
+
+// EX10.5 follow-up: the bracket faults seen in the 2026-10-22 runs, on small views
+describe('misplaced brackets (2026-10-22 runs)', () => {
+  const NESTED = '{"title":"T","sidebarItems":[{"id":"s","label":"S"}],"sections":{"s":{"layout":"stack","children":[{"layout":"stack","children":[{"type":"alert","message":"x"}],"gap":"sm"}],"gap":"sm"}}}';
+  const FLAT = '{"title":"T","sections":{"s":{"layout":"stack","children":[{"type":"alert","message":"x"}],"gap":"sm"}},"sidebarItems":[{"id":"s","label":"S"}]}';
+
+  it.each([
+    ['a } where a ] belongs, after an inner stack', NESTED.replace('"gap":"sm"}],"gap":"sm"}}}', '"gap":"sm"}}],"gap":"sm"}}}'), NESTED],
+    ['an object closed too early, then its last key', FLAT.replace('"x"}],"gap":"sm"}}', '"x"}]},"gap":"sm"}}'), FLAT],
+    ['an inner array left open', NESTED.replace('"x"}],"gap":"sm"}],', '"x"},"gap":"sm"}],'), NESTED],
+  ])('repairs %s into the intended view', (_label, broken, intended) => {
+    expect(() => JSON.parse(broken)).toThrow();
+    expect(readViewArg(broken, 'view')).toEqual({ ok: true, value: JSON.parse(intended), repaired: true });
+  });
+
+  it('refuses a repair that is not a valid view, and says where it broke', () => {
+    // a duplicate "type" key turns the widget into a layout name: no bracket edit makes this valid
+    const broken = '{"title":"T","sidebarItems":[{"id":"s","label":"S"}],"sections":{"s":{"layout":"stack","children":[{"type":"alert","message":"x"},"type":"stack","gap":"sm"}]}}}';
+    const r = readViewArg(broken, 'view');
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/^Invalid JSON in view at character \d+/);
+  });
+
+  it('the view tools show the model an object only, and still accept a string', async () => {
+    const shown = toolsToOpenAIFunctions([updateViewTool, generateSchemaTool, validateSchemaTool]).map((t) => t.function.parameters as { properties: Record<string, { type: string }> });
+    expect(shown.map((p) => Object.values(p.properties)[0]!.type)).toEqual(['object', 'object', 'object']);
+    expect(JSON.stringify(shown)).not.toContain('"string"');
+    expect(await updateViewTool.execute({ view: JSON.stringify(VIEW) }, ctx)).toMatchObject({ success: true });
   });
 });

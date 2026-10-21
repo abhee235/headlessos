@@ -71,6 +71,11 @@ export interface ToolResult {
 export interface AgentTool {
   /** Unique tool name (matches OpenAI function name) */
   name: string;
+  /**
+   * EX10.5 follow-up: the JSON Schema shown to the model, when it should be narrower than
+   * what `parameters` accepts at runtime (view tools show an object; a string still works).
+   */
+  inputSchema?: Record<string, unknown>;
   /** Human-readable description (sent to LLM) */
   description: string;
   /** Zod schema for tool arguments — converted to JSON Schema for the LLM */
