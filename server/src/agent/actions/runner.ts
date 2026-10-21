@@ -16,7 +16,7 @@ import { callParams, isSecretPath, isUnderRoot, READ_ROOTS } from './params.js';
 import { MAX_STDERR, type ActionDef, type ActionRunResult } from './types.js';
 import type { ApprovalBy, ApprovalGate, ApprovalOutcome, ApprovalRequest, ApprovalTicket } from './approvals.js';
 import type { ActionAudit } from './audit.js';
-import { normalizeKeys } from '../loop/tool-input.js';
+import { describeZodIssues, normalizeKeys } from '../loop/tool-input.js';
 import { redactSecrets } from './redact.js';
 
 export type ActionSsh = Pick<ConnectionManager, 'exec' | 'getSftp'>;
@@ -407,34 +407,9 @@ export function actionSignature(def: ActionDef): string {
  * "field: expected …, you sent …", then the action's signature.
  */
 export function describeParamError(def: ActionDef, error: ZodError, raw: unknown): string {
-  const problems = error.issues.slice(0, 3).map((issue) => {
-    const field = issue.path.join('.') || 'params';
-    if (issue.code === 'unrecognized_keys') return `unknown parameter(s) ${issue.keys.join(', ')}`;
-    const sent = describeValue(valueAt(raw, issue.path));
-    if (issue.code === 'invalid_type') {
-      return sent === 'nothing' ? `${field}: required (${issue.expected})` : `${field}: expected ${issue.expected}, you sent ${sent}`;
-    }
-    const message = issue.message.startsWith('expected') ? issue.message : `expected ${lowerFirst(issue.message)}`;
-    return `${field}: ${message}, you sent ${sent}`;
-  });
-  return `${def.id}: ${problems.join('; ')}. Parameters: ${actionSignature(def)}`;
+  // EX10.6: the same one-line wording every tool's arguments get (loop/tool-input.ts)
+  return `${def.id}: ${describeZodIssues(error, raw).join('; ')}. Parameters: ${actionSignature(def)}`;
 }
 
-function valueAt(raw: unknown, path: (string | number)[]): unknown {
-  let cur: unknown = raw;
-  for (const key of path) {
-    if (cur === null || typeof cur !== 'object') return undefined;
-    cur = (cur as Record<string | number, unknown>)[key];
-  }
-  return cur;
-}
 
-function describeValue(value: unknown): string {
-  if (value === undefined) return 'nothing';
-  const text = typeof value === 'string' ? JSON.stringify(value) : JSON.stringify(value) ?? String(value);
-  return text.length > 60 ? `${text.slice(0, 57)}...` : text;
-}
 
-function lowerFirst(s: string): string {
-  return s ? s[0]!.toLowerCase() + s.slice(1) : s;
-}

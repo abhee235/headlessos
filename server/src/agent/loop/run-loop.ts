@@ -14,7 +14,7 @@ import { checkGuardrails } from '../guardrails.js';
 import { withSpan, setSpanAttributes } from '../../observatory/context.js';
 import type { ApprovalEvent } from '../actions/runner.js';
 import type { ApprovalRequest } from '../actions/approvals.js';
-import { malformedArgsMessage, parseToolArgs } from './tool-input.js';
+import { checkToolArgs, dropNullArgs, malformedArgsMessage, parseToolArgs } from './tool-input.js';
 import { LoopGuard, stopMessage, type FoldedCall, type LoopFinding } from './loop-guard.js';
 import { markUntrusted } from '../actions/tools.js';
 import { planForProvider, type ContextPlan } from '../context/plan.js';
@@ -252,17 +252,24 @@ export async function executeToolCall(
   if (parsed.via === 'raw') {
     return { ok: false, input: {}, repaired, output: malformedArgsMessage(tool.name, parsed.raw ?? '', schemaKeys(tool)) };
   }
-  const guard = checkGuardrails(tool, parsed.input);
+  // EX10.6: a null is "not given"; after the guardrails (which decide whatever the
+  // arguments), non-action tools' arguments are checked in one line here
+  const input = dropNullArgs(parsed.input);
+  const guard = checkGuardrails(tool, input);
   if (!guard.allowed) {
-    return { ok: false, input: parsed.input, repaired, output: `Blocked by guardrails: ${guard.reason ?? 'not allowed'}` };
+    return { ok: false, input, repaired, output: `Blocked by guardrails: ${guard.reason ?? 'not allowed'}` };
+  }
+  if (tool.securityTier !== 'action') {
+    const checked = checkToolArgs(tool, input);
+    if (!checked.ok) return { ok: false, input, repaired, output: checked.error };
   }
   const label = tool.securityTier === 'action' ? `action:${tool.name}` : `tool:${tool.name}`;
   try {
-    const result = await withSpan(label, 'TOOL', () => tool.execute(parsed.input, context), { input: parsed.input });
+    const result = await withSpan(label, 'TOOL', () => tool.execute(input, context), { input });
     const output = result.output || (result.error ? `error: ${result.error}` : '(no output)');
-    return { ok: result.success, input: parsed.input, repaired, output, ...(result.metadata ? { metadata: result.metadata } : {}) };
+    return { ok: result.success, input, repaired, output, ...(result.metadata ? { metadata: result.metadata } : {}) };
   } catch (err) {
-    return { ok: false, input: parsed.input, repaired, output: `${tool.name} failed: ${err instanceof Error ? err.message : String(err)}` };
+    return { ok: false, input, repaired, output: `${tool.name} failed: ${err instanceof Error ? err.message : String(err)}` };
   }
 }
 

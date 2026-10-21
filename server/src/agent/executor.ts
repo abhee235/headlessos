@@ -23,7 +23,7 @@ import type { ReflectionIssue } from './reflector.js';
 import type { ChatMessage } from '../llm/provider.js';
 import { withSpan, withSpanGen, setSpanAttributes } from '../observatory/context.js';
 import { getDefaultCatalog } from './actions/catalog/index.js';
-import { extractProseToolCalls, malformedArgsMessage, parseToolArgs } from './loop/tool-input.js';
+import { checkToolArgs, dropNullArgs, extractProseToolCalls, malformedArgsMessage, parseToolArgs } from './loop/tool-input.js';
 import { markUntrusted, UNTRUSTED_RULE } from './actions/tools.js';
 import { planForProvider, type PromptTier } from './context/plan.js';
 import { ContextManager, chatSummarizer, type CompactionEvent } from './context/manager.js';
@@ -492,7 +492,8 @@ export class ReactiveExecutor {
             didToolFailInCurrentTurn = true;
             continue;
           }
-          const toolArgs = parsedArgs.input;
+          // EX10.6: a null is "not given" for every tool
+          const toolArgs = dropNullArgs(parsedArgs.input) as Record<string, unknown>;
 
           const tool = this.toolRegistry.get(toolName);
           if (!tool) {
@@ -505,6 +506,7 @@ export class ReactiveExecutor {
             didToolFailInCurrentTurn = true;
             continue;
           }
+
 
           // Tool repetition detection (from Roo Code)
           const repetitionKey = JSON.stringify({ name: toolName, args: toolArgs });
@@ -529,6 +531,17 @@ export class ReactiveExecutor {
             yield { type: 'tool_blocked', tool: toolName, reason: guard.reason ?? 'Blocked' };
             didToolFailInCurrentTurn = true;
             continue;
+          }
+
+          // EX10.6: after the guardrails, other tools' arguments are checked here, in one line; actions check their own (aliases, coercion)
+          if (tool.securityTier !== 'action') {
+            const checked = checkToolArgs(tool, toolArgs);
+            if (!checked.ok) {
+              messages.push({ role: 'tool', content: JSON.stringify({ success: false, error: checked.error }), tool_call_id: toolCall.id });
+              yield { type: 'tool_result', tool: toolName, success: false, outputPreview: checked.error.slice(0, 200), latencyMs: 0 };
+              didToolFailInCurrentTurn = true;
+              continue;
+            }
           }
 
           // Execute tool — wrapped in Observatory TOOL span (EX4-B.2)
