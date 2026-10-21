@@ -51,7 +51,7 @@ export function ObservatoryView() {
         )}
         {status === 'connecting' && (
           <>
-            <Spinner className="h-3.5 w-3.5 text-accent-solid" />
+            <Spinner className="h-[18px] w-[18px] text-accent-solid" />
             <span>Connecting...</span>
           </>
         )}

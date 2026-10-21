@@ -197,7 +197,7 @@ export function TrashDialog({
                           title="Restore to /tmp/"
                         >
                           {actionLoading === item.name ? (
-                            <Spinner className="w-3.5 h-3.5" />
+                            <Spinner className="h-4 w-4" />
                           ) : (
                             <RotateCcw className="w-3.5 h-3.5" />
                           )}
@@ -227,7 +227,7 @@ export function TrashDialog({
                 disabled={actionLoading === '__empty__'}
               >
                 {actionLoading === '__empty__' ? (
-                  <Spinner className="h-3.5 w-3.5" />
+                  <Spinner className="h-4 w-4" />
                 ) : (
                   <Trash2 strokeWidth={1.75} />
                 )}

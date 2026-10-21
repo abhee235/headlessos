@@ -291,7 +291,7 @@ export function CronSection({ serverId }: { serverId: string }) {
           {/* Actions */}
           <div className="flex items-center gap-2 pt-1">
             <Button size="sm" onClick={handleSubmit} disabled={busy || !isFormValid}>
-              {busy && <Spinner size={14} />}
+              {busy && <Spinner size={16} />}
               {editIndex !== null ? 'Update' : 'Add'}
             </Button>
             <Button variant="ghost" size="sm" onClick={closeForm} disabled={busy}>

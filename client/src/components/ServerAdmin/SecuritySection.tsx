@@ -386,7 +386,7 @@ export function SecuritySection({ serverId }: { serverId: string }) {
                 </div>
                 <div className="flex items-center gap-2 pt-1">
                   <Button size="sm" onClick={handleCreateUser} disabled={busy || !newUsername.trim()}>
-                    {busy && <Spinner size={14} />}
+                    {busy && <Spinner size={16} />}
                     Create
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => setShowAddUser(false)} disabled={busy}>
@@ -480,7 +480,7 @@ export function SecuritySection({ serverId }: { serverId: string }) {
               <DialogFooter>
                 <Button variant="ghost" onClick={() => setPasswordTarget(null)} disabled={busy}>Cancel</Button>
                 <Button onClick={handleSetPassword} disabled={busy || !passwordInput}>
-                  {busy && <Spinner size={14} />}
+                  {busy && <Spinner size={16} />}
                   Set Password
                 </Button>
               </DialogFooter>
@@ -511,7 +511,7 @@ export function SecuritySection({ serverId }: { serverId: string }) {
               <DialogFooter>
                 <Button variant="ghost" onClick={() => setGroupTarget(null)} disabled={busy}>Cancel</Button>
                 <Button onClick={handleAddToGroup} disabled={busy || !groupInput.trim()}>
-                  {busy && <Spinner size={14} />}
+                  {busy && <Spinner size={16} />}
                   Add to Group
                 </Button>
               </DialogFooter>
@@ -556,7 +556,7 @@ export function SecuritySection({ serverId }: { serverId: string }) {
               <DialogFooter>
                 <Button variant="ghost" onClick={() => setDeleteTarget(null)} disabled={busy}>Cancel</Button>
                 <Button variant="danger" onClick={() => { void handleDeleteUser(); }} disabled={busy}>
-                  {busy && <Spinner size={14} />}
+                  {busy && <Spinner size={16} />}
                   Delete User
                 </Button>
               </DialogFooter>
@@ -638,7 +638,7 @@ export function SecuritySection({ serverId }: { serverId: string }) {
                   disabled={actionLoading === 'reload'}
                 >
                   {actionLoading === 'reload' ? (
-                    <Spinner size={14} />
+                    <Spinner size={16} />
                   ) : (
                     <RotateCw strokeWidth={1.75} />
                   )}
@@ -702,7 +702,7 @@ export function SecuritySection({ serverId }: { serverId: string }) {
                           disabled={!banIpInput.trim() || actionLoading === 'ban'}
                         >
                           {actionLoading === 'ban' ? (
-                            <Spinner size={14} />
+                            <Spinner size={16} />
                           ) : (
                             <Ban strokeWidth={1.75} />
                           )}
@@ -732,7 +732,7 @@ export function SecuritySection({ serverId }: { serverId: string }) {
                                       disabled={actionLoading === `unban:${ip}`}
                                     >
                                       {actionLoading === `unban:${ip}` ? (
-                                        <Spinner size={14} />
+                                        <Spinner size={16} />
                                       ) : (
                                         <ShieldOff strokeWidth={1.75} />
                                       )}

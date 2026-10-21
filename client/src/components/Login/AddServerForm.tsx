@@ -296,7 +296,7 @@ export function AddServerForm({ onSubmit, onCancel }: AddServerFormProps) {
                 </label>
                 {loadingKeys ? (
                   <div className="flex items-center gap-2 px-4 py-2.5 rounded-[10px] bg-fill-2 border border-edge text-label-2 text-sm">
-                    <Spinner className="w-3.5 h-3.5" />
+                    <Spinner className="h-4 w-4" />
                     Scanning ~/.ssh ...
                   </div>
                 ) : detectedKeys.length === 0 ? (
@@ -350,7 +350,7 @@ export function AddServerForm({ onSubmit, onCancel }: AddServerFormProps) {
                 {/* Loading indicator when fetching key content */}
                 {loadingKeyContent && (
                   <div className="flex items-center gap-2 mt-2 text-label-2 text-xs">
-                    <Spinner className="w-3 h-3" />
+                    <Spinner className="h-4 w-4" />
                     Loading key content...
                   </div>
                 )}

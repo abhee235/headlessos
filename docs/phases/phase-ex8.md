@@ -90,6 +90,7 @@ The design handoff lives outside the repo tree in `Custom OS UI Design/handoff/`
 | EX8.22 | Settings key saved encrypted (requested): survives restarts; wins over `.env` | ✅ |
 | EX8.23 | Observatory "Failed to fetch" (user report): its REST calls go through the dev proxy | ✅ |
 | EX8.24 | AI Agent live progress (user report): steps stream in while it runs; Stop works | ✅ |
+| EX8.25 | Spinner size standard (user review): the H mark fills its box; 16px minimum | ✅ |
 
 ## Additions beyond the handoff
 
@@ -496,6 +497,24 @@ session id: the run ends after the current step with status Aborted. Tests:
 `server/tests/agent/investigation-progress.test.ts`,
 `client/tests/components/agent-progress.test.tsx`. Not run live from here (agent
 runs are the user's to start).
+
+## EX8.25 — Spinner size standard
+
+The branded spinner drew its mark in a `0 0 64 64` viewBox while the ring and
+orbit dot reach only 20.2 units from the centre, so the mark filled 61% of the
+box: a "16px" spinner showed a 10px mark, and the many 12–15px call sites showed
+7–9px. The viewBox is now cropped to the mark (`11.5 11.5 41 41`), so the size
+is what you see, and `min-h-4 min-w-4` keeps every use at 16px or more.
+
+| Use | Size |
+|---|---|
+| Inline: buttons (`[&_svg]:size-4`), list and table rows | 16px |
+| Next to a status label ("Working…", "Connecting…") | 18px (default) |
+| Panel / window loader (`LoadingView`) | 40px (the old 64 drew a 39px mark) |
+
+21 call sites below 16px went to 16; the UI Agent panel and Observatory status
+lines to 18. Measured live: the Dashboard panel loader's painted mark matches
+its box.
 
 ## Deviations from the handoff text (prototype wins where they differ)
 

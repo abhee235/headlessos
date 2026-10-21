@@ -41,7 +41,7 @@ function ActiveStateIcon({ state }: { state: string }) {
       return <XCircle size={15} strokeWidth={1.75} className="text-destructive" />;
     case 'activating':
     case 'deactivating':
-      return <Spinner size={15} className="text-warning" />;
+      return <Spinner size={16} className="text-warning" />;
     default:
       return <Circle size={15} strokeWidth={1.75} className="text-label-3" />;
   }
@@ -296,7 +296,7 @@ export function ServicesView({ serverId }: ServicesViewProps) {
             <span className="text-[17px] font-bold text-foreground">Services</span>
             <CountChip>{services.length}</CountChip>
           </div>
-          {refreshing && <Spinner size={14} className="text-label-3" />}
+          {refreshing && <Spinner size={16} className="text-label-3" />}
 
           {/* State filter pills */}
           <SegmentButtons

@@ -75,7 +75,7 @@ export function DynamicUITabView({ serverId, windowId }: DynamicUITabViewProps) 
 function LoadingFooter({ title, hasContent }: { title: string; hasContent: boolean }) {
   return (
     <div className="flex min-h-9 shrink-0 items-center gap-2 border-t border-border px-4 py-1.5">
-      <Spinner className="h-3.5 w-3.5 text-accent-solid" />
+      <Spinner className="h-4 w-4 text-accent-solid" />
       <span className="text-xs font-medium text-accent-text">
         {hasContent ? 'Building view…' : 'Preparing layout…'}
       </span>

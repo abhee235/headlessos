@@ -569,7 +569,7 @@ export function NetworkSection({ serverId }: { serverId: string }) {
                 </div>
                 <div className="flex items-center gap-2 pt-1">
                   <Button size="sm" onClick={() => void handleSaveDns()} disabled={busy || !dnsInput.trim()}>
-                    {busy && <Spinner size={14} />}
+                    {busy && <Spinner size={16} />}
                     Save
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => setEditingDns(false)} disabled={busy}>Cancel</Button>

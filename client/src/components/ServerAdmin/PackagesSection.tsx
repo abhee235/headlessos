@@ -233,7 +233,7 @@ export function PackagesSection({ serverId }: { serverId: string }) {
               onClick={handleAptUpdate}
               disabled={!!busy}
             >
-              {busy === 'update' ? <Spinner size={14} /> : <RotateCw strokeWidth={1.75} />}
+              {busy === 'update' ? <Spinner size={16} /> : <RotateCw strokeWidth={1.75} />}
               Update lists
             </Button>
             <RefreshButton onClick={load} />
@@ -281,7 +281,7 @@ export function PackagesSection({ serverId }: { serverId: string }) {
                 })}
                 disabled={!!busy}
               >
-                {busy === 'upgrade-all' ? <Spinner size={14} /> : <ArrowUpCircle strokeWidth={1.75} />}
+                {busy === 'upgrade-all' ? <Spinner size={16} /> : <ArrowUpCircle strokeWidth={1.75} />}
                 Upgrade All ({data.upgradable.length})
               </Button>
             </div>
@@ -322,7 +322,7 @@ export function PackagesSection({ serverId }: { serverId: string }) {
                           onClick={() => handleUpgradePackage(pkg.name)}
                         >
                           {busy === `upgrade:${pkg.name}` ? (
-                            <Spinner size={12} />
+                            <Spinner size={16} />
                           ) : (
                             <ArrowUpCircle strokeWidth={1.75} />
                           )}
@@ -397,7 +397,7 @@ export function PackagesSection({ serverId }: { serverId: string }) {
                             })}
                           >
                             {busy === `remove:${pkg.name}` ? (
-                              <Spinner size={12} />
+                              <Spinner size={16} />
                             ) : (
                               <Trash2 strokeWidth={1.75} />
                             )}
@@ -415,7 +415,7 @@ export function PackagesSection({ serverId }: { serverId: string }) {
                             })}
                           >
                             {busy === `install:${pkg.name}` ? (
-                              <Spinner size={12} />
+                              <Spinner size={16} />
                             ) : (
                               <Download strokeWidth={1.75} />
                             )}

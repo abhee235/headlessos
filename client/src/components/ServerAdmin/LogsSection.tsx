@@ -362,7 +362,7 @@ export function LogsSection({ serverId }: { serverId: string }) {
         >
           {loading && (
             <div className="absolute right-3 top-3 z-10">
-              <Spinner className="text-label-3" size={14} />
+              <Spinner className="text-label-3" size={16} />
             </div>
           )}
           {!data || data.entries.length === 0 ? (

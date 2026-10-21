@@ -29,7 +29,7 @@ export function CodeEditor({ className, ...props }: CodeEditorProps) {
         className,
       )}
     >
-      <Suspense fallback={<LoadingView size={48} label="Opening editor…" />}>
+      <Suspense fallback={<LoadingView label="Opening editor…" />}>
         <CodeEditorImpl {...props} className="absolute inset-0" />
       </Suspense>
     </div>

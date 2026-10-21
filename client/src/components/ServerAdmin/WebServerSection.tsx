@@ -215,7 +215,7 @@ export function WebServerSection({ serverId }: { serverId: string }) {
               disabled={busy || testing}
               title="Test configuration"
             >
-              {testing ? <Spinner size={14} /> : <FileText strokeWidth={1.75} />}
+              {testing ? <Spinner size={16} /> : <FileText strokeWidth={1.75} />}
               Test
             </Button>
             <Button
