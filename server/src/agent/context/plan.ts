@@ -15,7 +15,7 @@ const RESERVE_FRACTION = 0.25;
 const KEEP_RECENT_RATIO = 0.25;
 const DEEP_TARGET_FRACTION = 0.55;
 const MASK_FRACTION = 0.01;
-const RESULT_FRACTION = 0.06;
+const RESULT_FRACTION = 0.15;
 const ACTION_SHARE = 0.1;
 /** roughly what one action tool definition costs in the prompt */
 const TOKENS_PER_ACTION = 120;

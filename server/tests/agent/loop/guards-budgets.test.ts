@@ -8,7 +8,8 @@ import { LoopGuard, SAME_RESULT_LIMIT } from '../../../src/agent/loop/loop-guard
 import { runAgentLoop, type LoopEvent } from '../../../src/agent/loop/run-loop.js';
 import { ConnectionManager } from '../../../src/ssh/connection-manager.js';
 import { ActionRunner, channelCap } from '../../../src/agent/actions/runner.js';
-import { formatForModel, modelOutputChars, MODEL_OUTPUT_CHARS } from '../../../src/agent/actions/tools.js';
+import { formatForModel, MODEL_OUTPUT_CHARS } from '../../../src/agent/actions/tools.js';
+import { planForProvider } from '../../../src/agent/context/plan.js';
 import { getDefaultCatalog } from '../../../src/agent/actions/catalog/index.js';
 import type { ChatMessage, ChatWithToolsResult } from '../../../src/llm/provider.js';
 import type { AgentTool, ToolContext } from '../../../src/agent/tools/types.js';
@@ -146,10 +147,10 @@ describe('output caps', () => {
     expect(r.data).toBeUndefined();
   });
 
-  it('sizes what the model sees to the model', () => {
-    expect(modelOutputChars({ name: 'openai' })).toBe(MODEL_OUTPUT_CHARS);
-    expect(modelOutputChars({ name: 'ollama', contextWindow: 8192 })).toBe(4915);
-    expect(modelOutputChars({ name: 'ollama', contextWindow: 2048 })).toBe(1500);
+  it('sizes what the model sees to the model (EX10.3: the plan’s resultChars)', () => {
+    expect(planForProvider({ name: 'openai' }).resultChars).toBe(MODEL_OUTPUT_CHARS);
+    expect(planForProvider({ name: 'ollama', contextWindow: 8192 }).resultChars).toBe(3686);
+    expect(planForProvider({ name: 'ollama', contextWindow: 2048 }).resultChars).toBe(1500);
   });
 
   it('keeps 60% head and 40% tail of a long result, marking the cut', () => {

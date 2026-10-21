@@ -9,8 +9,8 @@ const local = (window: number) => planContext({ contextWindow: window, maxOutput
 
 describe('planContext', () => {
   it('matches the worked table in the phase doc', () => {
-    expect(local(8_192)).toMatchObject({ maxOutput: 2_048, reserve: 2_048, trigger: 5_120, hard: 8_120, keepRecent: 1_536, stopAt: 4_505, resultChars: 1_500, actionBudget: 8, tier: 'minimal' });
-    expect(local(16_384)).toMatchObject({ maxOutput: 2_048, reserve: 2_048, trigger: 11_468, hard: 14_468, keepRecent: 3_584, stopAt: 9_011, resultChars: 3_440, actionBudget: 13, tier: 'minimal' });
+    expect(local(8_192)).toMatchObject({ maxOutput: 2_048, reserve: 2_048, trigger: 5_120, hard: 8_120, keepRecent: 1_536, stopAt: 4_505, resultChars: 3_686, actionBudget: 8, tier: 'minimal' });
+    expect(local(16_384)).toMatchObject({ maxOutput: 2_048, reserve: 2_048, trigger: 11_468, hard: 14_468, keepRecent: 3_584, stopAt: 9_011, resultChars: 8_000, actionBudget: 13, tier: 'minimal' });
     expect(local(65_536)).toMatchObject({ maxOutput: 8_192, reserve: 8_192, trigger: 45_875, hard: 54_344, keepRecent: 14_336, stopAt: 36_044, resultChars: 8_000, actionBudget: 40, tier: 'lean' });
     const hosted = planContext({ contextWindow: 128_000, maxOutputTokens: recommendedMaxOutput(128_000), local: false });
     expect(hosted).toMatchObject({ maxOutput: 16_000, reserve: 16_000, trigger: 99_000, hard: 109_000, keepRecent: 28_000, stopAt: 99_000, actionBudget: 40, tier: 'full' });
