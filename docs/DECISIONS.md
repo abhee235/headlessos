@@ -390,7 +390,7 @@ The question: where should this orchestration logic live?
 
 ## ADR-014: Agent Tool Safety (Command Allowlists for Agent Mode)
 
-**Status:** Accepted
+**Status:** Accepted — command allowlist and write commands superseded by [ADR-024](#adr-024-agents-run-typed-actions-not-shell-commands) (EX9)
 **Date:** 2026-04-04
 
 **Context:**
@@ -1111,6 +1111,50 @@ A `FilesService` was scoped but **deferred**. Rationale: file routes already use
 - (–) Slight indirection: route → service → orchestrator/exec → policy → ssh2.
 
 **Reference:** See [phases/phase-12.md](phases/phase-12.md) for the implementation plan and detailed task breakdown.
+
+---
+
+## ADR-024: Agents Run Typed Actions, Not Shell Commands
+
+**Status:** Accepted
+**Date:** 2026-10-22
+**Supersedes:** the free-form command parts of ADR-014 (the read-only regex allowlist for agent `exec_command`, and write commands without a human in the loop). ADR-014's step limit, token budget, live progress and abort stay.
+
+**Context:**
+Both agents send model-written command strings to the server. They pass a prefix-regex allowlist (`agent/command-allowlist.ts`) that does not parse the shell: `cat /var/log/$(touch /tmp/x)` matches `^cat\s+\/var\/log\/` and runs the substitution. The UI Agent also has `exec_write_command` and `sftp_write`, which change servers with no human approval. Generated view buttons carry model-written command templates checked against the classic `ALLOWED_COMMANDS`, which includes `docker rm` and `apt remove`. `CommandPolicy` (ADR-023) gates every exec but cannot tell an agent's command from a classic app's, and defaults to `audit`.
+
+We also want agents to work with small local models (Ollama). Those models write malformed JSON, use the wrong argument names, and only use tools that are in their native tool list (mitra-ai ADR-055: qwen3.5:9b scored 88% with every tool listed natively, 40% with tools described as text, 23% when it had to search for tools; shorter descriptions did not help).
+
+**Options Considered:**
+1. **Harden the regexes** — reject `$(`, backticks, `;`, etc. in agent commands. Still a blocklist over free text; every new escape (`find -exec`, `awk system()`, `tar --to-command`, all found in H2) needs another rule, and model-written commands remain unreadable to an owner approving them.
+2. **Run agent commands in a restricted shell / container on the server** — violates ADR-001 (nothing installed on the server) and doesn't stop reads of secrets.
+3. **Typed action catalog** — the model picks an action id and parameters; the server validates the parameters with strict Zod schemas, builds argv in code, quotes every element, runs it, caps and parses the output. Change actions pause for the owner's approval.
+
+**Decision:** Option 3.
+
+- **Catalog** (`server/src/agent/actions/`): each action has an id, title, one-line description, risk (`read | change`), strict Zod params, an argv builder (or an SFTP read), an optional parser, a timeout and an output cap. Parameters that the shell could misread are rejected (names must start with an alphanumeric, paths must be normalized absolute paths under allowed roots and outside a secret-file deny list).
+- **One runner** (`ActionRunner`) is the only way an agent reaches a server. Both agents use it.
+- **Enforced at the chokepoint:** agent runs execute inside an `AsyncLocalStorage` agent scope. Inside it, `CommandPolicy.assertAllowed()` rejects any command that is not the one the runner just built and granted, and `getSftp()` needs an SFTP grant — in every policy mode. The blocklist still applies. Outside agent scope, ADR-023 is unchanged.
+- **Actions are native tools**, one per action, chosen per run by keyword relevance and kept stable for the run (prompt caching). OpenAI models get up to 40; Ollama models get a budget of about 10% of the context window.
+- **Approvals:** a change action parks the run on a promise (resolver stored before the event is sent) and shows the owner the full command, server, login user and the model's reason. Allow once or Deny; Stop denies everything pending; unanswered approvals expire after 10 minutes. No "always allow".
+- **Audit:** every asked/answered/ran event for a change action is appended to `~/.headlessos/audit/actions.jsonl` (0o600). Entries are never rewritten.
+- **Generated view buttons** reference actions by id; change actions go through a server-recorded preview (the server runs exactly the command it showed). Legacy free-form buttons only run low-risk classic commands.
+
+**Rationale:**
+- The shell never sees model text: it sees argv built by our code from values that passed a schema. Injection becomes a schema bug in one place, testable per action, instead of an open-ended regex race.
+- An owner can approve `systemctl restart nginx` in two seconds; they cannot audit a model-written pipeline.
+- Native tools with strict schemas, plus server-side repair of malformed arguments, are what small models need (cascade-ai's repair/alias experience, mitra-ai ADR-055).
+- The policy check makes "agents only run actions" a property of `ConnectionManager`, not of each tool's author.
+
+**Consequences:**
+- (+) No model-written string reaches the shell on the agent path.
+- (+) Every server change by an agent or a generated button has a human decision and an audit line.
+- (+) Same catalog and loop work with OpenAI and local models.
+- (–) Agents can only do what the catalog offers; new questions may need new actions (each is ~15 lines plus a test).
+- (–) The read allowlist's CLI-discovery patterns (EX5-A.1) are replaced by four `cli_*` actions; anything they covered beyond `--help`/`--version`/`man`/`which` is gone.
+- (–) More tool definitions per call than the old single `exec_command` tool; mitigated by per-run selection and prompt caching.
+
+**Reference:** See [phases/phase-ex9.md](phases/phase-ex9.md) for the design and task breakdown.
 
 ---
 
