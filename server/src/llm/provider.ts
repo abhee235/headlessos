@@ -117,3 +117,25 @@ ${rawOutput}
 
   return prompt;
 }
+
+/**
+ * EX10.1 follow-up: the provider gave up waiting — no first token in time, or the reply
+ * stopped arriving. Not a connection failure and not an HTTP error: agent loops treat it
+ * like a reply cut off at the output limit (ask for a smaller step).
+ */
+export class LLMTimeoutError extends Error {
+  override readonly name = 'LLMTimeoutError';
+  constructor(
+    message: string,
+    readonly phase: 'first-token' | 'idle',
+    /** chunks (about one token each) received before it stopped */
+    readonly received = 0,
+  ) {
+    super(message);
+  }
+}
+
+/** By name, so it survives being re-thrown across module copies */
+export function isLLMTimeout(err: unknown): err is LLMTimeoutError {
+  return err instanceof Error && err.name === 'LLMTimeoutError';
+}
