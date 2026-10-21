@@ -215,7 +215,7 @@ export class ActionRunner {
   private async execGranted(serverId: string, def: ActionDef, command: string, started: number): Promise<ActionRunResult> {
     try {
       const res = await withGrant({ kind: 'exec', actionId: def.id, command }, () =>
-        this.ssh.exec(serverId, command, def.timeoutMs),
+        this.ssh.exec(serverId, command, def.timeoutMs, { maxBytes: channelCap(def) }),
       );
       const out = capText(res.stdout, def.maxOutputBytes, def.keep ?? 'head');
       const ok = (def.okExitCodes ?? [0]).includes(res.exitCode);
@@ -226,8 +226,8 @@ export class ActionRunner {
         exitCode: res.exitCode,
         stdout: out.text,
         stderr: capText(res.stderr, MAX_STDERR, 'tail').text,
-        truncated: out.truncated,
-        ...(def.parse && ok ? tryParse(def, res.stdout) : {}),
+        truncated: out.truncated || !!res.truncated,
+        ...(def.parse && ok && !res.truncated ? tryParse(def, res.stdout) : {}),
         durationMs: Date.now() - started,
         ...(ok ? {} : { error: `exit code ${res.exitCode}` }),
       };
@@ -290,6 +290,14 @@ export class ActionRunner {
 }
 
 // ── Helpers ─────────────────────────────────────────────
+
+/**
+ * EX9.4: bytes collected from the SSH channel before it is closed. Actions that
+ * keep the tail (logs) bound their own output by lines, so they get more room.
+ */
+export function channelCap(def: ActionDef): number {
+  return def.keep === 'tail' ? 4 * 1024 * 1024 : Math.max(4 * def.maxOutputBytes, 256 * 1024);
+}
 
 /** The schema under optional/default/nullable/effects wrappers. */
 function baseType(schema: z.ZodTypeAny): z.ZodTypeAny {

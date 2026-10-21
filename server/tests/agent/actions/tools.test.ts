@@ -45,7 +45,7 @@ describe('actionTool', () => {
     const ctx = context('Filesystem Size Used');
     const out = await actionTool(catalog.get('disk_usage')!).execute({}, ctx);
     expect(out).toMatchObject({ success: true, output: 'Filesystem Size Used', metadata: { actionId: 'disk_usage', command: 'df -hT', exitCode: 0 } });
-    expect(ctx.ssh.exec).toHaveBeenCalledWith('srv', 'df -hT', 15_000);
+    expect(ctx.ssh.exec).toHaveBeenCalledWith('srv', 'df -hT', 15_000, { maxBytes: 262_144 });
   });
 
   it('returns the validation error to the model without touching SSH', async () => {

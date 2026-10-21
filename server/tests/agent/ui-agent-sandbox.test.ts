@@ -313,12 +313,12 @@ describe('UIAgent — Sandbox Mode (EX5-B.3)', () => {
       const help = actionTool(getDefaultCatalog().get('cli_help')!);
       const result = await help.execute({ program: 'nginx' }, context);
       expect(result.success).toBe(true);
-      expect(ssh.exec).toHaveBeenCalledWith('server-1', `docker exec ${SANDBOX_INFO.containerName} nginx --help`, expect.any(Number));
+      expect(ssh.exec).toHaveBeenCalledWith('server-1', `docker exec ${SANDBOX_INFO.containerName} nginx --help`, expect.any(Number), expect.anything());
 
       // a non-cli action still runs on the host
       const disk = actionTool(getDefaultCatalog().get('disk_usage')!);
       await disk.execute({}, context);
-      expect(ssh.exec).toHaveBeenLastCalledWith('server-1', 'df -hT', expect.any(Number));
+      expect(ssh.exec).toHaveBeenLastCalledWith('server-1', 'df -hT', expect.any(Number), expect.anything());
     });
   });
 

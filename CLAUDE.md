@@ -25,6 +25,9 @@ cd server && npx vitest run session-store                                       
 
 npm run test:prod                    # build client, esbuild-bundle server into electron/server.mjs, launch Electron
 npm run build:dist:win               # also :mac / :linux. CI release builds on tags matching v*.*.* (.github/workflows/release.yml)
+
+npm run bench:agents -- --provider ollama --model qwen3:8b   # EX9.4: score a model on 12 benign questions
+                                     # against fake-server (canned output). Calls the model; not for CI.
 ```
 
 No linter or formatter is configured.

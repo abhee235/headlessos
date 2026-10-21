@@ -40,7 +40,7 @@
 | **EX6: Multi-Session Desktop & Hibernation** | **Experimental** | **✅** | **34/34 tasks** | [phase-ex6](phases/phase-ex6.md) |
 | **EX7: Container Target Mode** | **Experimental** | **✅** | **10/10 tasks** | [phase-ex7](phases/phase-ex7.md) |
 | **EX8: LumenOS v3 Design System** | **Experimental** | **✅** | **9/9 tasks** | [phase-ex8](phases/phase-ex8.md) |
-| **EX9: Safe Agents (Actions, Approvals, Local Models)** | **Experimental** | **🔄** | **4/6 tasks** | [phase-ex9](phases/phase-ex9.md) |
+| **EX9: Safe Agents (Actions, Approvals, Local Models)** | **Experimental** | **🔄** | **5/6 tasks** | [phase-ex9](phases/phase-ex9.md) |
 
 ---
 
@@ -55,7 +55,7 @@
 | EX9.1 | Action catalog + validators + quoting + runner; agent scope enforced by CommandPolicy; both agents on the runner | ✅ | 60 read actions; inside an agent run CommandPolicy refuses any ungranted command in every mode; `exec_command`/`sftp_read`/`sandbox_exec` and the read allowlist retired; fake dev mode runs end to end on actions. Server 2203 passed (+1 skipped), client 624 |
 | EX9.2 | Change actions, ApprovalGate, append-only audit log, ApprovalCard; Stop denies pending; view buttons via preview/run | ✅ | 11 change actions; read-only runs refuse them outright; allow/deny/Stop/timeout paths tested; Playwright-measured footer switch + approval dialog (Deny only); audit got asked + answered deny |
 | EX9.3 | Shared agent loop (typed events), OllamaProvider, Settings → AI provider choice, weak-model input handling | ✅ | Investigation agent on native tool calls; Ollama provider + model picker (Playwright-measured against a real local Ollama); JSON repair, prose calls, key aliases, coercion |
-| EX9.4 | Loop guard, context trimming, output caps, per-model benchmark | ⬜ | |
+| EX9.4 | Loop guard, context trimming, output caps, per-model benchmark | ✅ | Guard warns, refuses identical repeats, stops with a tools-off conclusion; history trimmed to the window; SSH byte cap + per-model output cap; `npm run bench:agents` (tested with a scripted provider, not yet run on a real model) |
 | EX9.5 | (Optional) per-server agent login, untrusted-data marking, secret redaction | ⬜ | |
 
 ---
@@ -562,6 +562,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-10-22 | **EX9.4 ✅** Agent runs stay bounded. A loop guard warns when the same call keeps returning the same result, refuses identical repeats, and ends a stuck run with a tools-off summary; history is trimmed to the model's window (older results stubbed first); SSH output stops at a byte cap and each result is cut to what the model can afford (60% head, 40% tail). `npm run bench:agents` scores a model on 12 benign questions against canned output. |
 | 2026-10-22 | **EX9.3 ✅** Agents work with local models. Settings → AI gains Ollama (URL, consent for a non-loopback host, the installed models); one provider serves parsing, both agents and Dynamic UI, and the OpenAI key stays saved for switching back. The investigation agent runs on a shared loop with native tool calls and typed events; small models get a tool list sized to their context. Broken tool-call JSON is repaired, tool calls written as text are run, misnamed parameters are mapped, and errors read "field: expected …, you sent …". |
 | 2026-10-22 | **EX9.2 ✅** Nothing changes a server until the owner allows it. 11 change actions (services, containers, nginx reload, process signal, apt) pause the run and show an approval card with the exact command, server, login user and the model's reason; Allow once or Deny, Stop denies everything pending, 10-minute expiry, no "always allow". Every asked/answered/ran event is appended to `~/.headlessos/audit/actions.jsonl`. AI Agent gets an "Allow changes (asks first)" switch (off by default). Generated view buttons name catalog actions; changes go through a server-recorded preview; legacy command buttons may only read. |
 | 2026-10-22 | **EX9.0–EX9.1 ✅** Agents no longer write shell commands. The UI Agent's write tools are unregistered; both agents call 60 typed read actions (`agent/actions/`) whose parameters are validated by strict Zod schemas and whose argv is built and quoted by the server. Inside an agent run, `CommandPolicy` refuses any command the action runner did not grant, in every policy mode, and SFTP needs a grant. SFTP reads re-check the resolved real path (symlinks). The free-form `exec_command`/`sftp_read`/`sandbox_exec` tools and the regex read allowlist are gone. |

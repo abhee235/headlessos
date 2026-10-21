@@ -78,7 +78,7 @@ describe('ActionRunner.run — exec actions', () => {
   it('runs exactly the built command with the action timeout', async () => {
     const ssh = sshReturning({ stdout: 'up 3 days' });
     const result = await new ActionRunner({ ssh: ssh as never }).run('srv', 'uptime', {});
-    expect(ssh.exec).toHaveBeenCalledWith('srv', 'uptime', 15_000);
+    expect(ssh.exec).toHaveBeenCalledWith('srv', 'uptime', 15_000, { maxBytes: 262_144 });
     expect(result).toMatchObject({ ok: true, actionId: 'uptime', command: 'uptime', exitCode: 0, stdout: 'up 3 days', truncated: false });
   });
 
@@ -168,9 +168,9 @@ describe('ActionRunner.run — exec actions', () => {
     const ssh = sshReturning({ stdout: 'usage' });
     const runner = new ActionRunner({ ssh: ssh as never });
     await runner.run('srv', 'cli_help', { program: 'restic' }, { sandboxContainer: 'hos-sandbox-1' });
-    expect(ssh.exec).toHaveBeenLastCalledWith('srv', 'docker exec hos-sandbox-1 restic --help', expect.any(Number));
+    expect(ssh.exec).toHaveBeenLastCalledWith('srv', 'docker exec hos-sandbox-1 restic --help', expect.any(Number), expect.anything());
     await runner.run('srv', 'firewall_status', {}, { sandboxContainer: 'hos-sandbox-1' });
-    expect(ssh.exec).toHaveBeenLastCalledWith('srv', 'sudo -n ufw status verbose', expect.any(Number));
+    expect(ssh.exec).toHaveBeenLastCalledWith('srv', 'sudo -n ufw status verbose', expect.any(Number), expect.anything());
   });
 });
 

@@ -84,7 +84,7 @@ describe('POST /actions/run', () => {
 
     const run = await app.inject({ method: 'POST', url: '/api/servers/srv/actions/run', payload: { approvalId } });
     expect(run.json()).toMatchObject({ success: true, command: 'docker restart -- web-1' });
-    expect(ssh.exec).toHaveBeenCalledWith('srv', 'docker restart -- web-1', 60_000);
+    expect(ssh.exec).toHaveBeenCalledWith('srv', 'docker restart -- web-1', 60_000, expect.anything());
 
     const again = await app.inject({ method: 'POST', url: '/api/servers/srv/actions/run', payload: { approvalId } });
     expect(again.statusCode).toBe(404);
