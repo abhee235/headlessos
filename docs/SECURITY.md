@@ -158,6 +158,17 @@ const BLOCKED_COMMANDS = [
 ];
 ```
 
+### 4b. Agents: Typed Actions Only (ADR-024, EX9)
+
+The allowlists above are for classic app routes, whose commands are written in our
+code. **Agents never send command text.** They call actions from the catalog in
+`server/src/agent/actions/`; the server validates parameters with strict Zod
+schemas, builds argv in code and quotes every element. Inside an agent run,
+`CommandPolicy` rejects any command the action runner did not build and grant, in
+every policy mode. Actions that change a server wait for the owner's approval
+(full command, server, login user, reason) and are logged to
+`~/.headlessos/audit/actions.jsonl`. See [phases/phase-ex9.md](phases/phase-ex9.md).
+
 ### 5. File Operations: Always Use SFTP
 
 For file operations (read, write, delete, rename), **always use SFTP API** instead of shell commands:

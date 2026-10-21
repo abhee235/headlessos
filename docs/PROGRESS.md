@@ -40,6 +40,23 @@
 | **EX6: Multi-Session Desktop & Hibernation** | **Experimental** | **✅** | **34/34 tasks** | [phase-ex6](phases/phase-ex6.md) |
 | **EX7: Container Target Mode** | **Experimental** | **✅** | **10/10 tasks** | [phase-ex7](phases/phase-ex7.md) |
 | **EX8: LumenOS v3 Design System** | **Experimental** | **✅** | **9/9 tasks** | [phase-ex8](phases/phase-ex8.md) |
+| **EX9: Safe Agents (Actions, Approvals, Local Models)** | **Experimental** | **🔄** | **0/6 tasks** | [phase-ex9](phases/phase-ex9.md) |
+
+---
+
+## EX9: Safe Agents — Action Catalog, Approvals, Local Models (Experimental)
+
+> Agents pick typed actions from a server-side catalog instead of writing shell commands; the server builds and runs the command. Changes wait for the owner's approval. Then Ollama support.
+> See [ADR-024](DECISIONS.md) and [phase-ex9.md](phases/phase-ex9.md) for the full spec.
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| EX9.0 | Remove the UI Agent's write tools (`exec_write_command`, `sftp_write`) from `ALL_AGENT_TOOLS` | ⬜ | |
+| EX9.1 | Action catalog + validators + quoting + runner; agent scope enforced by CommandPolicy; both agents on the runner | ⬜ | |
+| EX9.2 | Change actions, ApprovalGate, append-only audit log, ApprovalCard; Stop denies pending; view buttons via preview/run | ⬜ | |
+| EX9.3 | Shared agent loop (typed events), OllamaProvider, Settings → AI provider choice, weak-model input handling | ⬜ | |
+| EX9.4 | Loop guard, context trimming, output caps, per-model benchmark | ⬜ | |
+| EX9.5 | (Optional) per-server agent login, untrusted-data marking, secret redaction | ⬜ | |
 
 ---
 
@@ -521,7 +538,7 @@ Example:
 
 | # | Task | Priority | Notes |
 |---|------|----------|-------|
-| B.1 | Ollama (local LLM) provider | Medium | Zero cost alternative |
+| B.1 | Ollama (local LLM) provider | Medium | Zero cost alternative — **planned in EX9.3** |
 | B.2 | Anthropic (Claude) provider | Low | Alternative cloud provider |
 | B.3 | Vision pipeline (ncurses tools) | Low | Screenshot → LLM image parse |
 | B.4 | Git app | Medium | View repos, branches, recent commits |
@@ -545,6 +562,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-10-22 | **EX9 🔄** Safe agents planned. ADR-024 (agents run typed actions, not shell commands; supersedes the free-form command parts of ADR-014). Phase spec: phase-ex9.md (6 tasks): action catalog + runner enforced at CommandPolicy via an agent scope, owner approvals with an append-only audit log, shared loop + Ollama, loop guard and budgets. SECURITY.md §4b added. |
 | 2026-10-20 | **EX8 ✅** LumenOS v3 glass design (7/7). Token layer (`--lumen-*` → shadcn tokens, `data-accent`/`data-glass`/`data-transparency` presets, accent follows wallpaper), bundled Manrope + Geist Mono, every `ui/` primitive, window chrome, floating dock + tray, launcher, new Quick Settings, notifications + calendar, lock/sign-in, and all apps restyled. New: Task Manager process detail card + `GET /taskmanager/process/:pid` + SIGSTOP/SIGCONT. Fixes: command palette launch, terminal resize frames typed into the shell, theme on lock screen. Validated side-by-side against the Claude Design prototype with Playwright. See [phase-ex8](phases/phase-ex8.md). |
 | 2026-10-20 | **EX8.8 ✅** Monaco code editor in Files and container Files: bundled + lazy-loaded (offline-safe), language from file name, Lumen light/dark syntax themes, Ctrl/⌘+S. Also: branded H spinner for every window's lazy load and container shells (docker exec as the pty command), 2px type step in Settings rows, light-theme label contrast raised to WCAG AA. |
 | 2026-10-20 | **EX8.9 ✅** Task Manager gains App history (per-command CPU time, memory, disk I/O since boot), Startup apps (systemd unit files + systemd-analyze, SysV start links, @reboot cron; toggle with confirm), Users (per-account cards from `ps` + `/etc/passwd` + sessions) and Services (systemd or SysV fallback, Start/Stop with confirm and an ssh warning). `GET /services` now works on hosts without systemd. |

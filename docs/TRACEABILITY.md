@@ -1011,6 +1011,16 @@ None (all changes to existing files).
 - **Files modified:** `server/src/index.ts`, `HomeHub/{HomeHub,cards,hub-ui}.tsx`, `Desktop/{DesktopLayout,SettingsView}.tsx`, `lib/api.ts`, `store/preferences-store.ts`, `client/tests/components/home-hub.test.tsx`
 - **Verification:** client 611 / server 2159 tests; Playwright of every card on the dev box
 
+## EX9: Safe Agents — Action Catalog, Approvals, Local Models
+
+> Agents run typed actions from a server-side catalog instead of shell commands. Spec: [phase-ex9.md](phases/phase-ex9.md), decision: ADR-024.
+
+### EX9 docs: spec + ADR
+- **Status:** ✅ Complete
+- **Date:** 2026-10-22
+- **Files created:** `docs/phases/phase-ex9.md`
+- **Files modified:** `docs/DECISIONS.md` (ADR-024; ADR-014 status line points to it), `docs/PROGRESS.md` (EX9 row + section + changelog; backlog B.1 → EX9.3), `docs/SECURITY.md` (§4b agents: typed actions only)
+
 ## How to Use This File
 
 ### After completing a task:
