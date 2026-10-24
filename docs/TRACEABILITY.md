@@ -1113,6 +1113,12 @@ None (all changes to existing files).
 - **Local only:** `.git/info/exclude` keeps the design-handoff folder out of git without naming it in the repo
 - **Verification:** `git grep` finds no private project names, server labels, IPs or design-folder paths in tracked text; both typechecks clean; context tests pass. History is not rewritten (owner's decision: the IPs are not secrets)
 
+### M13.4: README matches the code
+- **Status:** ✅ Complete
+- **Date:** 2026-10-25
+- **Files modified:** `README.md` (deterministic-first parsing; providers as built: OpenAI or Ollama; "What's in it" with the agents and their safety model; current layout; setup with the optional key, the dev SSH server, fake mode, tests and the Electron build), `CLAUDE.md` (stale README note removed)
+- **Verification:** every app, script and path named in the README checked against `client/src/lib/apps.ts`, `package.json`, `dev/docker-compose.yml` and the tree; all linked docs exist
+
 ## EX10: Context Engineering for Agents
 
 > One context plan per model window drives every agent budget. Spec: [phase-ex10.md](phases/phase-ex10.md), decision: ADR-025.

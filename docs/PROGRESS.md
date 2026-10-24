@@ -32,7 +32,7 @@
 | M10: Advanced Features | Week 12-14 | ✅ | 10/10 tasks | — |
 | M11: Fleet, Agent & Platform | Week 15-16 | ✅ | 8/8 tasks | — |
 | M12: Backend Architecture Refactor | Beta | ✅ | 7/7 tasks | [phase-12](phases/phase-12.md) |
-| M13: Release Readiness | Beta | 🔄 | 3/5 tasks | [phase-13](phases/phase-13.md) |
+| M13: Release Readiness | Beta | 🔄 | 4/5 tasks | [phase-13](phases/phase-13.md) |
 | **EX1: Dynamic UI Engine** | **Experimental** | **✅** | **15/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
 | **EX2: UI Generation Agent** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
 | **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **✅** | **26/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
@@ -55,7 +55,7 @@
 | M13.1 | Remove the Apple and Microsoft wallpapers; a missing saved wallpaper falls back to the default | ✅ | Big Sur, Sequoia and Windows 11 images gone; a saved wallpaper that no longer exists shows Dusk instead of a broken image (tested); the six Unsplash photos stay |
 | M13.2 | MIT `LICENSE`, `license` field, README link | ✅ | `LICENSE` (MIT, © 2026 abhee235); root `package.json` license field; README links to it |
 | M13.3 | Remove private project/server names from docs, comments and screenshots | ✅ | 13 screenshots removed (both public IPs, the test VPS name, a private project's containers); sibling projects described generically; design-folder references point to phase-ex8; `dev/screenshot.png` ignored. History left as is (owner's call) |
-| M13.4 | README matches the code | ⬜ | |
+| M13.4 | README matches the code | ✅ | Providers as built (OpenAI or Ollama), apps and agents with their safety model, current layout, setup with optional key, dev SSH server, fake mode, Electron build; every name and path checked against the tree |
 | M13.5 | Commit identity: GitHub no-reply for new commits; rewrite existing commits (owner's go-ahead) | ⬜ | |
 
 ---

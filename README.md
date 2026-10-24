@@ -1,12 +1,12 @@
 # HeadlessOS
 
-> A local application that transforms headless Linux servers into a Windows-like visual interface — without installing anything on the server.
+> A local application that turns headless Linux servers into a Windows-like desktop, without installing anything on the server.
 
 ## What Is This?
 
-HeadlessOS is a **localhost web application** that connects to your VPS/Linux servers via SSH, executes commands, parses terminal output using LLMs, and renders the results as a familiar desktop-like UI — file explorer, process manager, Docker dashboard, service manager, and more.
+HeadlessOS is a **localhost app** (in the browser or as an Electron desktop app). It connects to your VPS and Linux servers over SSH, runs commands, and parses their output: with deterministic parsers first, and an LLM when no parser fits. It renders the results as a familiar desktop: file explorer, task manager, Docker and services panels, a terminal, and more.
 
-**Zero footprint on the server.** The server doesn't know it's being managed through a GUI. It just receives and responds to SSH commands like normal.
+**Zero footprint on the server.** The server doesn't know it's being managed through a GUI. It only receives and answers SSH commands like normal.
 
 ## The Problem
 
@@ -16,7 +16,7 @@ You have a VPS. You SSH into it. You can never remember:
 - `df -h | awk '{print $1, $5}'`
 - `journalctl -u nginx --since "1 hour ago"`
 
-You want a **visual interface** — like Windows Explorer for files, Task Manager for processes, a Docker Desktop-like panel — but you don't want to install a 500MB GUI on a $5/month VPS.
+You want a **visual interface**, like Windows Explorer for files, Task Manager for processes and a Docker Desktop-like panel. But you don't want to install a 500MB GUI on a $5/month VPS.
 
 ## The Solution
 
@@ -45,13 +45,24 @@ You want a **visual interface** — like Windows Explorer for files, Task Manage
             └───────────────┘
 ```
 
+## What's In It
+
+- **Desktop apps:** Dashboard, Files, Terminal, Docker, Services, Task Manager, Server Admin and Settings, in movable windows.
+- **Sessions:** one session per server; switch between them and pick up where you left off.
+- **AI Agent:** investigates a question about the server ("why is memory high?") and answers with evidence.
+- **UI Agent:** builds a custom view from a plain-language request, live as it gathers data.
+- **LLM Observatory:** every model and tool call of a run, with tokens, latency and cost.
+- **Safe by design:**
+  - Agents never run commands a model wrote. They pick typed actions from a fixed catalog, and the server builds and runs the command.
+  - Anything that changes a server waits for your approval and is written to an audit log.
+  - Secrets are removed from server output before a model sees it.
+
 ## Key Principles
 
-1. **Zero server install** — The server runs no additional software. All intelligence is local.
-2. **LLM-first, then optimize** — Start with LLM parsing everything. Progressively replace with deterministic parsers for speed and cost.
-3. **Deterministic > Intelligent** — Prefer regex parsers and JSON-output flags over LLM when possible.
-4. **Terminal is always available** — The UI is a convenience layer. Users can always drop to a real terminal.
-5. **Provider-agnostic LLM** — Abstractions allow switching between OpenAI, Anthropic, Ollama (local), or any provider.
+1. **Zero server install.** The server runs no additional software. All intelligence is local.
+2. **Deterministic first, LLM as fallback.** Regex parsers and JSON-output flags come first; an LLM parses only what no parser handles.
+3. **Terminal is always available.** The UI is a convenience layer. You can always drop to a real terminal.
+4. **Your choice of model.** OpenAI, or a model running on your own machine through [Ollama](https://ollama.com), behind one provider interface. Without either, parsing stays deterministic.
 
 ## Tech Stack
 
@@ -59,57 +70,41 @@ You want a **visual interface** — like Windows Explorer for files, Task Manage
 |-------|-----------|-----|
 | Backend | Node.js + Fastify + TypeScript | Fast, native WebSocket, great TS support |
 | SSH | ssh2 (npm) | Pure JS, multi-channel, SFTP, PTY support |
-| LLM | OpenAI SDK (primary), provider-agnostic interface | Structured Outputs with Zod schemas |
+| LLM | OpenAI SDK or Ollama (local), one provider interface | Structured output validated with Zod |
 | Frontend | React + Vite + TypeScript + TailwindCSS | Fast dev, modern UI |
 | Terminal | xterm.js + addons | Industry standard (used by VS Code) |
 | Schema | Zod | Runtime + compile-time type safety, LLM schema generation |
+| Desktop app | Electron | The same app as a native window, with the server bundled |
 
 ## Project Structure
 
 ```
-headlessOS/
-├── docs/                        # 📖 All project documentation (DDD)
-│   ├── ARCHITECTURE.md          # System design, component diagram, data flow
-│   ├── IMPLEMENTATION_INDEX.md  # Phase overview + task ID system
-│   ├── phases/                  # Detailed per-phase task specs
-│   │   ├── phase-0.md           # Project scaffolding
-│   │   ├── phase-1.md           # Core infrastructure
-│   │   ├── phase-2.md           # Dashboard + file explorer
-│   │   ├── phase-3.md           # Docker + processes + services
-│   │   ├── phase-4.md           # Optimization + deterministic parsers
-│   │   └── phase-5.md           # Security hardening + polish
-│   ├── TRACEABILITY.md          # Task → files → commits audit trail
-│   ├── APP_REGISTRY.md          # App abstraction schema, adding new apps
-│   ├── API_SPEC.md              # Backend REST + WebSocket API spec
-│   ├── LLM_STRATEGY.md          # LLM integration, parser migration plan
-│   ├── SECURITY.md              # Threat model, mitigations
-│   ├── TESTING.md               # Test strategy, coverage targets
-│   ├── PROGRESS.md              # Task tracker, milestones, status
-│   ├── DECISIONS.md             # Architecture Decision Records (ADRs)
-│   └── CONTEXT.md               # AI assistant context briefing
-├── server/                      # Backend (Node.js + Fastify)
-│   ├── src/
-│   │   ├── index.ts             # App entry point
-│   │   ├── ssh/                 # SSH connection management
-│   │   ├── llm/                 # LLM abstraction layer
-│   │   ├── parsers/             # Output parsing pipeline
-│   │   ├── routes/              # API endpoints
-│   │   └── config/              # Local config store
-│   ├── package.json
-│   └── tsconfig.json
-├── client/                      # Frontend (React + Vite)
-│   ├── src/
-│   │   ├── App.tsx
-│   │   ├── components/          # UI components per app
-│   │   ├── hooks/               # React hooks
-│   │   └── lib/                 # API client, utilities
-│   ├── package.json
-│   └── vite.config.ts
-├── shared/                      # Shared types between server & client
-│   └── types.ts
-├── AGENTS.md                    # Instructions for AI coding assistants
-├── package.json                 # Workspace root
-└── README.md                    # This file
+headlessos/
+├── docs/                    # 📖 All project documentation (DDD)
+│   ├── phases/              # Per-phase specs: phase-0…13 (milestones), phase-ex1…ex10 (experimental)
+│   ├── PROGRESS.md          # Task tracker, status, changelog
+│   ├── TRACEABILITY.md      # Task → files → tests audit trail
+│   ├── DECISIONS.md         # Architecture Decision Records (ADRs)
+│   └── …                    # ARCHITECTURE, API_SPEC, SECURITY, TESTING, LLM_STRATEGY, …
+├── server/                  # Backend (Node.js + Fastify)
+│   └── src/
+│       ├── index.ts         # Entry point: wires every component and route
+│       ├── ssh/             # SSH connections, SFTP, terminal sessions
+│       ├── parsers/         # Deterministic parsers + LLM parsing pipeline
+│       ├── llm/             # Provider interface, OpenAI and Ollama providers, model limits
+│       ├── agent/           # AI Agent and UI Agent: action catalog, approvals, context management
+│       ├── dynamic-ui/      # Generated views, templates
+│       ├── observatory/     # Traces of model and tool calls
+│       ├── services/        # Domain services, command policy
+│       ├── routes/          # REST + WebSocket endpoints
+│       └── security/, config/, …
+├── client/                  # Frontend (React + Vite)
+│   └── src/                 # components/, store/, hooks/, lib/
+├── shared/                  # Types and Zod schemas shared by server and client (shared/schemas/)
+├── electron/                # Electron desktop app
+├── dev/                     # Local test server (Docker, SSH on port 2222)
+├── AGENTS.md                # Rules for AI coding assistants
+└── package.json             # npm workspaces root
 ```
 
 ## Quick Start
@@ -117,19 +112,24 @@ headlessOS/
 ```bash
 # Prerequisites: Node.js 20+, npm 9+
 
-# Install dependencies
 npm install
 
-# Set up config (API keys, default server)
-cp .env.example .env
-# Edit .env (at the repo root) with your OpenAI API key
+# Optional: an OpenAI key. You can also add one later in Settings → AI,
+# or choose a local Ollama model there instead.
+cp .env.example .env         # .env lives at the repo root
 
-# Start development (backend + frontend concurrently)
+# Start the server (:3001) and the web UI (:3000)
 npm run dev
-
-# Open in browser
-open http://localhost:3000
+# then open http://localhost:3000
 ```
+
+**A server to try it on:** `cd dev && docker compose up -d` starts a local Ubuntu container with SSH on `127.0.0.1:2222` (user `testuser`, password `testpass`).
+
+**No key and no model?** Start with `LLM_PROVIDER=fake` to run the UI Agent end to end on scripted answers.
+
+**Tests:** `npm test` runs the server and client suites. Type-check with `npx tsc --noEmit -p server` and `-p client` after `npm run build --workspace=shared` once.
+
+**Desktop app:** `npm run build:dist:win` (or `:mac`, `:linux`).
 
 ## Documentation Index
 
@@ -137,8 +137,8 @@ open http://localhost:3000
 |----------|---------|-----------|
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, components, data flow | Understanding the system |
 | [IMPLEMENTATION_INDEX.md](docs/IMPLEMENTATION_INDEX.md) | Phase overview, task ID system | Finding what to build next |
-| [phases/phase-{0-5}.md](docs/phases/) | Detailed per-phase task specs | Building features |
-| [TRACEABILITY.md](docs/TRACEABILITY.md) | Task → files → commits audit trail | Tracking what was built |
+| [phases/](docs/phases/) | Detailed per-phase task specs | Building features |
+| [TRACEABILITY.md](docs/TRACEABILITY.md) | Task → files → tests audit trail | Tracking what was built |
 | [APP_REGISTRY.md](docs/APP_REGISTRY.md) | How apps work, adding new apps | Adding a new app module |
 | [API_SPEC.md](docs/API_SPEC.md) | REST + WebSocket API reference | Writing frontend/backend code |
 | [LLM_STRATEGY.md](docs/LLM_STRATEGY.md) | LLM integration, parser migration | Working on parsing |
