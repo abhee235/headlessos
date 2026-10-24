@@ -1,5 +1,5 @@
 // EX9.4: Loop guard — notice a run going in circles, warn once, then stop it
-// @see docs/phases/phase-ex9.md §9 (port of an earlier agent project's packages/core/src/agent/loopGuard.ts)
+// @see docs/phases/phase-ex9.md §9 (ported from an earlier agent project)
 //
 // Signals:
 //  - the same call (tool + input) returning the same result again and again

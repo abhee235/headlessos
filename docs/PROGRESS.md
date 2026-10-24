@@ -32,7 +32,7 @@
 | M10: Advanced Features | Week 12-14 | ✅ | 10/10 tasks | — |
 | M11: Fleet, Agent & Platform | Week 15-16 | ✅ | 8/8 tasks | — |
 | M12: Backend Architecture Refactor | Beta | ✅ | 7/7 tasks | [phase-12](phases/phase-12.md) |
-| M13: Release Readiness | Beta | 🔄 | 2/4 tasks | [phase-13](phases/phase-13.md) |
+| M13: Release Readiness | Beta | 🔄 | 3/4 tasks | [phase-13](phases/phase-13.md) |
 | **EX1: Dynamic UI Engine** | **Experimental** | **✅** | **15/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
 | **EX2: UI Generation Agent** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
 | **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **✅** | **26/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
@@ -54,7 +54,7 @@
 |---------|------|--------|--------------|
 | M13.1 | Remove the Apple and Microsoft wallpapers; a missing saved wallpaper falls back to the default | ✅ | Big Sur, Sequoia and Windows 11 images gone; a saved wallpaper that no longer exists shows Dusk instead of a broken image (tested); the six Unsplash photos stay |
 | M13.2 | MIT `LICENSE`, `license` field, README link | ✅ | `LICENSE` (MIT, © 2026 abhee235); root `package.json` license field; README links to it |
-| M13.3 | Tidy docs and screenshots for publishing | ⬜ |  |
+| M13.3 | Tidy docs and screenshots for publishing | ✅ | 13 outdated dev screenshots removed; prior-art notes written generically; design-folder references point to phase-ex8; `dev/screenshot.png` ignored |
 | M13.4 | README matches the code | ⬜ | |
 
 ---
@@ -67,7 +67,7 @@
 | Task ID | Task | Status | Verification |
 |---------|------|--------|--------------|
 | EX10.1 | Model limits (min of owner setting, Modelfile, trained length, 64K auto cap; hosted table); `num_ctx`/`num_predict`/`think: false`; KV estimate + CPU-spill check; Settings → AI context window | ✅ | `ornith:latest` resolves to 65,536 (was 16,384), reply cap 8,192, ≈2.1 GB KV cache; Playwright-measured Settings rows; server 2346 passed (+2 skipped), client 645 |
-| EX10.2 | Context plan + context manager in the shared loop (layered compaction, calibration, cut-off/overflow handling, events) | ✅ | Plan matches an earlier agent project's golden trigger on large windows; invariant `stopAt ≤ trigger ≤ hard ≤ window` and prompt + reply ≤ window tested across windows; layers, breaker, survival, forced compaction, cut-off and overflow paths tested in the loop |
+| EX10.2 | Context plan + context manager in the shared loop (layered compaction, calibration, cut-off/overflow handling, events) | ✅ | Plan matches the reference golden trigger on large windows; invariant `stopAt ≤ trigger ≤ hard ≤ window` and prompt + reply ≤ window tested across windows; layers, breaker, survival, forced compaction, cut-off and overflow paths tested in the loop |
 | EX10.3 | Window tiers for system prompts; actions offered, result caps and reviewer input from the plan | ✅ | Executor prompt 3,105 → 2,246 (lean, 64K) → 780 tokens (minimal, 16K); full tier byte-identical to EX9; reviewer sees head + tail of each output |
 | EX10.4 | UI Agent executor on the context manager; stop with the last good view and an honest reason | ✅ | Compaction, cut-off reminders and overflow retries in the executor; early stops keep the last valid partial view ("View Partly Generated" + reason + empty sections); fix attempts that stop early keep the reviewed view; Playwright-measured card |
 | EX10.5 | View tools: object or string, JSON repair, error position, no echo, short outputs | ✅ | Views as objects; broken strings repaired or located ("at character N (…excerpt…)"); the model never gets the view, schema or action metadata back; prompts no longer ask for strings or "partial JSON" |

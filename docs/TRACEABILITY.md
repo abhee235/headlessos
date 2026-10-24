@@ -960,7 +960,7 @@ None (all changes to existing files).
 
 ## EX8: LumenOS v3 Design System
 
-> Glass redesign from the Claude Design handoff (`Custom OS UI Design/handoff/`). Spec: [phase-ex8.md](phases/phase-ex8.md).
+> Glass redesign from a design handoff (kept outside the repository). Spec: [phase-ex8.md](phases/phase-ex8.md).
 
 ### EX8.1: Tokens + appearance plumbing
 - **Status:** ✅ Complete
@@ -1104,6 +1104,13 @@ None (all changes to existing files).
 - **Files created:** `LICENSE` (MIT, © 2026 abhee235)
 - **Files modified:** `package.json` (`"license": "MIT"`), `README.md` (licence links to the file)
 - **Verification:** matches `electron/package.json` (already MIT); no code change
+
+### M13.3: Docs and screenshots tidied
+- **Status:** ✅ Complete
+- **Date:** 2026-10-25
+- **Files deleted (13 outdated screenshots):** `dev/screenshot.png`, `dev/screenshot-startmenu.png`, `dev/screenshot-docker-{containers,images,kong-logs,logs}.png`, `dev/observatory-{fixed-panels,llm-span,screenshot,slider-fixed,tool-span}.png`, `dev/personalize-working.png`, `dev/screenshot-login.png`
+- **Files modified:** `docs/DECISIONS.md` (ADR-024/025), `docs/PROGRESS.md`, `docs/phases/{phase-ex9,phase-ex10}.md` ("Inspiration" sections → "Prior art"), `docs/phases/phase-ex8.md` and `docs/TRACEABILITY.md` (design handoff described without its folder), `server/src/agent/{actions/tools,context/manager,context/plan,loop/loop-guard,loop/tool-input}.ts` (comments), `client/src/components/{Agent/agent-ui,DynamicUI/widgets/GaugeWidget,DynamicUI/widgets/widget-card,Terminal/lumen-terminal}.ts(x)` (`@see` → phase-ex8), `server/tests/agent/context/plan.test.ts` (test name), `.gitignore` (`dev/screenshot.png`)
+- **Verification:** both typechecks clean; context tests pass
 
 ## EX10: Context Engineering for Agents
 

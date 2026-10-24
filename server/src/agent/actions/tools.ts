@@ -1,7 +1,7 @@
 // EX9.1: Actions as native agent tools, and per-run selection
 // @see docs/phases/phase-ex9.md §6
 //
-// An earlier agent project: a small model uses what its native tool list holds, so each
+// A tool-selection study (qwen3.5:9b, 211 tools): a small model uses what its native tool list holds, so each
 // action is its own tool. A run offers a relevant subset (fixed for the run, so the
 // provider's prompt cache keeps hitting); a call to any other catalog action still
 // runs, because the runner validates everything.

@@ -178,7 +178,7 @@ reaches a real host.
 
 ### 6. How agents see actions
 
-An earlier agent project measured qwen3.5:9b on 211 tools: a small model uses
+A tool-selection study in an earlier agent project measured qwen3.5:9b on 211 tools: a small model uses
 what its **native** tool list holds and little else. Listing tools natively scored
 88% (but cost a 48k-token prompt), tools described as text 40%, tool search 23%, a
 native list of the likely ~30 tools 80–85%. Shortening descriptions did not help.
@@ -306,7 +306,7 @@ run → runner.run(change action) → approvals.request(...)  ──► event ap
 
 ### 9. Guards and budgets (EX9.4)
 
-- **Loop guard** (port of an earlier agent project's `loopGuard`): key = `action + JSON(params)`,
+- **Loop guard** (ported from an earlier agent project): key = `action + JSON(params)`,
   fingerprint = hash of the result. Same call with the same result 3 times → warning
   appended to the next turn; 6 times → stop. After the warning, an identical
   back-to-back call is refused without running ("not repeated — try another way");
@@ -602,13 +602,8 @@ zero-width space after `<`, so the output cannot close the wrapper early.
 
 Not built: per-server agent login (see the scope note in §10).
 
-## Inspiration (read-only sibling repos)
+## Prior art
 
-- An earlier agent project's `packages/core/src`: `permissions/gate.ts` (pure allow/ask/deny),
-  `tools/scheduler.ts` + `session.ts` (park-and-resume: store the resolver, drain
-  pending on abort, register before yielding), `tools/runTool.ts` +
-  `inputNormalizer.ts` (directive errors, aliases), `llm/jsonRepair.ts`,
-  `llm/proseToolCalls.ts`, `llm/resilience.ts`, `llm/providers/ollama.ts`, `context/`.
-- An earlier agent project: `packages/core/src/agent/loopGuard.ts`, `docs/adr/ADR-055-tools-on-demand.md`,
-  `packages/host/src/safety/audit.ts` (its log is a SQLite table that updates rows;
-  HeadlessOS uses an append-only file instead), `ApprovalCard.tsx`.
+Several mechanics in this phase follow an earlier, unpublished agent project of the author's.
+Everything HeadlessOS relies on is restated in this document; nothing here depends on that
+project.
