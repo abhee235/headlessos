@@ -32,7 +32,7 @@
 | M10: Advanced Features | Week 12-14 | ✅ | 10/10 tasks | — |
 | M11: Fleet, Agent & Platform | Week 15-16 | ✅ | 8/8 tasks | — |
 | M12: Backend Architecture Refactor | Beta | ✅ | 7/7 tasks | [phase-12](phases/phase-12.md) |
-| M13: Release Readiness | Beta | 🔄 | 4/5 tasks | [phase-13](phases/phase-13.md) |
+| M13: Release Readiness | Beta | ✅ | 5/5 tasks | [phase-13](phases/phase-13.md) |
 | **EX1: Dynamic UI Engine** | **Experimental** | **✅** | **15/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
 | **EX2: UI Generation Agent** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
 | **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **✅** | **26/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
@@ -56,7 +56,7 @@
 | M13.2 | MIT `LICENSE`, `license` field, README link | ✅ | `LICENSE` (MIT, © 2026 abhee235); root `package.json` license field; README links to it |
 | M13.3 | Remove private project/server names from docs, comments and screenshots | ✅ | 13 screenshots removed (both public IPs, the test VPS name, a private project's containers); sibling projects described generically; design-folder references point to phase-ex8; `dev/screenshot.png` ignored. History left as is (owner's call) |
 | M13.4 | README matches the code | ✅ | Providers as built (OpenAI or Ollama), apps and agents with their safety model, current layout, setup with optional key, dev SSH server, fake mode, Electron build; every name and path checked against the tree |
-| M13.5 | Commit identity: GitHub no-reply for new commits; rewrite existing commits (owner's go-ahead) | 🔄 | Since 8a05add every commit is `abhee235 <11911948+abhee235@users.noreply.github.com>` (repo git config). The 137 earlier commits still carry the personal email; rewriting them changes every hash and needs a force-push, so it waits for the owner |
+| M13.5 | Commit identity: GitHub no-reply for new commits; rewrite existing commits (owner's go-ahead) | ✅ | All 143 commits on every branch are `abhee235 <…noreply.github.com>`; trees byte-identical; `main` force-pushed. Still on GitHub with the old email: merged PRs #1–#3, three old merged branches, tag/release v0.1.0 (owner to decide) |
 
 ---
 
@@ -598,6 +598,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-10-25 | **M13 ✅** Apple/Microsoft wallpapers removed, MIT licence added, private project and server names gone from docs and screenshots, README brought up to date, and every commit now carries the GitHub identity (history rewritten, `main` force-pushed). Before going public the owner still decides on the merged PRs, old branches and the v0.1.0 release, which keep the old email on GitHub. |
 | 2026-10-25 | **M13 specced** after a pre-publication audit: no secrets anywhere in the history; to fix before going public — Apple/Microsoft wallpapers, no LICENSE file, private project and server names in docs and screenshots, an outdated README, and the personal email on commits. |
 | 2026-10-22 | **EX10 follow-ups** from the first three 64K runs. View tools show the model an object only, and a view sent with misplaced brackets is repaired when the fix gives a valid view (9 of the 10 failed views from those runs). Ollama replies stream and time out only on silence, so a long reply is no longer cut at 120 s with a false "not reachable". A reply that takes too long is treated like one cut off: the agent asks for a smaller step and, if it keeps happening, keeps the last valid view. |
 | 2026-10-22 | **EX10.7 ✅** Local-model runs no longer show a made-up cost in the Observatory or the usage summary: a model without a known price costs nothing, and the router's $0 for local models is kept. |

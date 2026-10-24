@@ -61,6 +61,24 @@ are not secrets, and the screenshots are removed from the tree going forward.
      force-push). That changes every commit hash, so it waits for the owner's go-ahead,
      ideally just before going public, so it is done once.
 
+## M13.5 — Commit identity (as built)
+
+- New commits use the GitHub no-reply identity (repo git config, from 8a05add).
+- On 2026-10-25, with the owner's go-ahead, all four local branches were rewritten.
+  - Tool: `git filter-branch --env-filter`; `git filter-repo` is not installed. The personal
+    email was replaced by `abhee235 <11911948+abhee235@users.noreply.github.com>`.
+  - File trees and commit counts are byte-identical, and dates are kept. A bundle of the
+    pre-rewrite repo was saved next to the repository.
+  - `main` was force-pushed with a lease (`0406037` → rewritten head).
+- **Still on GitHub with the old email:**
+  - The three merged pull requests (#1–#3). GitHub keeps their commits permanently; only
+    GitHub Support or a fresh repository removes them.
+  - The old remote branches `feat/container-target-and-security`, `feat/dynamic-ui-engine`
+    and `ui-overhaul`, all contained in `main`.
+  - Tag `v0.1.0` and its release (four installers). Re-pointing the tag would start the
+    release workflow.
+  - These are the owner's decision before going public.
+
 ## Tasks
 
 | Task ID | Task | Status |
@@ -69,4 +87,4 @@ are not secrets, and the screenshots are removed from the tree going forward.
 | M13.2 | MIT `LICENSE`, `license` field, README link | ✅ |
 | M13.3 | Remove private project/server names from docs, comments and screenshots; ignore the inspect script's screenshot; design-folder references → phase-ex8 | ✅ |
 | M13.4 | README matches the code | ✅ |
-| M13.5 | Commit identity: GitHub no-reply for new commits; rewrite existing commits (owner's go-ahead) | 🔄 new commits done; rewrite waits for the go-ahead |
+| M13.5 | Commit identity: GitHub no-reply for new commits; rewrite existing commits (owner's go-ahead) | ✅ |

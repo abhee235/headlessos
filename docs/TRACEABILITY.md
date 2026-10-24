@@ -1119,11 +1119,11 @@ None (all changes to existing files).
 - **Files modified:** `README.md` (deterministic-first parsing; providers as built: OpenAI or Ollama; "What's in it" with the agents and their safety model; current layout; setup with the optional key, the dev SSH server, fake mode, tests and the Electron build), `CLAUDE.md` (stale README note removed)
 - **Verification:** every app, script and path named in the README checked against `client/src/lib/apps.ts`, `package.json`, `dev/docker-compose.yml` and the tree; all linked docs exist
 
-### M13.5: Commit identity (in progress)
-- **Status:** 🔄 New commits done; rewriting earlier commits waits for the owner
+### M13.5: Commit identity
+- **Status:** ✅ Complete (history rewritten 2026-10-25; see phase-13 for what remains on GitHub)
 - **Date:** 2026-10-25
 - **Change:** repo-level git config `user.name abhee235`, `user.email 11911948+abhee235@users.noreply.github.com` (in `.git/config`, not tracked); first commit with it: 8a05add
-- **Pending:** `git filter-repo` with a mailmap over all branches, then a force-push of `main`
+- **Rewrite:** `git filter-branch --env-filter` over all local branches (personal email → no-reply), trees and counts verified identical, `main` force-pushed with a lease; backup bundle `../headlessos-backup-2026-10-25.bundle`
 
 ## EX10: Context Engineering for Agents
 
