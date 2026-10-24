@@ -159,4 +159,4 @@ open http://localhost:3000
 
 ## License
 
-MIT
+[MIT](LICENSE)
