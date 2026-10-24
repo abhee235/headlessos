@@ -10,7 +10,7 @@ HeadlessOS is a localhost app (browser or Electron) that drives Linux servers ov
 
 ```bash
 npm install                          # also runs postinstall: git config core.hooksPath .githooks
-cp .env.example .env                 # .env lives at the REPO ROOT (README's server/.env is wrong)
+cp .env.example .env                 # .env lives at the REPO ROOT
 npm run dev                          # server :3001 (tsx watch) + Vite :3000; Vite proxies /api and /ws to :3001
 
 npm run build --workspace=shared     # run once first: shared is a composite TS project, so server/client

@@ -49,4 +49,4 @@ A pre-publication audit (2026-10-25) of all 137 commits and the 75 tracked image
 | M13.1 | Remove the Apple and Microsoft wallpapers; a missing saved wallpaper falls back to the default | ✅ |
 | M13.2 | MIT `LICENSE`, `license` field, README link | ✅ |
 | M13.3 | Tidy docs and screenshots; ignore the inspect script's screenshot; design-folder references → phase-ex8 | ✅ |
-| M13.4 | README matches the code | ⬜ |
+| M13.4 | README matches the code | ✅ |

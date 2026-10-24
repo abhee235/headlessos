@@ -1112,6 +1112,12 @@ None (all changes to existing files).
 - **Files modified:** `docs/DECISIONS.md` (ADR-024/025), `docs/PROGRESS.md`, `docs/phases/{phase-ex9,phase-ex10}.md` ("Inspiration" sections → "Prior art"), `docs/phases/phase-ex8.md` and `docs/TRACEABILITY.md` (design handoff described without its folder), `server/src/agent/{actions/tools,context/manager,context/plan,loop/loop-guard,loop/tool-input}.ts` (comments), `client/src/components/{Agent/agent-ui,DynamicUI/widgets/GaugeWidget,DynamicUI/widgets/widget-card,Terminal/lumen-terminal}.ts(x)` (`@see` → phase-ex8), `server/tests/agent/context/plan.test.ts` (test name), `.gitignore` (`dev/screenshot.png`)
 - **Verification:** both typechecks clean; context tests pass
 
+### M13.4: README matches the code
+- **Status:** ✅ Complete
+- **Date:** 2026-10-25
+- **Files modified:** `README.md` (deterministic-first parsing; providers as built: OpenAI or Ollama; "What's in it" with the agents and their safety model; current layout; setup with the optional key, the dev SSH server, fake mode, tests and the Electron build), `CLAUDE.md` (stale README note removed)
+- **Verification:** every app, script and path named in the README checked against `client/src/lib/apps.ts`, `package.json`, `dev/docker-compose.yml` and the tree; all linked docs exist
+
 ## EX10: Context Engineering for Agents
 
 > One context plan per model window drives every agent budget. Spec: [phase-ex10.md](phases/phase-ex10.md), decision: ADR-025.
