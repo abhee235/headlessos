@@ -32,6 +32,7 @@
 | M10: Advanced Features | Week 12-14 | ✅ | 10/10 tasks | — |
 | M11: Fleet, Agent & Platform | Week 15-16 | ✅ | 8/8 tasks | — |
 | M12: Backend Architecture Refactor | Beta | ✅ | 7/7 tasks | [phase-12](phases/phase-12.md) |
+| M13: Release Readiness | Beta | 🔄 | 0/4 tasks | [phase-13](phases/phase-13.md) |
 | **EX1: Dynamic UI Engine** | **Experimental** | **✅** | **15/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
 | **EX2: UI Generation Agent** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
 | **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **✅** | **26/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
@@ -42,6 +43,19 @@
 | **EX8: LumenOS v3 Design System** | **Experimental** | **✅** | **9/9 tasks** | [phase-ex8](phases/phase-ex8.md) |
 | **EX9: Safe Agents (Actions, Approvals, Local Models)** | **Experimental** | **✅** | **6/6 tasks** | [phase-ex9](phases/phase-ex9.md) |
 | **EX10: Context Engineering for Agents** | **Experimental** | **🔄** | **7/10 tasks** | [phase-ex10](phases/phase-ex10.md) |
+
+---
+
+## M13: Release Readiness
+
+> Prepare the repository to be made public: no third-party wallpapers, an MIT licence, tidy docs and screenshots, and an accurate README. Going public is a separate decision. See [phase-13.md](phases/phase-13.md).
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| M13.1 | Remove the Apple and Microsoft wallpapers; a missing saved wallpaper falls back to the default | ⬜ | |
+| M13.2 | MIT `LICENSE`, `license` field, README link | ⬜ | |
+| M13.3 | Tidy docs and screenshots for publishing | ⬜ |  |
+| M13.4 | README matches the code | ⬜ | |
 
 ---
 
@@ -583,6 +597,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-10-25 | **M13 specced** after a pre-publication audit found no secrets in the history. To fix before going public: Apple/Microsoft wallpapers, no LICENSE file, outdated screenshots and doc references, and an outdated README. |
 | 2026-10-22 | **EX10 follow-ups** from the first three 64K runs. View tools show the model an object only, and a view sent with misplaced brackets is repaired when the fix gives a valid view (9 of the 10 failed views from those runs). Ollama replies stream and time out only on silence, so a long reply is no longer cut at 120 s with a false "not reachable". A reply that takes too long is treated like one cut off: the agent asks for a smaller step and, if it keeps happening, keeps the last valid view. |
 | 2026-10-22 | **EX10.7 ✅** Local-model runs no longer show a made-up cost in the Observatory or the usage summary: a model without a known price costs nothing, and the router's $0 for local models is kept. |
 | 2026-10-22 | **EX10.6 ✅** Every agent tool now treats a null argument as "not given" and answers a bad argument with one line naming the parameter and what was sent, instead of a raw validation dump. The template search that failed on a local model's null arguments now runs. |
