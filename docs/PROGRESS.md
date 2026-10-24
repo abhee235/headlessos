@@ -56,7 +56,7 @@
 | M13.2 | MIT `LICENSE`, `license` field, README link | ✅ | `LICENSE` (MIT, © 2026 abhee235); root `package.json` license field; README links to it |
 | M13.3 | Remove private project/server names from docs, comments and screenshots | ✅ | 13 screenshots removed (both public IPs, the test VPS name, a private project's containers); sibling projects described generically; design-folder references point to phase-ex8; `dev/screenshot.png` ignored. History left as is (owner's call) |
 | M13.4 | README matches the code | ✅ | Providers as built (OpenAI or Ollama), apps and agents with their safety model, current layout, setup with optional key, dev SSH server, fake mode, Electron build; every name and path checked against the tree |
-| M13.5 | Commit identity: GitHub no-reply for new commits; rewrite existing commits (owner's go-ahead) | ⬜ | |
+| M13.5 | Commit identity: GitHub no-reply for new commits; rewrite existing commits (owner's go-ahead) | 🔄 | Since 8a05add every commit is `abhee235 <11911948+abhee235@users.noreply.github.com>` (repo git config). The 137 earlier commits still carry the personal email; rewriting them changes every hash and needs a force-push, so it waits for the owner |
 
 ---
 

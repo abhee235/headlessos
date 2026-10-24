@@ -1119,6 +1119,12 @@ None (all changes to existing files).
 - **Files modified:** `README.md` (deterministic-first parsing; providers as built: OpenAI or Ollama; "What's in it" with the agents and their safety model; current layout; setup with the optional key, the dev SSH server, fake mode, tests and the Electron build), `CLAUDE.md` (stale README note removed)
 - **Verification:** every app, script and path named in the README checked against `client/src/lib/apps.ts`, `package.json`, `dev/docker-compose.yml` and the tree; all linked docs exist
 
+### M13.5: Commit identity (in progress)
+- **Status:** 🔄 New commits done; rewriting earlier commits waits for the owner
+- **Date:** 2026-10-25
+- **Change:** repo-level git config `user.name abhee235`, `user.email 11911948+abhee235@users.noreply.github.com` (in `.git/config`, not tracked); first commit with it: 8a05add
+- **Pending:** `git filter-repo` with a mailmap over all branches, then a force-push of `main`
+
 ## EX10: Context Engineering for Agents
 
 > One context plan per model window drives every agent budget. Spec: [phase-ex10.md](phases/phase-ex10.md), decision: ADR-025.

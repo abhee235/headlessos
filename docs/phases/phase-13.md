@@ -69,4 +69,4 @@ are not secrets, and the screenshots are removed from the tree going forward.
 | M13.2 | MIT `LICENSE`, `license` field, README link | ✅ |
 | M13.3 | Remove private project/server names from docs, comments and screenshots; ignore the inspect script's screenshot; design-folder references → phase-ex8 | ✅ |
 | M13.4 | README matches the code | ✅ |
-| M13.5 | Commit identity: GitHub no-reply for new commits; rewrite existing commits (owner's go-ahead) | ⬜ |
+| M13.5 | Commit identity: GitHub no-reply for new commits; rewrite existing commits (owner's go-ahead) | 🔄 new commits done; rewrite waits for the go-ahead |
