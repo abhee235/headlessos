@@ -32,7 +32,7 @@
 | M10: Advanced Features | Week 12-14 | ✅ | 10/10 tasks | — |
 | M11: Fleet, Agent & Platform | Week 15-16 | ✅ | 8/8 tasks | — |
 | M12: Backend Architecture Refactor | Beta | ✅ | 7/7 tasks | [phase-12](phases/phase-12.md) |
-| M13: Release Readiness | Beta | 🔄 | 4/4 tasks | [phase-13](phases/phase-13.md) |
+| M13: Release Readiness | Beta | ✅ | 4/4 tasks | [phase-13](phases/phase-13.md) |
 | **EX1: Dynamic UI Engine** | **Experimental** | **✅** | **15/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
 | **EX2: UI Generation Agent** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
 | **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **✅** | **26/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
@@ -597,6 +597,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-10-25 | **M13 ✅** Apple/Microsoft wallpapers removed, MIT licence added, docs and screenshots tidied, and the README brought up to date. |
 | 2026-10-25 | **M13 specced** after a pre-publication audit found no secrets in the history. To fix before going public: Apple/Microsoft wallpapers, no LICENSE file, outdated screenshots and doc references, and an outdated README. |
 | 2026-10-22 | **EX10 follow-ups** from the first three 64K runs. View tools show the model an object only, and a view sent with misplaced brackets is repaired when the fix gives a valid view (9 of the 10 failed views from those runs). Ollama replies stream and time out only on silence, so a long reply is no longer cut at 120 s with a false "not reachable". A reply that takes too long is treated like one cut off: the agent asks for a smaller step and, if it keeps happening, keeps the last valid view. |
 | 2026-10-22 | **EX10.7 ✅** Local-model runs no longer show a made-up cost in the Observatory or the usage summary: a model without a known price costs nothing, and the router's $0 for local models is kept. |
