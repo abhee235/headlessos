@@ -1098,6 +1098,13 @@ None (all changes to existing files).
 - **Tests created:** `client/tests/components/wallpaper-fallback.test.tsx`
 - **Verification:** client 650 passed, `tsc -p client` clean; both sessions' saved wallpapers (`alpine.jpg`, `dusk.jpg`) remain
 
+### M13.2: MIT licence
+- **Status:** ✅ Complete
+- **Date:** 2026-10-25
+- **Files created:** `LICENSE` (MIT, © 2026 abhee235)
+- **Files modified:** `package.json` (`"license": "MIT"`), `README.md` (licence links to the file)
+- **Verification:** matches `electron/package.json` (already MIT); no code change
+
 ## EX10: Context Engineering for Agents
 
 > One context plan per model window drives every agent budget. Spec: [phase-ex10.md](phases/phase-ex10.md), decision: ADR-025.
