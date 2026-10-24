@@ -1090,6 +1090,14 @@ None (all changes to existing files).
 - **Files created:** `docs/phases/phase-13.md`
 - **Files modified:** `docs/PROGRESS.md` (M13 row, section, changelog), `docs/TRACEABILITY.md`
 
+### M13.1: Third-party wallpapers removed
+- **Status:** ✅ Complete
+- **Date:** 2026-10-25
+- **Files deleted:** `server/assets/wallpapers/system/{macos-big-sur-…-1455.jpg, macos-sequoia-forest-3840x2160-24082.jpg, windows11.jpg}` (Apple and Microsoft wallpapers)
+- **Files modified:** `client/src/components/Desktop/Wallpaper.tsx` (a saved image missing from the server list falls back to `DEFAULT_WALLPAPER_ID`)
+- **Tests created:** `client/tests/components/wallpaper-fallback.test.tsx`
+- **Verification:** client 650 passed, `tsc -p client` clean; both sessions' saved wallpapers (`alpine.jpg`, `dusk.jpg`) remain
+
 ## EX10: Context Engineering for Agents
 
 > One context plan per model window drives every agent budget. Spec: [phase-ex10.md](phases/phase-ex10.md), decision: ADR-025.

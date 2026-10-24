@@ -1,8 +1,10 @@
 // M6.3: Wallpaper — renders the selected desktop wallpaper from preferences
 // Supports both CSS gradient (builtin) and image-based (system/user) wallpapers
 // EX6-D.3: Now respects per-session `wallpaperId` override via `useEffectivePref`.
+// M13.1: a saved image wallpaper that is no longer on the server falls back to the default.
 // @see docs/phases/phase-6.md
 // @see docs/phases/phase-ex6.md
+// @see docs/phases/phase-13.md
 
 import { useEffect, useState } from 'react';
 import { HeadlessOSLogo, HeadlessOSWordmark } from '../../assets/logo';
@@ -11,6 +13,7 @@ import {
   findWallpaper,
   fetchWallpapers,
   BUILTIN_WALLPAPERS,
+  DEFAULT_WALLPAPER_ID,
   type WallpaperDefinition,
   type ImageWallpaper,
 } from './wallpapers';
@@ -21,17 +24,28 @@ interface WallpaperProps {
 }
 
 export function Wallpaper({ className = '' }: WallpaperProps) {
-  const wallpaperId = useEffectivePref('wallpaperId');
+  const savedId = useEffectivePref('wallpaperId');
   const [imageWallpapers, setImageWallpapers] = useState<ImageWallpaper[]>([]);
+  const [listLoaded, setListLoaded] = useState(false);
 
-  const isImageId = wallpaperId.startsWith('system:') || wallpaperId.startsWith('user:');
+  const savedIsImage = savedId.startsWith('system:') || savedId.startsWith('user:');
 
   // Fetch image wallpapers on mount + whenever wallpaperId switches to an image type
   useEffect(() => {
     fetchWallpapers()
-      .then((result) => setImageWallpapers([...result.system, ...result.user]))
+      .then((result) => {
+        setImageWallpapers([...result.system, ...result.user]);
+        setListLoaded(true);
+      })
       .catch(() => {}); // Fallback to builtins if server is unreachable
-  }, [isImageId]);
+  }, [savedIsImage]);
+
+  // M13.1: once the list is known, an image that is not in it (e.g. a removed system
+  // wallpaper) shows the default instead of a broken image
+  const wallpaperId = listLoaded && savedIsImage && !imageWallpapers.some((w) => w.id === savedId)
+    ? DEFAULT_WALLPAPER_ID
+    : savedId;
+  const isImageId = wallpaperId.startsWith('system:') || wallpaperId.startsWith('user:');
 
   // If wallpaperId is an image type and we have the URL pattern, render directly
   // without waiting for fetchWallpapers to resolve (avoids flash of builtin wallpaper)

@@ -65,7 +65,7 @@ are not secrets, and the screenshots are removed from the tree going forward.
 
 | Task ID | Task | Status |
 |---------|------|--------|
-| M13.1 | Remove the Apple and Microsoft wallpapers; a missing saved wallpaper falls back to the default | ⬜ |
+| M13.1 | Remove the Apple and Microsoft wallpapers; a missing saved wallpaper falls back to the default | ✅ |
 | M13.2 | MIT `LICENSE`, `license` field, README link | ⬜ |
 | M13.3 | Remove private project/server names from docs, comments and screenshots; ignore the inspect script's screenshot; design-folder references → phase-ex8 | ⬜ |
 | M13.4 | README matches the code | ⬜ |
