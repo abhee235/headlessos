@@ -1,7 +1,7 @@
 // EX3-A.4: Gauge Widget — arc gauge with threshold-based coloring
 // EX8.6: LumenOS "Processor" arc — 240° sweep, dotted tick ring, track arc,
 // accent value arc with rounded caps, white knob, big centred number.
-// @see docs/phases/phase-ex3.md, Custom OS UI Design/handoff/HANDOFF.md §3
+// @see docs/phases/phase-ex3.md, docs/phases/phase-ex8.md
 
 import { useId } from 'react';
 import type { z } from 'zod';

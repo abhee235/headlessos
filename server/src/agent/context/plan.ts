@@ -1,8 +1,8 @@
 // EX10.2: Context plan — every budget of an agent run, from one window
 // @see docs/phases/phase-ex10.md §2, docs/DECISIONS.md (ADR-025)
 //
-// Pure. Constants follow cascade-ai `context/compactionPlan.ts`, so on large
-// windows the trigger lands where Cascade's golden tests pin it.
+// Pure. Constants follow an earlier agent project's compaction plan, so on large
+// windows the trigger lands where its golden tests pin it.
 
 import { HOSTED_PLAN_CAP, recommendedMaxOutput, type ModelLimits } from '../../llm/model-limits.js';
 
@@ -59,7 +59,7 @@ export function planContext(limits: Pick<ModelLimits, 'contextWindow' | 'maxOutp
   const maxOutput = limits.maxOutputTokens;
   const reserve = Math.min(SUMMARY_OUTPUT_RESERVE, maxOutput, Math.floor(window * RESERVE_FRACTION));
   const effectiveWindow = window - reserve;
-  // the wire wall: prompt + a full reply must fit in the window. Cascade applies it only when
+  // the wire wall: prompt + a full reply must fit in the window. The earlier project applies it only when
   // the reply cap is small next to the window; on small windows that lets a reply overflow,
   // so it always applies here, never pulling the trigger below a quarter of the window.
   const trigger = Math.max(

@@ -40,9 +40,8 @@ Causes, all in our code:
   budget on hidden reasoning.
 - Traces price local models with a default rate ($0.16–$0.69 per run for a free model).
 
-Mitra and Cascade (sibling repos) already solved most of this; the mechanics below follow
-their engine (`cascade-ai/packages/core/src/context/`, `llm/providers/ollama.ts`), adapted
-to short, tool-heavy HeadlessOS runs.
+An earlier agent project of the author's already solved most of this; the mechanics below
+follow its engine, adapted to short, tool-heavy HeadlessOS runs.
 
 ## Design
 
@@ -69,7 +68,7 @@ interface ModelLimits {
 | Trained length | `POST /api/show` → `model_info` key matching `/(^\|\.)context_length$/` (not `original_context_length`) | ignored |
 
 `contextWindow = min(present inputs)`; when `/api/show` fails and no setting exists, 8,192
-(`source: 'default'`). `source` names the input that won. Mitra and Cascade take the first
+(`source: 'default'`). `source` names the input that won. The earlier project takes the first
 present input instead of the minimum; the minimum also stops an owner setting from going
 past what the model was trained for.
 
@@ -102,7 +101,7 @@ estimate, so the `chars / 4` guess is corrected by what the model actually count
 ### 2. Context plan (EX10.2)
 
 `server/src/agent/context/plan.ts`, a pure function of the window and the output cap
-(Cascade `planCompaction`, constants unchanged so the golden numbers carry over):
+(the earlier project's compaction plan, constants unchanged so the golden numbers carry over):
 
 ```
 reserve         = min(20 000, maxOutput, floor(window × 0.25))
@@ -361,7 +360,7 @@ NDJSON format with mocked streams; no model was run here.
 - `manager.ts` — `ContextManager` (`prepare`, `observe`, `used`, `lengthStrike` / `resetLength`,
   `isOverflowError`), `chatSummarizer(chat)` and `SUMMARY_SYSTEM`.
 
-The wire wall differs from Cascade on purpose: Cascade applies `window − maxOutput − 1024`
+The wire wall differs from the earlier project on purpose: it applies `window − maxOutput − 1024`
 only when the reply cap is under half the window, which on a 4K window with a 2K reply
 lets prompt + reply overflow. Here it always applies, with a floor of a quarter of the
 window. The worked numbers in §2 are unchanged by this.
@@ -542,13 +541,8 @@ Strings still work, so the fake-mode scenarios (which send strings) pass unchang
 
 The three `ornith:latest` runs priced at $0.16, $0.56 and $0.69 would now show $0.
 
-## Inspiration (read-only sibling repos)
+## Prior art
 
-- `cascade-ai/packages/core/src`: `llm/providers/ollama.ts` (`/api/show` detection,
-  `num_ctx`/`num_predict` on the wire, `think` fallback), `context/compactionPlan.ts` (the plan
-  formulas and golden tests), `context/compactor.ts` + `context/compactionLayers.ts` (layers,
-  recency shield, survival, breaker, monotonicity), `llm/resilience.ts` (overflow regex,
-  forced compaction + retry), `agent/agentLoop.ts` (cut-off reminder, overhead calibration),
-  `llm/contextWindows.ts` (window tiers 24k/96k). ADRs 037, 038, 039, 052, 078.
-- `mitra-ai`: the same engine in `packages/core`; ADR-039 (one `num_ctx` per model for side
-  calls), ADR-044 (KV-cache arithmetic for qwen3.5).
+Several mechanics in this phase follow an earlier, unpublished agent project of the author's.
+Everything HeadlessOS relies on is restated in this document; nothing here depends on that
+project.

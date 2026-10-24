@@ -5,7 +5,7 @@
 //   Font:  Geist Mono 13px when the user kept the default terminal font.
 //   Theme: dark ANSI palette, foreground --lumen-term-fg, cursor --lumen-accent-hi,
 //          selection --lumen-accent-glow, re-read when <html> `class` / `data-accent` change.
-// @see Custom OS UI Design/handoff/HANDOFF.md §3 Terminal, docs/phases/phase-ex8.md
+// @see docs/phases/phase-ex8.md
 
 import { useEffect, type RefObject } from 'react';
 import type { ITheme, Terminal } from '@xterm/xterm';

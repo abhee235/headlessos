@@ -6,7 +6,7 @@
 // results → summarize the older region (optional, 3-failure breaker) → drop the oldest
 // groups → survival (shield of one). A layer that does not shrink the history is skipped.
 // observe(): corrects the chars/4 estimate with the provider's real prompt count.
-// Mechanics after cascade-ai `context/compactor.ts`.
+// Mechanics after an earlier agent project's compactor.
 
 import type { ChatMessage, ChatWithToolsInput, ChatWithToolsResult } from '../../llm/provider.js';
 import type { ContextPlan } from './plan.js';
@@ -72,7 +72,7 @@ export class ContextManager {
     return estimateTokens(messages) + Math.max(staticOverhead, this.measuredOverhead ?? 0);
   }
 
-  /** After a call: calibrate against the real prompt count (EMA, as Cascade's measureWireOverhead). */
+  /** After a call: calibrate against the real prompt count (an exponential moving average). */
   observe(realInputTokens: number | undefined, sent: ChatMessage[]): void {
     if (!realInputTokens || realInputTokens <= 0) return;
     const measured = Math.max(0, realInputTokens - estimateTokens(sent));

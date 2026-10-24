@@ -960,7 +960,7 @@ None (all changes to existing files).
 
 ## EX8: LumenOS v3 Design System
 
-> Glass redesign from the Claude Design handoff (`Custom OS UI Design/handoff/`). Spec: [phase-ex8.md](phases/phase-ex8.md).
+> Glass redesign from a design handoff (kept outside the repository). Spec: [phase-ex8.md](phases/phase-ex8.md).
 
 ### EX8.1: Tokens + appearance plumbing
 - **Status:** ✅ Complete
@@ -1104,6 +1104,14 @@ None (all changes to existing files).
 - **Files created:** `LICENSE` (MIT, © 2026 abhee235)
 - **Files modified:** `package.json` (`"license": "MIT"`), `README.md` (licence links to the file)
 - **Verification:** matches `electron/package.json` (already MIT); no code change
+
+### M13.3: Private project and server names removed
+- **Status:** ✅ Complete
+- **Date:** 2026-10-25
+- **Files deleted (13 screenshots):** `dev/screenshot.png`, `dev/screenshot-startmenu.png` (two public server IPs); `dev/screenshot-docker-{containers,images,kong-logs,logs}.png` (a private project's containers and image); `dev/observatory-{fixed-panels,llm-span,screenshot,slider-fixed,tool-span}.png`, `dev/personalize-working.png`, `dev/screenshot-login.png` (the test VPS's name)
+- **Files modified:** `docs/DECISIONS.md` (ADR-024/025), `docs/PROGRESS.md`, `docs/phases/{phase-ex9,phase-ex10}.md` (sibling projects described generically; "Inspiration" sections → "Prior art"), `docs/phases/phase-ex8.md` and `docs/TRACEABILITY.md` (design handoff described without its folder), `server/src/agent/{actions/tools,context/manager,context/plan,loop/loop-guard,loop/tool-input}.ts` (comments), `client/src/components/{Agent/agent-ui,DynamicUI/widgets/GaugeWidget,DynamicUI/widgets/widget-card,Terminal/lumen-terminal}.ts(x)` (`@see` → phase-ex8), `server/tests/agent/context/plan.test.ts` (test name), `.gitignore` (`dev/screenshot.png`)
+- **Local only:** `.git/info/exclude` keeps the design-handoff folder out of git without naming it in the repo
+- **Verification:** `git grep` finds no private project names, server labels, IPs or design-folder paths in tracked text; both typechecks clean; context tests pass. History is not rewritten (owner's decision: the IPs are not secrets)
 
 ## EX10: Context Engineering for Agents
 

@@ -7,13 +7,9 @@
 
 ## Source of truth
 
-The design handoff lives outside the repo tree in `Custom OS UI Design/handoff/`
-(untracked design input, not app code):
-
-- `HANDOFF.md` — the component-by-component spec (radii, sizes, surfaces).
-- `lumen-tokens.css` — the token layer merged into `client/src/styles.css`.
-- `reference/LumenOS v3.dc.html` — the clickable prototype. Serve the
-  `reference/` folder over HTTP and open it to compare screens side by side.
+The design handoff (a component-by-component spec, a token stylesheet and a clickable
+prototype) was design input kept outside the repository. What it specified is recorded in
+this document; its token layer was merged into `client/src/styles.css`.
   `Activity`, `SystemDash` and `ServerAdmin` `.dc.html` files are per-app references.
 
 ## Decisions

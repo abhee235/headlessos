@@ -1123,7 +1123,7 @@ A `FilesService` was scoped but **deferred**. Rationale: file routes already use
 **Context:**
 Both agents send model-written command strings to the server. They pass a prefix-regex allowlist (`agent/command-allowlist.ts`) that does not parse the shell: `cat /var/log/$(touch /tmp/x)` matches `^cat\s+\/var\/log\/` and runs the substitution. The UI Agent also has `exec_write_command` and `sftp_write`, which change servers with no human approval. Generated view buttons carry model-written command templates checked against the classic `ALLOWED_COMMANDS`, which includes `docker rm` and `apt remove`. `CommandPolicy` (ADR-023) gates every exec but cannot tell an agent's command from a classic app's, and defaults to `audit`.
 
-We also want agents to work with small local models (Ollama). Those models write malformed JSON, use the wrong argument names, and only use tools that are in their native tool list (mitra-ai ADR-055: qwen3.5:9b scored 88% with every tool listed natively, 40% with tools described as text, 23% when it had to search for tools; shorter descriptions did not help).
+We also want agents to work with small local models (Ollama). Those models write malformed JSON, use the wrong argument names, and only use tools that are in their native tool list (a tool-selection study in an earlier agent project: qwen3.5:9b scored 88% with every tool listed natively, 40% with tools described as text, 23% when it had to search for tools; shorter descriptions did not help).
 
 **Options Considered:**
 1. **Harden the regexes** — reject `$(`, backticks, `;`, etc. in agent commands. Still a blocklist over free text; every new escape (`find -exec`, `awk system()`, `tar --to-command`, all found in H2) needs another rule, and model-written commands remain unreadable to an owner approving them.
@@ -1143,7 +1143,7 @@ We also want agents to work with small local models (Ollama). Those models write
 **Rationale:**
 - The shell never sees model text: it sees argv built by our code from values that passed a schema. Injection becomes a schema bug in one place, testable per action, instead of an open-ended regex race.
 - An owner can approve `systemctl restart nginx` in two seconds; they cannot audit a model-written pipeline.
-- Native tools with strict schemas, plus server-side repair of malformed arguments, are what small models need (cascade-ai's repair/alias experience, mitra-ai ADR-055).
+- Native tools with strict schemas, plus server-side repair of malformed arguments, are what small models need (experience with argument repair and aliases, and the tool-selection study, from an earlier agent project).
 - The policy check makes "agents only run actions" a property of `ConnectionManager`, not of each tool's author.
 
 **Consequences:**
@@ -1169,14 +1169,14 @@ Agent runs on a local model failed because the window filled up. The Ollama wind
 
 **Options Considered:**
 1. **Raise the cap and keep EX9.4 trimming** — fixes this one model, leaves the executor, the planner and the reviewer unmanaged, and keeps four separate budget formulas.
-2. **Mitra/Cascade precedence chain** — owner setting, else Modelfile `num_ctx`, else trained length capped at 32K, else a table. Proven, but an owner setting can exceed what the model was trained for.
+2. **Precedence chain** (as an earlier agent project does it) — owner setting, else Modelfile `num_ctx`, else trained length capped at 32K, else a table. Proven, but an owner setting can exceed what the model was trained for.
 3. **Minimum of all known limits, one plan derived from it** — window = min(owner setting or 64K auto cap, Modelfile `num_ctx`, trained length) for Ollama, a model table capped at 128K for hosted models; every budget, the prompt tier and the compaction thresholds come from one pure `planContext(window, maxOutput)`; one context manager per run in both agents.
 
-**Decision:** Option 3, with Cascade's plan formulas and compaction layers.
+**Decision:** Option 3, with plan formulas and compaction layers proven in an earlier agent project.
 
 - Window: minimum of the limits we know (Ollama), table ∧ 128K (hosted). Free VRAM is not an input (Ollama does not report it); the KV-cache cost is estimated from `model_info` and shown, and `/api/ps` shows whether the model spilled to the CPU.
 - Wire: `num_ctx = window`, `num_predict = min(max(window/8, 2048), 16384)`, `think: false` on every Ollama request.
-- Plan: reserve, trigger, hard, keep-recent, stop point, mask size, result cap, action budget and prompt tier, all from the window and the output cap (constants from Cascade's `compactionPlan.ts`).
+- Plan: reserve, trigger, hard, keep-recent, stop point, mask size, result cap, action budget and prompt tier, all from the window and the output cap (constants proven in an earlier agent project).
 - Compaction before every call, cheapest first: collapse superseded views, mask long old results, stub old action results, summarize (optional, with a 3-failure breaker), then drop. The system prompt, the request and the latest four tool calls always stay.
 - Token estimates are corrected from the provider's real prompt-token count.
 - Cut-off replies and overflow errors are handled explicitly (reminder + compaction, at most 3; forced compaction + retry, at most 2).
@@ -1184,7 +1184,7 @@ Agent runs on a local model failed because the window filled up. The Ollama wind
 **Rationale:**
 - One number drives every budget, so they cannot disagree (EX9 had separate formulas for actions, result caps and history).
 - The minimum is the conservative reading of "what the model can do here": it never asks Ollama for more than the model was trained for, and the 64K auto cap keeps the KV cache to ~2 GiB on the model that failed.
-- Cascade's formulas are proven on the same class of local models, and its golden tests carry over.
+- The formulas are proven on the same class of local models, and their golden tests carry over.
 - HeadlessOS-specific waste (resending and echoing whole views) is removed at the source and collapsed by the first compaction layer.
 
 **Consequences:**

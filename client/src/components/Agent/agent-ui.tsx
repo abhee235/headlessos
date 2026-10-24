@@ -4,7 +4,7 @@
 //   PRESET_TILE   — glass tile for quick prompts / history rows (radius 18px)
 //   BUBBLE        — message / step bubble (bg-mat-thin, border-edge, radius 18px)
 //   Composer      — pill field (bg-field, border-edge) holding the textarea + round send button
-// @see Custom OS UI Design/handoff/HANDOFF.md §2
+// @see docs/phases/phase-ex8.md
 
 import * as React from 'react';
 import type { LucideIcon } from 'lucide-react';

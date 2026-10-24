@@ -16,7 +16,7 @@ describe('planContext', () => {
     expect(hosted).toMatchObject({ maxOutput: 16_000, reserve: 16_000, trigger: 99_000, hard: 109_000, keepRecent: 28_000, stopAt: 99_000, actionBudget: 40, tier: 'full' });
   });
 
-  it('reproduces Cascade’s golden trigger on large windows: window − 20K − 13K', () => {
+  it('reproduces the reference golden trigger on large windows: window − 20K − 13K', () => {
     for (const window of [131_072, 200_000, 1_000_000]) {
       expect(planContext({ contextWindow: window, maxOutputTokens: 20_000, local: false }).trigger).toBe(window - 20_000 - 13_000);
     }

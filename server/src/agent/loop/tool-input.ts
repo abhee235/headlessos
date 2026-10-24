@@ -1,6 +1,6 @@
 // EX9.3: Weak-model input handling — what small local models send, made usable
-// @see docs/phases/phase-ex9.md §8 (after cascade-ai llm/jsonRepair.ts,
-//      llm/proseToolCalls.ts and tools/inputNormalizer.ts)
+// @see docs/phases/phase-ex9.md §8 (after an earlier agent project's JSON repair,
+//      prose tool-call and input-normalizer code)
 //
 // 1. Tool arguments arrive as an object (Ollama) or a string (OpenAI). Strings that
 //    are not valid JSON go through a syntax-only repair ladder.

@@ -4,7 +4,7 @@
 //   Meter       — 6px recessed track with a lit (or semantic) fill
 //   LumenAlert  — .lumen-section (radius 20px) with a tinted round icon
 //   PANE_CLASS  — recessed bg-paper pane (radius 14px, mono) for code, logs, trees, JSON
-// @see Custom OS UI Design/handoff/HANDOFF.md §3 "DynamicUI widgets"
+// @see docs/phases/phase-ex8.md
 
 import * as React from 'react';
 import { AlertCircle, AlertTriangle, CheckCircle2, Info } from 'lucide-react';
