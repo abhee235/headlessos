@@ -1080,6 +1080,16 @@ None (all changes to existing files).
 - **Tests modified:** `server/tests/agent/executor.test.ts` (wrapping), `server/tests/agent/investigation-agent.test.ts` (prompt rule)
 - **Verification:** server 2329 passed (+2 skipped), client 643, both typechecks clean
 
+## M13: Release Readiness
+
+> Prepare the repository to be made public. Spec: [phase-13.md](phases/phase-13.md).
+
+### M13 docs: spec
+- **Status:** ✅ Complete
+- **Date:** 2026-10-25
+- **Files created:** `docs/phases/phase-13.md`
+- **Files modified:** `docs/PROGRESS.md` (M13 row, section, changelog), `docs/TRACEABILITY.md`
+
 ## EX10: Context Engineering for Agents
 
 > One context plan per model window drives every agent budget. Spec: [phase-ex10.md](phases/phase-ex10.md), decision: ADR-025.
