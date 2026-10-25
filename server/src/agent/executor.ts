@@ -22,7 +22,7 @@ import type { PlannerHints } from './planner.js';
 // Canonical ReflectionIssue (derived from reflector's Zod schema); re-exported below
 // so existing importers of it from this module keep working and both modules share one type.
 import type { ReflectionIssue } from './reflector.js';
-import { isLLMDegenerate, isLLMTimeout, type ChatMessage } from '../llm/provider.js';
+import { isLLMIncomplete, isLLMTimeout, isUnusableReply, type ChatMessage } from '../llm/provider.js';
 import { withSpan, withSpanGen, setSpanAttributes } from '../observatory/context.js';
 import { getDefaultCatalog } from './actions/catalog/index.js';
 import { checkToolArgs, dropNullArgs, extractProseToolCalls, malformedArgsMessage, parseToolArgs } from './loop/tool-input.js';
@@ -256,6 +256,9 @@ export const VIEW_OUT_OF_STEPS =
 /** EX10.13: a reply that broke down into repeated characters is dropped and asked again (twice) */
 export const VIEW_GARBLED =
   'Your last reply broke down into repeated characters and was discarded. Send your next step again as ONE tool call.';
+/** EX10.13 follow-up: Ollama closed the reply before it was finished (LLMIncompleteError) */
+export const VIEW_UNFINISHED =
+  'Your last reply ended before it was finished and was discarded. Send your next step again as ONE tool call, with plain values.';
 const MAX_GARBLED = 2;
 
 function compactionNote(e: CompactionEvent): string {
@@ -448,14 +451,19 @@ export class ReactiveExecutor {
       forceCompaction = false;
       if (prepared.messages !== messages) messages.splice(0, messages.length, ...prepared.messages);
       for (const e of prepared.events) yield { type: 'thinking', message: compactionNote(e) };
+      // EX10.11 follow-up: a result read again after it was trimmed is not a repeat
+      if (prepared.events.some((e) => e.layer !== 'collapse')) guard.reset();
 
       // Call LLM with native function calling
       let response: Awaited<ReturnType<ModelRouter['chat']>>;
       try {
+        // EX10.4 follow-up: after a cut-off or timeout, a smaller cap for the retry
+        const cap = ctx.replyCap();
         response = await this.modelRouter.chat({
           messages,
           tools: openAITools,
           tool_choice: 'auto',
+          ...(cap ? { maxTokens: cap } : {}),
         });
       } catch (err) {
         // EX10.4 follow-up: the reply took too long — like a cut-off: a smaller step (3 times), then stop
@@ -469,18 +477,27 @@ export class ReactiveExecutor {
           yield* finishEarly(lastPartialView, err.alive === false ? 'the model stopped answering' : 'the model kept taking too long to answer');
           return;
         }
-        // EX10.13: a garbled reply is dropped and asked again (twice), then stop
-        if (isLLMDegenerate(err)) {
+        // EX10.13: a garbled or unfinished reply is dropped and asked again (twice), then stop
+        if (isUnusableReply(err)) {
+          const unfinished = isLLMIncomplete(err);
           if (garbledRetries++ < MAX_GARBLED) {
-            appendNote(messages, VIEW_GARBLED);
-            yield { type: 'thinking', message: 'The model’s reply broke down into repeated characters; asking again' };
+            appendNote(messages, unfinished ? VIEW_UNFINISHED : VIEW_GARBLED);
+            yield {
+              type: 'thinking',
+              message: unfinished ? 'Ollama ended the model’s reply before it was finished; asking again' : 'The model’s reply broke down into repeated characters; asking again',
+            };
             continue;
           }
-          yield* finishEarly(lastPartialView, 'the model’s replies kept breaking down into repeated characters');
+          yield* finishEarly(lastPartialView, unfinished ? 'Ollama kept ending the model’s replies before they were finished' : 'the model’s replies kept breaking down into repeated characters');
           return;
         }
         // EX10.4: the provider refused the prompt as too long — compact harder and retry (twice)
-        if (!ContextManager.isOverflowError(err)) throw err;
+        if (!ContextManager.isOverflowError(err)) {
+          // EX10.4 follow-up: a call that still fails after the provider's own retries ends the
+          // run with what was built, not with a bare error
+          yield* finishEarly(lastPartialView, `the model call failed (${err instanceof Error ? err.message : String(err)})`);
+          return;
+        }
         if (overflowRetries++ < MAX_OVERFLOW_RETRIES) {
           forceCompaction = true;
           stepCount--;

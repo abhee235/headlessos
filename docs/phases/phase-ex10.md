@@ -709,6 +709,21 @@ the two share the same three strikes.
   (`final.reason: 'length'`).
 - Other errors are thrown as before.
 
+**Follow-ups (§8d items 7 and 10).**
+
+- **A call that keeps failing keeps the view.** The executor ends the run with the EX10.4
+  early stop, "the model call failed (<error>)". This covers any error other than
+  overflow, a timeout or an unusable reply, after the provider's own retries.
+- **A cut-off shrinks the next reply.** Both loops send `maxTokens: ctx.replyCap()`.
+  `ContextManager.replyCap()` halves the plan's cap per cut-off or timeout strike, never
+  below `MIN_REPLY_CAP` (2,048) or above the plan's cap. It is undefined, meaning the
+  plan's own cap, once `resetLength()` runs.
+- **Live (logs request):**
+  - 08:28, before the cap: two cut-offs at 8,192 tokens (132 s and 162 s); 387 s in all.
+  - 08:38 and 08:43: the first view attempt was cut at 8,192 tokens (144 s, 146 s). The
+    capped retry came back in 64–67 s with 3,844 and 3,671 tokens. Both runs completed
+    (6 widgets, 311 s; 302 s).
+
 ## EX10.5 — View tools (as built)
 
 `server/src/agent/tools/view-arg.ts`:
@@ -867,6 +882,30 @@ The two not counted as answered (memory, failed services) stopped on repeated fa
 commands `fake-server` has no canned output for. Their hand-overs still answered: a memory
 table, and `certbot.service` as the failing service. No earlier score was recorded to
 compare with.
+
+**Follow-ups (§8d items 1 and 3, and the loops' side of item 6).**
+
+- **Trimmed results.** `LoopGuard.reset()` clears every count. Both loops call it after a
+  compaction with any layer other than `collapse`: the shared loop inside `call()`, the
+  executor after `prepare()`.
+- **Unusable replies** (`isUnusableReply`) are dropped and asked again, at most twice
+  between them:
+  - a garbled one with `GARBLED` / `VIEW_GARBLED`;
+  - an unfinished one with `UNFINISHED` / `VIEW_UNFINISHED` ("Your last reply ended before
+    it was finished and was discarded …").
+- **Endings:**
+  - The shared loop's tools-off wrap-up says "Your replies keep coming back broken". If
+    that answer is unusable too, the run ends as the `garbled` final, with "No answer: the
+    model's replies kept coming back broken."
+  - The executor stops early with "the model's replies kept breaking down into repeated
+    characters" or "Ollama kept ending the model's replies before they were finished".
+- **Live (`runAgentLoop` on `ornith:latest`):**
+  - A literal of 500 `a`: three garbled turns were dropped, then the tools-off answer
+    (7.3 s).
+  - A tool call stuffed with them: two re-asks with the unfinished note. The tools-off
+    answer was unusable as well, and the run ended with the no-answer text (9.1 s).
+- **Benchmark after all §8d fixes:** picked 100%, answered 11 of 12. On average 2.0 steps,
+  9,092 tokens and 5.6 s; no transient retries.
 
 ## EX10.12 — Errors that steer (as built)
 

@@ -65,6 +65,18 @@ export class LoopGuard {
     this.finish = opts.finish ?? 'give your answer';
   }
 
+  /**
+   * EX10.11 follow-up: compaction trimmed or dropped tool results, and the model was told to
+   * run a call again if it needs the output; a repeat now is not going in circles.
+   */
+  reset(): void {
+    this.entries.clear();
+    this.lastCall = null;
+    this.inARow = 0;
+    this.previousTurn = new Set();
+    this.thisTurn = new Set();
+  }
+
   /** Before running: a call already warned about, made again right after the turn it was made in. */
   blocked(name: string, input: unknown): boolean {
     const key = callKey(name, input);

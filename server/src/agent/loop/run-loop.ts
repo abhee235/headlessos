@@ -9,7 +9,7 @@
 // action waits) → feed results back. A turn with text and no tool call is the
 // answer. When turns run out, one last turn with tools off asks for a conclusion.
 
-import { isLLMDegenerate, isLLMTimeout, type ChatMessage, type ChatWithToolsInput, type ChatWithToolsResult } from '../../llm/provider.js';
+import { isLLMIncomplete, isLLMTimeout, isUnusableReply, type ChatMessage, type ChatWithToolsInput, type ChatWithToolsResult } from '../../llm/provider.js';
 import type { AgentTool, ToolContext } from '../tools/types.js';
 import { toolsToOpenAIFunctions } from '../tools/tool-converter.js';
 import { checkGuardrails } from '../guardrails.js';
@@ -81,7 +81,11 @@ export const ANNOUNCED = 'You said what you would do next but did not call a too
 /** EX10.13: a reply that broke down into repeated characters is discarded and asked again this many times a run */
 export const MAX_GARBLED = 2;
 export const GARBLED = 'Your last reply broke down into repeated characters and was discarded. Send your next step again: one tool call, or a short answer.';
-const GARBLED_WRAP_UP = 'Your replies keep breaking down into repeated characters. In at most five sentences, give your best answer from what you have gathered. Do not call tools.';
+/** EX10.13 follow-up: Ollama closed the reply before it was finished (LLMIncompleteError) */
+export const UNFINISHED = 'Your last reply ended before it was finished and was discarded. Send your next step again: one tool call with plain values, or a short answer.';
+const GARBLED_WRAP_UP = 'Your replies keep coming back broken. In at most five sentences, give your best answer from what you have gathered. Do not call tools.';
+/** EX10.13 follow-up: the tools-off answer was unusable as well */
+export const GARBLED_NO_ANSWER = "No answer: the model's replies kept coming back broken.";
 
 export async function* runAgentLoop(opts: LoopOptions): AsyncGenerator<LoopEvent> {
   const span = opts.spanName ?? 'AgentLoop';
@@ -111,6 +115,8 @@ export async function* runAgentLoop(opts: LoopOptions): AsyncGenerator<LoopEvent
       const prepared = await ctx.prepare(messages, overhead, { force: attempt > 0 });
       if (prepared.messages !== messages) messages.splice(0, messages.length, ...prepared.messages);
       for (const e of prepared.events) pending.push({ type: 'compacted', turn, ...e });
+      // EX10.11 follow-up: a result read again after it was trimmed is not a repeat
+      if (prepared.events.some((e) => e.layer !== 'collapse')) guard.reset();
       const sent = [...messages];
       try {
         const res = await withSpan(label, 'LLM', async () => {
@@ -147,7 +153,9 @@ export async function* runAgentLoop(opts: LoopOptions): AsyncGenerator<LoopEvent
     }
     let res: ChatWithToolsResult;
     try {
-      res = await call({ tools: offered, tool_choice: 'auto' }, `${span}.think[${turn}]`, turn);
+      // EX10.4 follow-up: after a cut-off or timeout, a smaller cap for the retry
+      const cap = ctx.replyCap();
+      res = await call({ tools: offered, tool_choice: 'auto', ...(cap ? { maxTokens: cap } : {}) }, `${span}.think[${turn}]`, turn);
     } catch (err) {
       yield* pending.splice(0);
       // EX10.4 follow-up: too slow is treated like cut off — remind, then a short tools-off answer
@@ -160,10 +168,10 @@ export async function* runAgentLoop(opts: LoopOptions): AsyncGenerator<LoopEvent
         cutOff = true;
         break;
       }
-      // EX10.13: a garbled reply is dropped and asked again (twice), then a short tools-off answer
-      if (isLLMDegenerate(err)) {
+      // EX10.13: a garbled or unfinished reply is dropped and asked again (twice), then a short tools-off answer
+      if (isUnusableReply(err)) {
         if (garbledRetries++ < MAX_GARBLED) {
-          appendNote(messages, GARBLED);
+          appendNote(messages, isLLMIncomplete(err) ? UNFINISHED : GARBLED);
           continue;
         }
         garbled = true;
@@ -258,6 +266,11 @@ export async function* runAgentLoop(opts: LoopOptions): AsyncGenerator<LoopEvent
     yield { type: 'final', text, reason: cutOff ? 'length' : garbled ? 'garbled' : stuck ? 'stuck' : 'max_turns', turns: lastTurn, tokens };
   } catch (err) {
     yield* pending.splice(0);
+    // EX10.13 follow-up: an unusable last answer is still the garbled ending, not a failure
+    if (isUnusableReply(err)) {
+      yield { type: 'final', text: GARBLED_NO_ANSWER, reason: 'garbled', turns: lastTurn, tokens };
+      return;
+    }
     yield { type: 'error', message: err instanceof Error ? err.message : String(err), turns: lastTurn, tokens };
   }
 }

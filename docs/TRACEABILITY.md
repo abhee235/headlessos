@@ -1270,6 +1270,15 @@ None (all changes to existing files).
 - **Tests modified:** `server/tests/agent/context/manager.test.ts` (the latest five results stay whole); the shield's own tests ship with the EX10.11 follow-up (`tests/agent/context/shield.test.ts`)
 - **Verification:** replay of the 07:11 trace (one compaction, 53,431 → 21,079, instead of two); server suite green
 
+### EX10.11 follow-up: the loops after the live checks
+- **Status:** ✅ Complete
+- **Date:** 2026-10-25
+- **Files created:** `server/tests/agent/context/shield.test.ts` (protected tail, the 07:16 shape on the 64K plan, whole-turn drops, guard reset in both loops, reply cap in both loops)
+- **Files modified:** `server/src/agent/loop/loop-guard.ts` (`reset`), `server/src/agent/loop/run-loop.ts` (reset on compaction, `UNFINISHED`, `GARBLED_NO_ANSWER`, unusable final answer, `maxTokens` from `replyCap`), `server/src/agent/executor.ts` (reset on compaction, `VIEW_UNFINISHED`, failing calls end with the early stop, `maxTokens` from `replyCap`), `CLAUDE.md`
+- **Docs:** `docs/phases/phase-ex10.md` (§8d items 1, 3, 6, 7, 10; "EX10.4 — as built" and "EX10.11 — as built" follow-ups), `docs/PROGRESS.md` (changelog)
+- **Tests modified:** `server/tests/agent/context/executor-context.test.ts` (a failing call keeps the view), `server/tests/agent/context/executor-loop-control.test.ts` (unfinished replies), `server/tests/agent/loop/loop-control.test.ts` (unusable final answer, unfinished note)
+- **Verification:** server 2458 passed (+2 skipped), client 650, both typechecks clean; live: logs 311 s / 302 s with the capped retry, overview 63 s, benchmark 11/12
+
 ## How to Use This File
 
 ### After completing a task:
