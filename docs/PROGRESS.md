@@ -42,7 +42,7 @@
 | **EX7: Container Target Mode** | **Experimental** | **✅** | **10/10 tasks** | [phase-ex7](phases/phase-ex7.md) |
 | **EX8: LumenOS v3 Design System** | **Experimental** | **✅** | **9/9 tasks** | [phase-ex8](phases/phase-ex8.md) |
 | **EX9: Safe Agents (Actions, Approvals, Local Models)** | **Experimental** | **✅** | **6/6 tasks** | [phase-ex9](phases/phase-ex9.md) |
-| **EX10: Context Engineering for Agents** | **Experimental** | **🔄** | **8/13 tasks** | [phase-ex10](phases/phase-ex10.md) |
+| **EX10: Context Engineering for Agents** | **Experimental** | **🔄** | **9/13 tasks** | [phase-ex10](phases/phase-ex10.md) |
 
 ---
 
@@ -78,7 +78,7 @@
 | EX10.9 | Follow-up requests refine the open view; unclear requests get a question | ⬜ | |
 | EX10.10 | Widget-by-widget building with server-filled data (own ADR) | ⬜ | |
 | EX10.11 | Loop control in the UI Agent: loop guard in the executor (previous-turn repeats), stuck runs finish with the view or a wrap-up turn, steps-left warning, notes on the last tool result, announced-but-not-made calls | ⬜ | |
-| EX10.12 | Errors that steer: a missing file says so, says not to retry, and lists its folder | ⬜ | |
+| EX10.12 | Errors that steer: a missing file says so, says not to retry, and lists its folder | ✅ | Live: after one turn of missing logs the model read the files the listing named; a broken view string now says what is still wrong ("sections.system-logs.layout: missing…"), and the next call fixed it — the logs request completed with 7 widgets in 139 s (was an empty view after 135 s) |
 | EX10.13 | Garbled replies cut off and asked again; a slow start is checked before giving up | ✅ | A reply that turns into one repeated character is stopped at 200 of them and the request closed; a silence (no first chunk in 180 s, or none for 60 s mid-reply) is checked against `/api/ps` and waited out up to 600 s / 900 s while Ollama is up, or ends at once (`alive: false`) when it is not. Mocked streams only |
 
 ---

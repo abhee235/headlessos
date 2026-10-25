@@ -2,7 +2,7 @@
 // @see docs/phases/phase-ex10.md §6
 
 import { describe, it, expect, vi } from 'vitest';
-import { jsonErrorAt, readViewArg, viewCounts } from '../../../src/agent/tools/view-arg.js';
+import { hoistTopLevel, jsonErrorAt, readViewArg, viewCounts, viewProblems } from '../../../src/agent/tools/view-arg.js';
 import { updateViewTool } from '../../../src/agent/tools/update-view.js';
 import { generateSchemaTool } from '../../../src/agent/tools/generate-schema.js';
 import { validateSchemaTool } from '../../../src/agent/tools/validate-schema.js';
@@ -126,5 +126,44 @@ describe('misplaced brackets (2026-10-22 runs)', () => {
     expect(shown.map((p) => Object.values(p.properties)[0]!.type)).toEqual(['object', 'object', 'object']);
     expect(JSON.stringify(shown)).not.toContain('"string"');
     expect(await updateViewTool.execute({ view: JSON.stringify(VIEW) }, ctx)).toMatchObject({ success: true });
+  });
+});
+
+// EX10.12: the logs run of 2026-10-25 07:30 — sidebarItems and title inside sections, and a
+// section without a layout; the model was told only where the JSON broke
+describe('view strings that steer (EX10.12)', () => {
+  const ITEMS = '"sidebarItems":[{"id":"logs","label":"Logs"}],"title":"Logs"';
+  const SECTION = '"logs":{"layout":"stack","children":[{"type":"alert","message":"No journal"}],"gap":"sm"}';
+
+  it('moves the view’s own keys back out of sections when that makes a valid view', () => {
+    const broken = `{"description":"d","sections":{${SECTION},${ITEMS}}`; // sections closed at the very end
+    expect(() => JSON.parse(broken)).toThrow();
+    const r = readViewArg(broken, 'view');
+    expect(r).toMatchObject({ ok: true, repaired: true });
+    expect((r as { value: Record<string, unknown> }).value).toEqual({
+      description: 'd', title: 'Logs', sidebarItems: [{ id: 'logs', label: 'Logs' }],
+      sections: { logs: { layout: 'stack', children: [{ type: 'alert', message: 'No journal' }], gap: 'sm' } },
+    });
+  });
+
+  it('moves only values that fit the key', () => {
+    expect(hoistTopLevel({ sections: { title: { layout: 'stack', children: [] } } })).toBeNull(); // a section called "title"
+    expect(hoistTopLevel({ title: 'T', sections: { title: 'x' } })).toBeNull(); // already at the top
+    expect(hoistTopLevel('x')).toBeNull();
+  });
+
+  it('says what is still wrong once the brackets close', () => {
+    const noLayout = SECTION.replace('"layout":"stack",', '');
+    const broken = `{"description":"d","sections":{${noLayout},${ITEMS}}`;
+    const r = readViewArg(broken, 'view');
+    expect(r.ok).toBe(false);
+    expect((r as { error: string }).error).toMatch(
+      /^Invalid JSON in view at character \d+ \(….*…\)\. Fix that spot and send the view again as a JSON object, not a string\. With the brackets fixed, the view still has: sections\.logs\.layout: missing or wrong, expected one of stack, grid, tabs\.$/,
+    );
+  });
+
+  it('names at most three problems, in plain words', () => {
+    expect(viewProblems({ sections: {} })).toBe('title: missing (string); sidebarItems: missing (array)');
+    expect(viewProblems({ title: 'T', sidebarItems: [], sections: {} })).toBe('');
   });
 });

@@ -307,7 +307,7 @@ An earlier agent project of the author's handles this in layers, which these tas
    - **One wrap-up turn.** It offers only `generate_schema`, with "You are stuck repeating X.
      Stop gathering data. Call generate_schema now with the data you already have …". A
      valid view completes the run. A small model may call `update_view` instead, though it
-     is not offered (it did in the first run after this change); its view counts the same.
+     is not offered (it did in the 07:30 UTC run); its view counts the same.
    - **The EX10.4 early stop.** The reason is "the model kept repeating X without getting
      anything new".
    A run that runs out of steps gets the same wrap-up turn before the EX10.4 early stop.
@@ -340,9 +340,9 @@ Edge cases:
 - a permission error: the error says the login user cannot read the file, and not to retry.
 
 The same goes for a view sent as a string that does not parse (`update_view`,
-`generate_schema`, `validate_schema`). In the first logs run after EX10.11 (07:24 UTC) the
-model sent three slightly different broken strings, five times in all. It was told only
-where the JSON broke. Its section had no `layout`, which nothing told it.
+`generate_schema`, `validate_schema`). In a logs run after the EX10.11 loop guard was in
+(07:30 UTC) the model sent three slightly different broken strings, five times in all. It
+was told only where the JSON broke. Its section had no `layout`, which nothing told it.
 
 - **Keys pushed into `sections`.** When closing the brackets leaves the view's own keys
   (`title`, `description`, `icon`, `sidebarItems`, `meta`) inside `sections`, because a
@@ -411,7 +411,7 @@ where the JSON broke. Its section had no `layout`, which nothing told it.
 | EX10.9 | Follow-up requests refine the open view; unclear requests get a question | ⬜ |
 | EX10.10 | Widget-by-widget building with server-filled data (`add_widget`, `WorkingView`, `finish`) — own ADR | ⬜ |
 | EX10.11 | Loop control in the UI Agent: the EX9.4 loop guard in the executor (previous-turn repeats); a stuck run finishes with its view or a wrap-up turn; steps-left warning; notes on the last tool result; announced-but-not-made calls in the shared loop | ⬜ |
-| EX10.12 | Errors that steer: a missing file says so, says not to retry, and lists its folder | ⬜ |
+| EX10.12 | Errors that steer: a missing file says so, says not to retry, and lists its folder | ✅ |
 | EX10.13 | Garbled replies cut off and asked again; a slow start is checked before the wait is given up | ✅ |
 
 ## EX10.1 — Model limits (as built)
@@ -664,6 +664,46 @@ Strings still work, so the fake-mode scenarios (which send strings) pass unchang
 - Tokens are still counted everywhere.
 
 The three `ornith:latest` runs priced at $0.16, $0.56 and $0.69 would now show $0.
+
+## EX10.12 — Errors that steer (as built)
+
+`agent/actions/runner.ts`: `readFile` sends the SFTP errors of `realpath` and `stat` to
+`steeringError(sftp, path, err)`.
+
+- **No such file (SFTP status 2).** The folder is resolved with `realpath`. If it is under
+  the read roots and not a secret path, it is read with `readdir`: `.`, `..` and secret
+  paths are dropped, folders get a `/`, and the names are sorted. The first `LISTED_NAMES`
+  (30) are shown, then "(and N more)". The listing is redacted and goes in `stdout`, so the
+  model sees it inside `<server_output>`; the error says not to read the file again.
+  - A missing folder gives "… and neither does <folder>."
+  - Outside the roots, or when `readdir` fails, there is no listing.
+- **Permission denied (status 3).** "<path> cannot be read by the login user. Do not read it
+  again."
+- **Anything else** is re-thrown and sanitized, as before.
+
+`agent/tools/view-arg.ts`:
+
+- `hoistTopLevel(value)` moves `title`, `description`, `icon`, `sidebarItems` and `meta` out
+  of `sections` when the top level lacks the key and the value fits it.
+- `readViewArg` tries, in order: the ladder repair, the ladder repair with keys moved back
+  out, then the one-bracket move. A result is used only if it is a valid view.
+- Otherwise the error ends "With the brackets fixed, the view still has: …", from
+  `viewProblems`: up to three Zod issues in plain words ("missing or wrong, expected one of
+  stack, grid, tabs", "missing (string)").
+
+**Live** (Local Ubuntu Dev, `ornith:latest`, 2026-10-25):
+
+- **07:11 logs run.** After one turn of missing files, the model read `bootstrap.log`,
+  `alternatives.log`, `btmp`, `lastlog`, `faillog` and `wtmp`, names from the listing,
+  instead of asking for `syslog` again. It asked for `syslog` and `kern.log` once more on
+  turn 5.
+- **07:30 logs run, replayed.** All three broken strings now get "sections.system-logs.layout:
+  missing or wrong, expected one of stack, grid, tabs" in their error. Before, they got only
+  the JSON position.
+- **07:38 logs run.** The first `update_view` got that message. The next call added the
+  layout and was repaired into a valid view (7 widgets), and `generate_schema` accepted it.
+  The run completed in 139 s with no warning. Before EX10.11–EX10.12 the same request ended
+  after 135 s with an empty view.
 
 ## EX10.13 — Garbled replies and silences (as built)
 
