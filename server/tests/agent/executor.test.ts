@@ -187,7 +187,6 @@ describe('ReactiveExecutor', () => {
     it('has correct defaults', () => {
       expect(DEFAULT_EXECUTOR_CONFIG.maxSteps).toBe(30);
       expect(DEFAULT_EXECUTOR_CONFIG.maxConsecutiveMistakes).toBe(3);
-      expect(DEFAULT_EXECUTOR_CONFIG.maxToolRepetitions).toBe(8);
     });
   });
 
@@ -552,14 +551,14 @@ describe('ReactiveExecutor', () => {
       expect(events.some((e) => e.type === 'generation_complete')).toBe(true);
     });
 
-    it('detects tool repetition and warns', async () => {
+    // EX10.11: the EX9.4 loop guard — warn at 3, refuse the repeat, stop, then one wrap-up turn
+    it('warns on a repeated call, refuses the repeats, stops, then asks once for the view', async () => {
       const execTool = createMockTool('disk_usage');
       const generateTool = createGenerateSchemaTool();
       toolRegistry.register(execTool);
       toolRegistry.register(generateTool);
 
-      // Call the same tool with same args 6 times (max is 5)
-      const repeatedCalls = Array.from({ length: 6 }, () =>
+      const repeatedCalls = Array.from({ length: 5 }, () =>
         makeToolCallResponse([{ name: 'disk_usage', args: { command: 'df -h' } }]),
       );
       repeatedCalls.push(
@@ -568,17 +567,20 @@ describe('ReactiveExecutor', () => {
 
       const modelRouter = createMockModelRouter(repeatedCalls);
 
-      const executor = new ReactiveExecutor(modelRouter, toolRegistry, {
-        maxToolRepetitions: 5,
-      });
+      const executor = new ReactiveExecutor(modelRouter, toolRegistry);
       const events = await collectEvents(
         executor.execute(createDefaultHints(), createMockToolContext()),
       );
 
+      expect(execTool.execute).toHaveBeenCalledTimes(3); // the 4th and 5th identical calls are not run
       const safetyWarnings = events.filter(
         (e) => e.type === 'safety_warning' && (e as { warning: string }).warning === 'tool_repetition',
       );
-      expect(safetyWarnings).toHaveLength(1);
+      expect(safetyWarnings).toHaveLength(3); // warned, refused, stopped
+      const chat = modelRouter.chat as unknown as { mock: { calls: Array<[{ tools: Array<{ function: { name: string } }> }]> } };
+      expect(chat.mock.calls).toHaveLength(6);
+      expect(chat.mock.calls[5]![0].tools.map((t) => t.function.name)).toEqual(['generate_schema']);
+      expect(events.at(-1)).toMatchObject({ type: 'generation_complete' });
     });
 
     it('enforces max steps limit', async () => {

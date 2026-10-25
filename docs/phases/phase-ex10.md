@@ -410,7 +410,7 @@ was told only where the JSON broke. Its section had no `layout`, which nothing t
 | EX10.8 | Action selection favours request words; `cpu_usage`, `network_traffic`; actions reuse deterministic parsers | ⬜ |
 | EX10.9 | Follow-up requests refine the open view; unclear requests get a question | ⬜ |
 | EX10.10 | Widget-by-widget building with server-filled data (`add_widget`, `WorkingView`, `finish`) — own ADR | ⬜ |
-| EX10.11 | Loop control in the UI Agent: the EX9.4 loop guard in the executor (previous-turn repeats); a stuck run finishes with its view or a wrap-up turn; steps-left warning; notes on the last tool result; announced-but-not-made calls in the shared loop | ⬜ |
+| EX10.11 | Loop control in the UI Agent: the EX9.4 loop guard in the executor (previous-turn repeats); a stuck run finishes with its view or a wrap-up turn; steps-left warning; notes on the last tool result; announced-but-not-made calls in the shared loop | ✅ |
 | EX10.12 | Errors that steer: a missing file says so, says not to retry, and lists its folder | ✅ |
 | EX10.13 | Garbled replies cut off and asked again; a slow start is checked before the wait is given up | ✅ |
 
@@ -664,6 +664,94 @@ Strings still work, so the fake-mode scenarios (which send strings) pass unchang
 - Tokens are still counted everywhere.
 
 The three `ornith:latest` runs priced at $0.16, $0.56 and $0.69 would now show $0.
+
+## EX10.11 — Loop control (as built)
+
+**Loop guard** (`agent/loop/loop-guard.ts`):
+
+- `blocked()` checks every call of the previous turn (`previousTurn`, run or refused), not
+  only the last one. `fold()` rolls the turn over; a refusal counts as a call of its turn.
+- `LoopGuard({ finish })` names the agent's way out in its messages: "give your answer" by
+  default, "build the view with what you have (generate_schema)" in the executor.
+- The in-a-row nudge is sent once per streak. A changed result no longer re-arms it; at
+  07:16 UTC it fired on each of ten `grep_output` calls.
+- `announcesStep(text)`: the last sentence opens a next step ("Let me check …", "I'll run
+  …", "I need to read …") with one of a list of verbs. "Let me know …" does not count.
+
+**Notes** (`agent/loop/notes.ts`): `appendNote(messages, text)` adds the note to the last
+message:
+- a JSON tool result gets a `note` field;
+- a text tool result gets a "Note:" paragraph, after any `</server_output>`;
+- if the last message is not a tool result, the note is a user message.
+`asNote` ends each note with "Do not reply to this note."
+
+**Executor** (`agent/executor.ts`):
+
+- `ToolRepetitionDetector` (EX2) and `maxToolRepetitions` are gone, and so is the empty
+  `safety/` folder.
+- Every call is folded with the text the model got, including failures, unknown tools,
+  guardrail blocks and bad arguments. Arguments that do not parse are folded as `{ raw }`.
+- A refused call gets `{"success":false,"error":"Not run: …"}` and a `tool_result` event.
+  Findings become `safety_warning` (`tool_repetition`) events. A stop's message is the
+  executor's own (`viewStuck`), not the investigation agent's.
+- **A stuck run** ends in the first of these that applies:
+  - `completeView(lastPartialView)`: the view is valid, has at least one sidebar item and
+    no empty section → `generation_complete`.
+  - `wrapUp()`: one call offering only `generate_schema`, with the stuck note (or
+    `VIEW_OUT_OF_STEPS` at the step limit). An `update_view` call there counts too.
+  - Any failure in the wrap-up returns null → the EX10.4 early stop, with "the model kept
+    repeating X without getting anything new".
+- The steps-left note comes at `maxSteps − 2` (step 28 of 30).
+- `grep_output` results are no longer cached for later searches. Each search embedded the
+  previous one, so its result never repeated: 13 searches in a row at 07:16, none caught.
+- **EX10.13 errors:**
+  - A garbled reply is dropped and asked again with `VIEW_GARBLED`, twice. After that comes
+    the early stop "the model's replies kept breaking down into repeated characters".
+  - `alive: false` ends the run at once, with "the model stopped answering".
+- The text-only nudge is a note.
+
+**Shared loop** (`agent/loop/run-loop.ts`):
+
+- Loop warnings and the steps-left warning are notes. A refusal's text is not repeated in
+  a note.
+- A text-only reply that `announcesStep` gets `ANNOUNCED` as a note, at most `MAX_ANNOUNCED`
+  (2) times a run.
+- **EX10.13 errors:**
+  - A garbled reply gets a `GARBLED` note and is asked again (`MAX_GARBLED` = 2). Then comes
+    a tools-off answer with the final reason `garbled`; the investigation agent reports it
+    as `max_steps_reached`.
+  - `alive: false` → an `error` at once.
+
+**Live** (Local Ubuntu Dev, `ornith:latest`, 64K, 2026-10-25 UTC):
+
+| Request | Before (05:44–05:51) | After |
+|---------|----------------------|-------|
+| System logs | 135 s; asked for the same missing files until step 30; empty view | 07:38: 139 s, 7 widgets, complete, no warning |
+| System overview | 151 s; the same broken schema 8 times; 6 widgets at the step limit | 07:41: 32 s, 10 widgets, complete (no loop arose) |
+
+Runs in between, each of which led to a fix above:
+
+- **07:11.** The missing-file listing worked. A view was lost to the 60 s mid-reply limit;
+  this led to the EX10.13 change.
+- **07:16.** `grep_output` ran 13 times in a row; this led to the cache fix and the
+  once-per-streak nudge. The dev server's watcher restarted it at 07:21:16, during the
+  run's last call. No file in the repo had changed, and the run's own ending, replayed
+  offline, completes cleanly.
+- **07:30.** `update_view` resent the same broken string. The guard warned at 3, refused,
+  and stopped at 175 s. The wrap-up turn called `update_view` (now accepted) with the same
+  string, and the run ended as an early stop. This led to the EX10.12 view errors.
+
+**Benchmark** (`npm run bench:agents -- --provider ollama --model ornith:latest`, 12
+questions on `fake-server`, run after the changes):
+
+- picked 100%, answered 83% (10 of 12);
+- on average 3.0 steps, 10,468 tokens and 6.1 s;
+- no repaired, malformed or unknown tool calls, and no parameter errors.
+
+The two not counted as answered (memory, failed services) stopped on repeated failures of
+commands `fake-server` has no canned output for. Their hand-overs still answered: a memory
+table, and `certbot.service` as the failing service. No earlier score was recorded to
+compare with.
 
 ## EX10.12 — Errors that steer (as built)
 

@@ -1220,6 +1220,16 @@ None (all changes to existing files).
 - **Tests modified:** `server/tests/agent/context/executor-context.test.ts`
 - **Verification:** server and client suites, both typechecks clean
 
+### EX10.11: Loop control
+- **Status:** ✅ Complete
+- **Date:** 2026-10-25
+- **Files created:** `server/src/agent/loop/notes.ts`, `server/tests/agent/loop/notes.test.ts`, `server/tests/agent/loop/loop-control.test.ts`, `server/tests/agent/context/executor-loop-control.test.ts`
+- **Files modified:** `server/src/agent/loop/loop-guard.ts` (previous-turn repeats, `finish`, once-per-streak nudge, `announcesStep`), `server/src/agent/executor.ts` (loop guard, refusals, `completeView`, `wrapUp`, `viewStuck`, `VIEW_OUT_OF_STEPS`, steps-left note, notes, `grep_output` not cached, `VIEW_GARBLED`, `alive: false`), `server/src/agent/loop/run-loop.ts` (notes, `ANNOUNCED`, `GARBLED`, final reason `garbled`, `alive: false`), `server/src/agent/investigation-agent.ts` (`garbled` status), `CLAUDE.md` (loop control bullet)
+- **Files deleted:** `server/src/agent/safety/tool-repetition-detector.ts`, `server/tests/agent/safety/tool-repetition-detector.test.ts`
+- **Docs:** `docs/phases/phase-ex10.md` (§8c, "EX10.11 — as built")
+- **Tests modified:** `server/tests/agent/executor.test.ts` (warn, refuse, stop, wrap-up), `server/tests/agent/loop/guards-budgets.test.ts` (steps-left note), `server/tests/agent/actions/redact-untrusted.test.ts` (more turns, so no note lands on the checked result)
+- **Verification:** server 2429 passed (+2 skipped), client 650, both typechecks clean; live runs and the benchmark in the phase doc
+
 ### EX10.12: Errors that steer
 - **Status:** ✅ Complete
 - **Date:** 2026-10-25

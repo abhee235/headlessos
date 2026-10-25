@@ -2,12 +2,15 @@
 // EX10.3: the system prompt is sized to the model's window tier (full / lean / minimal)
 // EX10.4: a context manager runs before every call (compaction, cut-offs, overflow), and a run
 // that cannot go on finishes with its last valid partial view and the reason
-// @see docs/phases/phase-ex2.md — EX2.5, docs/phases/phase-ex10.md §4–§5
+// EX10.11: the EX9.4 loop guard (warn → refuse → stop); a stuck run finishes with a full
+// partial view or one generate_schema-only turn; reminders ride on the last tool result
+// EX10.13: a garbled reply is asked again; a model that stopped answering ends the run
+// @see docs/phases/phase-ex2.md — EX2.5, docs/phases/phase-ex10.md §4–§5, §8c
 //
 // A reactive tool-calling loop where the LLM decides which tools to call
 // dynamically based on observed results. Uses native OpenAI function calling.
-// Inspired by Roo Code (stack-based loop, consecutive mistake detection,
-// tool repetition detection) and Aider (Zod validation as "linter").
+// Inspired by Roo Code (stack-based loop, consecutive mistake detection)
+// and Aider (Zod validation as "linter").
 
 import { DynamicViewSchema, type DynamicView } from 'headlessos-shared/schemas/dynamic-view';
 import type { ModelRouter } from '../llm/model-router.js';
@@ -15,12 +18,11 @@ import type { ToolRegistry } from './tools/tool-registry.js';
 import { toolsToOpenAIFunctions } from './tools/tool-converter.js';
 import type { ToolContext, AgentTool } from './tools/types.js';
 import { checkGuardrails } from './guardrails.js';
-import { ToolRepetitionDetector } from './safety/tool-repetition-detector.js';
 import type { PlannerHints } from './planner.js';
 // Canonical ReflectionIssue (derived from reflector's Zod schema); re-exported below
 // so existing importers of it from this module keep working and both modules share one type.
 import type { ReflectionIssue } from './reflector.js';
-import { isLLMTimeout, type ChatMessage } from '../llm/provider.js';
+import { isLLMDegenerate, isLLMTimeout, type ChatMessage } from '../llm/provider.js';
 import { withSpan, withSpanGen, setSpanAttributes } from '../observatory/context.js';
 import { getDefaultCatalog } from './actions/catalog/index.js';
 import { checkToolArgs, dropNullArgs, extractProseToolCalls, malformedArgsMessage, parseToolArgs } from './loop/tool-input.js';
@@ -28,6 +30,8 @@ import { markUntrusted, UNTRUSTED_RULE } from './actions/tools.js';
 import { planForProvider, type PromptTier } from './context/plan.js';
 import { ContextManager, chatSummarizer, type CompactionEvent } from './context/manager.js';
 import { estimateToolsTokens } from './context/tokens.js';
+import { LoopGuard, type FoldedCall, type LoopFinding } from './loop/loop-guard.js';
+import { appendNote } from './loop/notes.js';
 
 /** EX9.2: change actions a generated button may name (params only; the server adds the reason) */
 const CHANGE_ACTION_LINES = getDefaultCatalog()
@@ -238,6 +242,22 @@ export const VIEW_CUT_OFF =
 export const VIEW_TIMED_OUT =
   'Your last reply took too long and was stopped. Send your next step as ONE tool call. Keep views small: at most 20 table rows or 30 log lines, short descriptions.';
 
+/** EX10.11: steps before the limit at which the model is told to finish */
+const STEPS_LEFT_WARNING = 3;
+/** EX10.11: the UI Agent's way out, in the loop guard's messages */
+const VIEW_FINISH = 'build the view with what you have (generate_schema)';
+/** EX10.11: the wrap-up turn of a stuck run */
+export function viewStuck(tool: string): string {
+  return `You are stuck repeating ${tool}. Stop gathering data. Call generate_schema now with the data you already have; leave out what you could not get.`;
+}
+/** EX10.11: the wrap-up turn at the step limit */
+export const VIEW_OUT_OF_STEPS =
+  'You have used all your steps. Call generate_schema now with the data you already have; leave out what you could not get.';
+/** EX10.13: a reply that broke down into repeated characters is dropped and asked again (twice) */
+export const VIEW_GARBLED =
+  'Your last reply broke down into repeated characters and was discarded. Send your next step again as ONE tool call.';
+const MAX_GARBLED = 2;
+
 function compactionNote(e: CompactionEvent): string {
   const how = {
     collapse: 'dropped older copies of the view',
@@ -259,6 +279,13 @@ export function emptySections(view: DynamicView): string[] {
     return !l.children?.length;
   };
   return view.sidebarItems.filter((item) => isEmpty(view.sections[item.id])).map((item) => item.label);
+}
+
+/** EX10.11: the last partial view, when it is valid and every section has content. */
+function completeView(partial: Record<string, unknown> | null): DynamicView | null {
+  const parsed = partial ? DynamicViewSchema.safeParse(partial) : null;
+  if (!parsed?.success || parsed.data.sidebarItems.length === 0) return null;
+  return emptySections(parsed.data).length === 0 ? parsed.data : null;
 }
 
 /**
@@ -299,14 +326,11 @@ export interface ExecutorConfig {
   maxSteps: number;
   /** Consecutive turns without tool calls before abort (default: 3, from Roo Code) */
   maxConsecutiveMistakes: number;
-  /** Same tool call N times before warning (default: 8, higher because update_view is called often) */
-  maxToolRepetitions: number;
 }
 
 export const DEFAULT_EXECUTOR_CONFIG: ExecutorConfig = {
   maxSteps: 30,
   maxConsecutiveMistakes: 3,
-  maxToolRepetitions: 8,
 };
 
 // ── Reactive Executor ──
@@ -380,7 +404,8 @@ export class ReactiveExecutor {
     );
     const openAITools = toolsToOpenAIFunctions(tools);
 
-    const toolRepetitionDetector = new ToolRepetitionDetector(this.config.maxToolRepetitions);
+    // EX10.11: warn → refuse → stop on repeats, as in the investigation agent
+    const guard = new LoopGuard({ finish: VIEW_FINISH });
 
     // Build initial messages
     const messages: ChatMessage[] = [
@@ -403,12 +428,20 @@ export class ReactiveExecutor {
     let lastPartialView: Record<string, unknown> | null = null;
     let overflowRetries = 0;
     let forceCompaction = false;
+    let garbledRetries = 0;
+    /** EX10.11: the tool the run got stuck repeating */
+    let stuckOn: string | null = null;
 
     // ── REACTIVE LOOP ──
-    while (stepCount < this.config.maxSteps) {
+    while (stepCount < this.config.maxSteps && !stuckOn) {
       stepCount++;
 
       yield { type: 'thinking', message: `Step ${stepCount}...` };
+
+      // EX10.11: say when the end is near, on the last tool result
+      if (this.config.maxSteps > STEPS_LEFT_WARNING + 1 && stepCount === this.config.maxSteps - STEPS_LEFT_WARNING + 1) {
+        appendNote(messages, `${STEPS_LEFT_WARNING} steps left: call generate_schema soon with the data you have; leave out what you could not get.`);
+      }
 
       // EX10.4: compact before the call when the history reached the plan's trigger
       const prepared = await ctx.prepare(messages, overhead, { force: forceCompaction });
@@ -426,13 +459,24 @@ export class ReactiveExecutor {
         });
       } catch (err) {
         // EX10.4 follow-up: the reply took too long — like a cut-off: a smaller step (3 times), then stop
+        // EX10.13: a model that stopped answering altogether is not asked again
         if (isLLMTimeout(err)) {
-          if (ctx.lengthStrike()) {
+          if (err.alive !== false && ctx.lengthStrike()) {
             messages.push({ role: 'user', content: VIEW_TIMED_OUT });
             yield { type: 'thinking', message: `The model took too long (${err.message}); asking for a smaller step` };
             continue;
           }
-          yield* finishEarly(lastPartialView, 'the model kept taking too long to answer');
+          yield* finishEarly(lastPartialView, err.alive === false ? 'the model stopped answering' : 'the model kept taking too long to answer');
+          return;
+        }
+        // EX10.13: a garbled reply is dropped and asked again (twice), then stop
+        if (isLLMDegenerate(err)) {
+          if (garbledRetries++ < MAX_GARBLED) {
+            appendNote(messages, VIEW_GARBLED);
+            yield { type: 'thinking', message: 'The model’s reply broke down into repeated characters; asking again' };
+            continue;
+          }
+          yield* finishEarly(lastPartialView, 'the model’s replies kept breaking down into repeated characters');
           return;
         }
         // EX10.4: the provider refused the prompt as too long — compact harder and retry (twice)
@@ -490,59 +534,63 @@ export class ReactiveExecutor {
 
         let didToolFailInCurrentTurn = false;
         let schemaCallResult: { toolCallId: string; schema: unknown } | null = null;
+        // EX10.11: each call and the text the model got back, for the loop guard
+        const folded: FoldedCall[] = [];
+        const findings: LoopFinding[] = [];
 
         for (const toolCall of assistantMessage.tool_calls) {
           const toolName = toolCall.function.name;
+          const tool = this.toolRegistry.get(toolName);
           // EX9.3: repair broken JSON before giving up (small models)
           const parsedArgs = parseToolArgs(toolCall.function.arguments);
-          if (parsedArgs.via === 'raw') {
-            const shape = (this.toolRegistry.get(toolName)?.parameters as { shape?: Record<string, unknown> } | undefined)?.shape;
-            const errorResult = JSON.stringify({
+          // EX10.6: a null is "not given" for every tool
+          const toolArgs = parsedArgs.via === 'raw' ? null : (dropNullArgs(parsedArgs.input) as Record<string, unknown>);
+          // EX10.11: unparseable arguments repeat as the same text
+          const guardInput = toolArgs ?? { raw: parsedArgs.raw ?? '' };
+          const answer = (content: string, ok: boolean) => {
+            messages.push({ role: 'tool', content, tool_call_id: toolCall.id });
+            folded.push({ name: toolName, input: guardInput, ok, output: content, mutating: !!tool?.mutating });
+          };
+
+          // EX10.11: a call already warned about, repeated from the previous turn, is not run
+          if (guard.blocked(toolName, guardInput)) {
+            const finding = guard.refused(toolName, guardInput);
+            findings.push(finding);
+            const error = finding.kind === 'stop' ? `Not run: ${toolName} with this input already returned the same result.` : finding.message;
+            messages.push({ role: 'tool', content: JSON.stringify({ success: false, error }), tool_call_id: toolCall.id });
+            yield { type: 'tool_result', tool: toolName, success: false, outputPreview: error.slice(0, 200), latencyMs: 0 };
+            continue;
+          }
+
+          if (toolArgs === null) {
+            const shape = (tool?.parameters as { shape?: Record<string, unknown> } | undefined)?.shape;
+            answer(JSON.stringify({
               success: false,
               error: malformedArgsMessage(toolName, parsedArgs.raw ?? '', shape ? Object.keys(shape) : []),
-            });
-            messages.push({ role: 'tool', content: errorResult, tool_call_id: toolCall.id });
+            }), false);
             yield { type: 'error', message: `${toolName}: invalid JSON arguments` };
             didToolFailInCurrentTurn = true;
             continue;
           }
-          // EX10.6: a null is "not given" for every tool
-          const toolArgs = dropNullArgs(parsedArgs.input) as Record<string, unknown>;
 
-          const tool = this.toolRegistry.get(toolName);
           if (!tool) {
-            const errorResult = JSON.stringify({
+            answer(JSON.stringify({
               success: false,
               error: `Unknown tool: ${toolName}. Available tools: ${this.toolRegistry.getNames().join(', ')}`,
-            });
-            messages.push({ role: 'tool', content: errorResult, tool_call_id: toolCall.id });
+            }), false);
             yield { type: 'error', message: `Unknown tool: ${toolName}` };
             didToolFailInCurrentTurn = true;
             continue;
           }
 
-
-          // Tool repetition detection (from Roo Code)
-          const repetitionKey = JSON.stringify({ name: toolName, args: toolArgs });
-          if (toolRepetitionDetector.isRepeating(repetitionKey)) {
-            const warningResult = JSON.stringify({
-              success: false,
-              error: `You have called ${toolName} with the same arguments ${this.config.maxToolRepetitions} times. Please try a different approach.`,
-            });
-            messages.push({ role: 'tool', content: warningResult, tool_call_id: toolCall.id });
-            yield { type: 'safety_warning', warning: 'tool_repetition', tool: toolName };
-            continue;
-          }
-
           // Guardrail check
-          const guard = checkGuardrails(tool, toolArgs);
-          if (!guard.allowed) {
-            const denialResult = JSON.stringify({
+          const verdict = checkGuardrails(tool, toolArgs);
+          if (!verdict.allowed) {
+            answer(JSON.stringify({
               success: false,
-              error: `Tool blocked by guardrails: ${guard.reason}`,
-            });
-            messages.push({ role: 'tool', content: denialResult, tool_call_id: toolCall.id });
-            yield { type: 'tool_blocked', tool: toolName, reason: guard.reason ?? 'Blocked' };
+              error: `Tool blocked by guardrails: ${verdict.reason}`,
+            }), false);
+            yield { type: 'tool_blocked', tool: toolName, reason: verdict.reason ?? 'Blocked' };
             didToolFailInCurrentTurn = true;
             continue;
           }
@@ -551,7 +599,7 @@ export class ReactiveExecutor {
           if (tool.securityTier !== 'action') {
             const checked = checkToolArgs(tool, toolArgs);
             if (!checked.ok) {
-              messages.push({ role: 'tool', content: JSON.stringify({ success: false, error: checked.error }), tool_call_id: toolCall.id });
+              answer(JSON.stringify({ success: false, error: checked.error }), false);
               yield { type: 'tool_result', tool: toolName, success: false, outputPreview: checked.error.slice(0, 200), latencyMs: 0 };
               didToolFailInCurrentTurn = true;
               continue;
@@ -573,11 +621,7 @@ export class ReactiveExecutor {
               output: tool.securityTier === 'action' && result.metadata?.command ? markUntrusted(toolName, result.output) : result.output,
               ...(result.error ? { error: result.error } : {}),
             };
-            messages.push({
-              role: 'tool',
-              content: JSON.stringify(forModel),
-              tool_call_id: toolCall.id,
-            });
+            answer(JSON.stringify(forModel), result.success);
             yield {
               type: 'tool_result',
               tool: toolName,
@@ -590,8 +634,9 @@ export class ReactiveExecutor {
               didToolFailInCurrentTurn = true;
             }
 
-            // Cache output for grep_output tool
-            if (result.success && result.output) {
+            // Cache output for grep_output tool (EX10.11: not its own results, which would
+            // snowball into every later search and never repeat for the loop guard)
+            if (result.success && result.output && toolName !== 'grep_output') {
               context.previousOutputs.set(
                 `${toolName}:${JSON.stringify(toolArgs)}`,
                 result.output,
@@ -613,11 +658,10 @@ export class ReactiveExecutor {
             }
           } catch (err) {
             const latencyMs = Date.now() - startTime;
-            const errorResult = JSON.stringify({
+            answer(JSON.stringify({
               success: false,
               error: `Tool execution failed: ${(err as Error).message}`,
-            });
-            messages.push({ role: 'tool', content: errorResult, tool_call_id: toolCall.id });
+            }), false);
             yield {
               type: 'tool_result',
               tool: toolName,
@@ -661,6 +705,20 @@ export class ReactiveExecutor {
           }
         }
 
+        // EX10.11: warnings ride on the last tool result; a stop ends the loop
+        findings.push(...guard.fold(folded));
+        for (const f of findings) {
+          const message = f.kind === 'stop' ? viewStuck(f.tool ?? 'the same call') : f.message;
+          yield { type: 'safety_warning', warning: 'tool_repetition', ...(f.tool ? { tool: f.tool } : {}), message };
+        }
+        const stop = findings.find((f) => f.kind === 'stop');
+        if (stop) {
+          stuckOn = stop.tool ?? 'the same call';
+        } else {
+          const notes = findings.filter((f) => f.rule !== 'refused').map((f) => f.message);
+          if (notes.length) appendNote(messages, notes.join('\n'));
+        }
+
       // ── Case 2: LLM responded with text only (no tool calls) ──
       } else {
         consecutiveMistakes++;
@@ -677,16 +735,69 @@ export class ReactiveExecutor {
           return;
         }
 
-        // Nudge the LLM to use tools
-        messages.push({
-          role: 'user',
-          content: 'Please use the available tools to gather information and then call generate_schema to produce the final UI. Do not just respond with text.',
-        });
+        // Nudge the LLM to use tools (EX10.11: as a note)
+        appendNote(messages, 'Please use the available tools to gather information and then call generate_schema to produce the final UI. Do not just respond with text.');
       }
     }
 
-    // Max steps reached — EX10.4: keep what was built so far
-    yield* finishEarly(lastPartialView, `it reached the maximum step limit (${this.config.maxSteps})`);
+    // EX10.11: stuck, or out of steps. A stuck run whose view is already full ends with it.
+    if (stuckOn) {
+      const view = completeView(lastPartialView);
+      if (view) {
+        yield { type: 'thinking', message: `Stopped repeating ${stuckOn}; every section of the view has content, so it is used as is` };
+        yield { type: 'generation_complete', view };
+        return;
+      }
+    }
+    // Otherwise one turn to build the view from what was gathered
+    const wrapped = yield* this.wrapUp(messages, context, ctx, overhead, stuckOn ? viewStuck(stuckOn) : VIEW_OUT_OF_STEPS);
+    if (wrapped) {
+      yield { type: 'generation_complete', view: wrapped };
+      return;
+    }
+    // EX10.4: keep what was built so far
+    yield* finishEarly(lastPartialView, stuckOn
+      ? `the model kept repeating ${stuckOn} without getting anything new`
+      : `it reached the maximum step limit (${this.config.maxSteps})`);
+  }
+
+  /**
+   * EX10.11: one last turn offering only generate_schema, after a stuck run or at the step
+   * limit. The view when the model sends a valid one; otherwise (any failure) null.
+   */
+  private async *wrapUp(
+    messages: ChatMessage[],
+    context: ToolContext,
+    ctx: ContextManager,
+    overhead: number,
+    note: string,
+  ): AsyncGenerator<AgentEvent, DynamicView | null> {
+    const tool = this.toolRegistry.get('generate_schema');
+    if (!tool) return null;
+    appendNote(messages, note);
+    yield { type: 'thinking', message: 'Asking the model to build the view from what it has' };
+    try {
+      const prepared = await ctx.prepare(messages, overhead);
+      const response = await this.modelRouter.chat({
+        messages: prepared.messages,
+        tools: toolsToOpenAIFunctions([tool]),
+        tool_choice: 'auto',
+      });
+      // a small model may still send update_view, though it is not offered: the same view
+      const call = response.message.tool_calls?.find((tc) => tc.function.name === tool.name || tc.function.name === 'update_view');
+      if (!call) return null;
+      const parsed = parseToolArgs(call.function.arguments);
+      if (parsed.via === 'raw') return null;
+      const input = dropNullArgs(parsed.input) as Record<string, unknown>;
+      const args = call.function.name === tool.name ? input : { schema: input.view };
+      const started = Date.now();
+      const result = await withSpan(`tool:${tool.name}`, 'TOOL', async () => tool.execute(args, context), { input: args });
+      yield { type: 'tool_result', tool: tool.name, success: result.success, outputPreview: result.output.substring(0, 200), latencyMs: Date.now() - started };
+      const view = result.success ? DynamicViewSchema.safeParse(result.metadata?.schema) : null;
+      return view?.success ? view.data : null;
+    } catch {
+      return null;
+    }
   }
 
   // ── Prompt Builders ──
