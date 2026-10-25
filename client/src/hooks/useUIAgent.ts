@@ -23,6 +23,8 @@ export interface GenerateOptions {
   sandboxMode?: boolean;
   /** CLI tool name to discover (e.g. 'nginx', 'restic') */
   toolName?: string;
+  /** EX10.9: refine the open view — the request that built it, and the view as it is now */
+  followUp?: { prompt: string; view: unknown };
 }
 
 export interface UseUIAgentReturn {
@@ -62,6 +64,8 @@ interface ServerMessage {
   phase?: string;
   widgetId?: string;
   progress?: number;
+  /** EX10.9 */
+  question?: string;
 }
 
 // ── Hook ──
@@ -211,6 +215,12 @@ export function useUIAgent(serverId: string | null): UseUIAgentReturn {
         return;
       }
 
+      // EX10.9: the request was too unclear; the agent asks instead
+      if (msg.type === 'question') {
+        store.askSession(msg.requestId, typeof msg.question === 'string' ? msg.question : '');
+        return;
+      }
+
       if (msg.type === 'write_back_result') {
         // Dispatch as a special event (no standard AgentEventType for this)
         // Store will receive it via addEvent with a generic type
@@ -314,6 +324,7 @@ export function useUIAgent(serverId: string | null): UseUIAgentReturn {
         prompt,
         ...(options?.sandboxMode ? { sandboxMode: true } : {}),
         ...(options?.toolName ? { toolName: options.toolName } : {}),
+        ...(options?.followUp ? { followUp: options.followUp } : {}),
       }));
     } else {
       store.errorSession(requestId, 'WebSocket not connected');

@@ -96,6 +96,12 @@ export function UIAgentView({ serverId }: UIAgentViewProps) {
 
   const isRunning = activeSession?.status === 'running';
 
+  // EX10.9: after a run with a view, the next prompt refines that view; after a question, it answers it
+  const refining = activeSession?.status === 'complete' && activeSession.view
+    ? { prompt: activeSession.prompt, view: activeSession.view, title: (activeSession.view as { title?: string }).title ?? 'this view' }
+    : null;
+  const asking = activeSession?.status === 'question' ? activeSession : null;
+
   // EX5-B.4: Check Docker availability on the server
   useEffect(() => {
     if (!serverId || !connected) {
@@ -118,24 +124,46 @@ export function UIAgentView({ serverId }: UIAgentViewProps) {
 
   // Track the pinned view ID for the current generation session
   const pinnedViewIdRef = useRef<Map<string, string>>(new Map());
+  // EX10.9: requests that refine a view already on screen (its window is reused)
+  const reusedViewRef = useRef<Set<string>>(new Set());
+  // EX10.9: the follow-up each request sent, so the answer to its question refines the same view
+  const followUpRef = useRef<Map<string, { prompt: string; view: unknown }>>(new Map());
 
   const handleGenerate = useCallback((p?: string) => {
-    const finalPrompt = p ?? prompt;
-    if (!finalPrompt.trim()) return;
+    const text = p ?? prompt;
+    if (!text.trim()) return;
+    // EX10.9: typed after a view (refine it) or after a question (answer it); presets and history start fresh
+    const typed = p === undefined;
+    const askedFollowUp = typed && asking && activeRequestId ? followUpRef.current.get(activeRequestId) : undefined;
+    const followUp = typed && refining ? { prompt: refining.prompt, view: refining.view } : askedFollowUp;
+    const finalPrompt = typed && asking ? `${asking.prompt} — ${text.trim()}` : text;
+    const previousViewId = followUp && activeRequestId ? pinnedViewIdRef.current.get(activeRequestId) : undefined;
+    const dynStore = useDynamicUIStore.getState();
+    const reuse = !!previousViewId && Object.values(dynStore.windowToView).includes(previousViewId);
 
     try {
       const requestId = generate(finalPrompt, {
         sandboxMode: sandboxEnabled && dockerAvailable === true ? true : undefined,
+        ...(followUp ? { followUp } : {}),
       });
       setActiveRequestId(requestId);
+      if (followUp) followUpRef.current.set(requestId, followUp);
+      if (typed) setPrompt('');
 
-      // EX3-C.3: Open a desktop window immediately with loading skeleton
-      const viewId = openLoadingWindow(serverId, finalPrompt.substring(0, 60));
-      pinnedViewIdRef.current.set(requestId, viewId);
+      if (reuse && previousViewId) {
+        // EX10.9: the open window shows the refined view as it builds
+        dynStore.setViewLoading(previousViewId, true);
+        pinnedViewIdRef.current.set(requestId, previousViewId);
+        reusedViewRef.current.add(requestId);
+      } else {
+        // EX3-C.3: Open a desktop window immediately with loading skeleton
+        const viewId = openLoadingWindow(serverId, finalPrompt.substring(0, 60));
+        pinnedViewIdRef.current.set(requestId, viewId);
+      }
     } catch {
       // Error handled by the hook (sets error state in store)
     }
-  }, [prompt, generate, sandboxEnabled, dockerAvailable, serverId]);
+  }, [prompt, generate, sandboxEnabled, dockerAvailable, serverId, refining, asking, activeRequestId]);
 
   const handleAbort = useCallback(() => {
     if (activeRequestId) {
@@ -187,6 +215,23 @@ export function UIAgentView({ serverId }: UIAgentViewProps) {
       }
     }
   }, [activeSession?.status, activeSession?.view, activeRequestId]);
+
+  // EX10.9: a question builds nothing — close the window opened for it (a reused one just stops loading)
+  useEffect(() => {
+    if (!activeRequestId || activeSession?.status !== 'question') return;
+    const viewId = pinnedViewIdRef.current.get(activeRequestId);
+    if (!viewId) return;
+    const dynStore = useDynamicUIStore.getState();
+    if (reusedViewRef.current.has(activeRequestId)) {
+      dynStore.setViewLoading(viewId, false);
+      return;
+    }
+    for (const [windowId, linked] of Object.entries(dynStore.windowToView)) {
+      if (linked === viewId) useDesktopStore.getState().closeWindow(windowId);
+    }
+    dynStore.unpinView(viewId);
+    pinnedViewIdRef.current.delete(activeRequestId);
+  }, [activeRequestId, activeSession?.status]);
 
   // Mark loading window as done on error/abort
   useEffect(() => {
@@ -276,6 +321,14 @@ export function UIAgentView({ serverId }: UIAgentViewProps) {
             />
           )}
 
+          {/* EX10.9: the agent asked instead of guessing */}
+          {asking && (
+            <div className="rounded-[18px] border border-accent-solid/30 bg-accent-solid/14 px-4 py-3" data-testid="agent-question">
+              <p className="text-sm font-semibold">The agent asks</p>
+              <p className="mt-1 text-sm text-label-2">{asking.question}</p>
+            </div>
+          )}
+
           {/* Completion summary (EX10.4: or how far it got before stopping) */}
           {activeSession?.status === 'complete' && activeSession.meta && (
             <UIAgentCompletion meta={activeSession.meta} />
@@ -334,11 +387,23 @@ export function UIAgentView({ serverId }: UIAgentViewProps) {
           />
         </div>
 
+        {/* EX10.9: the next prompt refines the open view */}
+        {refining && (
+          <div className="flex items-center justify-between gap-2 px-1" data-testid="refine-chip">
+            <span className="min-w-0 truncate text-xs text-label-2">
+              Refining <span className="font-semibold">“{refining.title}”</span>
+            </span>
+            <Button variant="ghost" size="sm" className="h-6 shrink-0 px-2 text-xs" onClick={handleReset} data-testid="refine-new-view">
+              New view
+            </Button>
+          </div>
+        )}
+
         <Composer>
           <Textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Describe the UI you want… e.g., 'Show me disk usage with a bar chart'"
+            placeholder={asking ? 'Your answer…' : refining ? "Describe the change… e.g., 'add a memory chart'" : "Describe the UI you want… e.g., 'Show me disk usage with a bar chart'"}
             className={COMPOSER_TEXTAREA_CLASS}
             rows={1}
             onKeyDown={(e) => {

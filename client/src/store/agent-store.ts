@@ -35,7 +35,8 @@ function persistAgentRun(
 
 // ── Types ──
 
-export type AgentSessionStatus = 'running' | 'complete' | 'error' | 'aborted';
+/** EX10.9: 'question' — the request was too unclear; the agent asked instead of building */
+export type AgentSessionStatus = 'running' | 'complete' | 'error' | 'aborted' | 'question';
 
 export interface AgentSession {
   /** Unique request/session ID */
@@ -56,6 +57,8 @@ export interface AgentSession {
   meta: AgentMetaType | null;
   /** Error message if status is 'error' */
   errorMessage: string | null;
+  /** EX10.9: what the agent asked, if status is 'question' */
+  question?: string;
   /** When the session started */
   startedAt: number;
 }
@@ -72,6 +75,8 @@ interface AgentStoreState {
   updatePartialView: (requestId: string, view: Record<string, unknown>) => void;
   completeSession: (requestId: string, view: unknown, meta: AgentMetaType) => void;
   errorSession: (requestId: string, message: string) => void;
+  /** EX10.9: the agent asked a question instead of building (not saved in the run history) */
+  askSession: (requestId: string, question: string) => void;
   abortSession: (requestId: string) => void;
   removeSession: (requestId: string) => void;
   clearSessions: () => void;
@@ -183,6 +188,16 @@ export const useAgentStore = create<AgentStoreState>((set, get) => ({
       const { serverId, prompt, startedAt } = captured;
       persistAgentRun(serverId, requestId, prompt, startedAt, 'error', { errorMessage: message });
     }
+  },
+
+  askSession: (requestId, question) => {
+    set((state) => {
+      const sessions = new Map(state.sessions);
+      const session = sessions.get(requestId);
+      if (!session) return state;
+      sessions.set(requestId, { ...session, status: 'question', question });
+      return { sessions };
+    });
   },
 
   abortSession: (requestId) => {

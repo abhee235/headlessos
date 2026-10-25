@@ -62,6 +62,8 @@ export interface ToolContext {
   actionResults?: ActionResultRecord[];
   /** EX10.10: the view being built widget by widget (start_view, or the last update_view) */
   workingView?: WorkingView;
+  /** EX10.9: this run refines the open view (loaded as workingView); the request that built it */
+  followUp?: { prompt: string };
 }
 
 // ── Tool Result ─────────────────────────────────────────

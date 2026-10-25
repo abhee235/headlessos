@@ -399,7 +399,7 @@ describe('UIAgent', () => {
       } as unknown as Planner;
 
       const agent = createAgent({ planner });
-      const events = await collectEvents(agent.generate('server-1', 'Show stuff'));
+      const events = await collectEvents(agent.generate('server-1', 'Show disk usage'));
 
       const error = events.find((e) => e.type === 'error');
       expect(error).toBeDefined();
@@ -414,7 +414,7 @@ describe('UIAgent', () => {
       ]);
 
       const agent = createAgent({ executor });
-      const events = await collectEvents(agent.generate('server-1', 'Show stuff'));
+      const events = await collectEvents(agent.generate('server-1', 'Show disk usage'));
 
       const errorEvents = events.filter((e) => e.type === 'error');
       expect(errorEvents.length).toBeGreaterThanOrEqual(1);
@@ -431,7 +431,7 @@ describe('UIAgent', () => {
       } as unknown as PostGenerationReflector;
 
       const agent = createAgent({ reflector });
-      const events = await collectEvents(agent.generate('server-1', 'Show stuff'));
+      const events = await collectEvents(agent.generate('server-1', 'Show disk usage'));
 
       // Should still complete with the best attempt
       const complete = events.find((e): e is UIAgentEvent & { type: 'complete' } => e.type === 'complete');
@@ -462,7 +462,7 @@ describe('UIAgent', () => {
       } as unknown as ReactiveExecutor;
 
       const agent = createAgent({ reflector, executor });
-      const events = await collectEvents(agent.generate('server-1', 'Show stuff'));
+      const events = await collectEvents(agent.generate('server-1', 'Show disk usage'));
 
       const errors = events.filter((e) => e.type === 'error');
       const reexecError = errors.find(
@@ -479,7 +479,7 @@ describe('UIAgent', () => {
 
       const agent = createAgent();
       const events = await collectEvents(
-        agent.generate('server-1', 'Show stuff', { signal: controller.signal }),
+        agent.generate('server-1', 'Show disk usage', { signal: controller.signal }),
       );
 
       const error = events.find((e) => e.type === 'error');
@@ -503,7 +503,7 @@ describe('UIAgent', () => {
 
       const agent = createAgent({ executor });
       const events = await collectEvents(
-        agent.generate('server-1', 'Show stuff', { signal: controller.signal }),
+        agent.generate('server-1', 'Show disk usage', { signal: controller.signal }),
       );
 
       // Should have aborted after seeing the abort signal
@@ -525,7 +525,7 @@ describe('UIAgent', () => {
       const executor = createMockExecutor(undefined, executorEvents);
       const agent = createAgent({ executor });
 
-      const events = await collectEvents(agent.generate('server-1', 'Show stuff'));
+      const events = await collectEvents(agent.generate('server-1', 'Show disk usage'));
 
       const toolResults = events.filter((e) => e.type === 'tool_result');
       expect(toolResults.length).toBe(2);
@@ -547,7 +547,7 @@ describe('UIAgent', () => {
       const executor = createMockExecutor(VALID_DYNAMIC_VIEW);
       const agent = createAgent({ ssh, executor });
 
-      await collectEvents(agent.generate('server-1', 'Show stuff'));
+      await collectEvents(agent.generate('server-1', 'Show disk usage'));
 
       const call = (executor.execute as ReturnType<typeof vi.fn>).mock.calls[0];
       expect(call[1].ssh).toBe(ssh);
@@ -558,7 +558,7 @@ describe('UIAgent', () => {
       const executor = createMockExecutor(VALID_DYNAMIC_VIEW);
       const agent = createAgent({ templateRegistry, executor });
 
-      await collectEvents(agent.generate('server-1', 'Show stuff'));
+      await collectEvents(agent.generate('server-1', 'Show disk usage'));
 
       const call = (executor.execute as ReturnType<typeof vi.fn>).mock.calls[0];
       expect(call[1].templateRegistry).toBe(templateRegistry);
@@ -568,7 +568,7 @@ describe('UIAgent', () => {
       const executor = createMockExecutor(VALID_DYNAMIC_VIEW);
       const agent = createAgent({ executor });
 
-      await collectEvents(agent.generate('server-1', 'Show stuff'));
+      await collectEvents(agent.generate('server-1', 'Show disk usage'));
 
       const call = (executor.execute as ReturnType<typeof vi.fn>).mock.calls[0];
       expect(call[1].previousOutputs).toBeInstanceOf(Map);
