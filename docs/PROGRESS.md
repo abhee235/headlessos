@@ -42,7 +42,7 @@
 | **EX7: Container Target Mode** | **Experimental** | **✅** | **10/10 tasks** | [phase-ex7](phases/phase-ex7.md) |
 | **EX8: LumenOS v3 Design System** | **Experimental** | **✅** | **9/9 tasks** | [phase-ex8](phases/phase-ex8.md) |
 | **EX9: Safe Agents (Actions, Approvals, Local Models)** | **Experimental** | **✅** | **6/6 tasks** | [phase-ex9](phases/phase-ex9.md) |
-| **EX10: Context Engineering for Agents** | **Experimental** | **🔄** | **9/13 tasks** | [phase-ex10](phases/phase-ex10.md) |
+| **EX10: Context Engineering for Agents** | **Experimental** | **🔄** | **10/13 tasks** | [phase-ex10](phases/phase-ex10.md) |
 
 ---
 
@@ -76,7 +76,7 @@
 | EX10.8 | Action selection favours request words; `cpu_usage`, `network_traffic`; actions reuse deterministic parsers | ⬜ | |
 | EX10.9 | Follow-up requests refine the open view; unclear requests get a question | ⬜ | |
 | EX10.10 | Widget-by-widget building with server-filled data (own ADR) | ⬜ | |
-| EX10.11 | Loop control in the UI Agent: loop guard in the executor (previous-turn repeats), stuck runs finish with the view or a wrap-up turn, steps-left warning, notes on the last tool result, announced-but-not-made calls | ⬜ | |
+| EX10.11 | Loop control in the UI Agent: loop guard in the executor (previous-turn repeats), stuck runs finish with the view or a wrap-up turn, steps-left warning, notes on the last tool result, announced-but-not-made calls | ✅ | Live: logs 139 s with 7 widgets (was 135 s, empty), overview 32 s with 10 widgets (was 151 s, 6 at the step limit); a repeated broken view is warned, refused and stopped instead of running to step 30. Benchmark on ornith:latest: picked 100%, answered 10/12. Server 2429 passed (+2 skipped), client 650 |
 | EX10.12 | Errors that steer: a missing file says so, says not to retry, and lists its folder | ✅ | Live: after one turn of missing logs the model read the files the listing named; a broken view string now says what is still wrong ("sections.system-logs.layout: missing…"), and the next call fixed it — the logs request completed with 7 widgets in 139 s (was an empty view after 135 s) |
 | EX10.13 | Garbled replies cut off and asked again; a slow start is checked before giving up | ✅ | A reply that turns into one repeated character is stopped at 200 of them and the request closed; a silence (no first chunk in 180 s, or none for 60 s mid-reply) is checked against `/api/ps` and waited out up to 600 s / 900 s while Ollama is up, or ends at once (`alive: false`) when it is not. Mocked streams only |
 
@@ -600,6 +600,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-10-25 | **EX10.11–EX10.13 ✅** The UI Agent no longer runs in circles. A call that keeps returning the same result is warned about, then refused, then the run stops and finishes with the view it built (or one last turn to build it). Errors say what to do instead: a missing log file lists what the folder holds, and a broken view says what is still wrong. Ollama replies that break down into repeated characters are cut off, and a silence is checked before it is given up. On a local 9B model, "show my system logs" went from an empty view after 135 s to a full one in 139 s. |
 | 2026-10-25 | **EX10.11–EX10.13 specced** after three live runs on a local 9B model: one asked for the same missing log files every turn until the step limit, another resent the same broken view 8 times. The UI Agent gets the loop guard the AI Agent already has (warn, refuse, stop, then finish with what it built), errors that say what to do instead, and Ollama replies that are cut off when they turn to garbage or checked before a slow start is given up. |
 | 2026-10-25 | **M13 ✅** Apple/Microsoft wallpapers removed, MIT licence added, docs and screenshots tidied, and the README brought up to date. |
 | 2026-10-25 | **M13 specced** after a pre-publication audit found no secrets in the history. To fix before going public: Apple/Microsoft wallpapers, no LICENSE file, outdated screenshots and doc references, and an outdated README. |
