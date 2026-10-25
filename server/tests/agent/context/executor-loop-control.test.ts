@@ -4,8 +4,8 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { z } from 'zod';
-import { ReactiveExecutor, VIEW_GARBLED, VIEW_OUT_OF_STEPS, viewStuck, type AgentEvent } from '../../../src/agent/executor.js';
-import { LLMDegenerateError, LLMTimeoutError, type ChatMessage, type ChatWithToolsResult } from '../../../src/llm/provider.js';
+import { ReactiveExecutor, VIEW_GARBLED, VIEW_OUT_OF_STEPS, VIEW_UNFINISHED, viewStuck, type AgentEvent } from '../../../src/agent/executor.js';
+import { LLMDegenerateError, LLMIncompleteError, LLMTimeoutError, type ChatMessage, type ChatWithToolsResult } from '../../../src/llm/provider.js';
 import { ToolRegistry } from '../../../src/agent/tools/tool-registry.js';
 import { updateViewTool } from '../../../src/agent/tools/update-view.js';
 import { generateSchemaTool } from '../../../src/agent/tools/generate-schema.js';
@@ -222,6 +222,22 @@ describe('executor garbled replies and a dead model (EX10.13)', () => {
     const events = await run(chat, [updateViewTool, generateSchemaTool]);
     expect(chat).toHaveBeenCalledTimes(4);
     expect(events.at(-1)).toMatchObject({ type: 'generation_incomplete', reason: 'the model’s replies kept breaking down into repeated characters' });
+  });
+
+  it('treats a reply Ollama ended unfinished like a garbled one, with its own note and ending (§8d)', async () => {
+    const chat = vi.fn()
+      .mockResolvedValueOnce(reply([{ name: 'load_average' }]))
+      .mockRejectedValueOnce(new LLMIncompleteError('Ollama ended the reply without finishing it, 0 tokens in (1 retry)', 0))
+      .mockResolvedValueOnce(reply([{ name: 'generate_schema', args: { schema: FINAL } }]));
+    const events = await run(chat, [counter(), generateSchemaTool]);
+    expect(JSON.parse(sent(2).messages.at(-1)!.content!).note).toBe(`${VIEW_UNFINISHED} ${NOTE_END}`);
+    expect(events.at(-1)).toMatchObject({ type: 'generation_complete' });
+
+    const always = vi.fn()
+      .mockResolvedValueOnce(reply([{ name: 'update_view', args: { view: SKELETON } }]))
+      .mockRejectedValue(new LLMIncompleteError('unfinished', 0));
+    const stopped = await run(always, [updateViewTool, generateSchemaTool]);
+    expect(stopped.at(-1)).toMatchObject({ type: 'generation_incomplete', reason: 'Ollama kept ending the model’s replies before they were finished' });
   });
 
   it('stops at once when the model no longer answers a status check', async () => {

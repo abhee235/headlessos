@@ -5,9 +5,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { z } from 'zod';
 import { LoopGuard, announcesStep } from '../../../src/agent/loop/loop-guard.js';
-import { ANNOUNCED, GARBLED, runAgentLoop, type LoopEvent } from '../../../src/agent/loop/run-loop.js';
+import { ANNOUNCED, GARBLED, GARBLED_NO_ANSWER, UNFINISHED, runAgentLoop, type LoopEvent } from '../../../src/agent/loop/run-loop.js';
 import { NOTE_END } from '../../../src/agent/loop/notes.js';
-import { LLMDegenerateError, LLMTimeoutError, type ChatMessage, type ChatWithToolsResult } from '../../../src/llm/provider.js';
+import { LLMDegenerateError, LLMIncompleteError, LLMTimeoutError, type ChatMessage, type ChatWithToolsResult } from '../../../src/llm/provider.js';
 import type { AgentTool, ToolContext } from '../../../src/agent/tools/types.js';
 
 const call = (name: string, input: unknown, output = 'same', ok = true) => ({ name, input, output, ok });
@@ -149,6 +149,23 @@ describe('runAgentLoop loop control', () => {
     const stopped = await drain(always);
     expect(always).toHaveBeenCalledTimes(4); // the first try, two more, then tools off
     expect(stopped.at(-1)).toMatchObject({ type: 'final', reason: 'garbled', text: 'Uptime could not be read.' });
+  });
+
+  it('ends as garbled, with a plain answer, when the tools-off answer breaks down too', async () => {
+    const chat = vi.fn().mockRejectedValue(new LLMDegenerateError('garbled', 300));
+    const events = await drain(chat);
+    expect(chat).toHaveBeenCalledTimes(4);
+    expect(events.at(-1)).toMatchObject({ type: 'final', reason: 'garbled', text: GARBLED_NO_ANSWER });
+  });
+
+  it('asks again with its own note after a reply Ollama ended unfinished (§8d)', async () => {
+    const chat = vi.fn()
+      .mockResolvedValueOnce(reply({ call: 'uptime' }))
+      .mockRejectedValueOnce(new LLMIncompleteError('unfinished', 0))
+      .mockResolvedValueOnce(reply({ text: 'Up 3 days.' }));
+    const events = await drain(chat);
+    expect(sent(chat, 2).at(-1)!.content).toBe(`up 3 days\n\nNote: ${UNFINISHED} ${NOTE_END}`);
+    expect(events.at(-1)).toMatchObject({ type: 'final', reason: 'answered' });
   });
 
   it('ends the run at once when Ollama no longer answers at all', async () => {
