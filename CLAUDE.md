@@ -63,6 +63,7 @@ The LLM emits `DynamicViewSchema` JSON (`shared/schemas/dynamic-view.ts`). A gen
   - `llm/model-router.ts` picks a model per role (`reasoning | structured-output | fast | weak`, defined in `config/models.ts`).
   - Progressive output streams as `layout_update` events built by `dynamic-ui/working-view.ts`, over the WebSocket in `routes/agent-ui.ts`.
 - **`agent/investigation-agent.ts`** is the older read-only ReAct agent, served by `routes/agent.ts`.
+- **Widgets filled by the server (EX10.10, ADR-026):** the UI Agent builds views with `start_view` → `add_widget` → `finish` (`agent/tools/widget-tools.ts`). A widget's `source: { action, params?, path?, reduce?, limit? }` is filled from the run's `ToolContext.actionResults` by `widget-source.ts` and never reaches the view; `update_view` / `generate_schema` still take a whole view. Actions with a `parse` (EX10.8, `actions/catalog/parsed.ts`) give the data paths point into.
 - **Agent safety:**
   - Agents never send command text (ADR-024, EX9). They call typed actions from `agent/actions/catalog/`; `ActionRunner` validates params, builds argv, quotes it and runs it. A new server-touching capability is a new action plus a row in `tests/agent/actions/catalog.test.ts`.
   - Agent runs execute in an AsyncLocalStorage scope (`services/policy/agent-scope.ts`). Inside it, `CommandPolicy` refuses any command the runner did not grant, in every policy mode, and `getSftp()` needs a grant. Server plumbing inside a run (the EX5 sandbox lifecycle) goes through `outsideAgentScope()`.

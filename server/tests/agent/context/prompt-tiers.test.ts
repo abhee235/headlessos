@@ -53,7 +53,9 @@ describe('UI Agent executor prompt tiers', () => {
     const lean = await executorPrompt(planOf(65_536));
     expect(lean).not.toContain('Rich cell segments');
     expect(lean).not.toContain('## Example: Progressive Sections Pattern');
-    expect(lean).toContain('## Workflow — build the view live');
+    expect(lean).toContain('## Workflow — build the view widget by widget'); // EX10.10
+    expect(lean).toContain('Each action result carries "widgetSource"');
+    expect(lean).not.toContain('To send a whole view at once instead'); // §9b: one way for small models
     for (const widget of ['stat-card', 'table', 'key-value', 'badge-grid', 'progress-bar', 'code-block', 'alert', 'card-list', 'chart', 'tree', 'log-viewer', 'form']) {
       expect(lean, widget).toContain(`**${widget}**`);
     }

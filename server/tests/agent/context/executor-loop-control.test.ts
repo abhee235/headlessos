@@ -109,7 +109,7 @@ describe('executor loop control (EX10.11)', () => {
     const fourth = sent(3).messages;
     expect(fourth.filter((m) => m.role === 'user')).toHaveLength(1);
     const note = JSON.parse(fourth.at(-1)!.content!).note as string;
-    expect(note).toMatch(/^You have called file_tail with the same input 3 times .*or build the view with what you have \(generate_schema\)\. Do not reply to this note\.$/);
+    expect(note).toMatch(/^You have called file_tail with the same input 3 times .*or build the view with what you have \(add_widget, then finish\)\. Do not reply to this note\.$/);
     // the refusal
     expect(JSON.parse(sent(4).messages.at(-1)!.content!).error).toMatch(/^Not run: file_tail with this input already returned the same result 3 times/);
     // the wrap-up turn: only generate_schema, with the stuck note
@@ -170,7 +170,7 @@ describe('executor loop control (EX10.11)', () => {
     const chat = vi.fn().mockResolvedValue(reply([{ name: 'load_average' }]));
     await run(chat, [tool], 6);
     const fourth = sent(3).messages;
-    expect(JSON.parse(fourth.at(-1)!.content!).note).toBe(`3 steps left: call generate_schema soon with the data you have; leave out what you could not get. ${NOTE_END}`);
+    expect(JSON.parse(fourth.at(-1)!.content!).note).toBe(`3 steps left: add your last widgets and call finish soon; leave out what you could not get. ${NOTE_END}`);
     expect(JSON.parse(sent(2).messages.at(-1)!.content!).note).toBeUndefined();
   });
 

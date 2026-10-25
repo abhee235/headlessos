@@ -156,6 +156,8 @@ export class UIAgent {
       ssh: this.ssh,
       templateRegistry: this.templateRegistry,
       previousOutputs: new Map(),
+      // EX10.10: action results kept for widgets bound to them (ADR-026)
+      actionResults: [],
       actions: new ActionRunner({ ssh: this.ssh }),
       runId: sessionId,
       // EX9.3 / EX10.3: sized to the model by the plan — 40 for hosted models, ~10% of a local window

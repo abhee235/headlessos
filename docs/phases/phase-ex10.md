@@ -592,7 +592,22 @@ Other widget types take no `source`. Strings filled in are redacted (EX9.5).
   size, used, available, usePercent, mountPoint";
 - a list where one value is needed: "cores is a list of 12: give a path to one value
   (cores.0.percent) or a reduce (avg)";
-- an invalid widget: up to three problems in plain words (`viewProblems`).
+- an invalid widget: up to three problems in plain words (`viewProblems`);
+- **copied lines are replaced by the real ones**:
+  - What counts: a log-viewer with 3 or more lines, or a code-block of 10 or more, sent
+    without a `source`, whose lines appear in the output of an action result of the run.
+  - The widget is bound to that result, and its lines become the result's real last 30.
+    The answer says so: "… (the lines you wrote were replaced by the last 30 of
+    file_tail /var/log/dpkg.log; next time send only the source)".
+  - Lines that match no result are the model's own text and stay as written.
+  - Why:
+    - In the first live run (10:19 UTC) the model wrote 20 dpkg lines itself, despite the
+      prompt.
+    - An earlier version refused such a widget, with a binding hint built from the latest
+      text result. That pointed at `dir_list /var/log/journal`; the model resent the
+      same widget until the loop guard stopped the run (10:21, empty view).
+    - The copied tokens are already spent by the time the widget arrives, so binding it
+      is the cheaper fix.
 
 **Executor:**
 - A tool result whose metadata carries `partialView` updates the last partial view and
@@ -600,6 +615,17 @@ Other widget types take no `source`. Strings filled in are redacted (EX9.5).
 - One whose metadata carries `schema` with `isTerminalTool` completes the run; this was
   `generate_schema` only.
 - The wrap-up turn (EX10.11) offers `finish` as well when a working view exists.
+
+**Steering the model toward bindings.** Live (10:24 UTC), `ornith:latest` never wrote a
+`source`. It copied lines and rows into its widgets, then resent the whole view through
+`generate_schema` (2,631 tokens, 46 s). So:
+- in a run with `add_widget`, every successful action result the model sees carries
+  `widgetSource`, the binding that shows it (the action plus the parameters that name
+  the call: path, unit, name, container …);
+- once no section is empty, `add_widget`'s answer ends "Call finish() when the view is
+  done: the view is not resent.";
+- the short workflow (lean and minimal tiers) no longer offers the whole-view alternative;
+  `update_view` and `generate_schema` still work if called.
 
 **Prompt:** one workflow in every tier, replacing the update_view one.
 1. `get_server_context` once.
@@ -631,7 +657,7 @@ The full tier keeps its longer explanation, now with a worked example of `source
 | EX10.7 | Trace cost keeps the span's own cost; no default price | ✅ |
 | EX10.8 | Action selection favours request words; `cpu_usage`, `network_traffic`; actions reuse deterministic parsers | ✅ |
 | EX10.9 | Follow-up requests refine the open view; unclear requests get a question | ⬜ |
-| EX10.10 | Widget-by-widget building with server-filled data (`add_widget`, `WorkingView`, `finish`) — own ADR | ⬜ |
+| EX10.10 | Widget-by-widget building with server-filled data (`add_widget`, `WorkingView`, `finish`) — own ADR | ✅ |
 | EX10.11 | Loop control in the UI Agent: the EX9.4 loop guard in the executor (previous-turn repeats); a stuck run finishes with its view or a wrap-up turn; steps-left warning; notes on the last tool result; announced-but-not-made calls in the shared loop | ✅ |
 | EX10.12 | Errors that steer: a missing file says so, says not to retry, and lists its folder | ✅ |
 | EX10.13 | Garbled replies cut off and asked again; a slow start is checked before the wait is given up | ✅ |
@@ -965,12 +991,63 @@ catalog's read cap is 64 (62 reads).
   /proc/stat` calls, ≥ 950 ms apart), the fallback when the first sample fails, and
   selection at 8, 9 and 30 slots.
 - **Live (UI Agent, "Show my CPU usage per core and the network traffic per interface",
-  10:10 UTC):**
+  10:07 UTC):**
   - `cpu_usage` → `{"overallPercent":0.4,"cores":[…12 cores…],"basis":"1 s"}` in 1,015 ms;
   - `network_traffic` → eth0 at 6,042 B/s in and 12,416 B/s out;
   - the view completed in 36 s.
 - **Benchmark (`ornith:latest`):** picked 100%, answered 10 of 12. That is within the
   10–11 of the last three runs; the same two fake-server gaps account for the misses.
+
+## EX10.10 — Widgets filled by the server (as built)
+
+**Files:**
+- `agent/tools/widget-source.ts`: `WidgetSourceSchema`, `findResult`, `resolvePath`,
+  `fillWidget`, `sourceFor`.
+- `agent/tools/widget-tools.ts`:
+  - `start_view`, `add_widget`, `replace_widget`, `remove_widget` and `finish`
+    (`WIDGET_TOOLS`, in `LOCAL_AGENT_TOOLS`);
+  - `bindCopied`;
+  - the finish warning about empty sections, kept per working view.
+- `dynamic-ui/working-view.ts`: `childrenOf` (tabs too), `removeWidget`,
+  `emptySectionIds`, `countWidgets`, `dropSections`.
+- `ToolContext`:
+  - `actionResults` (`ActionResultRecord`), appended by `actionTool.execute`, which
+    strips control characters and keeps the last 64 KiB;
+  - `workingView`, set by `start_view` and by any `update_view` with sidebar items and
+    sections.
+- `view-arg.ts` `describeIssues` is shared by the view and widget errors.
+
+**Executor:**
+- Any tool result with `partialView` sends `partial_view`. Any result with `schema` and
+  `isTerminalTool` completes the run.
+- The wrap-up turn offers `finish` and `generate_schema`. A finish that meets empty
+  sections is run again, so they are left out.
+- The loop notes name `finish`.
+- Action results carry `widgetSource` when `add_widget` is registered.
+- The prompt:
+  - **Full tier:** `WORKFLOW_FULL` is widget by widget, with `WIDGET_EXAMPLES`,
+    `SOURCE_FIELDS` and the progressive example rewritten for `start_view` / `add_widget` /
+    `finish`.
+  - **Lean and minimal tiers:** `WORKFLOW_SHORT` no longer offers the whole-view path.
+
+**Live** (`ornith:latest`, Local Ubuntu Dev, 2026-10-25 UTC):
+
+| Run | Result |
+|-----|--------|
+| 10:19 logs | 37 s, done with `finish`; the log-viewer was 20 dpkg lines the model wrote itself |
+| 10:21 logs (copies refused, with a hint from the latest text result) | the hint pointed at `dir_list`; the model resent the same widget; stopped by the loop guard, empty view, 86 s. Refusing was replaced by binding |
+| 10:24 logs (copied lines bound) | 117 s, 3 widgets, the log-viewer bound to dpkg.log; but the model then resent everything through `generate_schema` (2,631 tokens) |
+| 10:28 logs (`widgetSource` on results, "call finish()") | 56 s, 3 widgets, `finish`; two widgets bound; one missed because the model altered some lines (matching now takes a majority) |
+| 10:30 logs | 32 s, `finish`; largest reply 602 tokens |
+| 10:31 overview | 61 s, 10 widgets added in one turn; ended with `generate_schema` |
+
+Before EX10.10 the logs request took 75–387 s, and three runs in five ran into the
+8,192-token cap.
+
+The model never wrote a `source` itself. It copies, and binding corrects the text widgets
+it copies. Values it writes into stat-cards and tables are still its own. The binding is
+exact when used (tests, and the executor run from the real `disk_usage` parse). A model
+that follows the prompt, or a later prompt or few-shot change, gets the full benefit.
 
 ## EX10.11 — Loop control (as built)
 
