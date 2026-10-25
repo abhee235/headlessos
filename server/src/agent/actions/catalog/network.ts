@@ -3,6 +3,7 @@
 
 import { z } from 'zod';
 import { readAction } from './define.js';
+import { SAMPLE_INTERVAL_MS, connectionsData, interfacesData, portsData, trafficData } from './parsed.js';
 import { hostName, httpUrl } from '../params.js';
 
 export const NETWORK_ACTIONS = [
@@ -13,6 +14,7 @@ export const NETWORK_ACTIONS = [
     category: 'network',
     keywords: ['ip', 'address', 'interface', 'nic', 'eth0'],
     run: { kind: 'exec', build: () => ['ip', '-brief', 'addr'] },
+    parse: interfacesData,
   }),
   readAction({
     id: 'network_routes',
@@ -29,6 +31,7 @@ export const NETWORK_ACTIONS = [
     category: 'network',
     keywords: ['port', 'listen', 'open', 'socket', 'bind'],
     run: { kind: 'exec', build: () => ['ss', '-tulnp'] },
+    parse: portsData,
   }),
   readAction({
     id: 'network_connections',
@@ -37,6 +40,16 @@ export const NETWORK_ACTIONS = [
     category: 'network',
     keywords: ['connection', 'established', 'socket', 'peer'],
     run: { kind: 'exec', build: () => ['ss', '-tunap'] },
+    parse: connectionsData,
+  }),
+  readAction({
+    id: 'network_traffic',
+    title: 'Network traffic',
+    description: 'Bytes per second in and out per interface, over one second (/proc/net/dev sampled twice).',
+    category: 'network',
+    keywords: ['traffic', 'bandwidth', 'throughput', 'rx', 'tx', 'download', 'upload'],
+    run: { kind: 'exec', build: () => ['cat', '/proc/net/dev'], sampleTwiceMs: SAMPLE_INTERVAL_MS },
+    parse: trafficData,
   }),
   readAction({
     id: 'dns_config',

@@ -19,6 +19,7 @@ const EXPECTED: Record<string, [params: Record<string, unknown>, command: string
   uptime: [{}, 'uptime'],
   cpu_info: [{}, 'lscpu'],
   load_average: [{}, 'cat /proc/loadavg'],
+  cpu_usage: [{}, 'cat /proc/stat'], // EX10.8: sampled twice, 1 s apart
   memory_usage: [{}, 'free -m'],
   logged_in_users: [{}, 'who'],
   recent_logins: [{ lines: 50 }, 'last -n 50'],
@@ -35,6 +36,7 @@ const EXPECTED: Record<string, [params: Record<string, unknown>, command: string
   network_routes: [{}, 'ip route show'],
   listening_ports: [{}, 'ss -tulnp'],
   network_connections: [{}, 'ss -tunap'],
+  network_traffic: [{}, 'cat /proc/net/dev'], // EX10.8: sampled twice, 1 s apart
   dns_config: [{}, 'cat /etc/resolv.conf'],
   dns_lookup: [{ host: 'example.com' }, 'getent ahosts example.com'],
   ping_host: [{ host: '10.0.0.1', count: 2 }, 'ping -c 2 -W 2 10.0.0.1'],
@@ -91,11 +93,11 @@ const EXPECTED: Record<string, [params: Record<string, unknown>, command: string
 const runner = new ActionRunner({ ssh: {} as never });
 
 describe('seeded catalog', () => {
-  it('has 40–60 read actions (EX9.1) and the change actions of EX9.2', () => {
+  it('has 40–64 read actions (EX9.1, EX10.8) and the change actions of EX9.2', () => {
     const catalog = getDefaultCatalog();
     const reads = catalog.list({ risk: 'read' });
     expect(reads.length).toBeGreaterThanOrEqual(40);
-    expect(reads.length).toBeLessThanOrEqual(60);
+    expect(reads.length).toBeLessThanOrEqual(64);
     expect(catalog.list({ risk: 'change' }).map((a) => a.id).sort()).toEqual([
       'container_restart', 'container_start', 'container_stop', 'nginx_reload', 'package_install',
       'packages_refresh', 'process_signal', 'service_reload', 'service_restart', 'service_start', 'service_stop',

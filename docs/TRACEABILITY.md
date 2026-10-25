@@ -1280,6 +1280,15 @@ None (all changes to existing files).
 - **Tests modified:** `server/tests/agent/context/prompt-tiers.test.ts` (every tier states the rule once)
 - **Verification:** two live logs runs, 75 s with no cut-off and 207 s with one (before: three runs, a cut-off each)
 
+### EX10.8: Action selection and structured data
+- **Status:** ✅ Complete
+- **Date:** 2026-10-25
+- **Files created:** `server/src/agent/actions/catalog/parsed.ts`, `server/tests/agent/actions/parsed.test.ts`
+- **Files modified:** `server/src/agent/actions/tools.ts` (`STRONG_MATCH`, `STOP_WORDS`, ranking), `server/src/agent/actions/types.ts` (`sampleTwiceMs`, `parse(stdout, previous)`), `server/src/agent/actions/runner.ts` (two samples), `server/src/agent/actions/catalog/{system,network}.ts` (parsers, `cpu_usage`, `network_traffic`), `server/src/parsers/deterministic/df.ts` (Type column), `server/src/parsers/schemas/system.ts` (`type`), `server/src/llm/providers/fake-ssh-proxy.ts` (`/proc/stat`, `/proc/net/dev`)
+- **Docs:** `docs/phases/phase-ex10.md` (§9a, "EX10.8 — as built")
+- **Tests modified:** `server/tests/agent/actions/catalog.test.ts` (two actions, cap 64), `server/tests/agent/investigation-agent.test.ts` and `investigation-progress.test.ts` (parsed output)
+- **Verification:** server 2474 passed (+2 skipped), `tsc -p server` clean; live UI Agent run with both new actions; benchmark 10/12
+
 ## How to Use This File
 
 ### After completing a task:

@@ -21,6 +21,9 @@ function parseDfOutput(raw: string): DiskUsageParsed {
   }
 
   const results: DiskUsageParsed = [];
+  // EX10.8: `df -hT` adds a Type column after Filesystem
+  const typed = /^\S+\s+Type\s/i.test(lines[0]!.trim());
+  const shift = typed ? 1 : 0;
 
   // Skip header line
   for (let i = 1; i < lines.length; i++) {
@@ -29,21 +32,23 @@ function parseDfOutput(raw: string): DiskUsageParsed {
 
     // Handle lines where filesystem name wraps to next line
     const parts = line.split(/\s+/);
-    if (parts.length < 6) continue;
+    if (parts.length < 6 + shift) continue;
 
-    // df -h columns: Filesystem Size Used Avail Use% Mounted on
+    // df -h columns: Filesystem [Type] Size Used Avail Use% Mounted on
     const filesystem = parts[0]!;
-    const size = parts[1]!;
-    const used = parts[2]!;
-    const available = parts[3]!;
-    const usePercentStr = parts[4]!;
-    const mountPoint = parts.slice(5).join(' ');
+    const size = parts[1 + shift]!;
+    const used = parts[2 + shift]!;
+    const available = parts[3 + shift]!;
+    const usePercentStr = parts[4 + shift]!;
+    const mountPoint = parts.slice(5 + shift).join(' ');
 
+    if (!/^\d+%$/.test(usePercentStr) && usePercentStr !== '-') continue;
     const usePercent = parseInt(usePercentStr.replace('%', ''), 10);
     if (isNaN(usePercent)) continue;
 
     results.push({
       filesystem,
+      ...(typed ? { type: parts[1]! } : {}),
       size,
       used,
       available,

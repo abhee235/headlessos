@@ -58,7 +58,7 @@ describe('InvestigationAgent on the shared loop (EX9.1 / EX9.3)', () => {
     expect(result.answer).toBe('The root filesystem is 90% full.');
     expect(ssh.seen).toEqual(['df -hT']);
     expect(result.steps[0]).toMatchObject({ stepNumber: 1, thought: 'Checking disk.', action: 'disk_usage', command: 'df -hT', decision: 'continue' });
-    expect(result.steps[0]!.output).toContain('90%');
+    expect(result.steps[0]!.output).toContain('"usePercent":90'); // EX10.8: parsed by dfParser
     expect(result.steps[1]).toMatchObject({ stepNumber: 2, thought: 'The root filesystem is 90% full.', decision: 'answer' });
     expect(result.totalTokens).toBe(30);
   });

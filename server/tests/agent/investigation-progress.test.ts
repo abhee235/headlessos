@@ -32,7 +32,7 @@ describe('InvestigationAgent progress (EX8.24)', () => {
     expect(result.sessionId).toBe('client-session-1');
     expect(events.map((e) => `${e.kind}:${e.step}`)).toEqual(['thought:1', 'step:1', 'thought:2', 'step:2']);
     expect(events[0]).toMatchObject({ thought: 'Check memory', decision: 'run_action', action: 'memory_usage', command: 'free -m' });
-    expect(events[1]).toMatchObject({ data: { stepNumber: 1, action: 'memory_usage', command: 'free -m', output: 'Mem: 16G 9G', decision: 'continue' } });
+    expect(events[1]).toMatchObject({ data: { stepNumber: 1, action: 'memory_usage', command: 'free -m', output: expect.stringContaining('"totalMb":16,"usedMb":9'), decision: 'continue' } }); // EX10.8: parsed
     expect(events[3]).toMatchObject({ data: { stepNumber: 2, decision: 'answer' } });
     // the streamed steps are the steps of the result
     expect(events.filter((e) => e.kind === 'step').map((e) => e.data)).toEqual(result.steps);

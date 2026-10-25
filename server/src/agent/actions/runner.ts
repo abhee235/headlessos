@@ -216,9 +216,18 @@ export class ActionRunner {
   /** Run one built command inside its grant, then cap and parse. Never throws. */
   private async execGranted(serverId: string, def: ActionDef, command: string, started: number): Promise<ActionRunResult> {
     try {
-      const res = await withGrant({ kind: 'exec', actionId: def.id, command }, () =>
+      const execOnce = () => withGrant({ kind: 'exec', actionId: def.id, command }, () =>
         this.ssh.exec(serverId, command, def.timeoutMs, { maxBytes: channelCap(def) }),
       );
+      // EX10.8: two samples (cpu_usage, network_traffic): the first one feeds parse() as `previous`
+      let previous: string | undefined;
+      const interval = def.run.kind === 'exec' ? def.run.sampleTwiceMs : undefined;
+      if (interval) {
+        const first = await execOnce();
+        if ((def.okExitCodes ?? [0]).includes(first.exitCode) && !first.truncated) previous = first.stdout;
+        await new Promise((resolve) => setTimeout(resolve, interval));
+      }
+      const res = await execOnce();
       const out = capText(res.stdout, def.maxOutputBytes, def.keep ?? 'head');
       const ok = (def.okExitCodes ?? [0]).includes(res.exitCode);
       // EX9.5: no secret leaves the runner
@@ -234,7 +243,7 @@ export class ActionRunner {
         stderr: stderr.text,
         ...(redacted ? { redacted } : {}),
         truncated: out.truncated || !!res.truncated,
-        ...(def.parse && ok && !res.truncated ? tryParse(def, res.stdout) : {}),
+        ...(def.parse && ok && !res.truncated ? tryParse(def, res.stdout, previous) : {}),
         durationMs: Date.now() - started,
         ...(ok ? {} : { error: `exit code ${res.exitCode}` }),
       };
@@ -393,9 +402,9 @@ function describeCommand(def: ActionDef, params: Record<string, unknown>, sandbo
   return toCommand(def.run.build(params), { sudo: def.run.sudo && !inSandbox, sandboxContainer: inSandbox });
 }
 
-function tryParse(def: ActionDef, stdout: string): { data?: unknown } {
+function tryParse(def: ActionDef, stdout: string, previous?: string): { data?: unknown } {
   try {
-    return { data: def.parse!(stdout) };
+    return { data: def.parse!(stdout, previous) };
   } catch {
     return {}; // the model gets the raw text instead
   }

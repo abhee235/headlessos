@@ -491,6 +491,52 @@ The EX10.13 paths were checked against the real Ollama (`ornith:latest`, 64K; se
   results (`source: { action, path }`) and the server fills the values from parsed output and
   computes totals; `finish()` ends the run without resending the view. Needs its own ADR.
 
+### 9a. EX10.8 in detail: action selection and structured data
+
+**Selection** (`actions/tools.ts` `selectActions`). Today every `CORE_ACTIONS` id scores
++100, so with 8 slots (an 8K window) the nine core actions fill everything: a "network"
+request gets no network action. The ranking becomes:
+
+1. **strong matches**, score ≥ 3: an id word, a keyword, or several title and description
+   words, sorted by score;
+2. **the core set**, in its order;
+3. **weak matches**, score 1–2 (a description word, or only the request's category);
+4. **catalog order**.
+
+With enough slots this is the same set as before. With few, request words win: "show
+network traffic" at 8 slots gets `network_traffic`, `network_interfaces`,
+`network_connections`, `listening_ports` and more before `kernel_info`.
+
+**Two new actions, no shell.** An exec action may set `sampleTwiceMs`. The runner then
+runs its command twice, that far apart, each inside its own grant, and `parse(stdout,
+previous)` gets both outputs.
+
+- **`cpu_usage`** runs `cat /proc/stat` twice, 1 s apart, through `procStatParser` and
+  `computeCpuUsage`.
+  - Data: `{ overallPercent, cores: [{ id, percent }], basis: "1 s" }`.
+  - When both samples are equal (a fake server), it falls back to the since-boot average,
+    with `basis: "since boot"`.
+- **`network_traffic`** runs `cat /proc/net/dev` twice, 1 s apart, through `netDevParser`.
+  - Data: `[{ interface, rxBytesPerSec, txBytesPerSec, rxTotalBytes, txTotalBytes }]`
+    (loopback left out).
+
+**Parsers on existing actions.** Each returns structured data, which the model sees as
+compact JSON (as the Docker actions have since EX9); a parse that fails keeps the raw text.
+
+| Action | Parser | Data |
+|--------|--------|------|
+| `memory_usage` | `freeParser`, plus the percentages | `{ totalMb, usedMb, freeMb, availableMb, usedPercent, swapTotalMb, swapUsedMb, swapUsedPercent }` |
+| `disk_usage` | `dfParser`, which now reads the Type column of `df -hT`. Today it misreads that column without throwing (size "ext4", Use% 180). | `[{ filesystem, type, size, used, available, usePercent, mountPoint }]` |
+| `process_list` | `psAuxParser`, first 25 rows (ps sorts them) | `[{ pid, user, cpu, memory, rss, stat, started, time, command }]` |
+| `load_average` | new | `{ load1, load5, load15, running, total }` |
+| `listening_ports` | `ssListeningParser` | `[{ protocol, localAddress, localPort, process, pid }]` |
+| `network_connections` | `ssConnectionsParser` | `[{ protocol, localAddress, localPort, remoteAddress, remotePort, state, process, pid }]` |
+| `network_interfaces` | `ipParser` | `[{ name, status, ipAddresses }]` |
+
+**Supporting changes:**
+- The fake SSH proxy gets canned `/proc/stat` and `/proc/net/dev` output.
+- The catalog's read cap (60) goes to 64.
+
 ## What does not change
 
 - The action catalog, approvals, audit log, redaction and untrusted-data marking (EX9).
@@ -510,7 +556,7 @@ The EX10.13 paths were checked against the real Ollama (`ornith:latest`, 64K; se
 | EX10.5 | View tools: object or string, JSON repair, error position, no echo of the view, short outputs | ✅ |
 | EX10.6 | Tool input for every tool: `jsonSchema7`, nulls dropped, one-line errors | ✅ |
 | EX10.7 | Trace cost keeps the span's own cost; no default price | ✅ |
-| EX10.8 | Action selection favours request words; `cpu_usage`, `network_traffic`; actions reuse deterministic parsers | ⬜ |
+| EX10.8 | Action selection favours request words; `cpu_usage`, `network_traffic`; actions reuse deterministic parsers | ✅ |
 | EX10.9 | Follow-up requests refine the open view; unclear requests get a question | ⬜ |
 | EX10.10 | Widget-by-widget building with server-filled data (`add_widget`, `WorkingView`, `finish`) — own ADR | ⬜ |
 | EX10.11 | Loop control in the UI Agent: the EX9.4 loop guard in the executor (previous-turn repeats); a stuck run finishes with its view or a wrap-up turn; steps-left warning; notes on the last tool result; announced-but-not-made calls in the shared loop | ✅ |
@@ -811,6 +857,47 @@ Strings still work, so the fake-mode scenarios (which send strings) pass unchang
 - Tokens are still counted everywhere.
 
 The three `ornith:latest` runs priced at $0.16, $0.56 and $0.69 would now show $0.
+
+## EX10.8 — Action selection and structured data (as built)
+
+**Selection.** `actions/tools.ts` `selectActions` takes, up to `max`:
+1. matches scoring ≥ `STRONG_MATCH` (3);
+2. `CORE_ACTIONS`;
+3. the remaining matches;
+4. catalog order.
+Returned in catalog order. `words()` drops `STOP_WORDS` ("show", "and", "the", "my" …):
+without the old +100, "Kernel **and** host" had matched "network traffic **and** ports".
+At 8 slots, "show network traffic and open ports" gets six network actions plus
+`os_release` and `kernel_info`. Before, it got eight core actions.
+
+**Two samples.** The `exec` run kind takes `sampleTwiceMs`. `ActionRunner.execGranted`
+runs the command once, waits, and runs it again; the first output reaches `parse(stdout,
+previous)` only if that run succeeded. The command and the grant are the same both times.
+
+**Parsers.** In `catalog/parsed.ts`: `memoryData`, `diskData`, `processData`
+(`PROCESS_ROWS` = 25), `loadData`, `portsData`, `connectionsData`, `interfacesData`,
+`cpuData`, `trafficData`. They are wired into `system.ts` and `network.ts`, which gain
+`cpu_usage` and `network_traffic`. In `dfParser`:
+- it detects the Type column of `-hT`;
+- it rejects a row whose Use% is not a percentage, which is how the old misreading showed;
+- plain `df -h` parses as before.
+`DiskUsageEntrySchema` gains an optional `type`.
+
+**Other files.** The fake SSH proxy answers `cat /proc/stat` and `cat /proc/net/dev`. The
+catalog's read cap is 64 (62 reads).
+
+**Verified:**
+- **Tests:** `tests/agent/actions/parsed.test.ts` runs each parser on output captured from
+  the dev container (Ubuntu 22.04). It also covers the one-second sampling (two `cat
+  /proc/stat` calls, ≥ 950 ms apart), the fallback when the first sample fails, and
+  selection at 8, 9 and 30 slots.
+- **Live (UI Agent, "Show my CPU usage per core and the network traffic per interface",
+  10:10 UTC):**
+  - `cpu_usage` → `{"overallPercent":0.4,"cores":[…12 cores…],"basis":"1 s"}` in 1,015 ms;
+  - `network_traffic` → eth0 at 6,042 B/s in and 12,416 B/s out;
+  - the view completed in 36 s.
+- **Benchmark (`ornith:latest`):** picked 100%, answered 10 of 12. That is within the
+  10–11 of the last three runs; the same two fake-server gaps account for the misses.
 
 ## EX10.11 — Loop control (as built)
 
