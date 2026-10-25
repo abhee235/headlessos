@@ -37,6 +37,9 @@ export function headAndTail(text: string, maxChars: number): { text: string; cut
   return { text: `${text.slice(0, head)}\n[… ${text.length - maxChars} chars cut …]\n${text.slice(text.length - tail)}`, cut: true };
 }
 
+/** EX10.10: the end of an action's output kept for widgets (log tails keep their last lines) */
+const RESULT_KEEP_CHARS = 64 * 1024;
+
 /** EX10.12 follow-up: ANSI escape sequences and C0 control characters other than tab, newline and CR */
 export function stripControls(text: string): string {
   return text.replace(/\u001b\[[0-9;?]*[ -/]*[@-~]/g, '').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '');
@@ -85,6 +88,14 @@ export function actionTool(def: ActionDef): AgentTool {
         ...(sandboxContainer ? { sandboxContainer } : {}),
         ...(context.onApproval ? { onApproval: context.onApproval } : {}),
         ...(context.allowChange ? { allowChange: true } : {}),
+      });
+      // EX10.10: kept for widgets bound to this result (ADR-026)
+      context.actionResults?.push({
+        action: def.id,
+        params: args && typeof args === 'object' && !Array.isArray(args) ? { ...(args as Record<string, unknown>) } : {},
+        ok: result.ok,
+        ...(result.data !== undefined ? { data: result.data } : {}),
+        stdout: stripControls(result.stdout).slice(-RESULT_KEEP_CHARS),
       });
       return {
         success: result.ok,

@@ -25,6 +25,7 @@ import { generateSchemaTool } from './generate-schema.js';
 import { grepOutputTool } from './grep-output.js';
 import { getServerContextTool } from './get-server-context.js';
 import { updateViewTool } from './update-view.js';
+import { WIDGET_TOOLS } from './widget-tools.js';
 import { readActionTools } from '../actions/tools.js';
 import type { AgentTool } from './types.js';
 
@@ -36,6 +37,8 @@ export const LOCAL_AGENT_TOOLS: AgentTool[] = [
   grepOutputTool,
   getServerContextTool,
   updateViewTool,
+  // EX10.10: start_view, add_widget, replace_widget, remove_widget, finish (ADR-026)
+  ...WIDGET_TOOLS,
 ];
 
 /**

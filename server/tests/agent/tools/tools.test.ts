@@ -82,10 +82,15 @@ describe('ALL_AGENT_TOOLS', () => {
 
   it('has the expected local tools', () => {
     expect(LOCAL_AGENT_TOOLS.map(t => t.name).sort()).toEqual([
+      'add_widget', // EX10.10
+      'finish', // EX10.10
       'generate_schema',
       'get_server_context',
       'grep_output',
+      'remove_widget', // EX10.10
+      'replace_widget', // EX10.10
       'search_templates',
+      'start_view', // EX10.10
       'update_view',
       'validate_schema',
     ]);

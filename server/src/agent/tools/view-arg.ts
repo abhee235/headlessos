@@ -89,9 +89,13 @@ export function hoistTopLevel(value: unknown): Record<string, unknown> | null {
 /** EX10.12: "sections.logs.layout: missing or wrong, expected one of stack, grid, tabs" — at most three */
 export function viewProblems(value: unknown, max = 3): string {
   const parsed = DynamicViewSchema.safeParse(value);
-  if (parsed.success) return '';
-  return parsed.error.issues.slice(0, max).map((issue) => {
-    const where = issue.path.join('.') || 'the view';
+  return parsed.success ? '' : describeIssues(parsed.error.issues, max);
+}
+
+/** Zod issues in plain words, at most `max` (EX10.10: widgets too) */
+export function describeIssues(issues: readonly z.ZodIssue[], max = 3, whole = 'the view'): string {
+  return issues.slice(0, max).map((issue) => {
+    const where = issue.path.join('.') || whole;
     if (issue.code === 'invalid_union_discriminator') return `${where}: missing or wrong, expected one of ${issue.options.map(String).join(', ')}`;
     if (issue.code === 'invalid_type' && issue.received === 'undefined') return `${where}: missing (${issue.expected})`;
     return `${where}: ${issue.message}`;

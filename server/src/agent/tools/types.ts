@@ -7,6 +7,18 @@ import type { TemplateRegistry } from '../../dynamic-ui/template-registry.js';
 import type { SandboxManager } from '../sandbox-manager.js';
 import type { ActionRunner, ApprovalEvent } from '../actions/runner.js';
 import type { ContextPlan } from '../context/plan.js';
+import type { WorkingView } from '../../dynamic-ui/working-view.js';
+
+/** EX10.10: one action result of the run, for widgets bound to it (ADR-026) */
+export interface ActionResultRecord {
+  action: string;
+  params: Record<string, unknown>;
+  ok: boolean;
+  /** parse() result (EX10.8), when the action has a parser and it succeeded */
+  data?: unknown;
+  /** redacted, control characters stripped */
+  stdout: string;
+}
 
 // ── Security Tier ───────────────────────────────────────
 
@@ -46,6 +58,10 @@ export interface ToolContext {
   modelOutputChars?: number;
   /** EX10.3: every budget of this run, from the model's window */
   plan?: ContextPlan;
+  /** EX10.10: every action result of the run; widgets read their values from it */
+  actionResults?: ActionResultRecord[];
+  /** EX10.10: the view being built widget by widget (start_view, or the last update_view) */
+  workingView?: WorkingView;
 }
 
 // ── Tool Result ─────────────────────────────────────────

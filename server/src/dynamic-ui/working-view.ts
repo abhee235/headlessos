@@ -86,6 +86,59 @@ export class WorkingView {
   }
 
   /**
+   * EX10.10: remove the widget at `index` (0-based) of a section (or of one of its tabs).
+   * Returns the removed widget, or throws with what is there.
+   */
+  removeWidget(sectionId: string, index: number, tabId?: string): unknown {
+    const children = this.childrenOf(sectionId, tabId);
+    if (index < 0 || index >= children.length) {
+      throw new Error(`${sectionId} has ${children.length} widget${children.length === 1 ? '' : 's'}; there is no widget ${index}.`);
+    }
+    return children.splice(index, 1)[0];
+  }
+
+  /**
+   * EX10.10: the widget list of a section — its children, or a tab's (`tabId`, else the
+   * first tab). Throws with the section ids or tab ids that exist.
+   */
+  childrenOf(sectionId: string, tabId?: string): unknown[] {
+    const section = this.view.sections[sectionId] as unknown as { children?: unknown[]; tabs?: Array<{ id: string; children: unknown[] }> } | undefined;
+    if (!section) throw new Error(`No section "${sectionId}"; the sections are ${Object.keys(this.view.sections).join(', ') || 'none yet'}.`);
+    if (Array.isArray(section.tabs)) {
+      const tab = tabId ? section.tabs.find((t) => t.id === tabId) : section.tabs[0];
+      if (!tab) throw new Error(section.tabs.length ? `No tab "${tabId}" in ${sectionId}; its tabs are ${section.tabs.map((t) => t.id).join(', ')}.` : `${sectionId} has no tabs to add to.`);
+      return tab.children;
+    }
+    if (!Array.isArray(section.children)) section.children = [];
+    return section.children;
+  }
+
+  /** EX10.10: sidebar items whose section has no widget yet */
+  emptySectionIds(): string[] {
+    return this.view.sidebarItems.map((s) => s.id).filter((id) => {
+      try {
+        return this.countWidgets(id) === 0;
+      } catch {
+        return true;
+      }
+    });
+  }
+
+  /** EX10.10: widgets in a section, across its tabs */
+  countWidgets(sectionId: string): number {
+    const section = this.view.sections[sectionId] as unknown as { children?: unknown[]; tabs?: Array<{ children: unknown[] }> } | undefined;
+    if (!section) return 0;
+    return Array.isArray(section.tabs) ? section.tabs.reduce((n, t) => n + t.children.length, 0) : section.children?.length ?? 0;
+  }
+
+  /** EX10.10: drop sections (and their sidebar items) */
+  dropSections(ids: readonly string[]): void {
+    for (const id of ids) delete this.view.sections[id];
+    this.view.sidebarItems = this.view.sidebarItems.filter((s) => !ids.includes(s.id));
+    this.metadataChanged = true;
+  }
+
+  /**
    * Update view metadata (title, description, icon).
    */
   updateMetadata(meta: { title?: string; description?: string; icon?: string }): void {

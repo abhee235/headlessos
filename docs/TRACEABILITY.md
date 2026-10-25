@@ -1289,6 +1289,15 @@ None (all changes to existing files).
 - **Tests modified:** `server/tests/agent/actions/catalog.test.ts` (two actions, cap 64), `server/tests/agent/investigation-agent.test.ts` and `investigation-progress.test.ts` (parsed output)
 - **Verification:** server 2474 passed (+2 skipped), `tsc -p server` clean; live UI Agent run with both new actions; benchmark 10/12
 
+### EX10.10: Widgets filled by the server (ADR-026)
+- **Status:** ✅ Complete
+- **Date:** 2026-10-25
+- **Files created:** `server/src/agent/tools/widget-source.ts`, `server/src/agent/tools/widget-tools.ts`, `server/tests/agent/tools/widgets.test.ts`
+- **Files modified:** `server/src/agent/tools/types.ts` (`ActionResultRecord`, `actionResults`, `workingView`), `server/src/agent/actions/tools.ts` (results kept), `server/src/agent/tools/{index,update-view,view-arg}.ts`, `server/src/dynamic-ui/working-view.ts`, `server/src/agent/executor.ts` (snapshots and terminal results from any tool, wrap-up with `finish`, `widgetSource`, widget workflow in every tier), `server/src/agent/ui-agent.ts` (`actionResults`), `CLAUDE.md`
+- **Docs:** `docs/DECISIONS.md` (ADR-026), `docs/phases/phase-ex10.md` (§9b, "EX10.10 — as built")
+- **Tests modified:** `server/tests/agent/tools/tools.test.ts` (local tools), `server/tests/agent/context/prompt-tiers.test.ts` (workflow), `server/tests/agent/context/executor-loop-control.test.ts` (notes)
+- **Verification:** server 2494 passed (+2 skipped), both typechecks clean; six live runs (see the phase doc)
+
 ## How to Use This File
 
 ### After completing a task:
