@@ -1279,6 +1279,14 @@ None (all changes to existing files).
 - **Tests modified:** `server/tests/agent/context/executor-context.test.ts` (a failing call keeps the view), `server/tests/agent/context/executor-loop-control.test.ts` (unfinished replies), `server/tests/agent/loop/loop-control.test.ts` (unusable final answer, unfinished note)
 - **Verification:** server 2458 passed (+2 skipped), client 650, both typechecks clean; live: logs 311 s / 302 s with the capped retry, overview 63 s, benchmark 11/12
 
+### EX10.3 follow-up: view size limits up front
+- **Status:** ✅ Complete
+- **Date:** 2026-10-25
+- **Files modified:** `server/src/agent/executor.ts` (`VIEW_SIZE_RULE` in `WORKFLOW_FULL` and `WORKFLOW_SHORT`)
+- **Docs:** `docs/phases/phase-ex10.md` (§8d item 11, "EX10.3 — as built" follow-up)
+- **Tests modified:** `server/tests/agent/context/prompt-tiers.test.ts` (every tier states the rule once)
+- **Verification:** two live logs runs, 75 s with no cut-off and 207 s with one (before: three runs, a cut-off each)
+
 ## How to Use This File
 
 ### After completing a task:
