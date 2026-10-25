@@ -254,6 +254,125 @@ Fixes:
    with the last valid partial view. The reason is "the model kept taking too long to
    answer".
 
+### 8c. Loops, steering errors, garbled replies and slow starts (EX10.11–EX10.13)
+
+Three UI Agent runs on `ornith:latest` at 64K (2026-10-25, 05:44–05:51 UTC) showed:
+
+- **Logs (135 s, empty view).** `file_tail` failed with "No such file" on `/var/log/syslog`,
+  `auth.log`, `kern.log`, `daemon.log` and `messages`. The model asked for the same files
+  again on every turn, 3–5 calls a turn, until the 30-step limit. The error never said what
+  the folder held. The model read `dpkg.log` successfully but never put it in the view.
+- **Overview (151 s).** `generate_schema` was sent 8 times with the same broken string.
+  The run ended at the step limit with the last partial view, which had 6 widgets.
+- **Ports (49 s).** Clean.
+
+The executor still used the EX2 `ToolRepetitionDetector`. After 8 identical calls it
+answers "try a different approach", and it never stops a run. The investigation agent has
+had the EX9.4 loop guard since EX9; the executor never got it.
+
+An earlier agent project of the author's handles this in layers, which these tasks adapt:
+
+- **Repeats:** the same call with the same result is warned about, then refused without
+  running, then the run stops. The model gets one turn to finish with what it has.
+- **Errors that steer:** an error says what to do instead. A missing file says it does not
+  exist, not to retry, and what is there.
+- **Notes:** reminders ride on the last tool result and end "Do not reply to this note", so
+  the model does not answer them as if the owner had spoken.
+- **Garbled replies:** a reply that degenerates into one repeated character is cut off while
+  it streams, and the model is asked again.
+- **Slow starts:** before giving up on a model that has not started answering, the provider
+  checks whether it is still up.
+
+**EX10.11 Loop control in the UI Agent.**
+
+1. The executor uses the EX9.4 `LoopGuard`. `ToolRepetitionDetector` and `maxToolRepetitions`
+   are removed. Every call is folded, failures included:
+   - the key is the tool and its input (the raw text when the arguments were not JSON);
+   - the result is the text the model saw.
+   A call that changes the server (`mutating`) still clears the history.
+2. "Back to back" in the guard now means *made in the previous turn*, not only *the very last
+   call*. Small models make several calls a turn, in varying order: the logs run kept
+   repeating its first calls, never its last. The new rule includes the old one and applies
+   to both agents.
+3. The ladder is unchanged:
+   - 3 identical results → a warning.
+   - After that, an identical call in the next turn is not run. It gets "Not run: … already
+     returned the same result N times".
+   - A second refusal, or 6 identical results, stops the run.
+   The guard's wording names the agent's way out: "give your answer" for the investigation
+   agent, "build the view with what you have" for the UI Agent.
+4. A stuck UI Agent run ends in the first of these that applies:
+   - **The last partial view is valid and has no empty section.** It completes as a normal
+     view (`generation_complete`, reviewed as usual). The overview run would have ended here.
+   - **One wrap-up turn.** It offers only `generate_schema`, with "You are stuck repeating X.
+     Stop gathering data. Call generate_schema now with the data you already have …". A
+     valid view completes the run. A small model may call `update_view` instead, though it
+     is not offered (it did in the first run after this change); its view counts the same.
+   - **The EX10.4 early stop.** The reason is "the model kept repeating X without getting
+     anything new".
+   A run that runs out of steps gets the same wrap-up turn before the EX10.4 early stop.
+5. Three steps before the limit, the model is told "3 steps left: call generate_schema soon
+   …". The shared loop has done this since EX9.4.
+6. Notes reach the model inside the last tool result:
+   - in the executor, a `note` field in the JSON result;
+   - in the shared loop, a trailing "Note:" paragraph after the result text.
+   Each note ends "Do not reply to this note." After a text-only reply there is no tool
+   result to carry it, so the note is a user message. This covers the loop warnings and the
+   steps-left warning in both loops.
+7. **Shared loop:** a text-only reply whose last sentence announces a next step ("Let me
+   check the logs.", "I'll run …", "Next, I will …") is not taken as the answer. A note tells
+   the model it did not make the call, and asks it to make the call or give the answer. This
+   happens at most twice a run; after that, the text is the answer.
+
+**EX10.12 Errors that steer.** An SFTP read action (`file_read`, `file_tail`, …) on a
+missing path answers:
+
+- **error:** `/var/log/syslog does not exist. Do not read it again; what /var/log holds is
+  listed below.`
+- **output**, inside `<server_output>` because the names come from the server:
+  `/var/log has: alternatives.log, apt/, dpkg.log, … (and N more)`. Up to 30 names, sorted;
+  folders end in `/`; secret paths are left out.
+
+Edge cases:
+
+- the folder is outside the read roots, or is a secret path: no listing;
+- the folder does not exist either: the error says so;
+- a permission error: the error says the login user cannot read the file, and not to retry.
+
+The same goes for a view sent as a string that does not parse (`update_view`,
+`generate_schema`, `validate_schema`). In the first logs run after EX10.11 (07:24 UTC) the
+model sent three slightly different broken strings, five times in all. It was told only
+where the JSON broke. Its section had no `layout`, which nothing told it.
+
+- **Keys pushed into `sections`.** When closing the brackets leaves the view's own keys
+  (`title`, `description`, `icon`, `sidebarItems`, `meta`) inside `sections`, because a
+  container was closed too early, they are moved back to the top. This applies only when
+  the value fits the key (a string title, an array of sidebar items), and the result is used
+  only if it is a valid view, like the EX10.5 bracket repair.
+- **Still not a valid view.** The error goes on to say what is wrong, up to three problems:
+  `With the brackets fixed, the view still has: sections.system-logs.layout: missing or
+  wrong, expected one of stack, grid, tabs.`
+
+**EX10.13 Garbled replies and slow starts (Ollama).**
+
+1. While a reply streams, the provider checks the text so far. If the last 400 characters
+   hold at most 2 distinct characters, or end in a run of 200 identical ones, the stream is
+   cancelled and `LLMDegenerateError` is thrown. Tool calls arrive whole and are not checked.
+2. Both loops discard such a reply and ask again, with a note that the last reply was
+   garbled and discarded. That happens at most twice a run. After that, the UI Agent stops
+   early with the last valid view, and the shared loop gives its short tools-off answer.
+3. A silence is checked before it is given up: no first chunk after 180 s, or no chunk for
+   60 s once the reply has started. The provider asks Ollama whether it is up
+   (`GET /api/ps`, 5 s):
+   - **It answers.** The wait goes on, 60 s at a time:
+     - for the first chunk, up to 600 s in all, since retrying would make Ollama evaluate
+       the whole prompt again;
+     - mid-reply, up to 900 s of silence. Ollama sends a tool call only once it is whole, so
+       a long view looks like a stall. In the first run after EX10.11 (2026-10-25, 07:12
+       UTC) a view was cut off after 60 s of silence, 28 tokens into the reply.
+   - **It does not answer.** `LLMTimeoutError` carries `alive: false`. The loops do not ask
+     for a smaller step; they end the run at once.
+
 ### 9. Later (specced here, built after EX10.7)
 
 - **EX10.8 Action selection and data.** When slots are few, request words beat the fixed core
@@ -272,7 +391,9 @@ Fixes:
 ## What does not change
 
 - The action catalog, approvals, audit log, redaction and untrusted-data marking (EX9).
-- The loop guard (EX9.4), the planner/executor/reflector structure, templates, the Observatory.
+- The planner/executor/reflector structure, templates, the Observatory. The EX9.4 loop guard
+  keeps its ladder; EX10.11 only widens what counts as back to back and moves it into the
+  executor.
 - OpenAI request parameters other than `max_tokens` where a call sets it.
 
 ## Tasks
@@ -289,6 +410,9 @@ Fixes:
 | EX10.8 | Action selection favours request words; `cpu_usage`, `network_traffic`; actions reuse deterministic parsers | ⬜ |
 | EX10.9 | Follow-up requests refine the open view; unclear requests get a question | ⬜ |
 | EX10.10 | Widget-by-widget building with server-filled data (`add_widget`, `WorkingView`, `finish`) — own ADR | ⬜ |
+| EX10.11 | Loop control in the UI Agent: the EX9.4 loop guard in the executor (previous-turn repeats); a stuck run finishes with its view or a wrap-up turn; steps-left warning; notes on the last tool result; announced-but-not-made calls in the shared loop | ⬜ |
+| EX10.12 | Errors that steer: a missing file says so, says not to retry, and lists its folder | ⬜ |
+| EX10.13 | Garbled replies cut off and asked again; a slow start is checked before the wait is given up | ⬜ |
 
 ## EX10.1 — Model limits (as built)
 
