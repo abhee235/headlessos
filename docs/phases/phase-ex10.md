@@ -373,6 +373,100 @@ was told only where the JSON broke. Its section had no `layout`, which nothing t
    - **It does not answer.** `LLMTimeoutError` carries `alive: false`. The loops do not ask
      for a smaller step; they end the run at once.
 
+### 8d. Follow-ups from the live checks of EX10.11–EX10.13 (2026-10-25)
+
+The EX10.13 paths were checked against the real Ollama (`ornith:latest`, 64K; see
+"EX10.13 — as built"). These checks, and the 07:16 run, left these gaps:
+
+1. **(EX10.13) A garbled final answer is an error.** When the shared loop's tools-off
+   answer also breaks down, the run ends with the provider's error. It now ends as the
+   `garbled` final, with the text "No answer: the model's replies kept coming back
+   broken."
+2. **(EX10.13) Garbled tool calls go unseen.** Ollama sends a tool call only once it is
+   whole, so the streaming check never sees its arguments. When a tool call arrives, its
+   arguments are checked for a run of 200 identical characters anywhere in them. A hit
+   throws `LLMDegenerateError`, and the loops ask again, as for garbled text.
+3. **(EX10.11) A trimmed result read again counts as a repeat.** After compaction has
+   trimmed or dropped tool results, the model is told to run a call again if it needs the
+   output. The loop guard then counted that call as returning the same result again. Both
+   loops now clear the guard's history when a compaction trims, summarizes or drops tool
+   results.
+4. **(EX10.2) The recency shield protects results, not turns.** The shield kept the last
+   four tool-calling turns whole, whatever their size. At 07:16 each turn read 5–7 log
+   files, about 2,000 tokens each, so four turns were about 48K, more than the 36K the 64K
+   plan compacts down to. Compaction removed 35–169 tokens a time, then fell back to
+   survival ("kept only the latest step", 59,003 → 36,206). The earlier project protects:
+   - the messages that fit in `keepRecent` tokens from the end (14,336 at 64K); and
+   - the last five tool results wherever they sit, never fewer than one.
+   The rest is trimmed. HeadlessOS adopts that:
+   - masking and microcompaction stub results before the protected tail;
+   - summarizing and dropping stop at the start of the turn that holds the tail's first
+     message, so a result never loses its call;
+   - survival still keeps only the latest turn whole.
+   `KEEP_GROUPS` (4) becomes `KEEP_RECENT_RESULTS` (5).
+5. **(EX10.13) Transient failures end the run.** A dropped connection, a socket closed
+   mid-reply (undici's bare "terminated"), an HTTP 5xx or 429, or a runner crash reported
+   mid-stream ("model runner has unexpectedly stopped") ended the run on the first try. The
+   earlier project retries these.
+   - **Retries:** up to 5, with a backoff of `min(500 ms · 2^(n−1), 8 s)` plus up to 25%
+     jitter. A partial reply is discarded; nothing from it reaches the loop.
+   - **Waiting for Ollama:** from the second failure in a row, Ollama must answer
+     `GET /api/ps` within 30 s before the next try; if it does not, the run gets the error.
+     The earlier project instead unloads and reloads the model. Ollama restarts a crashed
+     runner on the next request by itself, and unloading would take the model away from
+     the owner's other work.
+   - **Not retried:** context overflow (the loops compact), other 4xx, timeouts and
+     garbled replies (the loops handle those), and a malformed stream line.
+   - The errors say what happened: "Ollama closed the connection N tokens into the reply",
+     "… (5 retries)".
+6. **(EX10.13) A stream that ends without its final line.** Asked for a tool call stuffed
+   with one character, Ollama cancelled the task itself after 47 tokens and closed a 200
+   response with no lines at all. The provider returned an empty reply, which the loops
+   took for a reply with nothing in it. Every complete Ollama stream ends with
+   `"done": true`.
+   - **One identical retry.** The provider tries such a stream again once, as the earlier
+     project does after an empty reply.
+   - **Then it is the model's problem.** The failure repeated on every try (six in 23.8 s
+     live), so more identical retries only lose time. After the retry the provider throws
+     `LLMIncompleteError` ("Ollama ended the reply without finishing it, N tokens in").
+   - **The loops treat it like a garbled reply.** They discard it and ask again with a
+     note ("Your last reply ended before it was finished and was discarded …"); a changed
+     prompt can avoid what tripped Ollama. The two kinds share the limit of two re-asks,
+     and the ending says which one it was.
+   This makes item 1's wording general: the wrap-up asks for an answer because "your
+   replies keep coming back broken", and with none the answer is "No answer: the model's
+   replies kept coming back broken."
+7. **(EX10.4) A model call that keeps failing loses the view.** When a call still fails
+   after the provider's retries, the executor threw, and the run ended with a bare error,
+   throwing away the partial view. It now ends with the EX10.4 early stop instead, with
+   the reason "the model call failed (<error>)". Context overflow keeps its own handling.
+8. **(EX10.12) Binary files fill the window.** Replaying the 07:16 run through the context
+   manager showed what really filled it: `file_tail` on `/var/log/faillog` (six times) and
+   `/var/log/wtmp`. They are binary login records, mostly NUL bytes. A result is capped
+   at 8,000 characters, but JSON escapes each NUL as `\\u0000`, six characters, so each
+   read cost about 12,000 tokens; the prompt jumped from 18K to 54K in one turn. No shield
+   can trim a 12K result inside the protected tail, so the run fell to survival with
+   either shield.
+   - **Binary files get a steering error.** A file whose content holds NUL bytes, or more
+     than 10% other control characters, is not shown: "/var/log/faillog is a binary file,
+     not text (8,000 bytes read); its contents cannot be shown. Do not read it again." For
+     `wtmp`, `btmp`, `lastlog` and `faillog`, the error adds "It holds login records: use
+     recent_logins."
+   - **Control characters are stripped from every action result** before the model sees
+     it: ANSI escape sequences, and C0 characters other than tab and newline. No result can
+     grow past its cap through escaping.
+9. **(EX10.12) Permission denied on open.** `/var/log/apt/term.log` (root:adm, 0640)
+   passes `realpath` and `stat`, and is refused only when it is opened. The model got the
+   bare "Permission denied". That error now gets the same steering message as one from
+   `stat`.
+10. **(EX10.4) A cut-off reply costs minutes on a local model.** In the 08:28 logs run, two
+    replies ran to the 8,192-token cap, in 132 s and 162 s. Each returned only its opening
+    sentence ("Now let me fill the section with actual log data …"), because Ollama drops a
+    tool call that is cut off unfinished. The reminder worked on the third try, after five
+    minutes. Now each cut-off (or timeout) strike halves the next reply's cap, never below
+    2,048 tokens: 8,192 → 4,096 → 2,048. A reply that is not cut off restores the plan's
+    cap. Both loops send the cap as `maxTokens` (Ollama `num_predict`).
+
 ### 9. Later (specced here, built after EX10.7)
 
 - **EX10.8 Action selection and data.** When slots are few, request words beat the fixed core
