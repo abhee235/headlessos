@@ -185,6 +185,16 @@ www-data    1234  5.7  2.8 131072  46080 ?      S    Apr03   9:44 nginx: worker 
 root           1  0.0  0.1 167744  11264 ?      Ss   Apr03   0:12 /sbin/init`)],
 
     ['cat /proc/loadavg', ok('0.45 0.38 0.32 1/142 45321')],
+    // EX10.8: cpu_usage and network_traffic sample these twice (the same answer twice: since-boot / zero rates)
+    ['cat /proc/stat', ok(`cpu  348672 1823 380036 1366221 20038 0 64106 0 0 0
+cpu0 174336 911 190018 683110 10019 0 32053 0 0 0
+cpu1 174336 912 190018 683111 10019 0 32053 0 0 0
+intr 123456
+ctxt 654321`)],
+    ['cat /proc/net/dev', ok(`Inter-|   Receive                                                |  Transmit
+ face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+    lo:  123456     789    0    0    0     0          0         0   123456     789    0    0    0     0       0          0
+  eth0: 25582428  314139    0    0    0     0          0         0 66673212  242752    0    0    0     0       0          0`)],
 
     // EX9.4: outputs for the agent benchmark's questions (catalog action commands)
     ['systemctl status --no-pager --lines=20 -- nginx', ok(

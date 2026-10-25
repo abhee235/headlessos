@@ -42,7 +42,7 @@
 | **EX7: Container Target Mode** | **Experimental** | **✅** | **10/10 tasks** | [phase-ex7](phases/phase-ex7.md) |
 | **EX8: LumenOS v3 Design System** | **Experimental** | **✅** | **9/9 tasks** | [phase-ex8](phases/phase-ex8.md) |
 | **EX9: Safe Agents (Actions, Approvals, Local Models)** | **Experimental** | **✅** | **6/6 tasks** | [phase-ex9](phases/phase-ex9.md) |
-| **EX10: Context Engineering for Agents** | **Experimental** | **🔄** | **10/13 tasks** | [phase-ex10](phases/phase-ex10.md) |
+| **EX10: Context Engineering for Agents** | **Experimental** | **🔄** | **11/13 tasks** | [phase-ex10](phases/phase-ex10.md) |
 
 ---
 
@@ -74,7 +74,7 @@
 | EX10.5 | View tools: object or string, JSON repair, error position, no echo, short outputs | ✅ | Views as objects; broken strings repaired or located ("at character N (…excerpt…)"); the model never gets the view, schema or action metadata back; prompts no longer ask for strings or "partial JSON" |
 | EX10.6 | Tool input for every tool: `jsonSchema7`, nulls dropped, one-line errors | ✅ | The 01:41 `search_templates` call with null optionals now runs; bad arguments get one line with the signature; guardrails still decide first |
 | EX10.7 | Trace cost keeps the span's own cost; no default price | ✅ | Local-model runs cost $0 in traces and the usage summary; unknown models are left unpriced, not guessed |
-| EX10.8 | Action selection favours request words; `cpu_usage`, `network_traffic`; actions reuse deterministic parsers | ⬜ | |
+| EX10.8 | Action selection favours request words; `cpu_usage`, `network_traffic`; actions reuse deterministic parsers | ✅ | At 8 slots a network request gets six network actions (was eight core ones); `cpu_usage` / `network_traffic` sample `/proc` twice without a shell (live: 0.4% over 1 s, eth0 6 KB/s); memory, disk, processes, load, ports, connections and interfaces return parsed data; `df -hT` no longer misread |
 | EX10.9 | Follow-up requests refine the open view; unclear requests get a question | ⬜ | |
 | EX10.10 | Widget-by-widget building with server-filled data (own ADR) | ⬜ | |
 | EX10.11 | Loop control in the UI Agent: loop guard in the executor (previous-turn repeats), stuck runs finish with the view or a wrap-up turn, steps-left warning, notes on the last tool result, announced-but-not-made calls | ✅ | Live: logs 139 s with 7 widgets (was 135 s, empty), overview 32 s with 10 widgets (was 151 s, 6 at the step limit); a repeated broken view is warned, refused and stopped instead of running to step 30. Benchmark on ornith:latest: picked 100%, answered 10/12. Server 2429 passed (+2 skipped), client 650 |
