@@ -939,8 +939,7 @@ The first live run after EX10.11 (07:12 UTC) lost a view to it: "Ollama stopped 
 60 s, 28 tokens into the reply". Ollama sends a tool call only once it is whole, so a long
 view looks like a stall. The retry ("send a smaller step") then produced a 739-token view.
 
-**Verified:** with mocked streams only; no garbled reply or long silence happened in the
-live runs after the change.
+**Verified with mocked streams:**
 - A garbled stream is cut at 218 characters (18 of text, then 200 newlines), with its body
   cancelled after fewer than 400 chunks.
 - A first chunk at 110 ms behind a 20 ms wait arrives, with two or more probes and one chat
@@ -948,6 +947,51 @@ live runs after the change.
 - An idle pause of 110 ms behind a 20 ms wait completes the tool call.
 - A dead probe stops the wait at once (first chunk and mid-reply).
 - A probe that returns after the reply has started does not abort it.
+
+**Verified live** against `ornith:latest` (2026-10-25, about 08:00 UTC), with the waits
+shortened so the checks could happen:
+- **Garbled.** A request for a 500-character string literal was cut after 211 characters
+  in 0.8 s, and Ollama logged `cancel task`.
+- **Slow start.** A fresh 32,770-token prompt started answering at 12.8 s, behind a 1.5 s
+  first wait. Eight probes kept the wait going; there was one chat request.
+- **Mid-reply.** The model wrote "I will save the report.", then Ollama was silent for 5.7 s
+  while it built a 401-token tool call. Two probes kept the wait going, and the call
+  arrived whole.
+- **The shared loop.** Three garbled turns were dropped, then the tools-off answer.
+- **A hung server** (a local stand-in, since Ollama was not stopped) gave
+  `alive: false` after 6 s.
+
+**Follow-ups (§8d items 2, 5, 6):**
+
+- **Garbled tool calls.** `hasDegenerateSpan` finds a run of 200, or a 400-character window
+  with at most two distinct characters, anywhere in a text. `readChatStream` applies it to
+  every string in a tool call's arguments (to the raw text when they do not parse) as the
+  call arrives. A hit throws "Ollama's <tool> call broke down into repeated characters and
+  was dropped".
+- **Transient failures.** `chat()` now wraps `chatOnce()`. These count as transient:
+  - a failed connection;
+  - HTTP 408, 409, 429 or 5xx without overflow wording;
+  - an error line matching `RUNNER_TROUBLE`;
+  - a body that fails mid-stream ("Ollama closed the connection N tokens into the reply
+    (terminated)");
+  - a stream that ends without `done`.
+  Up to `MAX_TRANSIENT_RETRIES` (5), with a backoff of `min(500 ms · 2^(n−1), 8 s)` plus up to
+  25%. From the second retry on, `waitUntilUp` polls `/api/ps` once a second for up to
+  `RECOVER_WAIT_MS` (30 s). The final error ends "(N retries)". Each retry logs one
+  `[ollama] … trying again` line. Options: `maxTransientRetries`, `retryBaseMs`,
+  `recoverWaitMs`.
+- **Not retried:** timeouts and garbled replies (the loops handle those), overflow, other
+  4xx, malformed lines, other error lines.
+- **Unfinished streams.** One identical retry, then `LLMIncompleteError` (`provider.ts`,
+  with `isLLMIncomplete` and `isUnusableReply`).
+- **The body cancel** after a throw is no longer awaited: a cancel can stay pending.
+- **Live:**
+  - A proxy that cut the first request 4 tokens in: retried once, answered in 2.4 s.
+  - Ollama itself closing a stuffed tool call with an empty stream: `LLMIncompleteError`
+    after one retry, in 2.5 s; before, 5 retries and 23.8 s. Because Ollama cancels such
+    calls itself, the argument check has been seen only with mocks.
+
+## Prior art
 
 ## Prior art
 
