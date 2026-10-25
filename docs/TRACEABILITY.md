@@ -1213,6 +1213,14 @@ None (all changes to existing files).
 - **Tests modified:** `server/tests/agent/context/executor-context.test.ts`
 - **Verification:** server and client suites, both typechecks clean
 
+### EX10.13: Garbled replies and silences
+- **Status:** ✅ Complete
+- **Date:** 2026-10-25
+- **Files modified:** `server/src/llm/providers/ollama.ts` (`isDegenerate`, `DEGENERATE_WINDOW` / `DEGENERATE_RUN`, body cancelled on a throw, `StallCheck` in `Watchdog`, `/api/ps` probe, `MAX_FIRST_CHUNK_WAIT_MS` / `MAX_IDLE_WAIT_MS` / `STALL_STEP_MS`, messages by `alive`), `server/src/llm/provider.ts` (`LLMDegenerateError`, `isLLMDegenerate`, `LLMTimeoutError.alive`)
+- **Docs:** `docs/phases/phase-ex10.md` (§8c, "EX10.13 — as built")
+- **Tests modified:** `server/tests/llm/ollama.test.ts` (garbled text and stream, slow start, mid-reply silence, dead probe, late probe; the old timeout tests pin their ceilings)
+- **Verification:** `ollama.test.ts` 29 passed, `tsc -p server` clean; the loops' handling ships with EX10.11
+
 ## How to Use This File
 
 ### After completing a task:

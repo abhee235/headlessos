@@ -412,7 +412,7 @@ where the JSON broke. Its section had no `layout`, which nothing told it.
 | EX10.10 | Widget-by-widget building with server-filled data (`add_widget`, `WorkingView`, `finish`) — own ADR | ⬜ |
 | EX10.11 | Loop control in the UI Agent: the EX9.4 loop guard in the executor (previous-turn repeats); a stuck run finishes with its view or a wrap-up turn; steps-left warning; notes on the last tool result; announced-but-not-made calls in the shared loop | ⬜ |
 | EX10.12 | Errors that steer: a missing file says so, says not to retry, and lists its folder | ⬜ |
-| EX10.13 | Garbled replies cut off and asked again; a slow start is checked before the wait is given up | ⬜ |
+| EX10.13 | Garbled replies cut off and asked again; a slow start is checked before the wait is given up | ✅ |
 
 ## EX10.1 — Model limits (as built)
 
@@ -664,6 +664,51 @@ Strings still work, so the fake-mode scenarios (which send strings) pass unchang
 - Tokens are still counted everywhere.
 
 The three `ornith:latest` runs priced at $0.16, $0.56 and $0.69 would now show $0.
+
+## EX10.13 — Garbled replies and silences (as built)
+
+`llm/providers/ollama.ts`:
+
+- **Garbled replies.** `isDegenerate(text)` is true when the text ends in a run of
+  `DEGENERATE_RUN` (200) of one character, or when its last `DEGENERATE_WINDOW` (400)
+  characters hold at most two distinct ones. `readChatStream` checks the text after every
+  content chunk. On a hit it throws `LLMDegenerateError` (`llm/provider.ts`, with `received`)
+  and cancels the body, which ends the request; Ollama logs "cancel task". Tool calls
+  arrive whole and are not checked.
+- **Silences.** `Watchdog` takes a `StallCheck`. When a wait runs out, it probes
+  `GET /api/ps` (5 s):
+  - up → another `STALL_STEP_MS` (60 s), until `MAX_FIRST_CHUNK_WAIT_MS` (600 s) before the
+    first chunk, or `MAX_IDLE_WAIT_MS` (900 s) of silence mid-reply;
+  - no answer → abort, with `alive = false`.
+  A probe that returns after a chunk has arrived, or after the request ended, does nothing.
+  Options: `maxFirstChunkWaitMs`, `maxIdleWaitMs`, `stallStepMs`.
+- **`LLMTimeoutError.alive`** is false when the probe got no answer, true when Ollama was up
+  but the ceiling was reached, and undefined when no probe ran. The messages:
+  - "Ollama did not start answering within 600 s; it is running, but this prompt may be too
+    long for ornith:latest on this machine"
+  - "Ollama stopped answering: nothing after 180 s, and no answer to a status check"
+  - "Ollama sent nothing for 900 s, N tokens into the reply; it is running, but the reply
+    seems stuck"
+  - "Ollama stopped answering N tokens into the reply: nothing for 60 s, and no answer to a
+    status check"
+
+How the loops answer these errors (ask again, or stop at once) is in EX10.11's code; see
+"EX10.11 — as built".
+
+**Why mid-reply silences are waited out.** The spec first kept the 60 s mid-reply limit.
+The first live run after EX10.11 (07:12 UTC) lost a view to it: "Ollama stopped sending for
+60 s, 28 tokens into the reply". Ollama sends a tool call only once it is whole, so a long
+view looks like a stall. The retry ("send a smaller step") then produced a 739-token view.
+
+**Verified:** with mocked streams only; no garbled reply or long silence happened in the
+live runs after the change.
+- A garbled stream is cut at 218 characters (18 of text, then 200 newlines), with its body
+  cancelled after fewer than 400 chunks.
+- A first chunk at 110 ms behind a 20 ms wait arrives, with two or more probes and one chat
+  request.
+- An idle pause of 110 ms behind a 20 ms wait completes the tool call.
+- A dead probe stops the wait at once (first chunk and mid-reply).
+- A probe that returns after the reply has started does not abort it.
 
 ## Prior art
 

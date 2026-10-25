@@ -3,9 +3,9 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { z } from 'zod';
-import { OllamaProvider, checkOllamaUrl, listOllamaModels, toOllamaMessages } from '../../src/llm/providers/ollama.js';
+import { DEGENERATE_RUN, DEGENERATE_WINDOW, OllamaProvider, checkOllamaUrl, isDegenerate, listOllamaModels, toOllamaMessages } from '../../src/llm/providers/ollama.js';
 import { resolveOllamaLimits } from '../../src/llm/model-limits.js';
-import { LLMTimeoutError, isLLMTimeout } from '../../src/llm/provider.js';
+import { LLMTimeoutError, isLLMDegenerate, isLLMTimeout } from '../../src/llm/provider.js';
 
 function fakeFetch(...bodies: unknown[]) {
   const fn = vi.fn();
@@ -209,7 +209,7 @@ describe('OllamaProvider streaming', () => {
 
   it('times out when the reply goes quiet, saying how far it got', async () => {
     const fetch = streamingFetch(tokens(10), 5, { stallAfter: 4 });
-    const p = new OllamaProvider({ baseUrl: 'http://h', model: 'm', fetch: fetch as never, firstChunkTimeoutMs: 200, idleTimeoutMs: 60 });
+    const p = new OllamaProvider({ baseUrl: 'http://h', model: 'm', fetch: fetch as never, firstChunkTimeoutMs: 200, idleTimeoutMs: 60, maxIdleWaitMs: 60 });
     const err = await p.chatWithTools({ messages: [{ role: 'user', content: 'x' }] }).catch((e: unknown) => e);
     expect(isLLMTimeout(err)).toBe(true);
     expect(err).toBeInstanceOf(LLMTimeoutError);
@@ -218,14 +218,14 @@ describe('OllamaProvider streaming', () => {
 
   it('times out when nothing comes back at first, and says so plainly', async () => {
     const quiet = streamingFetch(tokens(3), 0, { stallAfter: 0 });
-    const p = new OllamaProvider({ baseUrl: 'http://h', model: 'big', fetch: quiet as never, firstChunkTimeoutMs: 50, idleTimeoutMs: 50 });
+    const p = new OllamaProvider({ baseUrl: 'http://h', model: 'big', fetch: quiet as never, firstChunkTimeoutMs: 50, idleTimeoutMs: 50, maxFirstChunkWaitMs: 50 });
     const err = await p.chatWithTools({ messages: [{ role: 'user', content: 'x' }] }).catch((e: unknown) => e);
     expect(err).toMatchObject({ name: 'LLMTimeoutError', phase: 'first-token' });
     expect((err as Error).message).toMatch(/^Ollama did not start answering within 0 s \(big may still be loading/);
 
     // no response at all before the deadline
     const hung = vi.fn((_u: string, init: { signal: AbortSignal }) => new Promise<Response>((_res, rej) => init.signal.addEventListener('abort', () => rej(new DOMException('aborted', 'AbortError')))));
-    const p2 = new OllamaProvider({ baseUrl: 'http://h', model: 'big', fetch: hung as never, firstChunkTimeoutMs: 50 });
+    const p2 = new OllamaProvider({ baseUrl: 'http://h', model: 'big', fetch: hung as never, firstChunkTimeoutMs: 50, maxFirstChunkWaitMs: 50 });
     await expect(p2.chatWithTools({ messages: [{ role: 'user', content: 'x' }] })).rejects.toMatchObject({ name: 'LLMTimeoutError', phase: 'first-token' });
   });
 
@@ -236,5 +236,139 @@ describe('OllamaProvider streaming', () => {
     const broken = streamingFetch([...tokens(2), { error: 'model runner has unexpectedly stopped' }]);
     const p2 = new OllamaProvider({ baseUrl: 'http://h', model: 'm', fetch: broken as never });
     await expect(p2.chatWithTools({ messages: [{ role: 'user', content: 'x' }] })).rejects.toThrow('Ollama answered: model runner has unexpectedly stopped');
+  });
+});
+
+// EX10.13: garbled replies are cut off while streaming; a slow start is checked before giving up
+describe('OllamaProvider garbled replies (EX10.13)', () => {
+  it('calls text garbled when it ends in one long run, or its tail holds two characters at most', () => {
+    expect(isDegenerate('The disk is 40% full. '.repeat(40))).toBe(false);
+    expect(isDegenerate(`Header\n${'-'.repeat(150)}\nrow`)).toBe(false);
+    expect(isDegenerate(`{"value": "${'0'.repeat(DEGENERATE_RUN)}`)).toBe(true);
+    expect(isDegenerate('ab'.repeat(DEGENERATE_WINDOW / 2))).toBe(true);
+    expect(isDegenerate('ab'.repeat(DEGENERATE_WINDOW / 2 - 1))).toBe(false); // not enough yet
+  });
+
+  it('stops the stream as soon as the reply breaks down, and closes the request', async () => {
+    let pulled = 0;
+    let cancelled = false;
+    const encoder = new TextEncoder();
+    const chunk = (content: string, done = false) => encoder.encode(`${JSON.stringify({ model: 'm', message: { role: 'assistant', content }, done })}\n`);
+    const fetch = vi.fn(async () => new Response(new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled++;
+        if (pulled === 1) controller.enqueue(chunk('Here is the view: '));
+        else if (pulled <= 5_000) controller.enqueue(chunk('\n'));
+        else { controller.enqueue(chunk('', true)); controller.close(); }
+      },
+      cancel() { cancelled = true; },
+    }), { status: 200 }));
+    const p = new OllamaProvider({ baseUrl: 'http://h', model: 'm', fetch: fetch as never });
+    const err = await p.chatWithTools({ messages: [{ role: 'user', content: 'x' }] }).catch((e: unknown) => e);
+    expect(isLLMDegenerate(err)).toBe(true);
+    expect(err).toMatchObject({ received: 'Here is the view: '.length + DEGENERATE_RUN }); // cut the moment the run reaches the limit
+    expect((err as Error).message).toMatch(/^Ollama's reply broke down into repeated characters after \d+ characters and was stopped$/);
+    expect(cancelled).toBe(true);
+    expect(pulled).toBeLessThan(400);
+  });
+});
+
+describe('OllamaProvider silences (EX10.13)', () => {
+  /** /api/chat answers (headers and first chunk together, as Ollama does) after `firstChunkAfterMs`, or never */
+  function ollamaFetch(firstChunkAfterMs: number | null, probe: () => Promise<Response>) {
+    let probes = 0;
+    const fn = vi.fn((url: string, init: { signal: AbortSignal }) => {
+      if (url.endsWith('/api/ps')) { probes++; return probe(); }
+      return new Promise<Response>((resolve, reject) => {
+        init.signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+        if (firstChunkAfterMs !== null) {
+          setTimeout(() => resolve(new Response(`${JSON.stringify({ model: 'm', message: { role: 'assistant', content: 'ready' }, done: true, done_reason: 'stop' })}\n`, { status: 200 })), firstChunkAfterMs);
+        }
+      });
+    });
+    return { fn, probes: () => probes };
+  }
+  const up = async () => new Response('{"models":[]}', { status: 200 });
+  const ask = (fetch: unknown, o: { first?: number; step?: number; max?: number } = {}) =>
+    new OllamaProvider({ baseUrl: 'http://h', model: 'big', fetch: fetch as never, firstChunkTimeoutMs: o.first ?? 20, stallStepMs: o.step ?? 20, maxFirstChunkWaitMs: o.max ?? 400 })
+      .chatWithTools({ messages: [{ role: 'user', content: 'x' }] });
+
+  it('waits on while Ollama answers its status check, and gets the reply', async () => {
+    const f = ollamaFetch(110, up);
+    const r = await ask(f.fn);
+    expect(r.message.content).toBe('ready');
+    expect(f.probes()).toBeGreaterThanOrEqual(2);
+    expect(f.fn.mock.calls.filter(([u]) => String(u).endsWith('/api/chat'))).toHaveLength(1); // never asked again
+  });
+
+  it('gives up at the limit, saying Ollama is up but slow', async () => {
+    const f = ollamaFetch(null, up);
+    const err = await ask(f.fn, { max: 80 }).catch((e: unknown) => e);
+    expect(err).toMatchObject({ name: 'LLMTimeoutError', phase: 'first-token', alive: true });
+    expect((err as Error).message).toMatch(/^Ollama did not start answering within 0 s; it is running, but this prompt may be too long for big on this machine$/);
+    expect(f.probes()).toBe(3); // at 20, 40 and 60 ms; at 80 the limit is reached
+  });
+
+  it('gives up at once when the status check gets no answer', async () => {
+    const f = ollamaFetch(null, () => Promise.reject(new TypeError('fetch failed')));
+    const err = await ask(f.fn).catch((e: unknown) => e);
+    expect(err).toMatchObject({ name: 'LLMTimeoutError', phase: 'first-token', alive: false });
+    expect((err as Error).message).toBe('Ollama stopped answering: nothing after 0 s, and no answer to a status check');
+    expect(f.probes()).toBe(1);
+  });
+
+  /** /api/chat sends a few tokens, goes quiet for `pauseMs` (Ollama writing a tool call), then the call */
+  function pausingFetch(pauseMs: number | null, probe: () => Promise<Response>) {
+    let probes = 0;
+    const fn = vi.fn(async (url: string, init: { signal: AbortSignal }) => {
+      if (url.endsWith('/api/ps')) { probes++; return probe(); }
+      const encoder = new TextEncoder();
+      const line = (o: unknown) => encoder.encode(`${JSON.stringify(o)}
+`);
+      return new Response(new ReadableStream<Uint8Array>({
+        async start(controller) {
+          init.signal.addEventListener('abort', () => controller.error(new DOMException('aborted', 'AbortError')));
+          for (let i = 0; i < 3; i++) controller.enqueue(line({ model: 'm', message: { role: 'assistant', content: `t${i} ` }, done: false }));
+          if (pauseMs === null) return;
+          await new Promise((r) => setTimeout(r, pauseMs));
+          if (init.signal.aborted) return;
+          controller.enqueue(line({ model: 'm', message: { role: 'assistant', content: '', tool_calls: [{ function: { name: 'update_view', arguments: { view: {} } } }] }, done: false }));
+          controller.enqueue(line({ model: 'm', message: { role: 'assistant', content: '' }, done: true, done_reason: 'stop' }));
+          controller.close();
+        },
+      }), { status: 200 });
+    });
+    return { fn, probes: () => probes };
+  }
+  const midReply = (fetch: unknown, max = 400) =>
+    new OllamaProvider({ baseUrl: 'http://h', model: 'big', fetch: fetch as never, idleTimeoutMs: 20, stallStepMs: 20, maxIdleWaitMs: max })
+      .chatWithTools({ messages: [{ role: 'user', content: 'x' }], tools: [{ type: 'function', function: { name: 'update_view', parameters: { type: 'object', properties: {} } } }] });
+
+  it('waits out a silence mid-reply while Ollama is up: it is writing a tool call', async () => {
+    const f = pausingFetch(110, up);
+    const r = await midReply(f.fn);
+    expect(r.message.tool_calls?.[0]?.function.name).toBe('update_view');
+    expect(f.probes()).toBeGreaterThanOrEqual(2);
+  });
+
+  it('gives up mid-reply at once when the status check gets no answer', async () => {
+    const f = pausingFetch(null, () => Promise.reject(new TypeError('fetch failed')));
+    const err = await midReply(f.fn).catch((e: unknown) => e);
+    expect(err).toMatchObject({ name: 'LLMTimeoutError', phase: 'idle', received: 3, alive: false });
+    expect((err as Error).message).toBe('Ollama stopped answering 3 tokens into the reply: nothing for 0 s, and no answer to a status check');
+  });
+
+  it('gives up mid-reply at the limit, saying the reply seems stuck', async () => {
+    const f = pausingFetch(null, up);
+    const err = await midReply(f.fn, 80).catch((e: unknown) => e);
+    expect(err).toMatchObject({ name: 'LLMTimeoutError', phase: 'idle', alive: true });
+    expect((err as Error).message).toBe('Ollama sent nothing for 0 s, 3 tokens into the reply; it is running, but the reply seems stuck');
+  });
+
+  it('keeps a reply that starts while the status check is still out', async () => {
+    const slowNo = () => new Promise<Response>((resolve) => setTimeout(() => resolve(new Response('', { status: 500 })), 40));
+    const f = ollamaFetch(30, slowNo);
+    const r = await ask(f.fn);
+    expect(r.message.content).toBe('ready');
   });
 });
