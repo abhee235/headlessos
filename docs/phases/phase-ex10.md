@@ -6,7 +6,7 @@
 > reply gets. The UI Agent executor, which had no context handling at all, moves onto
 > the same machinery, and its view tools stop wasting the window.
 >
-> Decision record: [ADR-025](../DECISIONS.md). Builds on [phase-ex9.md](phase-ex9.md)
+> Decision records: [ADR-025](../DECISIONS.md) (context), [ADR-026](../DECISIONS.md) (widgets filled by the server). Builds on [phase-ex9.md](phase-ex9.md)
 > (actions, shared loop, EX9.4 trimming), which it replaces for context handling.
 
 ## Why
@@ -536,6 +536,79 @@ compact JSON (as the Docker actions have since EX9); a parse that fails keeps th
 **Supporting changes:**
 - The fake SSH proxy gets canned `/proc/stat` and `/proc/net/dev` output.
 - The catalog's read cap (60) goes to 64.
+
+### 9b. EX10.10 in detail: widgets filled by the server (ADR-026)
+
+**Run state** (`ToolContext`):
+- `actionResults`: every action result of the run, as `{ action, params, ok, data?,
+  stdout }`. `actionTool.execute` appends it. `stdout` is redacted, has its control
+  characters stripped, and is capped at 64 KiB.
+- `workingView`: the `WorkingView` being built. `start_view` creates it, and so does a
+  successful `update_view`.
+
+**Tools** (local tier, in `LOCAL_AGENT_TOOLS`):
+
+| Tool | Input | Effect |
+|------|-------|--------|
+| `start_view` | `{ title, icon?, description?, sections: [{ id, label, icon?, layout?: stack \| grid }] }` | New `WorkingView` (`createSkeleton`); a `partial_view` snapshot |
+| `add_widget` | `{ section, widget, tab? }` | Fills `widget` from its `source`, validates it, appends it; a snapshot |
+| `replace_widget` | `{ section, index, widget }` | Same, in place of the widget at `index` (0-based) |
+| `remove_widget` | `{ section, index }` | Removes it; a snapshot |
+| `finish` | `{}` | Validates the view and ends the run, like a valid `generate_schema` |
+
+`finish` with empty sections answers "Still empty: Docker. Add widgets, or call finish
+again to leave them out". A second `finish` in a row drops those sections.
+
+Every answer is one line: "Added table 'Filesystems' to disk (3 rows from disk_usage).
+disk: 2 widgets; still empty: network."
+
+**Binding** (`source`):
+- `action` (required): the latest successful result of that action in the run whose
+  `params` include the given ones (`file_tail` with `{ path }` picks the file).
+- `path` (optional): a dot path into the result's parsed data; `cores.0.percent`;
+  `cores.*.percent` maps a list; empty is the whole result.
+- `reduce` (optional): `count`, `sum`, `avg`, `max` or `min`, over a list.
+- `limit` (optional): rows or lines. Default 20 rows or 30 lines; at most 50 rows or 100
+  lines.
+
+**Filling by widget type:**
+
+| Widget | Filled from the bound value |
+|--------|-----------------------------|
+| stat-card, sparkline-stat | `value`: one number or string; numbers keep at most one decimal |
+| progress-bar | `value`: a number, clamped to 0–100 |
+| gauge | `value`: a number |
+| key-value | `pairs`, from an object (up to 20 entries) |
+| table | `rows`, from a list of objects (up to `limit`); `columns` from the first row's keys when none are given (up to 8) |
+| chart | `data`, from a list of objects (up to `limit`); `xKey` and `yKeys` from the model |
+| log-viewer | `lines`, the last `limit` lines of the output (`stdout`), or of a list of strings at `path`; a line with error/fail/fatal is `error`, with warn is `warn` |
+| code-block | `code`, the first `limit` lines of the output |
+
+Other widget types take no `source`. Strings filled in are redacted (EX9.5).
+
+**Errors that steer:**
+- no result yet: "No result of cpu_usage in this run yet: call cpu_usage first";
+- unknown path: "disk_usage has no field 'use' (at use); its fields: filesystem, type,
+  size, used, available, usePercent, mountPoint";
+- a list where one value is needed: "cores is a list of 12: give a path to one value
+  (cores.0.percent) or a reduce (avg)";
+- an invalid widget: up to three problems in plain words (`viewProblems`).
+
+**Executor:**
+- A tool result whose metadata carries `partialView` updates the last partial view and
+  sends `partial_view`; this was `update_view` only.
+- One whose metadata carries `schema` with `isTerminalTool` completes the run; this was
+  `generate_schema` only.
+- The wrap-up turn (EX10.11) offers `finish` as well when a working view exists.
+
+**Prompt:** one workflow in every tier, replacing the update_view one.
+1. `get_server_context` once.
+2. `start_view`.
+3. Per section, the actions, then `add_widget` with `source`: "never copy values or log
+   lines yourself".
+4. `finish`.
+The full tier keeps its longer explanation, now with a worked example of `source`.
+`update_view` and `generate_schema` are listed as the way to send a whole view.
 
 ## What does not change
 
