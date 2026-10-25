@@ -1298,6 +1298,16 @@ None (all changes to existing files).
 - **Tests modified:** `server/tests/agent/tools/tools.test.ts` (local tools), `server/tests/agent/context/prompt-tiers.test.ts` (workflow), `server/tests/agent/context/executor-loop-control.test.ts` (notes)
 - **Verification:** server 2494 passed (+2 skipped), both typechecks clean; six live runs (see the phase doc)
 
+### EX10.9: Follow-ups and questions
+- **Status:** ✅ Complete
+- **Date:** 2026-10-25
+- **Files created:** `server/src/agent/follow-up.ts`, `server/tests/agent/follow-up.test.ts`, `client/tests/components/ui-agent-follow-up.test.tsx`
+- **Files modified:** `server/src/routes/agent-ui.ts` (`followUp`), `server/src/agent/planner.ts` (`question`, follow-up prompt), `server/src/agent/ui-agent.ts` (`question` event, `namesNothing` check, context from the open view), `server/src/agent/tools/types.ts` (`followUp`), `server/src/agent/executor.ts` (starts from the open view; refine message; the EX10.10 opening message), `client/src/store/agent-store.ts` (`question`, `askSession`), `client/src/hooks/useUIAgent.ts` (`followUp`, `question`), `client/src/components/Agent/UIAgentView.tsx` (refine chip, window reuse, question card), `CLAUDE.md`
+- **Docs:** `docs/phases/phase-ex10.md` (§9c, "EX10.9 — as built")
+- **Tests modified:** `server/tests/agent/ui-agent.test.ts` (requests that name something)
+- **Verification:** server 2503 passed (+2 skipped), client 655, both typechecks clean; four live runs and a Playwright check (see the phase doc)
+- **Modified:** EX10.10 — the executor's opening message now describes the widget workflow
+
 ## How to Use This File
 
 ### After completing a task:

@@ -9,6 +9,7 @@ import { z } from 'zod';
 import type { ModelRouter } from '../llm/model-router.js';
 import type { TemplateRegistry } from '../dynamic-ui/template-registry.js';
 import { withSpan } from '../observatory/context.js';
+import { outlineView, type FollowUp } from './follow-up.js';
 
 // ── Schemas ──
 
@@ -50,6 +51,10 @@ export const PlannerHintsSchema = z.object({
   ),
   skipPostReflection: z.boolean().describe(
     'If true, Zod validation in the executor loop is sufficient — skip the post-generation reflector. True for simple display-only UIs.',
+  ),
+  // EX10.9: an unclear request gets a question instead of a guess
+  question: z.string().nullable().optional().describe(
+    'null, unless the request names nothing to show (e.g. "show me stuff", "fix it", "help"): then ONE short question to ask the owner.',
   ),
 });
 
@@ -95,6 +100,15 @@ Each section becomes a sidebar nav item. The FIRST section is the primary operat
 For simple requests: 1 section (e.g. ["Disk Usage"])
 For complex requests: multiple sections (e.g. ["System", "Docker", "Network"])
 These map 1:1 with dataSourceHints. Each section gets its own data-gathering phase.
+
+## Unclear requests (EX10.9)
+Set "question" only when the request names nothing to show or check ("show me stuff", "fix it", "help").
+Then ask ONE short question, e.g. "Which part of the server: system health, logs, Docker, services or network?".
+Otherwise question is null — a short but clear request ("disk", "nginx logs") is not unclear.
+
+## Follow-ups (EX10.9)
+When the owner is refining an open view, its outline and their earlier request come with the request.
+Plan the refined view: keep the sections and widgets that still fit, and change what the request asks.
 
 ## Interactivity Levels
 - display-only: User just wants to see data (monitoring, logs, status)
@@ -181,12 +195,12 @@ export class Planner {
    * classify interactivity level, and estimate complexity. Does NOT produce
    * step-by-step tool execution plans.
    */
-  async plan(userRequest: string, serverContext?: string): Promise<PlannerHints> {
+  async plan(userRequest: string, serverContext?: string, opts: { followUp?: FollowUp } = {}): Promise<PlannerHints> {
     return withSpan('Planner.plan', 'CHAIN', async () => {
       // Build the prompt with template context
       const templateContext = this.buildTemplateContext();
       const systemPrompt = this.buildSystemPrompt(templateContext);
-      const userPrompt = this.buildUserPrompt(userRequest, serverContext);
+      const userPrompt = this.buildUserPrompt(userRequest, serverContext, opts.followUp);
 
       // Call reasoning model
       const result = await this.modelRouter.reason<PlannerHints>({
@@ -230,8 +244,14 @@ export class Planner {
   /**
    * Build the user prompt with the request and optional server context.
    */
-  private buildUserPrompt(userRequest: string, serverContext?: string): string {
+  private buildUserPrompt(userRequest: string, serverContext?: string, followUp?: FollowUp): string {
     let prompt = `User request: "${userRequest}"`;
+    if (followUp) {
+      // EX10.9: the owner is refining the view that is open
+      prompt += `\n\nThe owner is refining the view that is open now. Their earlier request: "${followUp.prompt}".`
+        + `\nThe open view:\n${outlineView(followUp.view)}`
+        + `\nPlan the refined view: keep what still fits, change what the request asks.`;
+    }
     if (serverContext) {
       prompt += `\n\nServer context:\n${serverContext}`;
     }

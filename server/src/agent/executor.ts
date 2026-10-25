@@ -33,6 +33,7 @@ import { estimateToolsTokens } from './context/tokens.js';
 import { LoopGuard, type FoldedCall, type LoopFinding } from './loop/loop-guard.js';
 import { appendNote } from './loop/notes.js';
 import { sourceFor } from './tools/widget-source.js';
+import { outlineView } from './follow-up.js';
 
 /** EX9.2: change actions a generated button may name (params only; the server adds the reason) */
 const CHANGE_ACTION_LINES = getDefaultCatalog()
@@ -426,7 +427,7 @@ export class ReactiveExecutor {
       },
       {
         role: 'user',
-        content: this.buildInitialUserMessage(hints),
+        content: this.buildInitialUserMessage(hints, context),
       },
     ];
 
@@ -436,7 +437,8 @@ export class ReactiveExecutor {
     const plan = context.plan ?? planForProvider(this.modelRouter.toolProvider ?? null);
     const ctx = new ContextManager({ plan, summarize: chatSummarizer((input) => this.modelRouter.chat(input)) });
     const overhead = estimateToolsTokens(openAITools);
-    let lastPartialView: Record<string, unknown> | null = null;
+    // EX10.9: a follow-up starts from the open view, so an early stop keeps it
+    let lastPartialView: Record<string, unknown> | null = context.workingView ? (context.workingView.getSnapshot() as unknown as Record<string, unknown>) : null;
     let overflowRetries = 0;
     let forceCompaction = false;
     let garbledRetries = 0;
@@ -1028,14 +1030,23 @@ Final: finish() — every section has its widgets
     return 'LayoutDashboard';
   }
 
-  private buildInitialUserMessage(hints: PlannerHints): string {
+  private buildInitialUserMessage(hints: PlannerHints, context?: ToolContext): string {
     const sections = hints.suggestedSections;
+
+    // EX10.9: refine the view that is open, starting from it
+    if (context?.followUp && context.workingView) {
+      return `The owner is refining the view that is open now (their earlier request: "${context.followUp.prompt}").`
+        + `\nWhat they want now: ${hints.intent}`
+        + `\n\nThe open view is already loaded:\n${outlineView(context.workingView.getSnapshot(), true)}`
+        + `\n\nChange it with replace_widget, remove_widget and add_widget (positions are 0-based); start_view would start over. Keep what still fits. finish when done.`;
+    }
 
     let msg = `Generate a ${hints.estimatedComplexity} ${hints.interactivityLevel} UI: ${hints.intent}`;
 
     if (sections?.length) {
       msg += `\n\nCreate these sidebar sections: ${sections.join(', ')}.`;
-      msg += `\nBuild it progressively: skeleton first (sidebarItems + empty sections) → fill each section after gathering its data → generate_schema last.`;
+      // EX10.10: was "skeleton first … generate_schema last", which still described the whole-view workflow
+      msg += `\nBuild it widget by widget: start_view with these sections → for each section, its actions, then add_widget with a source → finish last.`;
     }
 
     return msg;

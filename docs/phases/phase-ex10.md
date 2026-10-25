@@ -636,6 +636,54 @@ Other widget types take no `source`. Strings filled in are redacted (EX9.5).
 The full tier keeps its longer explanation, now with a worked example of `source`.
 `update_view` and `generate_schema` are listed as the way to send a whole view.
 
+### 9c. EX10.9 in detail: follow-ups and questions
+
+Today every prompt in the UI Agent panel starts from nothing and opens a new window.
+Nothing about the open view or the earlier request is sent, and the planner cannot ask
+anything.
+
+**Follow-ups refine the open view.**
+- **Client:** after a run ends with a view, the next prompt in the panel refines it.
+  - A chip above the composer says "Refining “<title>”", with "New view" to start fresh
+    instead.
+  - A follow-up sends `followUp: { prompt, view }`: the earlier request, and the view as
+    it is now.
+  - It updates the same window rather than opening a new one; if that window was closed,
+    a new one opens.
+- **Route:** `followUp.prompt` up to 2,000 characters; the view at most 256 KiB and a
+  valid `DynamicViewSchema`. Anything else runs as a new request.
+- **Planner:** the user prompt adds:
+  - the earlier request;
+  - an outline of the open view: its title, and per section its label and widgets as
+    `type 'title'`;
+  - "Plan the refined view: keep what still fits, change what the request asks."
+- **Executor:** the run starts with the open view loaded, as `workingView` and as the last
+  partial view, so an early stop keeps it. The first user message lists the widgets with
+  their positions and says: "The owner is refining the view that is open now … change it
+  with replace_widget, remove_widget and add_widget (positions are 0-based); start_view
+  would start over; finish when done."
+
+**Unclear requests get a question.**
+- **Planner:** the hints gain `question`. It is null unless the request names nothing to
+  show ("show me stuff", "fix it", "help"). Then it holds one short question.
+- **A deterministic check first.** A request with no word that names anything is asked
+  about before the planner runs. "Nothing" means words like help, fix, it, stuff,
+  something, please, hi, or what's wrong. The question: "What would you like to see? For
+  example: system health, logs, Docker containers, services, disk or network."
+  - Why: live (10:46 UTC), the planner never set `question`. "help" got a view called
+    "Planner Output"; "fix it" got an empty overview.
+  - The check is skipped for follow-ups, where "make it better" has the open view as its
+    subject.
+- **UI Agent:** a question ends the run before the executor, with `{ type: "question",
+  question }`.
+- **Client:**
+  - the panel shows "The agent asks: …";
+  - the window opened for the run closes;
+  - the composer's placeholder becomes "Your answer…";
+  - the answer is sent as "<earlier request> — <answer>"; if the question came on a
+    follow-up, the answer is one too (same view, same window).
+  - Question runs are not saved in the run history.
+
 ## What does not change
 
 - The action catalog, approvals, audit log, redaction and untrusted-data marking (EX9).
@@ -656,7 +704,7 @@ The full tier keeps its longer explanation, now with a worked example of `source
 | EX10.6 | Tool input for every tool: `jsonSchema7`, nulls dropped, one-line errors | ✅ |
 | EX10.7 | Trace cost keeps the span's own cost; no default price | ✅ |
 | EX10.8 | Action selection favours request words; `cpu_usage`, `network_traffic`; actions reuse deterministic parsers | ✅ |
-| EX10.9 | Follow-up requests refine the open view; unclear requests get a question | ⬜ |
+| EX10.9 | Follow-up requests refine the open view; unclear requests get a question | ✅ |
 | EX10.10 | Widget-by-widget building with server-filled data (`add_widget`, `WorkingView`, `finish`) — own ADR | ✅ |
 | EX10.11 | Loop control in the UI Agent: the EX9.4 loop guard in the executor (previous-turn repeats); a stuck run finishes with its view or a wrap-up turn; steps-left warning; notes on the last tool result; announced-but-not-made calls in the shared loop | ✅ |
 | EX10.12 | Errors that steer: a missing file says so, says not to retry, and lists its folder | ✅ |
@@ -997,6 +1045,87 @@ catalog's read cap is 64 (62 reads).
   - the view completed in 36 s.
 - **Benchmark (`ornith:latest`):** picked 100%, answered 10 of 12. That is within the
   10–11 of the last three runs; the same two fake-server gaps account for the misses.
+
+## EX10.9 — Follow-ups and questions (as built)
+
+**Server:**
+- `agent/follow-up.ts`:
+  - `readFollowUp`: the limits of §9c; anything else is a new request;
+  - `outlineView`: the title, then per section its widgets (tabs by id), 40 at most and
+    the rest counted; with positions for the executor;
+  - `VAGUE_QUESTION` and `namesNothing`: at most 8 words, all from a fixed set of words
+    that name nothing.
+- `routes/agent-ui.ts`: `generate` messages take `followUp`.
+- `planner.ts`:
+  - `question` in `PlannerHintsSchema` (optional, nullable);
+  - the system prompt gains "Unclear requests" and "Follow-ups";
+  - `plan(request, serverContext, { followUp })` adds the earlier request, the outline
+    and "Plan the refined view: keep what still fits, change what the request asks."
+- `ui-agent.ts`:
+  - a request that names nothing gets `VAGUE_QUESTION` before the planner runs (not on
+    follow-ups);
+  - a planner `question` ends the run before the executor;
+  - both send `{ type: 'question', question }`;
+  - a follow-up's context starts with `workingView` holding the open view, and
+    `followUp.prompt`.
+- `executor.ts`:
+  - the last partial view starts as the open view, so a run that stops early gives it
+    back;
+  - on a follow-up, the opening message says the owner is refining the open view, lists
+    its widgets with positions, and names `replace_widget` / `remove_widget` /
+    `add_widget`, `start_view` (starts over) and `finish`.
+  - **Also fixed (EX10.10):** a new run's opening message still said "skeleton first …
+    generate_schema last". It now says "Build it widget by widget: start_view with these
+    sections → for each section, its actions, then add_widget with a source → finish
+    last."
+
+**Client:**
+- `agent-store.ts`: status `question`, `question`, and `askSession`. Question runs are
+  not persisted.
+- `useUIAgent.ts`: `generate(prompt, { followUp })` sends it; a `question` message calls
+  `askSession`.
+- `UIAgentView.tsx`:
+  - **Refine chip.** After a run with a view, a chip says "Refining “<title>”", with "New
+    view" (`refine-chip`, `refine-new-view`). The placeholder becomes "Describe the change…
+    e.g., 'add a memory chart'".
+  - **Follow-ups.** A typed prompt then sends `followUp` and reuses that view's window,
+    marked loading. If the window was closed, a new one opens. Presets and history entries
+    always start fresh.
+  - **Questions.** The card reads "The agent asks" (`agent-question`). The window opened
+    for the run closes; a reused window just stops loading and keeps its view. The
+    placeholder becomes "Your answer…". The answer is sent as "<request> — <answer>", with
+    the same follow-up when the question came on one.
+  - The composer clears after a typed send.
+
+**Verified:**
+- **Tests:**
+  - `tests/agent/follow-up.test.ts` (9): reading and outlining, the planner prompt,
+    questions with and without the planner, a follow-up's context, and the executor
+    changing the open view in place and keeping it on an early stop;
+  - `client/tests/components/ui-agent-follow-up.test.tsx` (5): the chip, the same window,
+    "New view", a question closing its window, and the answer to a follow-up's question.
+- **Live** (`ornith:latest`, Local Ubuntu Dev, 2026-10-25 UTC):
+
+| Run | Result |
+|-----|--------|
+| 10:46 "help", "fix it" (before the deterministic check) | "help" → a view called "Planner Output" (16 s); "fix it" → "Server Overview" with no widgets (31 s). The planner set no `question` |
+| 10:44 "Show a detailed disk usage breakdown for all mounted filesystems" | "Disk Usage", 3 widgets, `finish`, 26 s |
+| 10:45 follow-up "also add memory usage" | "Disk & Memory Usage", 2 sections, 8 widgets, `finish`, 22 s. It kept the stat-card and progress-bar but removed the Filesystems table, which was not asked |
+| 10:48 "fix it" | the question, at once (0.0 s) |
+
+- **Playwright** (1440×900, signed in to Local Ubuntu Dev):
+  - "show disk", then "also add memory usage": the same window was reused (still 4 open
+    windows). The disk widgets stayed and Memory Total / Used / Available / Use were
+    added.
+  - The refine chip is 24 px tall, with 8 px gaps, aligned with the sandbox row and the
+    composer.
+  - "New view", then "help": the question card is 766.7 px wide, radius 18 px, padding
+    12/16 px, 20 px below the item above it. The placeholder became "Your answer…", and
+    the empty window closed.
+  - Only the windows the check opened were closed.
+
+The 9B model's edits on a follow-up are not always minimal: it may drop a widget it was
+not asked to touch. The open view is still kept whole when a run stops early.
 
 ## EX10.10 — Widgets filled by the server (as built)
 
