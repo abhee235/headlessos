@@ -184,6 +184,10 @@ Example: {"id":"restart","label":"Restart","icon":"RotateCw","action":{"id":"con
 
 `;
 
+/** EX10.3 follow-up (phase-ex10 §8d item 11): the first filled view kept running past 8,192 tokens */
+export const VIEW_SIZE_RULE =
+  'Keep every view small: you write each character, and a reply past the output limit is lost. At most 30 log lines per log-viewer (the latest), 20 rows per table, short titles; never paste a whole file or command output.';
+
 const WORKFLOW_FULL = `## Workflow — Progressive Rendering (MANDATORY)
 
 You MUST follow this exact workflow. The user sees the UI window build up LIVE as you work.
@@ -217,6 +221,7 @@ You MUST follow this exact workflow. The user sees the UI window build up LIVE a
 - generate_schema() is the LAST tool you call. It validates strictly and ends the session.
 - update_view() accepts a view whose sections are still empty — generate_schema() needs every section filled and valid.
 - Pass the view to update_view() and generate_schema() as a JSON object, not a string.
+- ${VIEW_SIZE_RULE}
 
 `;
 
@@ -227,6 +232,7 @@ const WORKFLOW_SHORT = `## Workflow — build the view live
 4. Repeat step 3 for each section.
 5. generate_schema() with the complete view. It is checked strictly and ends the run.
 Pass the view as a JSON object, not a string. You cannot write shell commands; each action is a tool with typed parameters.
+${VIEW_SIZE_RULE}
 
 `;
 

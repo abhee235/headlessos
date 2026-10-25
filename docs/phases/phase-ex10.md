@@ -466,6 +466,15 @@ The EX10.13 paths were checked against the real Ollama (`ornith:latest`, 64K; se
     minutes. Now each cut-off (or timeout) strike halves the next reply's cap, never below
     2,048 tokens: 8,192 → 4,096 → 2,048. A reply that is not cut off restores the plan's
     cap. Both loops send the cap as `maxTokens` (Ollama `num_predict`).
+11. **(EX10.3) The first view is too big.** In the 08:28, 08:38 and 08:43 logs runs the
+    model's first filled `update_view` ran past 8,192 tokens every time. It copied whole
+    log tails (100 lines each from three files) into the view. The size limits appeared
+    only in the reminder after a cut-off. Every prompt tier now states them up front, in
+    the workflow:
+    - "Keep every view small: you write each character, and a reply past the output
+      limit is lost."
+    - "At most 30 log lines per log-viewer (the latest), 20 rows per table, short titles;
+      never paste a whole file or command output."
 
 ### 9. Later (specced here, built after EX10.7)
 
@@ -653,6 +662,14 @@ result cap keeps EX9.4's 15% share but of the effective window: 3,686 chars at 8
 **Reviewer.** `PostGenerationReflector.reflect(…, plan)` gives each output
 `min(2,000, half the effective window less the view, shared)` chars, at least 300, head
 and tail kept (`headAndTail`, now exported). Without a plan it keeps EX2's 500-char cut.
+
+**Follow-up (§8d item 11).** `executor.ts` `VIEW_SIZE_RULE` goes in both workflow
+blocks, so every tier states it once (pinned in `prompt-tiers.test.ts`). In two live logs
+runs (09:54, 09:56):
+- one first view came back at 1,598 tokens, and the run completed in 75 s;
+- the other still ran to the 8,192-token cap once (135 s) and completed in 207 s.
+Before the rule, all three runs (08:28, 08:38, 08:43) hit the cap. The rule helps but does
+not settle it; EX10.10 removes the copying itself.
 
 ## EX10.4 — Executor on the context manager (as built)
 
