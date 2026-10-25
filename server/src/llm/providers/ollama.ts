@@ -2,7 +2,7 @@
 // EX10.1: num_ctx / num_predict from the model's limits, think: false on every request
 // EX10.1 follow-up: replies stream; the timeout is for silence, never for a long reply
 // EX10.13: a reply that breaks down into repeated characters is cut off; a silence is
-// checked (GET /api/ps) before the wait is given up
+// checked (GET /api/ps) before the wait is given up; transient failures are tried again
 // @see docs/phases/phase-ex9.md §8, docs/phases/phase-ex10.md §1, §8c, docs/DECISIONS.md (ADR-024, ADR-025)
 //
 // POST {baseUrl}/api/chat, stream: false. Tools are passed in the OpenAI function
@@ -23,7 +23,7 @@ import type {
   ParseTextInput,
   ToolCall,
 } from '../provider.js';
-import { LLMDegenerateError, LLMTimeoutError, SYSTEM_PROMPT, buildTextPrompt } from '../provider.js';
+import { LLMDegenerateError, LLMIncompleteError, LLMTimeoutError, SYSTEM_PROMPT, buildTextPrompt, isLLMDegenerate } from '../provider.js';
 import { extractProseToolCalls, parseToolArgs, repairJson } from '../../agent/loop/tool-input.js';
 import { DEFAULT_LOCAL_WINDOW, recommendedMaxOutput, type ModelLimits } from '../model-limits.js';
 
@@ -38,6 +38,16 @@ export const STALL_STEP_MS = 60_000;
 export const MAX_FIRST_CHUNK_WAIT_MS = 600_000;
 /** … and this mid-reply (Ollama sends a tool call only once it is whole) */
 export const MAX_IDLE_WAIT_MS = 900_000;
+/** EX10.13 follow-up: dropped connections, 5xx/429 and runner crashes are tried again this many times */
+export const MAX_TRANSIENT_RETRIES = 5;
+/** … after min(base · 2^(n−1), 16 · base) plus up to 25% */
+const RETRY_BASE_MS = 500;
+/** … and, from the second failure in a row, once Ollama answers /api/ps again (at most this long) */
+export const RECOVER_WAIT_MS = 30_000;
+/** context-overflow wording: never retried here, the loops compact instead */
+const OVERFLOW_TEXT = /context (length|window)|num_ctx|too many tokens|maximum context|too long|exceed/i;
+/** an error line from Ollama that means its runner fell over, not that the request was wrong */
+const RUNNER_TROUBLE = /unexpectedly stopped|terminated|runner|connection (closed|reset|refused)|broken pipe|\beof\b|unavailable|overloaded|timed? ?out/i;
 /** EX10.13: a reply whose last this-many characters hold at most 2 distinct ones is garbled */
 export const DEGENERATE_WINDOW = 400;
 /** EX10.13: … or that ends in this many of one character */
@@ -63,6 +73,12 @@ export interface OllamaOptions {
   maxIdleWaitMs?: number;
   /** EX10.13: each extension of a wait (default 60 s) */
   stallStepMs?: number;
+  /** EX10.13 follow-up: retries of a transient failure (default 5) */
+  maxTransientRetries?: number;
+  /** EX10.13 follow-up: the first backoff (default 500 ms; tests make it small) */
+  retryBaseMs?: number;
+  /** EX10.13 follow-up: how long to wait for Ollama to answer again before a retry (default 30 s) */
+  recoverWaitMs?: number;
   fetch?: Fetch;
 }
 
@@ -124,6 +140,29 @@ interface OllamaMessage {
   tool_name?: string;
 }
 
+type ChatBody = { messages: OllamaMessage[]; tools?: unknown; format?: unknown; options?: Record<string, unknown> };
+
+/** EX10.13 follow-up: an error worth trying again */
+function transient(message: string): Error {
+  return Object.assign(new Error(message), { transient: true });
+}
+
+export function isTransient(err: unknown): boolean {
+  return !!(err as { transient?: boolean } | null)?.transient;
+}
+
+/** a stream Ollama closed without its final "done" line */
+function isUnfinished(err: unknown): boolean {
+  return !!(err as { unfinished?: boolean } | null)?.unfinished;
+}
+
+/** min(base · 2^(n−1), 16 · base), plus up to 25% so retries do not line up */
+function backoffMs(attempt: number, base: number): number {
+  return Math.round(Math.min(base * 2 ** (attempt - 1), 16 * base) * (1 + Math.random() * 0.25));
+}
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 interface OllamaChatResponse {
   model?: string;
   message?: { role?: string; content?: string; tool_calls?: Array<{ id?: string; function?: { name?: string; arguments?: unknown } }> };
@@ -140,6 +179,9 @@ export class OllamaProvider implements LLMProvider {
   private readonly firstChunkMs: number;
   private readonly idleMs: number;
   private readonly stall: StallCheck;
+  private readonly maxRetries: number;
+  private readonly retryBaseMs: number;
+  private readonly recoverWaitMs: number;
   private readonly fetchImpl: Fetch;
   /** EX10.1: this model rejected the `think` field once; stop sending it */
   private thinkUnsupported = false;
@@ -163,6 +205,9 @@ export class OllamaProvider implements LLMProvider {
       maxFirstMs: opts.maxFirstChunkWaitMs ?? MAX_FIRST_CHUNK_WAIT_MS,
       maxIdleMs: opts.maxIdleWaitMs ?? MAX_IDLE_WAIT_MS,
     };
+    this.maxRetries = opts.maxTransientRetries ?? MAX_TRANSIENT_RETRIES;
+    this.retryBaseMs = opts.retryBaseMs ?? RETRY_BASE_MS;
+    this.recoverWaitMs = opts.recoverWaitMs ?? RECOVER_WAIT_MS;
   }
 
   get contextWindow(): number {
@@ -265,8 +310,35 @@ export class OllamaProvider implements LLMProvider {
    * cut (a fixed 120 s cut a 6,920-token reply on 2026-10-22).
    * EX10.13: before giving up on a silence, Ollama is asked whether it is up; if it is, the
    * wait goes on (up to 600 s for the first chunk, 900 s mid-reply).
+   * EX10.13 follow-up: a transient failure is tried again (5 times, backing off); a partial
+   * reply is dropped. From the second failure in a row, Ollama must answer /api/ps first.
    */
-  private async chat(body: { messages: OllamaMessage[]; tools?: unknown; format?: unknown; options?: Record<string, unknown> }): Promise<OllamaChatResponse> {
+  private async chat(body: ChatBody): Promise<OllamaChatResponse> {
+    let last: unknown;
+    let tries = 0;
+    let unfinished = 0;
+    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+      if (attempt > 0) {
+        await sleep(backoffMs(attempt, this.retryBaseMs));
+        if (attempt >= 2 && !(await this.waitUntilUp())) break;
+      }
+      tries++;
+      try {
+        return await this.chatOnce(body);
+      } catch (err) {
+        if (!isTransient(err)) throw err;
+        // an unfinished stream is tried again once; the same again means the reply itself trips Ollama
+        if (isUnfinished(err) && unfinished++ >= 1) throw new LLMIncompleteError(`${(err as Error).message} (1 retry)`, (err as { received?: number }).received ?? 0);
+        last = err;
+        if (attempt < this.maxRetries) console.warn(`[ollama] ${(err as Error).message}; trying again (${attempt + 1} of ${this.maxRetries})`);
+      }
+    }
+    const message = (last as Error).message;
+    const final = tries > 1 ? `${message} (${tries - 1} ${tries === 2 ? 'retry' : 'retries'})` : message;
+    throw isUnfinished(last) ? new LLMIncompleteError(final, (last as { received?: number }).received ?? 0) : new Error(final);
+  }
+
+  private async chatOnce(body: ChatBody): Promise<OllamaChatResponse> {
     const send = (withThink: boolean, watch: Watchdog): Promise<Response> =>
       this.fetchImpl(`${this.baseUrl}/api/chat`, {
         method: 'POST',
@@ -282,7 +354,7 @@ export class OllamaProvider implements LLMProvider {
       }).catch((err: unknown) => {
         watch.stop();
         if (watch.fired) throw this.timeout(watch);
-        throw new Error(`Ollama is not reachable at ${this.baseUrl}: ${err instanceof Error ? err.message : String(err)}`);
+        throw transient(`Ollama is not reachable at ${this.baseUrl}: ${err instanceof Error ? err.message : String(err)}`);
       });
 
     let watch = new Watchdog(this.firstChunkMs, this.stall);
@@ -299,15 +371,29 @@ export class OllamaProvider implements LLMProvider {
     if (!res.ok) {
       watch.stop();
       const detail = await res.text().catch(() => '');
-      throw new Error(`Ollama answered ${res.status}: ${detail.slice(0, 200)}`);
+      const message = `Ollama answered ${res.status}: ${detail.slice(0, 200)}`;
+      const retryable = (res.status >= 500 || [408, 409, 429].includes(res.status)) && !OVERFLOW_TEXT.test(detail);
+      throw retryable ? transient(message) : new Error(message);
     }
     try {
       return await readChatStream(res, () => watch.arm(this.idleMs), watch);
     } catch (err) {
       if (watch.fired) throw this.timeout(watch);
-      throw err;
+      // ours (garbled, an error line) or a malformed line: as they are; anything else is the connection
+      if (isLLMDegenerate(err) || isTransient(err) || err instanceof SyntaxError || (err as { fromOllama?: boolean }).fromOllama) throw err;
+      throw transient(`Ollama closed the connection ${watch.chunks} tokens into the reply (${err instanceof Error ? err.message : String(err)})`);
     } finally {
       watch.stop();
+    }
+  }
+
+  /** EX10.13 follow-up: poll /api/ps once a second until Ollama answers, or give up */
+  private async waitUntilUp(): Promise<boolean> {
+    const until = Date.now() + this.recoverWaitMs;
+    for (;;) {
+      if (await this.isUp()) return true;
+      if (Date.now() >= until) return false;
+      await sleep(Math.min(1_000, Math.max(1, until - Date.now())));
     }
   }
 
@@ -420,6 +506,38 @@ class Watchdog {
   }
 }
 
+/**
+ * EX10.13 follow-up: anywhere in the text, a run of DEGENERATE_RUN of one character, or
+ * DEGENERATE_WINDOW characters holding at most two distinct ones. For tool-call arguments,
+ * which Ollama sends whole, so the garbage can sit in the middle.
+ */
+export function hasDegenerateSpan(text: string): boolean {
+  const counts = new Map<string, number>();
+  let run = 0;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i]!;
+    run = i > 0 && text[i - 1] === c ? run + 1 : 1;
+    if (run >= DEGENERATE_RUN) return true;
+    counts.set(c, (counts.get(c) ?? 0) + 1);
+    if (i >= DEGENERATE_WINDOW) {
+      const out = text[i - DEGENERATE_WINDOW]!;
+      const left = counts.get(out)! - 1;
+      if (left === 0) counts.delete(out);
+      else counts.set(out, left);
+    }
+    if (i >= DEGENERATE_WINDOW - 1 && counts.size <= 2) return true;
+  }
+  return false;
+}
+
+/** Every string inside a tool call's arguments */
+function argumentStrings(value: unknown, out: string[] = []): string[] {
+  if (typeof value === 'string') out.push(value);
+  else if (Array.isArray(value)) value.forEach((v) => argumentStrings(v, out));
+  else if (value && typeof value === 'object') Object.values(value).forEach((v) => argumentStrings(v, out));
+  return out;
+}
+
 /** EX10.13: the text ends in one character run long, or its tail holds at most two distinct characters. */
 export function isDegenerate(text: string): boolean {
   const n = text.length;
@@ -450,10 +568,17 @@ async function readChatStream(res: Response, onChunk: () => void, watch: { chunk
   const out: OllamaChatResponse = { message: { role: 'assistant', content: '' } };
   const toolCalls: NonNullable<NonNullable<OllamaChatResponse['message']>['tool_calls']> = [];
   let buffer = '';
+  let finished = false;
   const apply = (line: string) => {
     if (!line.trim()) return;
     const chunk = JSON.parse(line) as OllamaStreamChunk;
-    if (chunk.error) throw new Error(`Ollama answered: ${chunk.error}`);
+    if (chunk.error) {
+      // EX10.13 follow-up: a runner that fell over mid-reply is tried again; other errors are final
+      const message = `Ollama answered: ${chunk.error}`;
+      throw RUNNER_TROUBLE.test(chunk.error) && !OVERFLOW_TEXT.test(chunk.error)
+        ? transient(message)
+        : Object.assign(new Error(message), { fromOllama: true });
+    }
     if (chunk.model) out.model = chunk.model;
     if (chunk.message?.content) {
       out.message!.content += chunk.message.content;
@@ -465,8 +590,22 @@ async function readChatStream(res: Response, onChunk: () => void, watch: { chunk
         );
       }
     }
-    if (chunk.message?.tool_calls?.length) toolCalls.push(...chunk.message.tool_calls);
+    if (chunk.message?.tool_calls?.length) {
+      // EX10.13 follow-up: a tool call arrives whole; check what is inside it
+      for (const tc of chunk.message.tool_calls) {
+        const parsed = parseToolArgs(tc.function?.arguments);
+        const args = parsed.via === 'raw' ? tc.function?.arguments : parsed.input;
+        if (argumentStrings(args).some(hasDegenerateSpan)) {
+          throw new LLMDegenerateError(
+            `Ollama's ${tc.function?.name ?? 'tool'} call broke down into repeated characters and was dropped`,
+            JSON.stringify(args ?? '').length,
+          );
+        }
+      }
+      toolCalls.push(...chunk.message.tool_calls);
+    }
     if (chunk.done) {
+      finished = true;
       out.done_reason = chunk.done_reason;
       out.prompt_eval_count = chunk.prompt_eval_count;
       out.eval_count = chunk.eval_count;
@@ -485,9 +624,12 @@ async function readChatStream(res: Response, onChunk: () => void, watch: { chunk
       }
     }
     apply(buffer + decoder.decode());
+    // EX10.13 follow-up: a complete stream ends with "done"; Ollama can close one without it
+    if (!finished) throw Object.assign(transient(`Ollama ended the reply without finishing it, ${watch.chunks} tokens in`), { unfinished: true, received: watch.chunks });
   } catch (err) {
-    // closing the body ends the request, so Ollama stops generating
-    await reader.cancel().catch(() => {});
+    // closing the body ends the request, so Ollama stops generating; not awaited: a cancel
+    // can stay pending (a tee'd body resolves only when every branch is cancelled)
+    reader.cancel().catch(() => {});
     throw err;
   }
   if (toolCalls.length) out.message!.tool_calls = toolCalls;

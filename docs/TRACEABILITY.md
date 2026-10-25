@@ -1247,6 +1247,14 @@ None (all changes to existing files).
 - **Tests modified:** `server/tests/agent/actions/runner.test.ts` (binary login record with hint, other binary, text unchanged, detector, refused on open), `server/tests/agent/actions/tools.test.ts` (controls stripped, escaped size bounded)
 - **Verification:** replays of the 07:16 and 07:11 traces (peaks 14,894 and 20,908 tokens, no compaction); live runs at 08:38 and 08:43 refused `lastlog` and `wtmp`
 
+### EX10.13 follow-up: transient retries, unfinished streams, garbled tool calls
+- **Status:** ✅ Complete
+- **Date:** 2026-10-25
+- **Files modified:** `server/src/llm/providers/ollama.ts` (`chat` retries `chatOnce`; `transient`, `isTransient`, `backoffMs`, `waitUntilUp`, `MAX_TRANSIENT_RETRIES`, `RECOVER_WAIT_MS`, `RUNNER_TROUBLE`, `OVERFLOW_TEXT`; unfinished streams; `hasDegenerateSpan` on tool-call arguments; cancel not awaited), `server/src/llm/provider.ts` (`LLMIncompleteError`, `isLLMIncomplete`, `isUnusableReply`)
+- **Docs:** `docs/phases/phase-ex10.md` (§8d items 2, 5, 6; "EX10.13 — as built" live checks and follow-ups)
+- **Tests modified:** `server/tests/llm/ollama.test.ts` (dropped connection, 5xx/429 vs 4xx/overflow, mid-stream cut, Ollama down, five retries, timeouts and garbled not retried, unfinished stream once then `LLMIncompleteError`, garbled tool calls; the old down/error tests pin `maxTransientRetries: 0`)
+- **Verification:** `ollama.test.ts` 42 passed; live against `ornith:latest`: proxy cut retried (2.4 s), empty stream → `LLMIncompleteError` after one retry (2.5 s)
+
 ## How to Use This File
 
 ### After completing a task:

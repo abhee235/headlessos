@@ -162,3 +162,27 @@ export class LLMDegenerateError extends Error {
 export function isLLMDegenerate(err: unknown): err is LLMDegenerateError {
   return err instanceof Error && err.name === 'LLMDegenerateError';
 }
+
+/**
+ * EX10.13 follow-up: the backend closed the reply before it was finished, again after one
+ * retry as is. Loops treat it like a garbled reply: discard it, ask again with a note.
+ */
+export class LLMIncompleteError extends Error {
+  override readonly name = 'LLMIncompleteError';
+  constructor(
+    message: string,
+    /** chunks received before it ended */
+    readonly received: number,
+  ) {
+    super(message);
+  }
+}
+
+export function isLLMIncomplete(err: unknown): err is LLMIncompleteError {
+  return err instanceof Error && err.name === 'LLMIncompleteError';
+}
+
+/** EX10.13 follow-up: a reply the loops discard and ask again for — garbled, or ended unfinished */
+export function isUnusableReply(err: unknown): err is LLMDegenerateError | LLMIncompleteError {
+  return isLLMDegenerate(err) || isLLMIncomplete(err);
+}
