@@ -298,7 +298,19 @@ export class ActionRunner {
     const size = stats.size;
     const start = tailLines ? Math.max(0, size - maxBytes) : 0;
     const length = Math.min(size - start, maxBytes);
-    let text = length > 0 ? await readRange(sftp, real, start, length) : '';
+    let text: string;
+    try {
+      text = length > 0 ? await readRange(sftp, real, start, length) : '';
+    } catch (err) {
+      return unreadable(err); // EX10.12 follow-up: refused on open (root:adm 0640 passes stat)
+    }
+    // EX10.12 follow-up: binary content (NULs escape to six characters each for the model)
+    if (isBinaryText(text)) {
+      return {
+        ok: false, actionId: def.id, command, exitCode: null, stdout: '', stderr: '', truncated: false,
+        durationMs: Date.now() - started, error: binaryFileMessage(path, length),
+      };
+    }
     let truncated = tailLines ? start > 0 : size > maxBytes;
     if (tailLines) {
       const lines = text.split('\n');
@@ -395,6 +407,26 @@ export function capText(text: string, maxBytes: number, keep: 'head' | 'tail'): 
   if (buf.length <= maxBytes) return { text: text ?? '', truncated: false };
   const slice = keep === 'head' ? buf.subarray(0, maxBytes) : buf.subarray(buf.length - maxBytes);
   return { text: slice.toString('utf8'), truncated: true };
+}
+
+/** EX10.12 follow-up: NUL bytes, or more than 10% other control characters (tab, newline, CR aside) */
+export function isBinaryText(text: string): boolean {
+  if (text.includes('\u0000')) return true;
+  if (!text) return false;
+  let controls = 0;
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    if ((c < 32 && c !== 9 && c !== 10 && c !== 13) || c === 0xfffd) controls++;
+  }
+  return controls / text.length > 0.1;
+}
+
+/** Binary login records under /var/log, read with `last` instead */
+const LOGIN_RECORDS = /(^|\/)(wtmp|btmp|lastlog|faillog)(\.\d+)?$/;
+
+export function binaryFileMessage(path: string, bytes: number): string {
+  const hint = LOGIN_RECORDS.test(path) ? ' It holds login records: use recent_logins.' : '';
+  return `${path} is a binary file, not text (${bytes.toLocaleString('en-US')} bytes read); its contents cannot be shown. Do not read it again.${hint}`;
 }
 
 /** SFTP status codes (draft-ietf-secsh-filexfer) */

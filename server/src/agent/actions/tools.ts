@@ -37,6 +37,11 @@ export function headAndTail(text: string, maxChars: number): { text: string; cut
   return { text: `${text.slice(0, head)}\n[… ${text.length - maxChars} chars cut …]\n${text.slice(text.length - tail)}`, cut: true };
 }
 
+/** EX10.12 follow-up: ANSI escape sequences and C0 control characters other than tab, newline and CR */
+export function stripControls(text: string): string {
+  return text.replace(/\u001b\[[0-9;?]*[ -/]*[@-~]/g, '').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '');
+}
+
 /** The text the model gets back from an action. */
 export function formatForModel(result: ActionRunResult, keep: 'head' | 'tail' = 'head', maxChars = MODEL_OUTPUT_CHARS): string {
   if (!result.command && result.error) return `error: ${result.error}`;
@@ -44,7 +49,8 @@ export function formatForModel(result: ActionRunResult, keep: 'head' | 'tail' = 
   if (!result.ok) parts.push(result.error ? `failed: ${result.error}` : 'failed');
   // parsed data is redacted here; stdout already was, in the runner (EX9.5)
   const dataText = result.data !== undefined ? redactSecrets(JSON.stringify(result.data)) : null;
-  const body = dataText ? dataText.text : result.stdout;
+  // EX10.12 follow-up: no control characters, which JSON escapes to six characters each
+  const body = stripControls(dataText ? dataText.text : result.stdout);
   const removed = (result.redacted ?? 0) + (dataText?.count ?? 0);
   const capped = keep === 'tail'
     ? (() => { const t = capText(body, maxChars, 'tail'); return { text: t.text, cut: t.truncated }; })()
@@ -53,7 +59,7 @@ export function formatForModel(result: ActionRunResult, keep: 'head' | 'tail' = 
   if (result.truncated || capped.cut) {
     parts.push(keep === 'tail' ? '[earlier output cut]' : '[output cut — ask for less, e.g. fewer lines or a narrower path]');
   }
-  if (result.stderr.trim()) parts.push(`stderr: ${result.stderr.trim()}`);
+  if (result.stderr.trim()) parts.push(`stderr: ${stripControls(result.stderr.trim())}`);
   if (removed) parts.push(`[${removed} secret value${removed === 1 ? '' : 's'} removed]`);
   return parts.join('\n');
 }

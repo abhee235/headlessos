@@ -4,7 +4,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { Readable } from 'node:stream';
 import { z } from 'zod';
-import { ActionRunner, capText, describeParamError } from '../../../src/agent/actions/runner.js';
+import { ActionRunner, binaryFileMessage, capText, describeParamError, isBinaryText } from '../../../src/agent/actions/runner.js';
 import { ActionCatalog, getDefaultCatalog } from '../../../src/agent/actions/catalog/index.js';
 import { readAction } from '../../../src/agent/actions/catalog/define.js';
 import { currentAgentScope } from '../../../src/services/policy/agent-scope.js';
@@ -304,5 +304,50 @@ describe('helpers', () => {
     const problems = message.split('. Parameters:')[0]!.replace(/^file_find: /, '').split('; ');
     expect(problems).toHaveLength(3);
     expect(problems[0]).toMatch(/^path: expected an absolute path/);
+  });
+});
+
+// EX10.12 follow-up (phase-ex10 §8d item 8): the 07:16 run read /var/log/faillog six times —
+// 8,000 NUL bytes, 48,000 characters once JSON-escaped, about 12,000 tokens a read
+describe('ActionRunner.run — binary files (EX10.12 follow-up)', () => {
+  const read = (files: Record<string, string>, action: string, path: string) =>
+    new ActionRunner({ ssh: { exec: vi.fn(), getSftp: vi.fn().mockResolvedValue(fakeSftp(files)) } as never }).run('srv', action, { path });
+
+  it('refuses a binary login record, pointing at recent_logins', async () => {
+    const result = await read({ '/var/log/faillog': '\u0000'.repeat(8_000) }, 'file_tail', '/var/log/faillog');
+    expect(result).toMatchObject({
+      ok: false, stdout: '',
+      error: '/var/log/faillog is a binary file, not text (8,000 bytes read); its contents cannot be shown. Do not read it again. It holds login records: use recent_logins.',
+    });
+  });
+
+  it('refuses other binary files without the hint, and reads text as before', async () => {
+    const binary = await read({ '/opt/app/data.db': `SQLite format 3${'\u0000'.repeat(50)}` }, 'file_read', '/opt/app/data.db');
+    expect(binary.error).toBe('/opt/app/data.db is a binary file, not text (65 bytes read); its contents cannot be shown. Do not read it again.');
+    const text = await read({ '/var/log/dpkg.log': '2026-10-19 status installed nginx\n' }, 'file_read', '/var/log/dpkg.log');
+    expect(text).toMatchObject({ ok: true, stdout: '2026-10-19 status installed nginx\n' });
+  });
+
+  it('tells binary from text with a few odd characters', () => {
+    expect(isBinaryText('a\u0000b')).toBe(true);
+    expect(isBinaryText('\u0001\u0002\u0003'.repeat(10) + 'text')).toBe(true);
+    expect(isBinaryText('tab\tnewline\ncarriage\r\n')).toBe(false);
+    expect(isBinaryText(`colour \u001b[31mred\u001b[0m in a long enough log line of text`)).toBe(false);
+    expect(isBinaryText('')).toBe(false);
+    expect(binaryFileMessage('/var/log/wtmp.1', 1024)).toContain('use recent_logins');
+  });
+});
+
+// EX10.12 follow-up (§8d item 9): /var/log/apt/term.log (root:adm 0640) passes stat, then fails to open
+describe('ActionRunner.run — refused when opened (EX10.12 follow-up)', () => {
+  it('steers a permission error from the read itself', async () => {
+    const sftp = fakeSftp({ '/var/log/apt/term.log': 'secret-ish' });
+    sftp.createReadStream.mockImplementation(() => {
+      const stream = new Readable({ read() { /* never yields */ } });
+      setImmediate(() => stream.emit('error', Object.assign(new Error('Permission denied'), { code: 3 })));
+      return stream;
+    });
+    const result = await new ActionRunner({ ssh: { exec: vi.fn(), getSftp: vi.fn().mockResolvedValue(sftp) } as never }).run('srv', 'file_tail', { path: '/var/log/apt/term.log' });
+    expect(result).toMatchObject({ ok: false, error: '/var/log/apt/term.log cannot be read by the login user. Do not read it again.' });
   });
 });
