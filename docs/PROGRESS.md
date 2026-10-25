@@ -42,7 +42,7 @@
 | **EX7: Container Target Mode** | **Experimental** | **✅** | **10/10 tasks** | [phase-ex7](phases/phase-ex7.md) |
 | **EX8: LumenOS v3 Design System** | **Experimental** | **✅** | **9/9 tasks** | [phase-ex8](phases/phase-ex8.md) |
 | **EX9: Safe Agents (Actions, Approvals, Local Models)** | **Experimental** | **✅** | **6/6 tasks** | [phase-ex9](phases/phase-ex9.md) |
-| **EX10: Context Engineering for Agents** | **Experimental** | **🔄** | **7/10 tasks** | [phase-ex10](phases/phase-ex10.md) |
+| **EX10: Context Engineering for Agents** | **Experimental** | **🔄** | **7/13 tasks** | [phase-ex10](phases/phase-ex10.md) |
 
 ---
 
@@ -77,6 +77,9 @@
 | EX10.8 | Action selection favours request words; `cpu_usage`, `network_traffic`; actions reuse deterministic parsers | ⬜ | |
 | EX10.9 | Follow-up requests refine the open view; unclear requests get a question | ⬜ | |
 | EX10.10 | Widget-by-widget building with server-filled data (own ADR) | ⬜ | |
+| EX10.11 | Loop control in the UI Agent: loop guard in the executor (previous-turn repeats), stuck runs finish with the view or a wrap-up turn, steps-left warning, notes on the last tool result, announced-but-not-made calls | ⬜ | |
+| EX10.12 | Errors that steer: a missing file says so, says not to retry, and lists its folder | ⬜ | |
+| EX10.13 | Garbled replies cut off and asked again; a slow start is checked before giving up | ⬜ | |
 
 ---
 
@@ -598,6 +601,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-10-25 | **EX10.11–EX10.13 specced** after three live runs on a local 9B model: one asked for the same missing log files every turn until the step limit, another resent the same broken view 8 times. The UI Agent gets the loop guard the AI Agent already has (warn, refuse, stop, then finish with what it built), errors that say what to do instead, and Ollama replies that are cut off when they turn to garbage or checked before a slow start is given up. |
 | 2026-10-25 | **M13 ✅** Apple/Microsoft wallpapers removed, MIT licence added, private project and server names gone from docs and screenshots, README brought up to date, and every commit now carries the GitHub identity (history rewritten, `main` force-pushed). Before going public the owner still decides on the merged PRs, old branches and the v0.1.0 release, which keep the old email on GitHub. |
 | 2026-10-25 | **M13 specced** after a pre-publication audit: no secrets anywhere in the history; to fix before going public — Apple/Microsoft wallpapers, no LICENSE file, private project and server names in docs and screenshots, an outdated README, and the personal email on commits. |
 | 2026-10-22 | **EX10 follow-ups** from the first three 64K runs. View tools show the model an object only, and a view sent with misplaced brackets is repaired when the fix gives a valid view (9 of the 10 failed views from those runs). Ollama replies stream and time out only on silence, so a long reply is no longer cut at 120 s with a false "not reachable". A reply that takes too long is treated like one cut off: the agent asks for a smaller step and, if it keeps happening, keeps the last valid view. |
