@@ -8,6 +8,7 @@ import { ActionRunner, capText, describeParamError } from '../../../src/agent/ac
 import { ActionCatalog, getDefaultCatalog } from '../../../src/agent/actions/catalog/index.js';
 import { readAction } from '../../../src/agent/actions/catalog/define.js';
 import { currentAgentScope } from '../../../src/services/policy/agent-scope.js';
+import { formatForModel } from '../../../src/agent/actions/tools.js';
 import type { ActionDef } from '../../../src/agent/actions/types.js';
 
 function sshReturning(result: Partial<{ stdout: string; stderr: string; exitCode: number }>) {
@@ -223,6 +224,69 @@ describe('ActionRunner.run — SFTP reads', () => {
     const ssh = { exec: vi.fn(), getSftp: vi.fn().mockResolvedValue(sftp) };
     const result = await new ActionRunner({ ssh: ssh as never }).run('srv', 'file_read', { path: '/etc/nginx' });
     expect(result).toMatchObject({ ok: false, error: '/etc/nginx is a directory; use dir_list' });
+  });
+});
+
+describe('ActionRunner.run — a missing file steers the model (EX10.12)', () => {
+  /** Like OpenSSH's sftp-server: realpath fails on a path that does not exist */
+  function serverSftp(files: Record<string, string>, dirs: Record<string, string[]>, denied: string[] = []) {
+    const exists = (p: string) => p in files || p in dirs;
+    const missing = () => Object.assign(new Error('No such file'), { code: 2 });
+    return {
+      realpath: vi.fn((p: string, cb: (e: Error | null, v?: string) => void) => (exists(p) ? cb(null, p) : cb(missing()))),
+      stat: vi.fn((p: string, cb: (e: Error | null, v?: unknown) => void) => {
+        if (denied.includes(p)) return cb(Object.assign(new Error('Permission denied'), { code: 3 }));
+        if (!exists(p)) return cb(missing());
+        cb(null, { size: Buffer.byteLength(files[p] ?? ''), isDirectory: () => p in dirs });
+      }),
+      readdir: vi.fn((p: string, cb: (e: Error | null, v?: unknown) => void) =>
+        cb(null, ['.', '..', ...dirs[p]!].map((name) => ({ filename: name, longname: '', attrs: { isDirectory: () => `${p}/${name}` in dirs } })))),
+      createReadStream: vi.fn(),
+    };
+  }
+  const read = (sftp: unknown, action: string, path: string) =>
+    new ActionRunner({ ssh: { exec: vi.fn(), getSftp: vi.fn().mockResolvedValue(sftp) } as never }).run('srv', action, { path });
+
+  const logDir = { '/var/log': ['dpkg.log', 'apt', 'alternatives.log', '.env'], '/var/log/apt': [] };
+
+  it('says the file does not exist, not to read it again, and lists the folder in the output', async () => {
+    const result = await read(serverSftp({ '/var/log/dpkg.log': 'x' }, logDir), 'file_tail', '/var/log/syslog');
+    expect(result).toMatchObject({
+      ok: false,
+      error: '/var/log/syslog does not exist. Do not read it again; what /var/log holds is listed below.',
+      stdout: '/var/log has: alternatives.log, apt/, dpkg.log', // sorted, folders marked, the secret .env left out
+    });
+    expect(formatForModel(result, 'tail')).toBe(
+      'failed: /var/log/syslog does not exist. Do not read it again; what /var/log holds is listed below.\n/var/log has: alternatives.log, apt/, dpkg.log',
+    );
+  });
+
+  it('shows at most 30 names', async () => {
+    const names = Array.from({ length: 45 }, (_, i) => `f${String(i).padStart(2, '0')}.log`);
+    const result = await read(serverSftp({}, { '/var/log': names }), 'file_read', '/var/log/missing.log');
+    expect(result.stdout).toMatch(/^\/var\/log has: f00\.log, .*, f29\.log \(and 15 more\)$/);
+  });
+
+  it('says when the folder is missing too', async () => {
+    const result = await read(serverSftp({}, logDir), 'file_read', '/var/log/nginx/error.log');
+    expect(result).toMatchObject({ error: '/var/log/nginx/error.log does not exist, and neither does /var/log/nginx. Do not read it again.', stdout: '' });
+  });
+
+  it('lists nothing outside the read roots', async () => {
+    const result = await read(serverSftp({}, { '/': ['etc', 'root'] }), 'file_read', '/srv');
+    expect(result).toMatchObject({ error: '/srv does not exist. Do not read it again.', stdout: '' });
+  });
+
+  it('says a file the login user cannot read cannot be read', async () => {
+    const result = await read(serverSftp({ '/var/log/btmp': 'x' }, logDir, ['/var/log/btmp']), 'file_read', '/var/log/btmp');
+    expect(result).toMatchObject({ ok: false, error: '/var/log/btmp cannot be read by the login user. Do not read it again.' });
+  });
+
+  it('passes other SFTP errors through as before', async () => {
+    const sftp = serverSftp({ '/var/log/x': 'x' }, logDir);
+    sftp.stat.mockImplementation((_p: string, cb: (e: Error | null) => void) => cb(Object.assign(new Error('Failure'), { code: 4 })));
+    const result = await read(sftp, 'file_read', '/var/log/x');
+    expect(result).toMatchObject({ ok: false, error: 'Failure' });
   });
 });
 

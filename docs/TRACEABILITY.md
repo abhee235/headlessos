@@ -1213,6 +1213,14 @@ None (all changes to existing files).
 - **Tests modified:** `server/tests/agent/context/executor-context.test.ts`
 - **Verification:** server and client suites, both typechecks clean
 
+### EX10.12: Errors that steer
+- **Status:** ✅ Complete
+- **Date:** 2026-10-25
+- **Files modified:** `server/src/agent/actions/runner.ts` (`steeringError`, `LISTED_NAMES`, SFTP status codes; `readFile` routes `realpath`/`stat` errors), `server/src/agent/tools/view-arg.ts` (`hoistTopLevel`, `viewProblems`, `readViewArg` tries the hoisted repair and says what is still wrong)
+- **Docs:** `docs/phases/phase-ex10.md` (§8c, "EX10.12 — as built")
+- **Tests modified:** `server/tests/agent/actions/runner.test.ts` (missing file with listing, 30-name cap, missing folder, outside the roots, permission denied, other errors), `server/tests/agent/tools/view-arg.test.ts` (keys moved back out, only fitting values, what is still wrong, plain-word problems)
+- **Verification:** live runs on Local Ubuntu Dev (see the phase doc); the three broken strings of the 07:30 run replayed; `tsc -p server` clean
+
 ### EX10.13: Garbled replies and silences
 - **Status:** ✅ Complete
 - **Date:** 2026-10-25
