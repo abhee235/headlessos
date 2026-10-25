@@ -1260,7 +1260,15 @@ None (all changes to existing files).
 - **Files modified:** `server/src/llm/providers/ollama.ts` (`chat` retries `chatOnce`; `transient`, `isTransient`, `backoffMs`, `waitUntilUp`, `MAX_TRANSIENT_RETRIES`, `RECOVER_WAIT_MS`, `RUNNER_TROUBLE`, `OVERFLOW_TEXT`; unfinished streams; `hasDegenerateSpan` on tool-call arguments; cancel not awaited), `server/src/llm/provider.ts` (`LLMIncompleteError`, `isLLMIncomplete`, `isUnusableReply`)
 - **Docs:** `docs/phases/phase-ex10.md` (§8d items 2, 5, 6; "EX10.13 — as built" live checks and follow-ups)
 - **Tests modified:** `server/tests/llm/ollama.test.ts` (dropped connection, 5xx/429 vs 4xx/overflow, mid-stream cut, Ollama down, five retries, timeouts and garbled not retried, unfinished stream once then `LLMIncompleteError`, garbled tool calls; the old down/error tests pin `maxTransientRetries: 0`)
-- **Verification:** `ollama.test.ts` 42 passed; live against `ornith:latest`: proxy cut retried (2.4 s), empty stream → `LLMIncompleteError` after one retry (2.5 s)
+- **Verification:** `ollama.test.ts` 39 passed; live against `ornith:latest`: proxy cut retried (2.4 s), empty stream → `LLMIncompleteError` after one retry (2.5 s)
+
+### EX10.2 follow-up: the recency shield protects results, not turns
+- **Status:** ✅ Complete
+- **Date:** 2026-10-25
+- **Files modified:** `server/src/agent/context/layers.ts` (`protectedFrom`, `groupStart`; `recentFrom` from the protected tail), `server/src/agent/context/manager.ts` (`KEEP_RECENT_RESULTS`, `keepResults`, layers use the protected tail; `replyCap`, `MIN_REPLY_CAP` for the EX10.4 follow-up)
+- **Docs:** `docs/phases/phase-ex10.md` (§8d item 4, "EX10.2 — as built" follow-up)
+- **Tests modified:** `server/tests/agent/context/manager.test.ts` (the latest five results stay whole); the shield's own tests ship with the EX10.11 follow-up (`tests/agent/context/shield.test.ts`)
+- **Verification:** replay of the 07:11 trace (one compaction, 53,431 → 21,079, instead of two); server suite green
 
 ## How to Use This File
 

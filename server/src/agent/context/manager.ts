@@ -5,6 +5,8 @@
 // at or under stopAt: collapse superseded views → stub long old results → stub all old
 // results → summarize the older region (optional, 3-failure breaker) → drop the oldest
 // groups → survival (shield of one). A layer that does not shrink the history is skipped.
+// EX10.2 follow-up: "old" is everything before the protected tail — the last keepRecent
+// tokens and the last five tool results — not before the last four whole turns.
 // observe(): corrects the chars/4 estimate with the provider's real prompt count.
 // Mechanics after an earlier agent project's compactor.
 
@@ -12,7 +14,7 @@ import type { ChatMessage, ChatWithToolsInput, ChatWithToolsResult } from '../..
 import type { ContextPlan } from './plan.js';
 import { estimateTokens } from './tokens.js';
 import {
-  SUMMARY_PREFIX, collapseViews, dropOldest, headLength, recentFrom, shieldFrom, stubResults, transcriptOf,
+  SUMMARY_PREFIX, collapseViews, dropOldest, groupStart, headLength, protectedFrom, recentFrom, shieldFrom, stubResults, transcriptOf,
 } from './layers.js';
 
 export type CompactionLayer = 'collapse' | 'mask' | 'microcompact' | 'summarize' | 'drop' | 'survival';
@@ -30,15 +32,18 @@ export interface ContextManagerOptions {
   plan: ContextPlan;
   /** turns the older region into a short summary; without one, it is dropped */
   summarize?: Summarizer;
-  /** tool-calling groups at the end that stay whole (the recency shield) */
-  keepGroups?: number;
+  /** tool results at the end kept whole whatever their size (with the last keepRecent tokens, the recency shield) */
+  keepResults?: number;
 }
 
 /** consecutive summarizer failures before automatic compactions stop asking it */
 const BREAKER_LIMIT = 3;
 /** cut-off replies answered with a reminder before the run gives up */
 export const MAX_LENGTH_STRIKES = 3;
-export const KEEP_GROUPS = 4;
+/** EX10.4 follow-up: each strike halves the next reply's cap, never below this */
+export const MIN_REPLY_CAP = 2_048;
+/** EX10.2 follow-up: was the last four whole turns (KEEP_GROUPS) */
+export const KEEP_RECENT_RESULTS = 5;
 const OVERFLOW_ERROR = /context (length|window)|num_ctx|too many tokens|maximum context|(prompt|input) is too long|exceeds? (the )?(context|token|maximum)/i;
 /** rate limits and quotas say "exceeded" too; they are not overflow */
 const NOT_OVERFLOW = /rate.?limit|\b429\b|quota/i;
@@ -55,7 +60,7 @@ export const SUMMARY_SYSTEM = [
 export class ContextManager {
   readonly plan: ContextPlan;
   private readonly summarize?: Summarizer;
-  private readonly keepGroups: number;
+  private readonly keepResults: number;
   /** provider-measured tokens beyond our estimate (system template, tool list) */
   private measuredOverhead?: number;
   private summaryFailures = 0;
@@ -64,7 +69,7 @@ export class ContextManager {
   constructor(opts: ContextManagerOptions) {
     this.plan = opts.plan;
     this.summarize = opts.summarize;
-    this.keepGroups = opts.keepGroups ?? KEEP_GROUPS;
+    this.keepResults = opts.keepResults ?? KEEP_RECENT_RESULTS;
   }
 
   /** Tokens this history will cost: our estimate plus the larger of the static and measured overhead. */
@@ -107,13 +112,12 @@ export class ContextManager {
     const done = () => ({ messages: cur, events, used: usedOf(cur) });
 
     const head = headLength(cur);
+    const protect = (m: ChatMessage[]) => protectedFrom(m, head, this.keepResults, this.plan.keepRecent, estimateTokens);
     if (step('collapse', collapseViews(cur))) return done();
-    let shield = shieldFrom(cur, head, this.keepGroups);
-    if (step('mask', stubResults(cur, head, shield, (_n, c) => c.length > this.plan.maskChars))) return done();
-    shield = shieldFrom(cur, head, this.keepGroups);
-    if (step('microcompact', stubResults(cur, head, shield, () => true))) return done();
+    if (step('mask', stubResults(cur, head, protect(cur), (_n, c) => c.length > this.plan.maskChars))) return done();
+    if (step('microcompact', stubResults(cur, head, protect(cur), () => true))) return done();
 
-    const recent = recentFrom(cur, head, this.keepGroups, this.plan.keepRecent, estimateTokens);
+    const recent = recentFrom(cur, head, this.keepResults, this.plan.keepRecent, estimateTokens);
     const survival = usedOf(cur) >= this.plan.hard;
     if (this.summarize && recent > head && (this.summaryFailures < BREAKER_LIMIT || forced || survival)) {
       const system = cur[0]?.role === 'system' ? cur[0].content ?? '' : '';
@@ -129,8 +133,7 @@ export class ContextManager {
       }
     }
 
-    shield = shieldFrom(cur, head, this.keepGroups);
-    if (step('drop', dropOldest(cur, head, shield, (m) => usedOf(m) <= target))) return done();
+    if (step('drop', dropOldest(cur, head, groupStart(cur, head, protect(cur)), (m) => usedOf(m) <= target))) return done();
 
     // survival: still at or over the hard limit, or the provider refused the prompt —
     // keep only the latest call whole
@@ -151,6 +154,16 @@ export class ContextManager {
   /** A reply that was not cut off resets the count. */
   resetLength(): void {
     this.lengthStrikes = 0;
+  }
+
+  /**
+   * EX10.4 follow-up: the next reply's cap after cut-off or timed-out replies, halved per
+   * strike (8,192 → 4,096 → 2,048); undefined while there are none, i.e. the plan's cap.
+   * Ollama drops a tool call cut off unfinished, so a capped repeat wastes less time.
+   */
+  replyCap(): number | undefined {
+    if (this.lengthStrikes === 0) return undefined;
+    return Math.max(Math.min(MIN_REPLY_CAP, this.plan.maxOutput), Math.floor(this.plan.maxOutput / 2 ** this.lengthStrikes));
   }
 
   static isOverflowError(err: unknown): boolean {

@@ -602,6 +602,27 @@ compaction yields `compacted { layer, before, after, forced }`. The LLM span get
 **Retired:** `agent/loop/context.ts` (EX9.4 `historyBudget` / `trimHistory`), and
 `agent/context-manager.ts` (EX2.13), which was never imported, with its test.
 
+**Follow-up (§8d item 4): the shield protects results, not turns.**
+
+- `layers.ts` `protectedFrom(messages, head, keepResults, keepTokens)` is the further
+  reaching of two points: the messages that fit in `keepTokens` from the end, and the
+  `keepResults`-th last tool result (never fewer than one).
+- `groupStart` moves a cut back to the start of its turn, and `recentFrom` is now
+  `groupStart(protectedFrom(…))`.
+- The manager:
+  - mask and microcompact stub results before `protectedFrom`;
+  - summarize and drop stop at its turn's start;
+  - survival is unchanged (the latest turn).
+- `KEEP_GROUPS` (4) became `KEEP_RECENT_RESULTS` (5); the option is `keepResults`.
+- The same commit adds `replyCap()` for EX10.4 (see there).
+
+Replayed traces, on the 64K plan, before the EX10.12 binary fix:
+
+| Run | Compactions (old → new) | Largest prompt after the first (old → new) |
+|-----|------------------------|---------------------------------------------|
+| 07:11 (5–7 calls a turn) | 2 → 1. Old: four layers, 53,431 → 50,492, still over the trigger. New: one mask, 53,431 → 21,079 | 50,492 → 40,002 |
+| 07:16 (one call a turn, 12K-token binary reads) | Both still fell to survival: a single result too big for any shield | — |
+
 ## EX10.3 — Prompt tiers and plan budgets (as built)
 
 **UI Agent executor.** The prompt blocks moved into constants. The `full` tier is
