@@ -887,6 +887,23 @@ compare with.
   The run completed in 139 s with no warning. Before EX10.11–EX10.12 the same request ended
   after 135 s with an empty view.
 
+**Follow-ups (§8d items 8 and 9).**
+
+- **Binary files.** `runner.ts` checks what `readFile` read with `isBinaryText`: a NUL, or
+  more than 10% control characters (U+FFFD counted, tab/newline/CR not). It answers with
+  `binaryFileMessage` and no content. `LOGIN_RECORDS` (`wtmp`, `btmp`, `lastlog`,
+  `faillog`, with or without `.N`) adds "It holds login records: use recent_logins."
+- **Control characters.** `tools.ts` `stripControls` removes ANSI CSI sequences and C0
+  characters other than tab, newline and CR. `formatForModel` applies it to stdout, parsed
+  data and stderr.
+- **Refused on open.** An error from `readRange` (the open itself) goes through
+  `steeringError` like one from `realpath` or `stat`.
+- **Replays.** The 07:16 run with binary reads answered this way peaks at 14,894 tokens
+  and never compacts; it reached 52,833, then survival. The 07:11 run peaks at 20,908
+  with no compaction (was 50,492).
+- **Live (08:38 and 08:43).** `lastlog` (262,144 bytes) and `wtmp` got the binary message
+  with the `recent_logins` hint, and the model did not read them again.
+
 ## EX10.13 — Garbled replies and silences (as built)
 
 `llm/providers/ollama.ts`:

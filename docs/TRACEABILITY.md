@@ -1239,6 +1239,14 @@ None (all changes to existing files).
 - **Tests modified:** `server/tests/llm/ollama.test.ts` (garbled text and stream, slow start, mid-reply silence, dead probe, late probe; the old timeout tests pin their ceilings)
 - **Verification:** `ollama.test.ts` 29 passed, `tsc -p server` clean; the loops' handling ships with EX10.11
 
+### EX10.12 follow-up: binary files, control characters, refused on open
+- **Status:** ✅ Complete
+- **Date:** 2026-10-25
+- **Files modified:** `server/src/agent/actions/runner.ts` (`isBinaryText`, `binaryFileMessage`, `LOGIN_RECORDS`; open errors steered), `server/src/agent/actions/tools.ts` (`stripControls` in `formatForModel`)
+- **Docs:** `docs/phases/phase-ex10.md` (§8d items 8–9, "EX10.12 — as built" follow-ups)
+- **Tests modified:** `server/tests/agent/actions/runner.test.ts` (binary login record with hint, other binary, text unchanged, detector, refused on open), `server/tests/agent/actions/tools.test.ts` (controls stripped, escaped size bounded)
+- **Verification:** replays of the 07:16 and 07:11 traces (peaks 14,894 and 20,908 tokens, no compaction); live runs at 08:38 and 08:43 refused `lastlog` and `wtmp`
+
 ## How to Use This File
 
 ### After completing a task:
