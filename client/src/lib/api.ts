@@ -1363,7 +1363,7 @@ export interface OllamaConfig {
 }
 
 export interface LLMConfig {
-  provider: 'openai' | 'ollama' | 'none';
+  provider: 'openai' | 'ollama' | 'anthropic' | 'none';
   model: string;
   /** true when a provider is active (an OpenAI key, or an Ollama model) */
   hasApiKey: boolean;
@@ -1375,6 +1375,8 @@ export interface LLMConfig {
   ollama?: OllamaConfig;
   /** EX10.1: the windows the owner can choose for a local model */
   contextOptions?: number[];
+  /** EX11.2: the active or kept Claude model (its key never reaches the browser) */
+  anthropic?: { model: string; hasKey: boolean };
 }
 
 /** EX9.3: a model installed in Ollama */

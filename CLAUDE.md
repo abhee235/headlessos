@@ -64,6 +64,7 @@ The LLM emits `DynamicViewSchema` JSON (`shared/schemas/dynamic-view.ts`). A gen
   - Progressive output streams as `layout_update` events built by `dynamic-ui/working-view.ts`, over the WebSocket in `routes/agent-ui.ts`.
 - **`agent/investigation-agent.ts`** is the older read-only ReAct agent, served by `routes/agent.ts`.
 - **Widgets filled by the server (EX10.10, ADR-026):** the UI Agent builds views with `start_view` → `add_widget` → `finish` (`agent/tools/widget-tools.ts`). A widget's `source: { action, params?, path?, reduce?, limit? }` is filled from the run's `ToolContext.actionResults` by `widget-source.ts` and never reaches the view; `update_view` / `generate_schema` still take a whole view. Actions with a `parse` (EX10.8, `actions/catalog/parsed.ts`) give the data paths point into.
+- **Claude (EX11, ADR-027):** `AnthropicProvider` translates the agents' OpenAI-shaped history at the edge. Claude's reply blocks (signed thinking included) ride on `ChatMessage.reasoning` and go back unchanged; every request sets `block_binding.prefix_mismatch_behavior: 'drop_block'`, because compaction, collapsed views and notes edit history. Code that rebuilds assistant messages must spread them (`{ ...m }`), or Claude loses its reasoning.
 - **Follow-ups and questions (EX10.9, `agent/follow-up.ts`):** a `generate` message may carry `followUp: { prompt, view }` (the earlier request and the open view); the run then starts with that view in `ToolContext.workingView` and edits it in place. A request that `namesNothing()` ("help", "fix it") ends before the planner with a `question` event, and so does a planner `question`; neither runs the executor.
 - **Agent safety:**
   - Agents never send command text (ADR-024, EX9). They call typed actions from `agent/actions/catalog/`; `ActionRunner` validates params, builds argv, quotes it and runs it. A new server-touching capability is a new action plus a row in `tests/agent/actions/catalog.test.ts`.
@@ -87,6 +88,7 @@ The LLM emits `DynamicViewSchema` JSON (`shared/schemas/dynamic-view.ts`). A gen
   - Preferences are layered as global ⊕ per-session override (`store/effective-preferences.ts`, `useEffectivePref`). Only keys in `OVERRIDABLE_PREFERENCE_KEYS` can be overridden.
 - **Backend calls** go through `lib/api.ts`. WebSockets live under `/ws/…` (terminal, observatory, docker-install, agents, dynamic-ui). `@/` is an alias for `client/src`.
 - **Extra entry point:** `playground.html` / `playground-entry.tsx` is a second Vite entry, a standalone Dynamic UI playground at `/playground.html`.
+- **Vite gotcha:** editing `lib/api.ts` (or another module the stores import) while `npm run dev` runs can leave a reload with two copies of a store (`/src/store/window-store.ts` and `…?t=<stamp>`). Windows then stop rendering. Touch the store files and `lib/api.ts`, or restart Vite.
 - **Scratch files, not app code:** `temp-*.mjs` at the root and `client/src/icon-comparison.tsx` compare icon libraries.
 
 ## Tests as they actually exist
@@ -98,7 +100,7 @@ The LLM emits `DynamicViewSchema` JSON (`shared/schemas/dynamic-view.ts`). A gen
 
 ## Where AGENTS.md / CONTEXT.md / README disagree with the code
 
-- **LLM providers:** `llm/providers/openai.ts` and `llm/providers/ollama.ts` (EX9.3; chosen in Settings → AI, saved in `~/.headlessos/llm.json`), plus the `fake-*` files. There is no Anthropic provider.
+- **LLM providers:** `llm/providers/openai.ts`, `llm/providers/ollama.ts` (EX9.3) and `llm/providers/anthropic.ts` (EX11, ADR-027), all chosen in Settings → AI and saved in `~/.headlessos/llm.json`, plus the `fake-*` files. Ollama and Claude serve every UI Agent role through `ModelRouter.useProvider`; only OpenAI uses the per-role models in `config/models.ts`.
 - **Service container:** the "every module extends `BaseService`" rule is aspirational. See the container list above for what is actually registered.
 - **Client tabs:** the `openTab`/tabs pattern and `components/Shell/` are legacy. Shell is imported nowhere, and windows replaced tabs.
 - **Route example:** CONTEXT.md's route example imports a global `connectionManager`. Real routes take it from plugin options.

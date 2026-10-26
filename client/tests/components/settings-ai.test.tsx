@@ -131,3 +131,48 @@ describe('Settings → AI with Ollama', () => {
     }));
   });
 });
+
+// EX11.2: Claude (Anthropic) as a third provider
+describe('Settings → AI with Claude', () => {
+  const CLAUDE = [
+    { id: 'claude-haiku-5-5', name: 'Claude Haiku 5.5', description: 'Default — fastest', recommended: true },
+    { id: 'claude-sonnet-5-5', name: 'Claude Sonnet 5.5', description: 'Agent work' },
+    { id: 'claude-opus-5-5', name: 'Claude Opus 5.5', description: 'Most capable' },
+  ];
+  beforeEach(() => {
+    api.fetchLLMModels.mockResolvedValue({ success: true, data: { openai: [{ id: 'gpt-6-luna', name: 'GPT-6 Luna', description: 'Default', recommended: true }], anthropic: CLAUDE } } as never);
+    api.updateLLMConfig.mockReset();
+    api.updateLLMConfig.mockResolvedValue({ success: true, data: { provider: 'anthropic', model: 'claude-sonnet-5-5', hasApiKey: true, keySource: 'settings', anthropic: { model: 'claude-sonnet-5-5', hasKey: true } } });
+  });
+
+  it('needs a key the first time, says where prompts go, and saves the key with the chosen model', async () => {
+    api.fetchLLMConfig.mockResolvedValue({ success: true, data: { provider: 'openai', model: 'gpt-6-luna', hasApiKey: true, keySource: 'settings' } });
+    renderAI();
+    fireEvent.click(await screen.findByText('Anthropic (Claude)'));
+    expect(screen.getByText("Claude models through Anthropic's API. Prompts and server output are sent to Anthropic.")).toBeInTheDocument();
+    expect(screen.getByText('Claude Haiku 5.5 ★')).toBeInTheDocument();
+    expect(screen.queryByText('GPT-6 Luna ★')).toBeNull();
+    const key = screen.getByLabelText('Anthropic API key');
+    expect(key).toHaveAttribute('placeholder', 'sk-ant-...');
+    const save = screen.getByRole('button', { name: 'Save Configuration' });
+    expect(save).toBeDisabled(); // no Claude key yet
+    fireEvent.change(key, { target: { value: ' sk-ant-123 ' } });
+    fireEvent.click(screen.getByText('Claude Sonnet 5.5'));
+    fireEvent.click(save);
+    await waitFor(() => expect(api.updateLLMConfig).toHaveBeenCalledWith({ provider: 'anthropic', apiKey: 'sk-ant-123', model: 'claude-sonnet-5-5' }));
+    expect(await screen.findByText('Anthropic')).toBeInTheDocument(); // Status → Provider
+    expect(key).toHaveValue(''); // the key is not kept in the page
+  });
+
+  it('keeps a saved key: the model alone can change', async () => {
+    api.fetchLLMConfig.mockResolvedValue({ success: true, data: {
+      provider: 'anthropic', model: 'claude-haiku-5-5', hasApiKey: true, keySource: 'settings', anthropic: { model: 'claude-haiku-5-5', hasKey: true },
+    } });
+    renderAI();
+    expect(await screen.findByLabelText('Anthropic API key')).toHaveAttribute('placeholder', '••••••••••••••••  (key set)');
+    expect(screen.getByText('Saved on this computer, encrypted')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Claude Opus 5.5'));
+    fireEvent.click(screen.getByRole('button', { name: 'Save Configuration' }));
+    await waitFor(() => expect(api.updateLLMConfig).toHaveBeenCalledWith({ provider: 'anthropic', model: 'claude-opus-5-5' }));
+  });
+});

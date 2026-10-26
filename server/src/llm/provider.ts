@@ -34,6 +34,17 @@ export interface ChatMessage {
   content: string | null;
   tool_calls?: ToolCall[];
   tool_call_id?: string;
+  /** EX11.1: the provider's own record of this reply, sent back by that provider only */
+  reasoning?: ProviderReasoning;
+}
+
+/**
+ * EX11.1: what a provider must get back with its reply. Claude: the reply's content
+ * blocks in order, with its signed thinking, which goes back unchanged (ADR-027).
+ */
+export interface ProviderReasoning {
+  provider: string;
+  blocks: unknown[];
 }
 
 export interface ToolCall {
@@ -71,7 +82,7 @@ export interface ChatWithToolsResult {
 
 /**
  * Provider-agnostic LLM interface.
- * Implementations: OpenAI, Anthropic, Ollama (future).
+ * Implementations: OpenAI, Ollama (EX9.3), Anthropic (EX11.1).
  */
 export interface LLMProvider {
   name: string;

@@ -107,6 +107,29 @@ describe('ModelRouter Span Instrumentation', () => {
     expect(llmSpan!.kind).toBe('LLM');
   });
 
+  // EX11.2: a Claude model serving every role is priced; a local model stays free
+  it('prices a Claude override, and keeps a local one at $0', async () => {
+    const provider = (name: string, model: string, local: boolean) => ({
+      name,
+      model,
+      limits: { contextWindow: 128_000, source: 'table', maxOutputTokens: 16_000, local },
+      parseText: vi.fn(),
+      chatWithTools: vi.fn().mockResolvedValue({ message: { role: 'assistant', content: 'ok' }, tokensUsed: { input: 1000, output: 1000 }, latencyMs: 1, model, finishReason: 'stop' }),
+    });
+    const costOf = async (p: ReturnType<typeof provider>) => {
+      router.useProvider(p as never);
+      store.clear();
+      await withTrace('cost', {}, async () => {
+        await router.chat({ messages: [{ role: 'user', content: 'hi' }] });
+      });
+      const spans = store.getTraceSpans(store.listTraces().traces[0]!.traceId);
+      return spans.find((s) => s.name === 'ModelRouter.chat')!.costUsd;
+    };
+    expect(await costOf(provider('anthropic', 'claude-haiku-5-5', false))).toBeCloseTo(0.0006, 6);
+    expect(await costOf(provider('anthropic', 'claude-sonnet-5-5', false))).toBeCloseTo(0.012, 6);
+    expect(await costOf(provider('ollama', 'qwen3:8b', true))).toBe(0);
+  });
+
   it('fast() creates LLM span within trace', async () => {
     await withTrace('test', {}, async () => {
       const { z } = await import('zod');

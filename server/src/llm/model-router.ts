@@ -108,8 +108,8 @@ export class ModelRouter extends BaseService {
   }
 
   /**
-   * EX9.3: route every role to one provider (a local Ollama model chosen in
-   * Settings → AI); null goes back to the OpenAI role models.
+   * EX9.3: route every role to one provider (a local Ollama model, or EX11.2 a Claude
+   * model, chosen in Settings → AI); null goes back to the OpenAI role models.
    */
   useProvider(provider: LLMProvider | null): void {
     this.override = provider;
@@ -317,9 +317,13 @@ export class ModelRouter extends BaseService {
   }
 
   private computeSpanCost(model: string, tokensUsed: { input: number; output: number }): number {
-    if (this.override) return 0; // EX9.3: local models cost nothing per token
+    // EX9.3: local models cost nothing per token; EX11.2: a Claude override is priced
+    if (this.override?.limits?.local) return 0;
     // Reuse MODEL_PRICING from usage-tracker module pattern
     const SPAN_PRICING: Record<string, { input: number; output: number }> = {
+      'claude-haiku-5-5': { input: 0.0001, output: 0.0005 },
+      'claude-sonnet-5-5': { input: 0.002, output: 0.01 },
+      'claude-opus-5-5': { input: 0.004, output: 0.02 },
       'gpt-6-luna': { input: 0.0001, output: 0.0005 },
       'gpt-4.1': { input: 0.002, output: 0.008 },
       'gpt-4.1-mini': { input: 0.0004, output: 0.0016 },
