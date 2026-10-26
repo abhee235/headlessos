@@ -104,7 +104,7 @@ must pass unchanged, except where a test asserts zod 3's own error wording.
 | M14.3 | Stop tracking `electron/server.cjs` / `server.mjs` | ✅ |
 | M14.4 | CI on pull requests and `main`; release workflow runs the checks first | ✅ |
 | M14.5 | `SECURITY.md` and `CONTRIBUTING.md` | ✅ |
-| M14.6 | README: Claude, install and download, screenshots | ⬜ |
+| M14.6 | README: Claude, install and download, screenshots | ✅ |
 | M14.7 | Packaged Windows build starts | ⬜ |
 | M14.8 | Version 0.2.0 and `CHANGELOG.md` | ⬜ |
 | M14.9 | Make the repository public | ⬜ |
@@ -252,3 +252,25 @@ not on Node 20, the version the README promises. It now imports the schema.
 The browser-side `require('../../lib/plugins')` in `SettingsView.tsx` (the Plugins page)
 has the same root cause: it throws inside a `try`, so the page lists no plugins. It is
 recorded as a follow-up; it is outside M14.
+
+## M14.6 — README (as built)
+
+- **Claude** is named in the model principle, the tech stack and the `llm/` folder line.
+  The phase range is 0…14 / ex1…ex11.
+- **Install (new):**
+  - the release asset names, taken from `release.yml`'s release notes;
+  - Linux has no release build, so it runs from source or `npm run build:dist:linux`;
+  - how to get past the macOS and Windows warnings for unsigned builds;
+  - add a server, then choose the AI in Settings → AI.
+
+  The old Quick Start is now **Run From Source** and mentions Claude.
+- **Screenshots** (`docs/images/*.webp`, 1440×900, about 65 KB each): the Dashboard, File
+  Explorer, and Settings → AI with Claude selected.
+  - **How they were taken:** from a separate copy of the app (backend on :3101 with its
+    own data folder via `USERPROFILE`, no LLM key; Vite on :3100 from a temporary config
+    that was never committed), connected only to the dev SSH container. So no real
+    server or key could show, and the owner's running app and sessions were
+    not touched.
+  - The separate copy was stopped afterwards. Its data stays in the scratch folder.
+- **Links:** the documentation index links the root `SECURITY.md` and `CONTRIBUTING.md`
+  next to `docs/SECURITY.md`.
