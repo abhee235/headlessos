@@ -1331,6 +1331,13 @@ None (all changes to existing files).
 - **Tests modified:** `server/tests/llm/llm-settings-store.test.ts`, `server/tests/routes/llm.test.ts`, `server/tests/llm/model-router-spans.test.ts`, `client/tests/components/settings-ai.test.tsx`
 - **Verification:** server 2537 passed (+2 skipped), client 657, both typechecks clean; Playwright-measured Settings rows; the owner's key passed the key check against the API
 
+### M14.1: Dependency fixes within current majors
+- **Status:** ✅ Complete
+- **Date:** 2026-10-27
+- **Files modified:** `package.json` (`overrides.dompurify`), `server/package.json` (`@fastify/static` removed), `package-lock.json`
+- **Docs:** `docs/phases/phase-14.md` ("M14.1 — as built")
+- **Verification:** `npm audit --omit=dev` 11 high/critical → 2; server 2537 passed (+2 skipped), client 657, both typechecks clean
+
 ## How to Use This File
 
 ### After completing a task:
