@@ -244,3 +244,11 @@ The fix is vitest 5, a test-runner upgrade. Nothing here ships in the app.
   to, and the MIT terms.
 - **Owner's step, once the repository is public:** turn on private vulnerability reporting
   (Settings → Code security). SECURITY.md points reporters there.
+
+**Second CI run.** The server suite passed. One client test failed on Node 20 only:
+`DynamicUI.test.tsx` `require()`d the ES-module schema, which works on Node 22.12+ but
+not on Node 20, the version the README promises. It now imports the schema.
+
+The browser-side `require('../../lib/plugins')` in `SettingsView.tsx` (the Plugins page)
+has the same root cause: it throws inside a `try`, so the page lists no plugins. It is
+recorded as a follow-up; it is outside M14.

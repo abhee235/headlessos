@@ -3,7 +3,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import type { DynamicView } from 'headlessos-shared/schemas/dynamic-view';
+import { DynamicViewSchema, type DynamicView } from 'headlessos-shared/schemas/dynamic-view';
 
 // Import triggers widget registration
 import { DynamicViewRenderer, DynamicAppWindow, DynamicUIPlayground } from '../../src/components/DynamicUI';
@@ -717,11 +717,9 @@ describe('DynamicUIPlayground', () => {
 
   it('example views all validate against schema', () => {
     // Verify all example views are valid DynamicView schemas
+    // M14.4: imported, not require()d — Node 20 (CI) cannot require an ES module
     for (const example of EXAMPLE_VIEWS) {
-      expect(() => {
-        const { DynamicViewSchema } = require('headlessos-shared/schemas/dynamic-view');
-        DynamicViewSchema.parse(example.data);
-      }).not.toThrow();
+      expect(() => DynamicViewSchema.parse(example.data)).not.toThrow();
     }
   });
 });
