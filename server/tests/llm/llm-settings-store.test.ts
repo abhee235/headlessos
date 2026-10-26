@@ -77,3 +77,43 @@ describe('LLM settings store', () => {
     expect(loadLLMSettings(f)).toBeNull();
   });
 });
+
+// EX11.2: Claude as a third provider
+describe('LLM settings store — Claude', () => {
+  it('saves the Claude key encrypted, and every switch keeps the other providers', () => {
+    const f = tempFile();
+    saveLLMSettings({ model: 'gpt-6-luna', apiKey: 'sk-openai' }, f);
+    saveLLMSettings({ provider: 'ollama', ollama: { baseUrl: 'http://127.0.0.1:11434', model: 'qwen3:8b' } }, f);
+    saveLLMSettings({ provider: 'anthropic', anthropic: { model: 'claude-haiku-5-5', apiKey: 'sk-ant-secret' } }, f);
+    const raw = readFileSync(f, 'utf8');
+    expect(raw).not.toContain('sk-ant-secret');
+    expect(JSON.parse(raw).anthropic).toEqual({ model: 'claude-haiku-5-5', apiKey: expect.stringMatching(/^enc:/) });
+    const all = {
+      model: 'gpt-6-luna',
+      apiKey: 'sk-openai',
+      ollama: { baseUrl: 'http://127.0.0.1:11434', model: 'qwen3:8b' },
+      anthropic: { model: 'claude-haiku-5-5', apiKey: 'sk-ant-secret' },
+    };
+    expect(loadLLMSettings(f)).toEqual({ provider: 'anthropic', ...all });
+    saveLLMSettings({ model: 'gpt-6-luna' }, f);
+    expect(loadLLMSettings(f)).toEqual({ provider: 'openai', ...all });
+    saveLLMSettings({ provider: 'ollama', ollama: { baseUrl: 'http://127.0.0.1:11434', model: 'qwen3:8b' } }, f);
+    expect(loadLLMSettings(f)).toEqual({ provider: 'ollama', ...all });
+  });
+
+  it('keeps the Claude key when only the model changes', () => {
+    const f = tempFile();
+    saveLLMSettings({ provider: 'anthropic', anthropic: { model: 'claude-haiku-5-5', apiKey: 'sk-ant-keep' } }, f);
+    saveLLMSettings({ provider: 'anthropic', anthropic: { model: 'claude-sonnet-5-5' } }, f);
+    expect(loadLLMSettings(f)?.anthropic).toEqual({ model: 'claude-sonnet-5-5', apiKey: 'sk-ant-keep' });
+  });
+
+  it('ignores a Claude choice with no usable key, and a hand-written plaintext key', () => {
+    const f = tempFile();
+    saveLLMSettings({ model: 'x' }, f);
+    writeFileSync(f, JSON.stringify({ provider: 'anthropic', anthropic: { model: 'claude-haiku-5-5', apiKey: 'sk-ant-plain' } }));
+    expect(loadLLMSettings(f)).toBeNull();
+    writeFileSync(f, JSON.stringify({ provider: 'openai', model: 'gpt-6-luna', anthropic: { model: 'claude-haiku-5-5', apiKey: 'sk-ant-plain' } }));
+    expect(loadLLMSettings(f)).toEqual({ provider: 'openai', model: 'gpt-6-luna', anthropic: { model: 'claude-haiku-5-5' } });
+  });
+});
