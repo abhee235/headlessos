@@ -1347,6 +1347,14 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-14.md` ("M14.3 — as built")
 - **Verification:** `npm run build:server` writes `server.mjs`
 
+### M14.4: CI
+- **Status:** ✅ Complete
+- **Date:** 2026-10-27
+- **Files created:** `.github/workflows/ci.yml`
+- **Files modified:** `.github/workflows/release.yml` (`check` job; builds need it)
+- **Docs:** `docs/phases/phase-14.md` ("M14.4 — as built")
+- **Verification:** both workflows parse; the first run is on the M14 pull request
+
 ## How to Use This File
 
 ### After completing a task:
