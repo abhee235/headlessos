@@ -13,7 +13,7 @@ import type { UITemplate } from './types.js';
 // ── Schema ─────────────────────────────────────────────────────────
 
 export const SavedAppSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   name: z.string().min(1).max(100),
   icon: z.string().min(1).max(50),
   cliTool: z.string().min(1).max(100),

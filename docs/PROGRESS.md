@@ -33,7 +33,7 @@
 | M11: Fleet, Agent & Platform | Week 15-16 | ✅ | 8/8 tasks | — |
 | M12: Backend Architecture Refactor | Beta | ✅ | 7/7 tasks | [phase-12](phases/phase-12.md) |
 | M13: Release Readiness | Beta | ✅ | 5/5 tasks | [phase-13](phases/phase-13.md) |
-| M14: Public Release | Beta | 🔄 | 1/10 tasks | [phase-14](phases/phase-14.md) |
+| M14: Public Release | Beta | 🔄 | 2/10 tasks | [phase-14](phases/phase-14.md) |
 | **EX1: Dynamic UI Engine** | **Experimental** | **✅** | **15/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
 | **EX2: UI Generation Agent** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
 | **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **✅** | **26/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
@@ -55,7 +55,7 @@
 | Task ID | Task | Status | Verification |
 |---------|------|--------|--------------|
 | M14.1 | `npm audit fix` (same majors) and a `dompurify` override | ✅ | 11 high/critical advisories down to 2 (zod, and openai through it). fastify 5.12.7 and 47 other in-range updates; the unused `@fastify/static` removed; dompurify 3.4.17 in the lock (monaco's own bundled copy uses neither affected mode). Server 2537 passed (+2 skipped), client 657 |
-| M14.2 | zod 4, openai upgrade, `z.toJSONSchema` instead of `zod-to-json-schema` | ⬜ | |
+| M14.2 | zod 4, openai upgrade, `z.toJSONSchema` instead of `zod-to-json-schema` | ✅ | Production dependencies: 0 advisories. Models get the same JSON Schema as before (pinned against the old library); OpenAI parses strictly when it can and with a plain JSON schema plus Zod otherwise; local Ollama accepts the new format, the 21 KB view schema included. Server 2543 passed (+2 skipped), client 657. Dev-only: vitest 3 (fix is vitest 5) |
 | M14.3 | Stop tracking `electron/server.cjs` / `server.mjs` | ⬜ | |
 | M14.4 | CI on pull requests and `main`; release workflow runs the checks first | ⬜ | |
 | M14.5 | `SECURITY.md` and `CONTRIBUTING.md` | ⬜ | |

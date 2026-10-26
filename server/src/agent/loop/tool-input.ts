@@ -353,7 +353,7 @@ export function dropNullArgs(raw: unknown): unknown {
 export function describeZodIssues(error: ZodError, raw: unknown, max = 3): string[] {
   return error.issues.slice(0, max).map((issue) => {
     const field = issue.path.join('.') || 'params';
-    if (issue.code === 'unrecognized_keys') return `unknown parameter(s) ${issue.keys.join(', ')}`;
+    if (issue.code === 'unrecognized_keys') return `unknown parameter(s) ${issue.keys.map(String).join(', ')}`;
     const sent = describeValue(valueAt(raw, issue.path));
     if (issue.code === 'invalid_type') {
       return sent === 'nothing' ? `${field}: required (${issue.expected})` : `${field}: expected ${issue.expected}, you sent ${sent}`;
@@ -383,11 +383,11 @@ export function checkToolArgs(
   return { ok: false, error: `${tool.name}: ${describeZodIssues(result.error, input).join('; ')}. Parameters: ${zodSignature(tool.name, tool.parameters)}` };
 }
 
-function valueAt(raw: unknown, path: (string | number)[]): unknown {
+function valueAt(raw: unknown, path: readonly PropertyKey[]): unknown {
   let cur: unknown = raw;
   for (const key of path) {
     if (cur === null || typeof cur !== 'object') return undefined;
-    cur = (cur as Record<string | number, unknown>)[key];
+    cur = (cur as Record<PropertyKey, unknown>)[key];
   }
   return cur;
 }

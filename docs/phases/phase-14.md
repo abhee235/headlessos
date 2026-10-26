@@ -106,7 +106,7 @@ must pass unchanged, except where a test asserts zod 3's own error wording.
 | Task ID | Task | Status |
 |---------|------|--------|
 | M14.1 | `npm audit fix` (same majors) and a `dompurify` override | ✅ |
-| M14.2 | zod 4, openai upgrade, `z.toJSONSchema` instead of `zod-to-json-schema` | ⬜ |
+| M14.2 | zod 4, openai upgrade, `z.toJSONSchema` instead of `zod-to-json-schema` | ✅ |
 | M14.3 | Stop tracking `electron/server.cjs` / `server.mjs` | ⬜ |
 | M14.4 | CI on pull requests and `main`; release workflow runs the checks first | ⬜ |
 | M14.5 | `SECURITY.md` and `CONTRIBUTING.md` | ⬜ |
@@ -144,3 +144,52 @@ must pass unchanged, except where a test asserts zod 3's own error wording.
   openai through zod: M14.2).
 
 **Verified:** server 2537 passed (+2 skipped), client 657; both typechecks clean.
+
+## M14.2 — zod 4 and openai 6 (as built)
+
+**Packages:**
+- `zod` 4.6.7 in server, shared and, now declared, client. The client imports zod and had
+  been borrowing the root's copy. A single copy sits at the root after `npm dedupe`.
+- `openai` 6.49, the first major that accepts zod 4.
+- `zod-to-json-schema` removed.
+
+**Code changes:**
+- **`llm/json-schema.ts` (new).**
+  - `jsonSchemaOf` wraps `z.toJSONSchema` in draft-7 input mode, with `unrepresentable:
+    'any'`. An `override` adds `additionalProperties: false` to every object, as the old
+    library did; maps keep their value schema.
+  - Compared with zod 3.25 + zod-to-json-schema 3.24 on a parser schema and a tool schema:
+    identical apart from key order (pinned in `tests/llm/json-schema.test.ts`).
+  - `jsonFromReply` is the fence-stripping, repairing JSON reader. The Claude and OpenAI
+    providers share it.
+- **Users of `jsonSchemaOf`:** `tool-converter.ts`, `providers/ollama.ts` and
+  `providers/anthropic.ts`.
+- **OpenAI parsing (`providers/openai.ts`, `textFormatFor`).**
+  - openai 6's `zodTextFormat` refuses what strict Structured Outputs cannot express under
+    zod 4: an optional field that is not also nullable, a map, a root that is not an
+    object. Most parser schemas and the view schema hit one of these.
+  - Such schemas are sent as a plain JSON schema (`strict: false`) through
+    `responses.create`, and the reply is checked with Zod. A string root (summaries) gets
+    plain text. Schemas strict mode can express keep `responses.parse`.
+- **zod 4 differences handled:**
+  - `.strict()` is a `never` catchall (`catalog/index.ts`).
+  - Effects became pipes (`runner.ts` `baseType`).
+  - A bad discriminator is `invalid_union` with `options`, and a missing field shows only in
+    the message (`view-arg.ts` `describeIssues`).
+  - Issue paths are `PropertyKey[]` (`tool-input.ts`).
+- **IDs.** `z.string().uuid()` became `z.guid()` in `shared/schemas/observatory.ts` and
+  `app-store.ts`. zod 4's `.uuid()` requires an RFC version and variant. `z.guid()` accepts
+  what zod 3's `.uuid()` did.
+
+**Verified:**
+- `npm audit --omit=dev`: 0 vulnerabilities.
+- **Tests:** server 2543 passed (+2 skipped), client 657; both typechecks clean.
+  - New: `tests/llm/json-schema.test.ts` (4) and `tests/llm/openai.test.ts` (6).
+  - Changed: the two view-schema tests that asserted a strict OpenAI format now assert the
+    plain JSON-schema format.
+- **Local Ollama (`ornith:latest`).** It accepts the new format for a parser schema (df, 9 s)
+  and for the full view schema (21 KB with `$ref` definitions; a valid "Disk" view in 3 s).
+- **Not run against OpenAI.** The parse path is covered by tests with a scripted client.
+
+**Still open, dev-only:** `vitest` 3 (critical, through `tinypool`) and `esbuild` (low).
+The fix is vitest 5, a test-runner upgrade. Nothing here ships in the app.
