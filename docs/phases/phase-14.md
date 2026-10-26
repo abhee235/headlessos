@@ -4,7 +4,7 @@
 > dependencies without known high or critical advisories, no stale build output in git,
 > CI that runs the tests, a security policy, a README that matches the code and says how
 > to install the app, a packaged build that starts, and a release with notes. Making the
-> repository public and tagging the release are the owner's decisions (M14.8, M14.9).
+> repository public and tagging the release are the owner's decisions (M14.9, M14.10).
 
 ## Why
 
@@ -48,22 +48,22 @@ joined the server bundle.
 ## Design
 
 1. **Dependencies.**
-   - **M14.1a:** `npm audit fix` without `--force`, plus an npm `overrides` entry that lifts
+   - **M14.1:** `npm audit fix` without `--force`, plus an npm `overrides` entry that lifts
      `dompurify` to ^3.4.17 under `monaco-editor`.
-   - **M14.1b:**
+   - **M14.2:**
      - `zod` 4 everywhere;
      - `openai` to the first major that accepts zod 4;
      - `zod-to-json-schema` replaced by zod 4's own `z.toJSONSchema`.
    - **Checks:** each step ends with both typechecks and both suites green, and with
      `npm audit --omit=dev` showing no high or critical advisory.
-2. **Build output (M14.2).** `git rm --cached` both bundles and add them to `.gitignore`.
+2. **Build output (M14.3).** `git rm --cached` both bundles and add them to `.gitignore`.
    `npm run build:server` still writes them locally for `test:prod`.
-3. **CI (M14.3).**
+3. **CI (M14.4).**
    - A `ci.yml` workflow runs on pull requests and on pushes to `main`. It builds `shared`,
      then runs both typechecks and both suites on Ubuntu with Node 20.
    - `release.yml` runs the same checks before it builds, so a tag on failing code
      produces no release.
-4. **Security policy (M14.4).** `SECURITY.md` covers:
+4. **Security policy (M14.5).** `SECURITY.md` covers:
    - what the app stores and where (`~/.headlessos`);
    - how it is encrypted, and that the key is per install;
    - that the server binds 127.0.0.1 and requires a token;
@@ -72,40 +72,69 @@ joined the server bundle.
    - how to report a vulnerability (GitHub private advisories).
 
    A short `CONTRIBUTING.md` points to `AGENTS.md`, the DDD loop and the test commands.
-5. **README (M14.5).** Add:
+5. **README (M14.6).** Add:
    - Claude next to OpenAI and Ollama;
    - install from a release, and run from source;
    - a note on unsigned builds (if the owner decides not to sign);
    - two or three screenshots taken against the dev SSH container, so no real server
      shows.
-6. **Packaged build (M14.6).** `npm run build:dist:win` on this machine. The app must start,
+6. **Packaged build (M14.7).** `npm run build:dist:win` on this machine. The app must start,
    reach the lock screen, and answer `/api/health` with its token.
-7. **Version and notes (M14.7).**
+7. **Version and notes (M14.8).**
    - `0.2.0` in the root, client, server and electron `package.json` files.
    - `CHANGELOG.md` with 0.2.0 written from the PROGRESS change log since v0.1.0 (EX6–EX11,
      M12–M14).
-8. **Publish (M14.8) — owner's decision.** Make the repository public, then turn on
+8. **Publish (M14.9) — owner's decision.** Make the repository public, then turn on
    private vulnerability reporting (SECURITY.md points reporters there).
-9. **Release (M14.9) — owner's decision.** Push tag `v0.2.0`. The release workflow builds
+9. **Release (M14.10) — owner's decision.** Push tag `v0.2.0`. The release workflow builds
    macOS, Windows and Linux. Check that the release has its assets and that the Windows
    installer starts. Signing: unsigned unless the owner adds certificates.
 
 ## What does not change
 
-App behaviour. M14.1b changes how schemas are written, not what they accept. The tests
+App behaviour. M14.2 changes how schemas are written, not what they accept. The tests
 must pass unchanged, except where a test asserts zod 3's own error wording.
 
 ## Tasks
 
 | Task ID | Task | Status |
 |---------|------|--------|
-| M14.1a | `npm audit fix` (same majors) and a `dompurify` override | ⬜ |
-| M14.1b | zod 4, openai upgrade, `z.toJSONSchema` instead of `zod-to-json-schema` | ⬜ |
-| M14.2 | Stop tracking `electron/server.cjs` / `server.mjs` | ⬜ |
-| M14.3 | CI on pull requests and `main`; release workflow runs the checks first | ⬜ |
-| M14.4 | `SECURITY.md` and `CONTRIBUTING.md` | ⬜ |
-| M14.5 | README: Claude, install and download, screenshots | ⬜ |
-| M14.6 | Packaged Windows build starts | ⬜ |
-| M14.7 | Version 0.2.0 and `CHANGELOG.md` | ⬜ |
-| M14.8 | Make the repository public | ⬜ |
-| M14.9 | Tag v0.2.0 and check the release | ⬜ |
+| M14.1 | `npm audit fix` (same majors) and a `dompurify` override | ✅ |
+| M14.2 | zod 4, openai upgrade, `z.toJSONSchema` instead of `zod-to-json-schema` | ⬜ |
+| M14.3 | Stop tracking `electron/server.cjs` / `server.mjs` | ⬜ |
+| M14.4 | CI on pull requests and `main`; release workflow runs the checks first | ⬜ |
+| M14.5 | `SECURITY.md` and `CONTRIBUTING.md` | ⬜ |
+| M14.6 | README: Claude, install and download, screenshots | ⬜ |
+| M14.7 | Packaged Windows build starts | ⬜ |
+| M14.8 | Version 0.2.0 and `CHANGELOG.md` | ⬜ |
+| M14.9 | Make the repository public | ⬜ |
+| M14.10 | Tag v0.2.0 and check the release | ⬜ |
+
+## M14.1 — Same-major fixes and dompurify (as built)
+
+- **`npm audit fix`** (no `--force`) updated 48 packages within their ranges, among them:
+  - `fastify` 5.8.4 → 5.12.7, `find-my-way` 9.10, `fast-uri` 3.1.9;
+  - `ws` 8.22, `nanoid` 5.1.16, `@fastify/busboy` 3.2.4;
+  - `vite`, `vitest` and `@babel/*` patch releases.
+- **`@fastify/static` removed.** It was in `server/package.json` but imported nowhere. That
+  took away its last advisory, which only 10.x fixes, along with 18 packages it pulled in,
+  `brace-expansion` among them.
+- **dompurify.**
+  - **What runs:** `monaco-editor` 0.57 bundles DOMPurify 3.4.15 inside its own source
+    (`esm/vs/base/browser/dompurify/dompurify.js`). Its sanitizer (`domSanitize.js`) uses
+    `ALLOWED_TAGS`, `RETURN_DOM_FRAGMENT` and an `afterSanitizeAttributes` hook. It never
+    turns on `IN_PLACE` or `SAFE_FOR_TEMPLATES`, which all three advisories need, so the
+    editor is not affected. No newer monaco exists yet.
+  - **The npm package:** `dompurify` itself (a declared monaco dependency, imported by
+    nothing) is lifted to 3.4.17 with root `overrides: { dompurify: "^3.4.17" }`.
+  - **An npm bug:** npm 11 ignores an override added after the lockfile exists, even
+    workspace-scoped. That was reproduced in a scratch project. Only a fresh lockfile
+    honours it, and a fresh lockfile here would move 217 packages, React, Radix and
+    Tailwind among them.
+  - **The fix used:** the 3.4.17 lock entry was copied from a fresh resolution. `npm ci` and
+    a later `npm install` both keep it (tested). `npm ls` calls it "invalid", which is the
+    same bug.
+- **Result:** `npm audit --omit=dev` went from 11 high or critical advisories to 2 (zod, and
+  openai through zod: M14.2).
+
+**Verified:** server 2537 passed (+2 skipped), client 657; both typechecks clean.

@@ -33,7 +33,7 @@
 | M11: Fleet, Agent & Platform | Week 15-16 | ✅ | 8/8 tasks | — |
 | M12: Backend Architecture Refactor | Beta | ✅ | 7/7 tasks | [phase-12](phases/phase-12.md) |
 | M13: Release Readiness | Beta | ✅ | 4/4 tasks | [phase-13](phases/phase-13.md) |
-| M14: Public Release | Beta | 🔄 | 0/10 tasks | [phase-14](phases/phase-14.md) |
+| M14: Public Release | Beta | 🔄 | 1/10 tasks | [phase-14](phases/phase-14.md) |
 | **EX1: Dynamic UI Engine** | **Experimental** | **✅** | **15/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
 | **EX2: UI Generation Agent** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
 | **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **✅** | **26/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
@@ -54,16 +54,16 @@
 
 | Task ID | Task | Status | Verification |
 |---------|------|--------|--------------|
-| M14.1a | `npm audit fix` (same majors) and a `dompurify` override | ⬜ | |
-| M14.1b | zod 4, openai upgrade, `z.toJSONSchema` instead of `zod-to-json-schema` | ⬜ | |
-| M14.2 | Stop tracking `electron/server.cjs` / `server.mjs` | ⬜ | |
-| M14.3 | CI on pull requests and `main`; release workflow runs the checks first | ⬜ | |
-| M14.4 | `SECURITY.md` and `CONTRIBUTING.md` | ⬜ | |
-| M14.5 | README: Claude, install and download, screenshots | ⬜ | |
-| M14.6 | Packaged Windows build starts | ⬜ | |
-| M14.7 | Version 0.2.0 and `CHANGELOG.md` | ⬜ | |
-| M14.8 | Make the repository public | ⬜ | |
+| M14.1 | `npm audit fix` (same majors) and a `dompurify` override | ✅ | 11 high/critical advisories down to 2 (zod, and openai through it). fastify 5.12.7 and 47 other in-range updates; the unused `@fastify/static` removed; dompurify 3.4.17 in the lock (monaco's own bundled copy uses neither affected mode). Server 2537 passed (+2 skipped), client 657 |
+| M14.2 | zod 4, openai upgrade, `z.toJSONSchema` instead of `zod-to-json-schema` | ⬜ | |
+| M14.3 | Stop tracking `electron/server.cjs` / `server.mjs` | ⬜ | |
+| M14.4 | CI on pull requests and `main`; release workflow runs the checks first | ⬜ | |
+| M14.5 | `SECURITY.md` and `CONTRIBUTING.md` | ⬜ | |
+| M14.6 | README: Claude, install and download, screenshots | ⬜ | |
+| M14.7 | Packaged Windows build starts | ⬜ | |
+| M14.8 | Version 0.2.0 and `CHANGELOG.md` | ⬜ | |
 | M14.9 | Make the repository public | ⬜ | |
+| M14.10 | Tag v0.2.0 and check the release | ⬜ | |
 
 ---
 
