@@ -76,11 +76,27 @@ export class ActionAudit {
     try {
       const { size } = await stat(this.path);
       if (size + Buffer.byteLength(line) > this.maxBytes) {
-        await rename(this.path, join(this.dir, `actions-${new Date().toISOString().replace(/[:.]/g, '-')}.jsonl`));
+        await rename(this.path, await this.rotatedPath());
       }
     } catch {
       // no file yet
     }
     await appendFile(this.path, line, { encoding: 'utf8', mode: 0o600, flag: 'a' });
+  }
+
+  /**
+   * actions-<iso>.jsonl, or -1, -2 … after it when that name is taken. M14.4: two rotations
+   * in the same millisecond got one name, and on Linux the rename replaced the older file.
+   */
+  private async rotatedPath(): Promise<string> {
+    const base = `actions-${new Date().toISOString().replace(/[:.]/g, '-')}`;
+    for (let n = 0; ; n++) {
+      const candidate = join(this.dir, n ? `${base}-${n}.jsonl` : `${base}.jsonl`);
+      try {
+        await stat(candidate);
+      } catch {
+        return candidate;
+      }
+    }
   }
 }
