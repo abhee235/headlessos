@@ -107,7 +107,7 @@ must pass unchanged, except where a test asserts zod 3's own error wording.
 |---------|------|--------|
 | M14.1 | `npm audit fix` (same majors) and a `dompurify` override | ✅ |
 | M14.2 | zod 4, openai upgrade, `z.toJSONSchema` instead of `zod-to-json-schema` | ✅ |
-| M14.3 | Stop tracking `electron/server.cjs` / `server.mjs` | ⬜ |
+| M14.3 | Stop tracking `electron/server.cjs` / `server.mjs` | ✅ |
 | M14.4 | CI on pull requests and `main`; release workflow runs the checks first | ⬜ |
 | M14.5 | `SECURITY.md` and `CONTRIBUTING.md` | ⬜ |
 | M14.6 | README: Claude, install and download, screenshots | ⬜ |
@@ -193,3 +193,17 @@ must pass unchanged, except where a test asserts zod 3's own error wording.
 
 **Still open, dev-only:** `vitest` 3 (critical, through `tinypool`) and `esbuild` (low).
 The fix is vitest 5, a test-runner upgrade. Nothing here ships in the app.
+
+## M14.3 — Build output out of git (as built)
+
+- `git rm --cached electron/server.mjs electron/server.cjs`; both added to `.gitignore`.
+  They stay on disk.
+- **The files:**
+  - `server.mjs` is what `electron/main.js` loads. `npm run build:server` (in `electron/`)
+    writes it, and the release workflow and `npm run test:prod` both run that first.
+  - `server.cjs` was an older CommonJS bundle that nothing loads.
+- The comment in `main.js` named `server.cjs`; it now names `server.mjs`.
+- **Verified:** `npm run build:server` writes a 5.7 MB `server.mjs` in 0.2 s, with zod 4,
+  openai 6 and the Anthropic SDK bundled. The committed one was 3.6 MB, from April.
+- The two files stay in history (about 7 MB). Publishing `main` to a new repository (M14.9)
+  would carry them too. Rewriting history to drop them was not asked for.
