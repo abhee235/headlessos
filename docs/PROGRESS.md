@@ -33,6 +33,7 @@
 | M11: Fleet, Agent & Platform | Week 15-16 | ✅ | 8/8 tasks | — |
 | M12: Backend Architecture Refactor | Beta | ✅ | 7/7 tasks | [phase-12](phases/phase-12.md) |
 | M13: Release Readiness | Beta | ✅ | 4/4 tasks | [phase-13](phases/phase-13.md) |
+| M14: Public Release | Beta | 🔄 | 0/10 tasks | [phase-14](phases/phase-14.md) |
 | **EX1: Dynamic UI Engine** | **Experimental** | **✅** | **15/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
 | **EX2: UI Generation Agent** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
 | **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **✅** | **26/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
@@ -44,6 +45,25 @@
 | **EX9: Safe Agents (Actions, Approvals, Local Models)** | **Experimental** | **✅** | **6/6 tasks** | [phase-ex9](phases/phase-ex9.md) |
 | **EX10: Context Engineering for Agents** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex10](phases/phase-ex10.md) |
 | **EX11: Claude Models** | **Experimental** | **✅** | **2/2 tasks** | [phase-ex11](phases/phase-ex11.md) |
+
+---
+
+## M14: Public Release
+
+> Clear what stands between the repository and its first public release (v0.2.0): dependency advisories, stale build output, CI, a security policy, the README, a packaged build, the version and notes. Going public and tagging are the owner's decisions. See [phase-14.md](phases/phase-14.md).
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| M14.1a | `npm audit fix` (same majors) and a `dompurify` override | ⬜ | |
+| M14.1b | zod 4, openai upgrade, `z.toJSONSchema` instead of `zod-to-json-schema` | ⬜ | |
+| M14.2 | Stop tracking `electron/server.cjs` / `server.mjs` | ⬜ | |
+| M14.3 | CI on pull requests and `main`; release workflow runs the checks first | ⬜ | |
+| M14.4 | `SECURITY.md` and `CONTRIBUTING.md` | ⬜ | |
+| M14.5 | README: Claude, install and download, screenshots | ⬜ | |
+| M14.6 | Packaged Windows build starts | ⬜ | |
+| M14.7 | Version 0.2.0 and `CHANGELOG.md` | ⬜ | |
+| M14.8 | Make the repository public | ⬜ | |
+| M14.9 | Make the repository public | ⬜ | |
 
 ---
 
@@ -613,6 +633,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-10-27 | **M14 specced** after an audit for going public: 11 high or critical dependency advisories (one critical, in `dompurify` under the code editor), six-month-old server bundles committed, no CI on pull requests, no security policy, and a README without Claude or install steps. The owner decides when to publish and tag v0.2.0. |
 | 2026-10-27 | **EX11 ✅** Claude (Haiku 5.5, Sonnet 5.5, Opus 5.5) is now a choice in Settings → AI, next to OpenAI and Ollama. The key is checked with Anthropic before it is saved, stored encrypted, and kept when switching to another provider and back. Parsing, the AI Agent, Dynamic UI and the UI Agent all run on the chosen Claude model, which sends its earlier reasoning back between steps; traces show what each call costs. |
 | 2026-10-27 | **EX11 specced** (ADR-027): Claude models (Haiku 5.5, Sonnet 5.5, Opus 5.5) become a third choice in Settings → AI, with the owner's own Anthropic key, through Anthropic's own SDK. The agents keep their history format; the new provider translates it, and sends Claude's thinking back so multi-step runs keep their reasoning. |
 | 2026-10-25 | **EX10.9 ✅ (EX10 complete)** The next prompt in the UI Agent panel now refines the view that is open, in the same window: "also add memory usage" adds to the disk view instead of starting over, and "New view" starts fresh. A request that names nothing, like "help" or "fix it", gets one question back instead of a guessed view. |
