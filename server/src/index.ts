@@ -216,6 +216,11 @@ async function main(): Promise<void> {
   // EX9.3: the OpenAI provider is kept for switching back even while Ollama is active
   const { OpenAIProvider } = await import("./llm/providers/openai.js");
   const openaiProvider = startKey ? new OpenAIProvider(startKey, savedLLM?.model) : null;
+  // EX11.2: so is the Claude provider (its key only ever comes from Settings)
+  const { AnthropicProvider } = await import("./llm/providers/anthropic.js");
+  const anthropicProvider = savedLLM?.anthropic?.apiKey
+    ? new AnthropicProvider(savedLLM.anthropic.apiKey, savedLLM.anthropic.model)
+    : null;
 
   if (savedLLM?.provider === "ollama" && savedLLM.ollama) {
     // ── EX9.3: a local model chosen in Settings → AI ──
@@ -232,6 +237,15 @@ async function main(): Promise<void> {
     modelRouter.useProvider(ollama);
     container.register("model-router", modelRouter);
     console.log(`🦙 LLM provider: Ollama ${model} at ${baseUrl} (context ${limits.contextWindow}, ${limits.source})`);
+  } else if (savedLLM?.provider === "anthropic" && anthropicProvider) {
+    // ── EX11.2: Claude chosen in Settings → AI; one model serves every role, as Ollama does ──
+    pipeline.setLLMProvider(anthropicProvider);
+    investigationAgent.setLLMProvider(anthropicProvider);
+    dynamicUIGenerator.setLLMProvider(anthropicProvider);
+    modelRouter = new ModelRouter("model-router", { apiKey: startKey, usageTracker });
+    modelRouter.useProvider(anthropicProvider);
+    container.register("model-router", modelRouter);
+    console.log(`🤖 LLM provider: Anthropic (${anthropicProvider.model}, key from Settings, encrypted)`);
   } else if (startKey) {
     const llmProvider = openaiProvider!;
     pipeline.setLLMProvider(llmProvider);
@@ -478,14 +492,17 @@ async function main(): Promise<void> {
     // EX9.3: Ollama settings + the OpenAI key kept for switching back
     openai: openaiProvider,
     ollama: { saved: savedLLM?.ollama },
+    // EX11.2: the Claude key and model kept for switching back
+    anthropic: { provider: anthropicProvider },
     // EX8.21: one provider for parsing, the investigation agent and Dynamic UI;
     // a new key also re-keys the UI Agent's model router
     onChange: (provider, apiKey) => {
       investigationAgent.setLLMProvider(provider);
       dynamicUIGenerator.setLLMProvider(provider);
       // EX9.3: a local model serves every UI Agent role; OpenAI goes back to the role models
+      // EX11.2: so does a Claude model
       if (modelRouter && typeof modelRouter.useProvider === "function") {
-        modelRouter.useProvider(provider?.name === "ollama" ? provider : null);
+        modelRouter.useProvider(provider && provider.name !== "openai" ? provider : null);
       }
       if (apiKey !== undefined && modelRouter && typeof modelRouter.setApiKey === "function") {
         modelRouter.setApiKey(apiKey);

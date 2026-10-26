@@ -20,7 +20,7 @@ export const MODEL_ROLES: readonly ModelRole[] = [
 ] as const;
 
 export interface ModelRoleConfig {
-  provider: string;   // 'openai' (future: 'anthropic', 'ollama')
+  provider: string;   // 'openai'; Ollama (EX9.3) and Claude (EX11.2) serve every role through ModelRouter.useProvider
   model: string;
   maxTokens: number;
 }

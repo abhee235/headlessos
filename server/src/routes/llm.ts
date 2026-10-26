@@ -5,13 +5,15 @@
 // EX9.3: Ollama (a local model) as a second provider; the OpenAI key stays in memory
 // EX10.1: the Ollama window is the lowest of the owner's setting (or 64K), the Modelfile and
 // the trained length; GET reports it, where it came from, and whether the model spilled to the CPU
-// @see docs/PROGRESS.md, docs/phases/phase-ex9.md §8, docs/phases/phase-ex10.md §1
+// EX11.2: Claude (Anthropic) as a third provider; a key is checked against the model before saving
+// @see docs/PROGRESS.md, docs/phases/phase-ex9.md §8, docs/phases/phase-ex10.md §1, docs/phases/phase-ex11.md §2
 
 import type { FastifyInstance } from 'fastify';
 import type { ParsingPipeline } from '../parsers/pipeline.js';
 import type { LLMProvider } from '../llm/provider.js';
 import { DEFAULT_OPENAI_MODEL, OpenAIProvider } from '../llm/providers/openai.js';
 import { OllamaProvider, checkOllamaUrl, listOllamaModels } from '../llm/providers/ollama.js';
+import { ANTHROPIC_MODELS, AnthropicProvider, DEFAULT_ANTHROPIC_MODEL } from '../llm/providers/anthropic.js';
 import {
   CONTEXT_WINDOW_OPTIONS, ollamaResidency, probeOllamaLimits, validContextSetting,
   type ModelLimits, type OllamaResidency,
@@ -22,7 +24,7 @@ import type { LLMSettingsUpdate, OllamaSettings } from '../llm/llm-settings-stor
 export type KeySource = 'settings' | 'env' | null;
 
 interface LLMConfig {
-  provider: 'openai' | 'ollama' | 'none';
+  provider: 'openai' | 'ollama' | 'anthropic' | 'none';
   model: string;
   hasApiKey: boolean;
   keySource: KeySource;
@@ -35,6 +37,8 @@ interface LLMConfig {
   };
   /** EX10.1: the windows the owner can choose for a local model */
   contextOptions?: readonly number[];
+  /** EX11.2: the active or kept Claude model (its key never leaves the server) */
+  anthropic?: { model: string; hasKey: boolean };
 }
 
 interface LLMRouteOpts {
@@ -56,7 +60,12 @@ interface LLMRouteOpts {
   openai?: OpenAIProvider | null;
   /** EX9.3: saved Ollama settings (prefill), and a fetch for tests */
   ollama?: { saved?: OllamaSettings; fetch?: typeof fetch };
+  /** EX11.2: the Claude provider kept while another is active, and a constructor for tests */
+  anthropic?: { provider?: AnthropicProvider | null; create?: (apiKey: string, model: string) => AnthropicProvider };
 }
+
+/** EX11.2: a Claude model id */
+const CLAUDE_MODEL = /^claude-[a-z0-9-]{1,64}$/;
 
 const OllamaBody = (value: unknown): { baseUrl: string; model: string; allowRemote: boolean; contextWindow?: number } | null => {
   if (typeof value !== 'object' || value === null) return null;
@@ -79,6 +88,9 @@ export async function llmRoutes(app: FastifyInstance, opts: LLMRouteOpts): Promi
   // EX9.3: the OpenAI key outlives a switch to Ollama, so switching back needs none
   let lastOpenAI: OpenAIProvider | null = opts.openai ?? (currentProvider() instanceof OpenAIProvider ? currentProvider() as OpenAIProvider : null);
   let savedOllama: OllamaSettings | undefined = opts.ollama?.saved;
+  // EX11.2: the Claude key outlives a switch to another provider too
+  let lastAnthropic: AnthropicProvider | null = opts.anthropic?.provider ?? null;
+  const createAnthropic = opts.anthropic?.create ?? ((apiKey: string, model: string) => new AnthropicProvider(apiKey, model));
 
   /** true when saved (or nothing to save); false when the disk write failed */
   function tryPersist(fn: () => void): boolean {
@@ -93,11 +105,13 @@ export async function llmRoutes(app: FastifyInstance, opts: LLMRouteOpts): Promi
   app.get('/api/llm/config', async () => {
     const provider = currentProvider();
     const isOllama = provider instanceof OllamaProvider;
+    const isAnthropic = provider instanceof AnthropicProvider;
     const config: LLMConfig = {
-      provider: provider ? (isOllama ? 'ollama' : 'openai') : 'none',
+      provider: provider ? (isOllama ? 'ollama' : isAnthropic ? 'anthropic' : 'openai') : 'none',
       model: provider?.model ?? DEFAULT_OPENAI_MODEL,
       hasApiKey: !!provider,
-      keySource: provider && !isOllama ? keySource : null,
+      // EX11.2: a Claude key only ever comes from Settings
+      keySource: provider && !isOllama ? (isAnthropic ? 'settings' : keySource) : null,
       ...(isOllama
         ? {
             ollama: {
@@ -111,6 +125,7 @@ export async function llmRoutes(app: FastifyInstance, opts: LLMRouteOpts): Promi
           }
         : savedOllama ? { ollama: savedOllama } : {}),
       contextOptions: CONTEXT_WINDOW_OPTIONS,
+      ...(lastAnthropic ? { anthropic: { model: lastAnthropic.model, hasKey: true } } : {}),
     };
     return { success: true, data: config };
   });
@@ -139,6 +154,7 @@ export async function llmRoutes(app: FastifyInstance, opts: LLMRouteOpts): Promi
         keySource = null;
         lastOpenAI = null;
         savedOllama = undefined;
+        lastAnthropic = null;
         const persisted = tryPersist(() => persist?.clear());
         return { success: true, data: { provider: 'none', model: '', hasApiKey: false, keySource, persisted } };
       }
@@ -205,6 +221,34 @@ export async function llmRoutes(app: FastifyInstance, opts: LLMRouteOpts): Promi
         };
       }
 
+      if (provider === 'anthropic') {
+        // EX11.2: a new key, or the one kept in memory; checked against the model before anything changes
+        if (model !== undefined && (typeof model !== 'string' || !CLAUDE_MODEL.test(model))) {
+          return { success: false, error: 'Choose a Claude model, e.g. claude-haiku-5-5' };
+        }
+        const chosen = model ?? DEFAULT_ANTHROPIC_MODEL;
+        const key = typeof apiKey === 'string' ? apiKey.trim() : '';
+        let llmProvider: AnthropicProvider;
+        if (key) llmProvider = createAnthropic(key, chosen);
+        else if (lastAnthropic) llmProvider = lastAnthropic.withModel(chosen);
+        else return { success: false, error: 'An Anthropic API key is required for Claude' };
+        try {
+          await llmProvider.checkModel();
+        } catch (err) {
+          return { success: false, error: err instanceof Error ? err.message : String(err) };
+        }
+        lastAnthropic = llmProvider;
+        pipeline.setLLMProvider(llmProvider);
+        // no key passed on: the UI Agent's OpenAI key stays as it is
+        onChange?.(llmProvider);
+        const persisted = tryPersist(() => persist?.save({ provider: 'anthropic', anthropic: { model: chosen, ...(key ? { apiKey: key } : {}) } }));
+        console.log(`🤖 LLM provider updated: Anthropic (${chosen})${persisted ? ' — saved' : ' — this session only'}`);
+        return {
+          success: true,
+          data: { provider: 'anthropic', model: chosen, hasApiKey: true, keySource: 'settings', anthropic: { model: chosen, hasKey: true }, persisted },
+        };
+      }
+
       return { success: false, error: `Unknown provider: ${provider}` };
     },
   );
@@ -224,6 +268,8 @@ export async function llmRoutes(app: FastifyInstance, opts: LLMRouteOpts): Promi
           { id: 'o4-mini', name: 'o4-mini', description: 'Reasoning model' },
           { id: 'gpt-5.4', name: 'GPT-5.4', description: 'Most capable, highest cost — planning & reflection' },
         ],
+        // EX11.2
+        anthropic: ANTHROPIC_MODELS,
       },
     };
   });

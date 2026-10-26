@@ -43,6 +43,8 @@ export function recommendedMaxOutput(window: number): number {
 
 /** First match wins: specific names before families */
 const HOSTED_WINDOWS: Array<[RegExp, number]> = [
+  // EX11.1: Haiku 5.5, Sonnet 5.5, Opus 5.5
+  [/^claude-/i, 1_000_000],
   [/^gpt-6/i, 1_050_000],
   [/^gpt-5/i, 400_000],
   [/^gpt-4\.1/i, 1_047_576],

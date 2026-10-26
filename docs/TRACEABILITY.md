@@ -1315,6 +1315,22 @@ None (all changes to existing files).
 - **Verification:** server 2503 passed (+2 skipped), client 655, both typechecks clean; four live runs and a Playwright check (see the phase doc)
 - **Modified:** EX10.10 — the executor's opening message now describes the widget workflow
 
+### EX11.1: Anthropic provider (ADR-027)
+- **Status:** ✅ Complete
+- **Date:** 2026-10-27
+- **Files created:** `server/src/llm/providers/anthropic.ts`, `server/tests/llm/anthropic.test.ts`
+- **Files modified:** `server/src/llm/provider.ts` (`ChatMessage.reasoning`), `server/src/llm/model-limits.ts` (`^claude-`), `server/package.json` (`@anthropic-ai/sdk`)
+- **Docs:** `docs/DECISIONS.md` (ADR-027), `docs/phases/phase-ex11.md` (§1, "EX11.1 — as built")
+- **Verification:** 25 tests against a scripted SDK client; not yet run against the API
+
+### EX11.2: Claude in Settings → AI
+- **Status:** ✅ Complete
+- **Date:** 2026-10-27
+- **Files modified:** `server/src/llm/llm-settings-store.ts` (`anthropic`), `server/src/routes/llm.ts` (Claude branch, key check, models), `server/src/index.ts` (startup and `onChange`), `server/src/llm/model-router.ts` (cost only free for local models; Claude prices), `server/src/llm/usage-tracker.ts` (Claude prices), `server/src/config/models.ts` (comment), `server/scripts/agent-bench.ts` (`--provider anthropic`), `client/src/lib/api.ts`, `client/src/components/Desktop/SettingsView.tsx` (provider row, key, models), `CLAUDE.md`
+- **Docs:** `docs/phases/phase-ex11.md` (§2, "EX11.2 — as built")
+- **Tests modified:** `server/tests/llm/llm-settings-store.test.ts`, `server/tests/routes/llm.test.ts`, `server/tests/llm/model-router-spans.test.ts`, `client/tests/components/settings-ai.test.tsx`
+- **Verification:** server 2537 passed (+2 skipped), client 657, both typechecks clean; Playwright-measured Settings rows; the owner's key passed the key check against the API
+
 ## How to Use This File
 
 ### After completing a task:

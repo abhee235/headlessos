@@ -1100,6 +1100,9 @@ function AIPage() {
   const [ollamaContext, setOllamaContext] = useState<number | 'auto'>('auto');
   const [ollamaModels, setOllamaModels] = useState<OllamaModel[]>([]);
   const [ollamaStatus, setOllamaStatus] = useState<{ loading: boolean; error?: string }>({ loading: false });
+  // EX11.2: Claude (Anthropic) — its own key field, so an OpenAI key typed earlier never goes to Anthropic
+  const [anthropicKey, setAnthropicKey] = useState('');
+  const [anthropicModel, setAnthropicModel] = useState('claude-haiku-5-5');
 
   useEffect(() => {
     (async () => {
@@ -1108,7 +1111,8 @@ function AIPage() {
         if (configRes.data) {
           setConfig(configRes.data);
           setProvider(configRes.data.provider);
-          if (configRes.data.provider !== 'ollama') setModel(configRes.data.model);
+          if (configRes.data.provider === 'openai' || configRes.data.provider === 'none') setModel(configRes.data.model);
+          if (configRes.data.anthropic) setAnthropicModel(configRes.data.anthropic.model);
           if (configRes.data.ollama) {
             setOllamaUrl(configRes.data.ollama.baseUrl);
             setOllamaModel(configRes.data.ollama.model);
@@ -1160,11 +1164,15 @@ function AIPage() {
           ...(remote && allowRemote ? { allowRemote: true } : {}),
           contextWindow: ollamaContext,
         };
+      } else if (provider === 'anthropic') {
+        if (anthropicKey.trim()) body.apiKey = anthropicKey.trim();
+        body.model = anthropicModel;
       }
       const res = await updateLLMConfig(body);
       if (res.success && res.data) {
         setConfig(res.data);
         setApiKey('');
+        setAnthropicKey('');
         if (res.data.persisted === false) toast.warning('Applied, but not saved to disk: it lasts until the server restarts');
         else toast.success('LLM configuration saved');
       } else {
@@ -1186,7 +1194,10 @@ function AIPage() {
 
   const providerModels = provider === 'openai' ? models.openai ?? [] : [];
   const activeOllama = config?.provider === 'ollama' ? config.ollama : undefined;
-  const canSave = provider !== 'ollama' || (!!ollamaModel && (!remote || allowRemote));
+  const anthropicHasKey = !!config?.anthropic?.hasKey;
+  const canSave = provider === 'anthropic'
+    ? !!anthropicKey.trim() || anthropicHasKey
+    : provider !== 'ollama' || (!!ollamaModel && (!remote || allowRemote));
 
   return (
     <div className="space-y-5">
@@ -1198,12 +1209,12 @@ function AIPage() {
           </RowValue>
         </Row>
         <Row label="Provider" className="min-h-[52px]">
-          <RowValue>{config?.provider === 'none' ? 'None' : config?.provider === 'ollama' ? 'Ollama' : 'OpenAI'}</RowValue>
+          <RowValue>{config?.provider === 'none' ? 'None' : config?.provider === 'ollama' ? 'Ollama' : config?.provider === 'anthropic' ? 'Anthropic' : 'OpenAI'}</RowValue>
         </Row>
         <Row label="Model" className="min-h-[52px]">
           <RowValue className="font-mono text-[14px]">{config?.model || '—'}</RowValue>
         </Row>
-        {config?.hasApiKey && config.provider === 'openai' && (
+        {config?.hasApiKey && (config.provider === 'openai' || config.provider === 'anthropic') && (
           <Row label="API Key" className="min-h-[52px]">
             <RowValue>{config.keySource === 'env' ? 'From .env' : 'Saved on this computer, encrypted'}</RowValue>
           </Row>
@@ -1232,6 +1243,14 @@ function AIPage() {
         </Row>
         <Row label="OpenAI" onClick={() => setProvider('openai')} className="min-h-[52px]">
           {provider === 'openai' ? <SelectedCheck /> : null}
+        </Row>
+        <Row
+          label="Anthropic (Claude)"
+          description="Claude models through Anthropic's API. Prompts and server output are sent to Anthropic."
+          onClick={() => setProvider('anthropic')}
+          className="min-h-[52px]"
+        >
+          {provider === 'anthropic' ? <SelectedCheck /> : null}
         </Row>
         <Row
           label="Ollama"
@@ -1339,6 +1358,41 @@ function AIPage() {
               onClick={() => setModel(m.id)}
             >
               {model === m.id ? <SelectedCheck /> : null}
+            </Row>
+          ))}
+        </RowSection>
+      )}
+
+      {/* EX11.2: Claude key and model */}
+      {provider === 'anthropic' && (
+        <Section title="API Key">
+          <Input
+            type="password"
+            placeholder={anthropicHasKey ? '••••••••••••••••  (key set)' : 'sk-ant-...'}
+            value={anthropicKey}
+            onChange={e => setAnthropicKey(e.target.value)}
+            aria-label="Anthropic API key"
+            className="font-mono"
+          />
+          <p className="text-[13px] text-label-2">
+            {anthropicHasKey
+              ? 'A key is set. Leave this empty to keep it, or enter a new key to replace it.'
+              : 'Enter your Anthropic API key.'}
+            {' '}It is checked against the model before it is saved. Used for parsing, AI Agent and UI Agent.
+            Saved encrypted in ~/.headlessos/llm.json, and never sent back to the browser. Choosing None deletes it.
+          </p>
+        </Section>
+      )}
+      {provider === 'anthropic' && (models.anthropic ?? []).length > 0 && (
+        <RowSection title="Model">
+          {(models.anthropic ?? []).map((m) => (
+            <Row
+              key={m.id}
+              label={`${m.name}${m.recommended ? ' ★' : ''}`}
+              description={m.description}
+              onClick={() => setAnthropicModel(m.id)}
+            >
+              {anthropicModel === m.id ? <SelectedCheck /> : null}
             </Row>
           ))}
         </RowSection>
