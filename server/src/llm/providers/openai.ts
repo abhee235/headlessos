@@ -15,9 +15,29 @@ import type {
 } from '../provider.js';
 import { SYSTEM_PROMPT, buildTextPrompt } from '../provider.js';
 import { hostedLimits, type ModelLimits } from '../model-limits.js';
+import { jsonFromReply, jsonSchemaOf } from '../json-schema.js';
+import type { ZodSchema } from 'zod';
 
 /** EX8.20: default model for LLM parsing (Settings → AI) */
 export const DEFAULT_OPENAI_MODEL = 'gpt-6-luna';
+
+/**
+ * M14.2: how a schema's reply is asked for. With zod 4, OpenAI's helper refuses what strict
+ * Structured Outputs cannot express: optional fields that are not also nullable, maps
+ * (`z.record`), a root that is not an object. Those schemas are sent as a plain JSON schema
+ * (strict: false); a non-object root (a summary string) gets plain text.
+ */
+export function textFormatFor(schema: ZodSchema, name = 'parsed_output'):
+  | { kind: 'strict'; format: ReturnType<typeof zodTextFormat> }
+  | { kind: 'json'; format: { type: 'json_schema'; name: string; schema: Record<string, unknown>; strict: false } }
+  | { kind: 'text' } {
+  try {
+    return { kind: 'strict', format: zodTextFormat(schema, name) };
+  } catch { /* not expressible in strict mode */ }
+  const json = jsonSchemaOf(schema);
+  if (json.type !== 'object') return { kind: 'text' };
+  return { kind: 'json', format: { type: 'json_schema', name, schema: json, strict: false } };
+}
 
 /**
  * Extra Chat Completions params for a tool call. GPT-6 Luna is a reasoning model
@@ -55,84 +75,54 @@ export class OpenAIProvider implements LLMProvider {
   }
 
   async parseText<T>(input: ParseTextInput<T>): Promise<ParseResult<T>> {
-    const start = Date.now();
-
     const instructions = input.systemPrompt ?? SYSTEM_PROMPT;
     const userContent = input.userPrompt ?? buildTextPrompt(input.command, input.rawOutput, input.context);
-
-    const response = await this.client.responses.parse({
-      model: this.model,
-      instructions,
-      input: [
-        {
-          role: 'user' as const,
-          content: userContent,
-        },
-      ],
-      text: {
-        format: zodTextFormat(input.schema, 'parsed_output'),
-      },
-    });
-
-    const output = response.output_parsed;
-    if (!output) {
-      throw new Error('OpenAI returned no parsed output');
-    }
-
-    // Validate with Zod as a safety net
-    const validated = input.schema.parse(output) as T;
-
-    return {
-      data: validated,
-      tokensUsed: {
-        input: response.usage?.input_tokens ?? 0,
-        output: response.usage?.output_tokens ?? 0,
-      },
-      latencyMs: Date.now() - start,
-      model: this.model,
-    };
+    return this.parseWith(input.schema, instructions, [{ role: 'user' as const, content: userContent }], 'parsed output');
   }
 
   async parseImage<T>(input: ParseImageInput<T>): Promise<ParseResult<T>> {
+    return this.parseWith(input.schema, SYSTEM_PROMPT, [
+      {
+        role: 'user' as const,
+        content: [
+          {
+            type: 'input_image' as const,
+            image_url: `data:image/png;base64,${input.imageBase64}`,
+            detail: 'auto' as const,
+          },
+          {
+            type: 'input_text' as const,
+            text: `Parse this terminal screenshot of command: \`${input.command}\``,
+          },
+        ],
+      },
+    ], 'parsed output for image');
+  }
+
+  /**
+   * M14.2: one parse, in the format the schema allows (see textFormatFor). Every reply is
+   * checked with Zod, so a non-strict reply that drifts from the schema is caught here.
+   */
+  private async parseWith<T>(schema: ZodSchema<T>, instructions: string, input: OpenAI.Responses.ResponseInput, what: string): Promise<ParseResult<T>> {
     const start = Date.now();
-
-    const response = await this.client.responses.parse({
-      model: this.model,
-      instructions: SYSTEM_PROMPT,
-      input: [
-        {
-          role: 'user' as const,
-          content: [
-            {
-              type: 'input_image' as const,
-              image_url: `data:image/png;base64,${input.imageBase64}`,
-              detail: 'auto' as const,
-            },
-            {
-              type: 'input_text' as const,
-              text: `Parse this terminal screenshot of command: \`${input.command}\``,
-            },
-          ],
-        },
-      ],
-      text: {
-        format: zodTextFormat(input.schema, 'parsed_output'),
-      },
-    });
-
-    const output = response.output_parsed;
-    if (!output) {
-      throw new Error('OpenAI returned no parsed output for image');
+    const tf = textFormatFor(schema);
+    let value: unknown;
+    let usage: OpenAI.Responses.ResponseUsage | undefined;
+    if (tf.kind === 'strict') {
+      const response = await this.client.responses.parse({ model: this.model, instructions, input, text: { format: tf.format } });
+      if (!response.output_parsed) throw new Error(`OpenAI returned no ${what}`);
+      value = response.output_parsed;
+      usage = response.usage;
+    } else {
+      const response = await this.client.responses.create({ model: this.model, instructions, input, ...(tf.kind === 'json' ? { text: { format: tf.format } } : {}) });
+      const text = response.output_text ?? '';
+      if (!text.trim()) throw new Error(`OpenAI returned no ${what}`);
+      value = tf.kind === 'json' ? jsonFromReply(text, 'OpenAI') : text.trim();
+      usage = response.usage;
     }
-
-    const validated = input.schema.parse(output) as T;
-
     return {
-      data: validated,
-      tokensUsed: {
-        input: response.usage?.input_tokens ?? 0,
-        output: response.usage?.output_tokens ?? 0,
-      },
+      data: schema.parse(value),
+      tokensUsed: { input: usage?.input_tokens ?? 0, output: usage?.output_tokens ?? 0 },
       latencyMs: Date.now() - start,
       model: this.model,
     };

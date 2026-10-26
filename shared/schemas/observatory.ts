@@ -66,9 +66,9 @@ export type ModelRole = z.infer<typeof ModelRoleSchema>;
 // ── Span ───────────────────────────────────────────────
 
 export const SpanSchema = z.object({
-  spanId: z.string().uuid(),
-  traceId: z.string().uuid(),
-  parentSpanId: z.string().uuid().nullable(), // null = root span
+  spanId: z.guid(),
+  traceId: z.guid(),
+  parentSpanId: z.guid().nullable(), // null = root span
   name: z.string(),                           // e.g. "ModelRouter.reason"
   kind: SpanKindSchema,
   status: SpanStatusSchema,
@@ -100,8 +100,8 @@ export type Span = z.infer<typeof SpanSchema>;
 // ── Trace ──────────────────────────────────────────────
 
 export const TraceSchema = z.object({
-  traceId: z.string().uuid(),
-  rootSpanId: z.string().uuid(),
+  traceId: z.guid(),
+  rootSpanId: z.guid(),
   name: z.string(),                            // e.g. "UIAgent: docker overview"
   status: SpanStatusSchema,                    // derived from root span
   startTime: z.string().datetime(),
@@ -169,13 +169,13 @@ export const TraceEndEventSchema = z.object({
 
 export const SpanStartEventSchema = z.object({
   type: z.literal('span:start'),
-  traceId: z.string().uuid(),
+  traceId: z.guid(),
   span: SpanSchema,
 });
 
 export const SpanEndEventSchema = z.object({
   type: z.literal('span:end'),
-  traceId: z.string().uuid(),
+  traceId: z.guid(),
   span: SpanSchema,
 });
 

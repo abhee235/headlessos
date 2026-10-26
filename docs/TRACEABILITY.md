@@ -1331,6 +1331,15 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-14.md` ("M14.1 — as built")
 - **Verification:** `npm audit --omit=dev` 11 high/critical → 2; server 2537 passed (+2 skipped), client 657, both typechecks clean
 
+### M14.2: zod 4 and openai 6
+- **Status:** ✅ Complete
+- **Date:** 2026-10-27
+- **Files created:** `server/src/llm/json-schema.ts`, `server/tests/llm/json-schema.test.ts`, `server/tests/llm/openai.test.ts`
+- **Files modified:** `server/package.json`, `shared/package.json`, `client/package.json` (zod 4, openai 6, no zod-to-json-schema), `package-lock.json`, `server/src/agent/tools/tool-converter.ts`, `server/src/llm/providers/{ollama,anthropic,openai}.ts` (`textFormatFor`), `server/src/agent/actions/catalog/index.ts`, `server/src/agent/actions/runner.ts`, `server/src/agent/tools/view-arg.ts`, `server/src/agent/loop/tool-input.ts`, `shared/schemas/observatory.ts` and `server/src/dynamic-ui/app-store.ts` (`z.guid()`), `CLAUDE.md`
+- **Docs:** `docs/phases/phase-14.md` ("M14.2 — as built")
+- **Tests modified:** `server/tests/parsers/dynamic-view-schema.test.ts` (OpenAI format)
+- **Verification:** production advisories 0; server 2543 passed (+2 skipped), client 657, both typechecks clean; local Ollama accepts the new schemas
+
 ## How to Use This File
 
 ### After completing a task:

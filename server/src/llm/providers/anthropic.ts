@@ -16,7 +16,6 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 import type {
   ChatCompletionTool,
   ChatMessage,
@@ -29,8 +28,9 @@ import type {
   ToolCall,
 } from '../provider.js';
 import { SYSTEM_PROMPT, buildTextPrompt } from '../provider.js';
-import { parseToolArgs, repairJson } from '../../agent/loop/tool-input.js';
+import { parseToolArgs } from '../../agent/loop/tool-input.js';
 import { hostedLimits, type ModelLimits } from '../model-limits.js';
+import { jsonFromReply, jsonSchemaOf } from '../json-schema.js';
 
 type WireMessage = Anthropic.Beta.Messages.BetaMessageParam;
 type WireBlock = Anthropic.Beta.Messages.BetaContentBlockParam;
@@ -296,25 +296,13 @@ export function anthropicError(model: string, err: unknown): unknown {
 
 // ── Parsing ─────────────────────────────────────────────
 
-function jsonSchemaOf(schema: z.ZodTypeAny): Record<string, unknown> {
-  const json = zodToJsonSchema(schema, { $refStrategy: 'none', target: 'jsonSchema7' }) as Record<string, unknown>;
-  delete json.$schema;
-  return json;
-}
-
-function jsonRule(schema: z.ZodTypeAny): string {
+function jsonRule(schema: z.ZodType): string {
   return `Reply with one JSON value that matches this JSON Schema, and nothing else: no prose, no code fences.\n${JSON.stringify(jsonSchemaOf(schema))}`;
 }
 
 /** The reply's JSON value: fences stripped, broken JSON repaired as for Ollama. Exported for testing. */
 export function jsonValue(text: string): unknown {
-  const t = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
-  try {
-    return JSON.parse(t);
-  } catch { /* repaired below */ }
-  const repaired = repairJson(t);
-  if (repaired !== undefined) return repaired;
-  throw new Error(`Claude returned text that is not JSON: ${t.slice(0, 120)}`);
+  return jsonFromReply(text, 'Claude');
 }
 
 // ── Provider ────────────────────────────────────────────
