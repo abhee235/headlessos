@@ -109,7 +109,7 @@ must pass unchanged, except where a test asserts zod 3's own error wording.
 | M14.2 | zod 4, openai upgrade, `z.toJSONSchema` instead of `zod-to-json-schema` | ✅ |
 | M14.3 | Stop tracking `electron/server.cjs` / `server.mjs` | ✅ |
 | M14.4 | CI on pull requests and `main`; release workflow runs the checks first | ✅ |
-| M14.5 | `SECURITY.md` and `CONTRIBUTING.md` | ⬜ |
+| M14.5 | `SECURITY.md` and `CONTRIBUTING.md` | ✅ |
 | M14.6 | README: Claude, install and download, screenshots | ⬜ |
 | M14.7 | Packaged Windows build starts | ⬜ |
 | M14.8 | Version 0.2.0 and `CHANGELOG.md` | ⬜ |
@@ -228,3 +228,27 @@ The fix is vitest 5, a test-runner upgrade. Nothing here ships in the app.
   entries.
 - **The fix:** `ActionAudit.rotatedPath()` adds `-1`, `-2` … when the name is taken.
 - **The test:** it now freezes the clock, so it fails on every platform without the fix.
+
+## M14.5 — Security policy and contributing guide (as built)
+
+- **`SECURITY.md` (new, repository root).** Covers:
+  - how to report: GitHub's private vulnerability reporting, and no public issues;
+  - what is stored where, and how;
+  - the local server: 127.0.0.1, the API token (`/health` is the only open route), and
+    the Host-header and WebSocket-origin checks;
+  - the agents' limits: typed actions, approvals, redaction, output marked untrusted;
+  - what goes to each LLM provider, and Open-Meteo for the Home hub's weather (the only
+    other outbound call);
+  - that release builds may be unsigned.
+
+  Each statement was checked against the code (`index.ts` auth hooks,
+  `security/encryption.ts`, `config/store.ts`, `routes/glance.ts`, `routes/docker.ts`).
+- **`docs/SECURITY.md`:**
+  - password keys have used the per-install secret since M1;
+  - Anthropic keys are stored like OpenAI keys and only read from Settings;
+  - `api.anthropic.com` is among the outbound hosts.
+- **`CONTRIBUTING.md` (new):** setup, the dev SSH server and fake mode, the doc-first loop,
+  the commit format the hook enforces, the checks CI runs, the security rules reviews hold
+  to, and the MIT terms.
+- **Owner's step, once the repository is public:** turn on private vulnerability reporting
+  (Settings → Code security). SECURITY.md points reporters there.
