@@ -33,7 +33,7 @@
 | M11: Fleet, Agent & Platform | Week 15-16 | ✅ | 8/8 tasks | — |
 | M12: Backend Architecture Refactor | Beta | ✅ | 7/7 tasks | [phase-12](phases/phase-12.md) |
 | M13: Release Readiness | Beta | ✅ | 4/4 tasks | [phase-13](phases/phase-13.md) |
-| M14: Public Release | Beta | 🔄 | 4/10 tasks | [phase-14](phases/phase-14.md) |
+| M14: Public Release | Beta | 🔄 | 5/10 tasks | [phase-14](phases/phase-14.md) |
 | **EX1: Dynamic UI Engine** | **Experimental** | **✅** | **15/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
 | **EX2: UI Generation Agent** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
 | **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **✅** | **26/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
@@ -58,7 +58,7 @@
 | M14.2 | zod 4, openai upgrade, `z.toJSONSchema` instead of `zod-to-json-schema` | ✅ | Production dependencies: 0 advisories. Models get the same JSON Schema as before (pinned against the old library); OpenAI parses strictly when it can and with a plain JSON schema plus Zod otherwise; local Ollama accepts the new format, the 21 KB view schema included. Server 2543 passed (+2 skipped), client 657. Dev-only: vitest 3 (fix is vitest 5) |
 | M14.3 | Stop tracking `electron/server.cjs` / `server.mjs` | ✅ | Both untracked and ignored; `npm run build:server` still writes `server.mjs` (5.7 MB, new dependencies bundled); the stale `main.js` comment fixed |
 | M14.4 | CI on pull requests and `main`; release workflow runs the checks first | ✅ | `ci.yml` (Ubuntu, Node 20: npm ci, shared build, both typechecks, both suites) on PRs, `main` and as a reusable workflow; `release.yml` runs it before building |
-| M14.5 | `SECURITY.md` and `CONTRIBUTING.md` | ⬜ | |
+| M14.5 | `SECURITY.md` and `CONTRIBUTING.md` | ✅ | SECURITY.md: reporting, storage and encryption, the local server's checks, agent limits, what each provider (and the weather) receives; every statement checked against the code. CONTRIBUTING.md: setup, the doc-first loop, commit format, CI checks. docs/SECURITY.md brought up to date |
 | M14.6 | README: Claude, install and download, screenshots | ⬜ | |
 | M14.7 | Packaged Windows build starts | ⬜ | |
 | M14.8 | Version 0.2.0 and `CHANGELOG.md` | ⬜ | |

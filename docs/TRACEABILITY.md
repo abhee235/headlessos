@@ -1355,6 +1355,14 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-14.md` ("M14.4 — as built")
 - **Verification:** both workflows parse; the first run is on the M14 pull request
 
+### M14.5: Security policy and contributing guide
+- **Status:** ✅ Complete
+- **Date:** 2026-10-27
+- **Files created:** `SECURITY.md`, `CONTRIBUTING.md`
+- **Files modified:** `docs/SECURITY.md` (credential storage, outbound hosts)
+- **Docs:** `docs/phases/phase-14.md` ("M14.5 — as built")
+- **Verification:** each statement checked against the code it describes
+
 ## How to Use This File
 
 ### After completing a task:

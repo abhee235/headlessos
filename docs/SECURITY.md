@@ -198,9 +198,9 @@ SFTP does not go through a shell, so there's no command injection risk.
 
 SSH credentials stored in `~/.headlessos/servers.json`:
 
-- **Passwords:** Encrypted using AES-256-GCM with a key derived from machine-specific data (`os.hostname()` + `os.userInfo().uid` + app-specific salt)
+- **Passwords:** Encrypted using AES-256-GCM with a key derived from a random per-install secret (`~/.headlessos/enc-key`, 0600) plus machine-specific data (`os.hostname()` + `os.userInfo().uid` + app-specific salt). Passwords encrypted before the per-install secret existed still open with the old key and are re-encrypted on the next save.
 - **Private keys:** Referenced by path only (not stored, read at connection time)
-- **API keys (LLM):** A key saved in Settings → AI is stored in `~/.headlessos/llm.json` (0600), AES-256-GCM encrypted like passwords (per-install secret in `~/.headlessos/enc-key` + machine facts); never returned by the API. It wins over `OPENAI_API_KEY` in `.env`, which stays plaintext. Choosing None deletes it (EX8.22).
+- **API keys (LLM):** OpenAI and Anthropic keys saved in Settings → AI are stored in `~/.headlessos/llm.json` (0600), AES-256-GCM encrypted like passwords. They are never returned by the API. A saved OpenAI key wins over `OPENAI_API_KEY` in `.env`, which stays plaintext; an Anthropic key is only ever read from Settings (EX11.2). Choosing None deletes them all (EX8.22).
 - **File permissions:** `~/.headlessos/` directory is `0700` (owner only)
 
 **Note:** This is baseline security for a local tool. It's not bulletproof against a determined local attacker with root access, but it prevents casual reading of credentials.
@@ -226,7 +226,7 @@ Terminal output could contain malicious content designed to be rendered as HTML:
 - Backend listens on `localhost:3001` ONLY (not `0.0.0.0`)
 - No external network access except:
   - SSH connections to configured servers (port 22)
-  - LLM API calls (api.openai.com, etc.)
+  - LLM API calls (api.openai.com, api.anthropic.com)
   - Ollama (localhost:11434, if configured)
 - CORS: allow `localhost:3000` only
 
