@@ -1,0 +1,183 @@
+# Phase EX11 — Claude Models (Experimental)
+
+> The owner can choose Claude in Settings → AI with their own Anthropic key. The models
+> offered are Haiku 5.5, Sonnet 5.5 and Opus 5.5. Parsing, the AI Agent, Dynamic UI and
+> the UI Agent then run on the chosen model through Anthropic's own SDK, the same way they
+> run on OpenAI or a local Ollama model.
+>
+> Decision record: [ADR-027](../DECISIONS.md). Builds on [phase-ex9.md](phase-ex9.md)
+> §8 (a second provider in Settings → AI) and [phase-ex10.md](phase-ex10.md) (the context
+> plan every agent budget comes from).
+
+## Why
+
+The owner has an Anthropic key and wants to test the agent workflows on Claude:
+- Haiku 5.5 for speed and cost;
+- Sonnet 5.5 or Opus 5.5 for harder runs.
+
+Today:
+- `ModelRouter.createProvider` throws "Unsupported LLM provider" for anything but OpenAI.
+- `provider.ts` lists Anthropic as a future implementation.
+- Settings → AI offers only None, OpenAI and Ollama.
+
+## Design
+
+### 1. The provider (EX11.1)
+
+`llm/providers/anthropic.ts`: `AnthropicProvider implements LLMProvider`, named
+`anthropic`.
+
+**Client:**
+- `@anthropic-ai/sdk` 0.135, the beta Messages API, with every request streamed and read
+  with `finalMessage()`.
+- The key is passed in explicitly. The SDK's own lookup of `ANTHROPIC_*` environment
+  variables is not used.
+- The SDK retries 408/409/429/5xx and dropped connections twice.
+
+**History → Messages API** (`toAnthropicMessages`):
+- Leading `system` messages become the top-level `system`. A later one becomes user text
+  (the agents never send one).
+- **Assistant messages** become text and `tool_use` blocks. The input is the parsed
+  arguments, repaired as for Ollama. The message's stored thinking blocks go back
+  unchanged, in their original places.
+- **Tool results:** consecutive `tool` messages become one user message of `tool_result`
+  blocks, in order. A user message that follows them joins it as a text block after the
+  results (results lead).
+- **Missing pairs:** a call with no result gets one "Not run." result (`is_error`). A
+  result whose call is gone (compacted away) is left out. Either one, sent as it stands,
+  is a 400 on that turn and every later one.
+- A history that starts with an assistant message gets a user line before it.
+
+**Tools:**
+- The OpenAI function shape becomes `{ name, description, input_schema,
+  eager_input_streaming: true }`.
+- `tool_choice` mapping:
+  - `auto` → `auto`;
+  - `none` → `none`, with the tools still sent, so the list stays the same between turns;
+  - `required` → `auto`, because Opus 5.5 and Sonnet 5.5 refuse a forced call.
+
+**Thinking:**
+- Adaptive; current models cannot turn it off. Effort is `medium` on agent turns and
+  `low` for parsing.
+- `max_tokens` is the caller's reply cap (the context plan's), plus room for thinking:
+  16K at medium, 8K at low. The total is at most 128K.
+- Thinking blocks come back with empty text and a signature. They are kept on the
+  assistant `ChatMessage` as `reasoning: { provider: 'anthropic', blocks }`, together with
+  the reply's other blocks, so the order is known. They are sent back unchanged.
+- Beta `thinking-binding-controls-2026-08-01` with
+  `block_binding.prefix_mismatch_behavior: 'drop_block'` is on every request. Several
+  things change the history: compaction, collapsed views, notes on tool results, and the
+  wrap-up turn's smaller tool list. On accounts created from 2026-08-31, a changed history
+  replayed with old thinking blocks is a 400. With `drop_block`, the API drops the stale
+  blocks instead.
+
+**Cache:**
+- A 5-minute mark on the system prompt, and top-level automatic caching (the mark moves
+  to the end of each request), so each step reads the run so far from the cache.
+- Usage reports `input` as uncached + cache written + cache read: the whole prompt, which
+  is what the context manager calibrates against.
+
+**Replies:**
+
+| Claude | Agents see |
+|--------|------------|
+| text blocks | `content` |
+| `tool_use` blocks | `tool_calls` (arguments as JSON) |
+| `end_turn`, `pause_turn` | `finishReason: 'stop'` |
+| `tool_use` | `'tool_calls'` |
+| `max_tokens`, `model_context_window_exceeded` | `'length'`; a trailing call cut off by the cap is dropped |
+| `refusal` | `'content_filter'`; its calls are dropped, and the text says Claude declined (and the category) |
+
+**Fallbacks:**
+- Opus 5.5 and Sonnet 5.5 requests carry `fallbacks: "default"` (beta
+  `server-side-fallback-2026-07-01`). A request Anthropic's safety check declines is
+  finished by another Claude model instead of stopping.
+- Haiku 5.5 has no fallback.
+- After a fallback switch, the first model's thinking and calls are not sent back; its
+  text is.
+
+**`parseText` / `parseImage`:**
+- The schema goes into the system prompt as JSON Schema: "Reply with one JSON value that
+  matches this JSON Schema, and nothing else." The reply is parsed, repaired as for
+  Ollama, and checked with Zod.
+- A string schema (summaries) gets plain text.
+- Structured outputs are not used. The view and planner schemas use unions and recursion
+  that their schema subset may not cover.
+- Images go as base64 PNG blocks.
+
+**Errors.** The SDK's typed errors become messages the owner can act on:
+
+| Error | Message |
+|-------|---------|
+| 401 | "Anthropic rejected the API key" |
+| 403 | "This key is not allowed to use <model>" |
+| 404 | "<model> is not available to this key" |
+| 429 | rate limited, after the SDK's retries |
+| 529 | overloaded |
+
+A "prompt is too long" 400 keeps its words, so the context manager's overflow path
+compacts and tries again.
+
+**Limits:** the hosted table gains `^claude-` at 1M tokens. The hosted plan cap holds it
+at 128K, as for GPT-6, with a 16K reply cap.
+
+### 2. Settings → AI, wiring, cost and benchmark (EX11.2)
+
+**Settings file** (`llm.json`):
+- `provider: 'anthropic'` and `anthropic: { model, apiKey }`, with the key encrypted like
+  the OpenAI key.
+- Choosing Claude keeps the OpenAI key and the Ollama settings, and choosing either of
+  those keeps the Claude key and model, so switching back needs no re-entry.
+- None deletes them all, as today.
+
+**Route:**
+- `PUT /api/llm/config { provider: 'anthropic', apiKey?, model }` uses a new key, or the
+  one already in memory.
+- Before saving, `models.retrieve(model)` checks the key, and that the key can use the
+  model.
+- `GET /api/llm/config` reports `provider: 'anthropic'` and the model, plus `anthropic: {
+  model, hasKey }` while another provider is active.
+- `GET /api/llm/models` lists `anthropic`:
+  - Claude Haiku 5.5: the default, fastest and lowest cost;
+  - Claude Sonnet 5.5;
+  - Claude Opus 5.5.
+
+**Wiring:**
+- As with Ollama, one Claude model serves parsing, the AI Agent, Dynamic UI and every UI
+  Agent role (`ModelRouter.useProvider`).
+- Startup reads the saved key and model.
+
+**Cost:**
+- Traces and the usage summary price Claude per 1M tokens:
+
+  | Model | Input | Output |
+  |-------|-------|--------|
+  | Haiku 5.5 | $0.10 | $0.50 |
+  | Sonnet 5.5 | $2 | $10 |
+  | Opus 5.5 | $4 | $20 |
+
+- The span cost no longer reads 0 for every provider that serves all roles: only a local
+  model (`limits.local`) is free.
+
+**Client** (Settings → AI):
+- A Provider row "Anthropic (Claude)", described as "Claude models through Anthropic's
+  API. Prompts and server output are sent to Anthropic."
+- An API Key section (`sk-ant-…`), with the same keep/replace wording as OpenAI.
+- Model rows for the three models.
+- Status reads Provider "Anthropic".
+
+**Benchmark:** `npm run bench:agents -- --provider anthropic --model claude-haiku-5-5`,
+with the key from `ANTHROPIC_API_KEY`.
+
+## What does not change
+
+- OpenAI and Ollama behaviour, the prompts, the action catalog and approvals, the context
+  plan and the loop guard.
+- `ChatMessage` gains one optional field that only the Claude provider reads.
+
+## Tasks
+
+| Task ID | Task | Status |
+|---------|------|--------|
+| EX11.1 | `AnthropicProvider`: history and tools mapped to the Messages API, thinking kept and sent back (`drop_block`), effort, caching, reply mapping, refusals and fallbacks, JSON parsing, errors, limits | ⬜ |
+| EX11.2 | Settings → AI: saved key and model, route with key check, startup wiring, Claude prices, client provider/key/model UI, benchmark flag | ⬜ |

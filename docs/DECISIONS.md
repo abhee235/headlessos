@@ -1278,6 +1278,82 @@ Since EX10.8, the actions behind most views return structured data.
 
 ---
 
+## ADR-027: Claude Through Anthropic's Own SDK
+
+**Status:** Accepted
+**Date:** 2026-10-27
+**Builds on:** EX9.3 (a second provider in Settings → AI), ADR-025 (one context plan per model window).
+
+**Context:**
+The owner wants to run parsing and both agents on Claude models (Haiku 5.5, Sonnet 5.5,
+Opus 5.5) with their own Anthropic key, and compare them with OpenAI and local models.
+`ModelRouter` throws "Unsupported LLM provider" for anything but OpenAI.
+
+The agents keep an OpenAI-shaped history: `ChatMessage` with `tool_calls`, and `tool`
+results. Current Claude models always think. They return their thinking as signed blocks,
+which must go back unchanged with the tool results. On accounts created from 2026-08-31,
+the API refuses (400) a request that sends a thinking block back after an earlier part of
+the conversation changed. The agents do change their history on purpose:
+- compaction trims and drops old results;
+- superseded views are collapsed;
+- the loop guard's notes ride on tool results;
+- the wrap-up turn offers fewer tools.
+
+**Options Considered:**
+1. **An OpenAI-compatible endpoint** for Claude, through the existing OpenAI provider. This
+   is the least code. But it loses the thinking blocks, prompt-cache control and refusal
+   details, and it is not Anthropic's supported path for these models.
+2. **Raw HTTP to the Messages API.** No dependency, but every type, stream event and error
+   class would be written by hand.
+3. **Anthropic's TypeScript SDK (`@anthropic-ai/sdk`) behind a new `AnthropicProvider`.**
+   It translates at the edge: the agents keep their history format, and the provider
+   converts it to Messages API blocks and back.
+
+**Decision:** Option 3.
+- **Translation at the edge.** The agents, the context manager and the loop guard do not
+  change. On each call the provider maps the history:
+  - tool results are grouped into one user message;
+  - a call without a result is answered "not run";
+  - a result without its call is left out.
+  It also maps the reply back.
+- **Thinking rides along.** The reply's thinking blocks stay on the assistant
+  `ChatMessage` (`reasoning`, which only the provider reads) and go back in their place.
+  Every request sets `thinking.block_binding.prefix_mismatch_behavior: "drop_block"`
+  (beta `thinking-binding-controls-2026-08-01`). Where the agents changed the history, the
+  API drops the stale thinking instead of refusing the request.
+- **Effort, not budgets.** Thinking is adaptive, at `medium` effort for agent turns and
+  `low` for parsing. The reply cap gets room for the thinking on top.
+- **One model serves every role**, as Ollama does since EX9.3.
+- **Parsing asks for JSON in words.** The JSON Schema goes in the system prompt, and the
+  reply is checked with Zod. Structured outputs are not used: their schema subset may not
+  cover the view and planner schemas.
+- **Prompt caching:** a mark on the system prompt, and automatic caching at the end of
+  each request.
+- **Refusals** end the reply with a note. On Opus 5.5 and Sonnet 5.5, a declined request is
+  finished by another Claude model (`fallbacks: "default"`); Haiku 5.5 has no fallback.
+
+**Rationale:**
+- The agent code stays the same for every provider. Every Claude-specific rule lives in one
+  file, with its own tests.
+- Sending the thinking back lets a multi-step run build on the model's earlier reasoning,
+  and avoids the 400 on newer accounts. Where the agents edit history, `drop_block`
+  degrades gracefully instead of failing.
+- Effort levels are the only thinking control the current models accept.
+
+**Consequences:**
+- (+) Claude is chosen like OpenAI or Ollama, and serves parsing, the AI Agent, Dynamic UI
+  and the UI Agent.
+- (+) Each step reads the run so far from the prompt cache.
+- (–) A new runtime dependency, bundled into the Electron server.
+- (–) Prompts and server output go to Anthropic when Claude is chosen. Settings says so.
+- (–) After compaction or a collapsed view, the model works on without its earlier
+  reasoning from that point.
+- (–) Claude's 1M window is planned at the 128K hosted cap, like GPT-6.
+
+**Reference:** See [phases/phase-ex11.md](phases/phase-ex11.md).
+
+---
+
 ## Template for New ADRs
 
 ```markdown
