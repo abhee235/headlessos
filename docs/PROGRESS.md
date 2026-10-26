@@ -43,7 +43,7 @@
 | **EX8: LumenOS v3 Design System** | **Experimental** | **✅** | **9/9 tasks** | [phase-ex8](phases/phase-ex8.md) |
 | **EX9: Safe Agents (Actions, Approvals, Local Models)** | **Experimental** | **✅** | **6/6 tasks** | [phase-ex9](phases/phase-ex9.md) |
 | **EX10: Context Engineering for Agents** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex10](phases/phase-ex10.md) |
-| **EX11: Claude Models** | **Experimental** | **🔄** | **1/2 tasks** | [phase-ex11](phases/phase-ex11.md) |
+| **EX11: Claude Models** | **Experimental** | **✅** | **2/2 tasks** | [phase-ex11](phases/phase-ex11.md) |
 
 ---
 
@@ -69,7 +69,7 @@
 | Task ID | Task | Status | Verification |
 |---------|------|--------|--------------|
 | EX11.1 | `AnthropicProvider`: history and tools mapped to the Messages API, thinking kept and sent back (`drop_block`), effort, caching, reply mapping, refusals and fallbacks, JSON parsing, errors, limits | ✅ | 25 tests against a scripted SDK client, including a shared-loop run that sends the first reply's thinking back with its result; a "prompt is too long" error still reads as overflow. Not yet run against the API (needs the owner's key) |
-| EX11.2 | Settings → AI: saved key and model, route with key check, startup wiring, Claude prices, client provider/key/model UI, benchmark flag | ⬜ | |
+| EX11.2 | Settings → AI: saved key and model, route with key check, startup wiring, Claude prices, client provider/key/model UI, benchmark flag | ✅ | Claude is chosen like OpenAI or Ollama, and each switch keeps the other providers; a key is checked against the model before anything changes (the owner's key passed it against the API). Playwright-measured rows match the existing ones. Server 2537 passed (+2 skipped), client 657 |
 
 ---
 
@@ -614,6 +614,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-10-27 | **EX11 ✅** Claude (Haiku 5.5, Sonnet 5.5, Opus 5.5) is now a choice in Settings → AI, next to OpenAI and Ollama. The key is checked with Anthropic before it is saved, stored encrypted, and kept when switching to another provider and back. Parsing, the AI Agent, Dynamic UI and the UI Agent all run on the chosen Claude model, which sends its earlier reasoning back between steps; traces show what each call costs. |
 | 2026-10-27 | **EX11 specced** (ADR-027): Claude models (Haiku 5.5, Sonnet 5.5, Opus 5.5) become a third choice in Settings → AI, with the owner's own Anthropic key, through Anthropic's own SDK. The agents keep their history format; the new provider translates it, and sends Claude's thinking back so multi-step runs keep their reasoning. |
 | 2026-10-25 | **EX10.9 ✅ (EX10 complete)** The next prompt in the UI Agent panel now refines the view that is open, in the same window: "also add memory usage" adds to the disk view instead of starting over, and "New view" starts fresh. A request that names nothing, like "help" or "fix it", gets one question back instead of a guessed view. |
 | 2026-10-25 | **EX10.8 ✅, EX10.10 ✅** The UI Agent builds views one widget at a time, and the server can fill each widget from what an action returned (ADR-026): exact numbers, and no model copying log files. New `cpu_usage` and `network_traffic` actions measure over a second; memory, disk, processes, ports and interfaces return parsed data; a request about the network now gets network actions even on a small model. On the local 9B model the logs view now takes 32–56 s (was up to 387 s). |

@@ -167,7 +167,7 @@ at 128K, as for GPT-6, with a 16K reply cap.
 - Status reads Provider "Anthropic".
 
 **Benchmark:** `npm run bench:agents -- --provider anthropic --model claude-haiku-5-5`,
-with the key from `ANTHROPIC_API_KEY`.
+with the key saved in Settings, or `ANTHROPIC_API_KEY`.
 
 ## What does not change
 
@@ -180,7 +180,7 @@ with the key from `ANTHROPIC_API_KEY`.
 | Task ID | Task | Status |
 |---------|------|--------|
 | EX11.1 | `AnthropicProvider`: history and tools mapped to the Messages API, thinking kept and sent back (`drop_block`), effort, caching, reply mapping, refusals and fallbacks, JSON parsing, errors, limits | ✅ |
-| EX11.2 | Settings → AI: saved key and model, route with key check, startup wiring, Claude prices, client provider/key/model UI, benchmark flag | ⬜ |
+| EX11.2 | Settings → AI: saved key and model, route with key check, startup wiring, Claude prices, client provider/key/model UI, benchmark flag | ✅ |
 
 ## EX11.1 — The provider (as built)
 
@@ -221,3 +221,64 @@ with the key from `ANTHROPIC_API_KEY`.
   - one run of the shared agent loop, which sends the first reply's thinking back with
     its result.
 - Not yet run against the API: that needs the owner's key (EX11.2 adds it to Settings).
+
+## EX11.2 — Settings, wiring, cost and benchmark (as built)
+
+**Server:**
+- `llm/llm-settings-store.ts`:
+  - `provider: 'anthropic'` and `anthropic: { model, apiKey }`, with the key encrypted.
+  - Every save keeps the other providers' settings (OpenAI key and model, Ollama, Claude).
+  - A Claude choice without an encrypted key loads as nothing.
+- `routes/llm.ts`:
+  - `provider: 'anthropic'` takes a new key, or the one kept in memory, and checks it with
+    `AnthropicProvider.checkModel()` before anything changes.
+  - `onChange` gets the provider without a key, so the UI Agent's OpenAI key stays.
+  - GET reports `anthropic: { model, hasKey }`; `/api/llm/models` lists the three models.
+  - A model must match `^claude-[a-z0-9-]{1,64}$`.
+- `index.ts`: the saved Claude key builds an `AnthropicProvider` at startup. It is active
+  when chosen, and kept for switching back otherwise. `onChange` routes every non-OpenAI
+  provider to all UI Agent roles.
+- `llm/model-router.ts`: span cost is 0 only for a local model (`limits.local`); Claude
+  prices were added.
+- `llm/usage-tracker.ts`: Claude prices. Haiku 5.5 uses its rate up to 100K tokens.
+- `scripts/agent-bench.ts`: `--provider anthropic` uses the key saved in Settings, or
+  `ANTHROPIC_API_KEY`.
+
+**Client:**
+- `lib/api.ts`: `LLMConfig.provider` gains `'anthropic'`, plus `anthropic`.
+- `SettingsView.tsx` (AI / LLM):
+  - the "Anthropic (Claude)" row;
+  - a separate key field (`aria-label="Anthropic API key"`), so an OpenAI key typed
+    earlier is never sent to Anthropic;
+  - Claude model rows;
+  - Save is enabled with a new key or a kept one;
+  - Status shows Provider "Anthropic" and the key row.
+
+**Verified:**
+- **Tests:**
+  - `llm-settings-store.test.ts` (+3): encryption, switches that keep the others,
+    plaintext keys ignored;
+  - `routes/llm.test.ts` (+5): the model list, the key check before switching, a refused
+    key changing nothing, a missing key and a non-Claude model, back to the kept key after
+    OpenAI, None forgetting it;
+  - `model-router-spans.test.ts` (+1): Claude spans priced, local ones free;
+  - `settings-ai.test.tsx` (+2): first key and model, then a model change on a kept key.
+- **Suites:** server 2537 passed (+2 skipped), client 657; both typechecks clean.
+- **Benchmark:** `npm run bench:agents -- --provider anthropic` without a key stops with
+  "No Anthropic key: save one in Settings → AI or set ANTHROPIC_API_KEY".
+- **Playwright** (1440×900, Local Ubuntu Dev, Settings → AI / LLM, nothing saved):
+  - the provider rows sit at x 561.3, width 571.3, 1 px apart, like the others;
+  - the Claude row is 80.5 px tall: its description wraps to two lines, in the same
+    13 px / 18 px style as Ollama's (62.5 px, one line);
+  - the key field matches OpenAI's: x 573.3, width 547.3, height 36, hint 16 px below;
+  - model rows are 62.5 px, as OpenAI's;
+  - Save stays disabled until a key is entered.
+- **Against the API:** at 01:17:56 the owner saved their own key in Settings. That save
+  needed `models.retrieve("claude-haiku-5-5")` to succeed, so the key check works against
+  Anthropic. No agent run on Claude yet.
+
+**Dev note:** editing `client/src/lib/api.ts` while Vite runs can leave a reload with two
+copies of the stores that import it (`/src/store/window-store.ts` and
+`…?t=<stamp>`). Windows then stop rendering, because `WindowManager` reads the empty copy.
+Touching `client/src/store/window-store.ts`, `app-store.ts` and `lib/api.ts` (or
+restarting Vite) brings back one copy.

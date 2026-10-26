@@ -207,6 +207,87 @@ describe('LLM config routes — Ollama', () => {
   });
 });
 
+// EX11.2: Claude as a third provider; the key is checked against the model before anything changes
+describe('LLM config routes — Claude', () => {
+  type Fake = { name: string; model: string; key: string; checkModel: ReturnType<typeof vi.fn>; withModel: (m: string) => Fake };
+  async function buildClaude(opts: { reject?: string; kept?: boolean } = {}) {
+    const pipeline = new FakePipeline();
+    const persist = { save: vi.fn(), clear: vi.fn() };
+    const onChange = vi.fn();
+    const created: Fake[] = [];
+    const { AnthropicProvider } = await import('../../src/llm/providers/anthropic.js');
+    // instances of the real class (the route tells providers apart with instanceof), without a client
+    const make = (key: string, model: string): Fake => {
+      const fake = Object.assign(Object.create(AnthropicProvider.prototype) as object, {
+        name: 'anthropic',
+        model,
+        key,
+        checkModel: vi.fn(async () => {
+          if (opts.reject) throw new Error(opts.reject);
+        }),
+        withModel: (m: string) => make(key, m),
+      }) as Fake;
+      created.push(fake);
+      return fake;
+    };
+    const kept = opts.kept ? make('sk-ant-saved', 'claude-sonnet-5-5') : null;
+    const app = Fastify();
+    await app.register(llmRoutes, { pipeline: pipeline as never, persist, onChange, anthropic: { provider: kept as never, create: make as never } });
+    return { app, pipeline, persist, onChange, created };
+  }
+  const put = (app: Awaited<ReturnType<typeof buildClaude>>['app'], payload: unknown) =>
+    app.inject({ method: 'PUT', url: '/api/llm/config', payload: payload as Record<string, unknown> }).then((r) => r.json());
+  const config = (app: Awaited<ReturnType<typeof buildClaude>>['app']) =>
+    app.inject({ method: 'GET', url: '/api/llm/config' }).then((r) => r.json().data);
+
+  it('lists Claude Haiku 5.5 first, as the recommended Claude model', async () => {
+    const { app } = await buildClaude();
+    const models = (await app.inject({ method: 'GET', url: '/api/llm/models' })).json().data.anthropic;
+    expect(models.map((m: { id: string }) => m.id)).toEqual(['claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-opus-5-5']);
+    expect(models[0].recommended).toBe(true);
+  });
+
+  it('checks the key against the model, then switches and saves; the key never comes back', async () => {
+    const { app, pipeline, persist, onChange, created } = await buildClaude();
+    const res = await put(app, { provider: 'anthropic', apiKey: ' sk-ant-new ', model: 'claude-haiku-5-5' });
+    expect(res).toMatchObject({ success: true, data: { provider: 'anthropic', model: 'claude-haiku-5-5', hasApiKey: true, keySource: 'settings', persisted: true } });
+    expect(JSON.stringify(res)).not.toContain('sk-ant-new');
+    expect(created[0]!.key).toBe('sk-ant-new');
+    expect(created[0]!.checkModel).toHaveBeenCalled();
+    expect(pipeline.llmProvider).toBe(created[0]);
+    expect(onChange).toHaveBeenCalledWith(created[0]); // no key passed on: the UI Agent's OpenAI key stays
+    expect(persist.save).toHaveBeenCalledWith({ provider: 'anthropic', anthropic: { model: 'claude-haiku-5-5', apiKey: 'sk-ant-new' } });
+    expect(await config(app)).toMatchObject({ provider: 'anthropic', model: 'claude-haiku-5-5', keySource: 'settings', anthropic: { model: 'claude-haiku-5-5', hasKey: true } });
+  });
+
+  it('changes nothing when Anthropic refuses the key or the model', async () => {
+    const refused = 'Anthropic rejected the API key (401). Enter a valid key in Settings → AI.';
+    const { app, pipeline, persist } = await buildClaude({ reject: refused });
+    expect(await put(app, { provider: 'anthropic', apiKey: 'sk-ant-bad' })).toEqual({ success: false, error: refused });
+    expect(pipeline.llmProvider).toBeNull();
+    expect(persist.save).not.toHaveBeenCalled();
+  });
+
+  it('asks for a key the first time, and refuses a model that is not Claude', async () => {
+    const { app } = await buildClaude();
+    expect(await put(app, { provider: 'anthropic', model: 'claude-haiku-5-5' })).toEqual({ success: false, error: 'An Anthropic API key is required for Claude' });
+    expect(await put(app, { provider: 'anthropic', apiKey: 'k', model: 'gpt-6-luna' })).toMatchObject({ success: false, error: expect.stringContaining('Choose a Claude model') });
+  });
+
+  it('goes back to the saved Claude key without asking again, after OpenAI; None forgets it', async () => {
+    const { app, pipeline, persist } = await buildClaude({ kept: true });
+    expect((await config(app)).anthropic).toEqual({ model: 'claude-sonnet-5-5', hasKey: true });
+    await put(app, { provider: 'openai', apiKey: 'sk-openai', model: 'gpt-6-luna' });
+    const back = await put(app, { provider: 'anthropic', model: 'claude-opus-5-5' });
+    expect(back).toMatchObject({ success: true, data: { provider: 'anthropic', model: 'claude-opus-5-5' } });
+    expect((pipeline.llmProvider as unknown as { key: string }).key).toBe('sk-ant-saved');
+    expect(persist.save).toHaveBeenLastCalledWith({ provider: 'anthropic', anthropic: { model: 'claude-opus-5-5' } });
+    await put(app, { provider: 'none' });
+    expect(await config(app)).not.toHaveProperty('anthropic');
+    expect(await put(app, { provider: 'anthropic' })).toMatchObject({ success: false });
+  });
+});
+
 describe('OpenAI tool calls', () => {
   it('sends reasoning_effort none only for GPT-6 Luna with tools', () => {
     expect(toolCallParams('gpt-6-luna', true)).toEqual({ reasoning_effort: 'none' });
