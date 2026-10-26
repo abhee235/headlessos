@@ -1,6 +1,7 @@
 # Release Desktop App
 #
 # Triggers when a version tag (e.g. v1.2.3) is pushed.
+# M14.4: first runs CI (typechecks and tests); nothing is built if it fails.
 # Builds macOS (universal: arm64 + x64) and Windows (x64) binaries,
 # then creates a draft GitHub Release with all artifacts attached.
 #
@@ -24,17 +25,23 @@ permissions:
   contents: write # required to create a GitHub Release
 
 jobs:
+  # ── Checks (M14.4) ─────────────────────────────────────────────────────────
+  check:
+    name: Typecheck and test
+    uses: ./.github/workflows/ci.yml
+
   # ── macOS ──────────────────────────────────────────────────────────────────
   build-mac:
     name: Build macOS (universal)
+    needs: check
     runs-on: macos-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: npm
@@ -92,14 +99,15 @@ jobs:
   # ── Windows ────────────────────────────────────────────────────────────────
   build-windows:
     name: Build Windows (x64)
+    needs: check
     runs-on: windows-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: npm
@@ -149,7 +157,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download macOS artifacts
         uses: actions/download-artifact@v4

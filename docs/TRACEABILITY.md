@@ -1324,6 +1324,68 @@ None (all changes to existing files).
 - **Tests modified:** `server/tests/llm/llm-settings-store.test.ts`, `server/tests/routes/llm.test.ts`, `server/tests/llm/model-router-spans.test.ts`, `client/tests/components/settings-ai.test.tsx`
 - **Verification:** server 2537 passed (+2 skipped), client 657, both typechecks clean; Playwright-measured Settings rows; the owner's key passed the key check against the API
 
+### M14.1: Dependency fixes within current majors
+- **Status:** ✅ Complete
+- **Date:** 2026-10-27
+- **Files modified:** `package.json` (`overrides.dompurify`), `server/package.json` (`@fastify/static` removed), `package-lock.json`
+- **Docs:** `docs/phases/phase-14.md` ("M14.1 — as built")
+- **Verification:** `npm audit --omit=dev` 11 high/critical → 2; server 2537 passed (+2 skipped), client 657, both typechecks clean
+
+### M14.2: zod 4 and openai 6
+- **Status:** ✅ Complete
+- **Date:** 2026-10-27
+- **Files created:** `server/src/llm/json-schema.ts`, `server/tests/llm/json-schema.test.ts`, `server/tests/llm/openai.test.ts`
+- **Files modified:** `server/package.json`, `shared/package.json`, `client/package.json` (zod 4, openai 6, no zod-to-json-schema), `package-lock.json`, `server/src/agent/tools/tool-converter.ts`, `server/src/llm/providers/{ollama,anthropic,openai}.ts` (`textFormatFor`), `server/src/agent/actions/catalog/index.ts`, `server/src/agent/actions/runner.ts`, `server/src/agent/tools/view-arg.ts`, `server/src/agent/loop/tool-input.ts`, `shared/schemas/observatory.ts` and `server/src/dynamic-ui/app-store.ts` (`z.guid()`), `CLAUDE.md`
+- **Docs:** `docs/phases/phase-14.md` ("M14.2 — as built")
+- **Tests modified:** `server/tests/parsers/dynamic-view-schema.test.ts` (OpenAI format)
+- **Verification:** production advisories 0; server 2543 passed (+2 skipped), client 657, both typechecks clean; local Ollama accepts the new schemas
+
+### M14.3: Build output out of git
+- **Status:** ✅ Complete
+- **Date:** 2026-10-27
+- **Files modified:** `.gitignore`, `electron/main.js` (comment); `electron/server.mjs`, `electron/server.cjs` untracked
+- **Docs:** `docs/phases/phase-14.md` ("M14.3 — as built")
+- **Verification:** `npm run build:server` writes `server.mjs`
+
+### M14.4: CI
+- **Status:** ✅ Complete
+- **Date:** 2026-10-27
+- **Files created:** `.github/workflows/ci.yml`
+- **Files modified:** `.github/workflows/release.yml` (`check` job; builds need it)
+- **Docs:** `docs/phases/phase-14.md` ("M14.4 — as built")
+- **Verification:** both workflows parse; the first run is on the M14 pull request
+
+### M14.5: Security policy and contributing guide
+- **Status:** ✅ Complete
+- **Date:** 2026-10-27
+- **Files created:** `SECURITY.md`, `CONTRIBUTING.md`
+- **Files modified:** `docs/SECURITY.md` (credential storage, outbound hosts)
+- **Docs:** `docs/phases/phase-14.md` ("M14.5 — as built")
+- **Verification:** each statement checked against the code it describes
+
+### M14.6: README
+- **Status:** ✅ Complete
+- **Date:** 2026-10-27
+- **Files created:** `docs/images/dashboard.webp`, `docs/images/file-explorer.webp`, `docs/images/settings-ai.webp`
+- **Files modified:** `README.md`
+- **Docs:** `docs/phases/phase-14.md` ("M14.6 — as built")
+- **Verification:** screenshots from an isolated instance on the dev container; install details match `release.yml`
+
+### M14.7: Packaged Windows build
+- **Status:** ✅ Complete
+- **Date:** 2026-10-27
+- **Files modified:** none (build output only)
+- **Docs:** `docs/phases/phase-14.md` ("M14.7 — as built")
+- **Verification:** packaged `server.mjs` starts on a free port and serves the API against an isolated data folder; installer and window deferred to the release assets
+
+### M14.8: Version 0.2.0 and changelog
+- **Status:** ✅ Complete
+- **Date:** 2026-10-27
+- **Files created:** `CHANGELOG.md`
+- **Files modified:** `package.json`, `client/package.json`, `server/package.json`, `shared/package.json`, `electron/package.json`, `package-lock.json`, `electron/package-lock.json`, `client/src/components/Desktop/Desktop.tsx`, `client/src/components/Desktop/SettingsView.tsx`, `server/src/index.ts`
+- **Docs:** `docs/phases/phase-14.md` ("M14.8 — as built")
+- **Verification:** both typechecks clean; no test pins the old version
+
 ## How to Use This File
 
 ### After completing a task:

@@ -96,8 +96,9 @@ export function viewProblems(value: unknown, max = 3): string {
 export function describeIssues(issues: readonly z.ZodIssue[], max = 3, whole = 'the view'): string {
   return issues.slice(0, max).map((issue) => {
     const where = issue.path.join('.') || whole;
-    if (issue.code === 'invalid_union_discriminator') return `${where}: missing or wrong, expected one of ${issue.options.map(String).join(', ')}`;
-    if (issue.code === 'invalid_type' && issue.received === 'undefined') return `${where}: missing (${issue.expected})`;
+    // M14.2: zod 4 reports a bad discriminator as invalid_union with its options, and a missing field only in words
+    if (issue.code === 'invalid_union' && 'options' in issue && Array.isArray(issue.options)) return `${where}: missing or wrong, expected one of ${issue.options.map(String).join(', ')}`;
+    if (issue.code === 'invalid_type' && /received undefined$/.test(issue.message)) return `${where}: missing (${issue.expected})`;
     return `${where}: ${issue.message}`;
   }).join('; ');
 }

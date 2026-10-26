@@ -347,13 +347,12 @@ export function channelCap(def: ActionDef): number {
   return def.keep === 'tail' ? 4 * 1024 * 1024 : Math.max(4 * def.maxOutputBytes, 256 * 1024);
 }
 
-/** The schema under optional/default/nullable/effects wrappers. */
-function baseType(schema: z.ZodTypeAny): z.ZodTypeAny {
+/** The schema under optional/default/nullable/pipe wrappers (M14.2: zod 4 has pipes, not effects). */
+function baseType(schema: z.ZodType): z.ZodType {
   let cur = schema;
   for (;;) {
-    if (cur instanceof z.ZodOptional || cur instanceof z.ZodNullable) cur = cur.unwrap();
-    else if (cur instanceof z.ZodDefault) cur = cur._def.innerType;
-    else if (cur instanceof z.ZodEffects) cur = cur._def.schema;
+    if (cur instanceof z.ZodOptional || cur instanceof z.ZodNullable || cur instanceof z.ZodDefault) cur = cur.unwrap() as z.ZodType;
+    else if (cur instanceof z.ZodPipe) cur = (cur.in instanceof z.ZodTransform ? cur.out : cur.in) as z.ZodType;
     else return cur;
   }
 }
@@ -362,9 +361,9 @@ function baseType(schema: z.ZodTypeAny): z.ZodTypeAny {
  * Strings that plainly mean a number or a boolean become one: generated view
  * buttons fill params from table cells (always text), and models write "10".
  */
-function coerceAsMeant(schema: z.AnyZodObject, raw: unknown): unknown {
+function coerceAsMeant(schema: z.ZodObject, raw: unknown): unknown {
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return raw;
-  const shape = schema.shape as Record<string, z.ZodTypeAny>;
+  const shape = schema.shape as Record<string, z.ZodType>;
   const out: Record<string, unknown> = { ...(raw as Record<string, unknown>) };
   for (const [key, value] of Object.entries(out)) {
     if (typeof value !== 'string' || !shape[key]) continue;

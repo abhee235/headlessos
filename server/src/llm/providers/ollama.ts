@@ -11,7 +11,6 @@
 // parseText uses Ollama's `format: <JSON schema>` structured output.
 
 import { randomUUID } from 'node:crypto';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 import { z } from 'zod';
 import type {
   ChatMessage,
@@ -26,6 +25,7 @@ import type {
 import { LLMDegenerateError, LLMIncompleteError, LLMTimeoutError, SYSTEM_PROMPT, buildTextPrompt, isLLMDegenerate } from '../provider.js';
 import { extractProseToolCalls, parseToolArgs, repairJson } from '../../agent/loop/tool-input.js';
 import { DEFAULT_LOCAL_WINDOW, recommendedMaxOutput, type ModelLimits } from '../model-limits.js';
+import { jsonSchemaOf } from '../json-schema.js';
 
 export const DEFAULT_OLLAMA_URL = 'http://127.0.0.1:11434';
 /** EX10.1 follow-up: until the first chunk — loading the model and reading a long prompt */
@@ -656,10 +656,4 @@ export function toOllamaMessages(messages: ChatMessage[]): OllamaMessage[] {
     }
     return { role: m.role, content: m.content ?? '' };
   });
-}
-
-function jsonSchemaOf(schema: z.ZodTypeAny): Record<string, unknown> {
-  const json = zodToJsonSchema(schema, { $refStrategy: 'none', target: 'jsonSchema7' }) as Record<string, unknown>;
-  delete json.$schema;
-  return json;
 }

@@ -106,4 +106,9 @@ The LLM emits `DynamicViewSchema` JSON (`shared/schemas/dynamic-view.ts`). A gen
 - **Route example:** CONTEXT.md's route example imports a global `connectionManager`. Real routes take it from plugin options.
 - **Parser registration:** there is no `register-parsers.ts`. Registration is the `allParsers` array.
 - **Task ID formats:** AGENTS.md only documents `M{n}.{n}`. The `.githooks/commit-msg` hook also accepts `M1`, `EX3`, `EX2.5` and `EX6-A.3`, but rejects a bare `EX6-A`. It checks only the first line, and merge commits are exempt.
+- **Zod 4 (M14.2):**
+  - AGENTS.md's `zodResponseFormat()` is out of date. JSON Schema for models comes from `llm/json-schema.ts` `jsonSchemaOf`; `zod-to-json-schema` is gone.
+  - OpenAI parses strictly only when `zodTextFormat` accepts the schema (`textFormatFor` in `providers/openai.ts`). Otherwise it gets a plain JSON schema and a Zod check.
+  - Use `z.guid()` for IDs: zod 4's `.uuid()` rejects IDs without an RFC version.
+  - `z.record` takes a key schema.
 - **Phase docs:** experimental phases are specced in `docs/phases/phase-ex{n}.md`. M9–M11 have no phase doc; they exist only in `docs/PROGRESS.md`.

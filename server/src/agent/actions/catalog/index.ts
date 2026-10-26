@@ -69,7 +69,8 @@ function checkAction(def: ActionDef): void {
   if (!def.description || def.description.length > 120) throw new CatalogError(`${where}: description must be 1–120 chars`);
   if (!ACTION_CATEGORIES.includes(def.category)) throw new CatalogError(`${where}: unknown category ${def.category}`);
   if (!(def.params instanceof z.ZodObject)) throw new CatalogError(`${where}: params must be a z.object`);
-  if (def.params._def.unknownKeys !== 'strict') throw new CatalogError(`${where}: params must be .strict()`);
+  // M14.2: zod 4 marks .strict() as a `never` catchall
+  if (!(def.params.def.catchall instanceof z.ZodNever)) throw new CatalogError(`${where}: params must be .strict()`);
   const maxTimeout = def.risk === 'change' ? MAX_CHANGE_TIMEOUT_MS : MAX_TIMEOUT_MS;
   if (!(def.timeoutMs > 0 && def.timeoutMs <= maxTimeout)) throw new CatalogError(`${where}: timeout out of range`);
   if (def.risk === 'change' && def.run.kind !== 'exec') throw new CatalogError(`${where}: change actions run commands`);

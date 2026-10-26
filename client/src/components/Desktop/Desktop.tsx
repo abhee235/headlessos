@@ -437,7 +437,7 @@ export function Desktop() {
           </div>
           <div>
             <h3 className="text-lg font-semibold text-foreground">HeadlessOS</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Version 0.1.0</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Version 0.2.0</p>
           </div>
           <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
             A localhost web app that connects to Linux servers via SSH, runs commands,

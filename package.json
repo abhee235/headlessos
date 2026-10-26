@@ -27,5 +27,9 @@
   "devDependencies": {
     "concurrently": "^9.0.0",
     "typescript": "^5.6.0"
-  }
+  },
+  "overrides": {
+    "dompurify": "^3.4.17"
+  },
+  "version": "0.2.0"
 }

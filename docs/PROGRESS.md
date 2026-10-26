@@ -33,6 +33,7 @@
 | M11: Fleet, Agent & Platform | Week 15-16 | ✅ | 8/8 tasks | — |
 | M12: Backend Architecture Refactor | Beta | ✅ | 7/7 tasks | [phase-12](phases/phase-12.md) |
 | M13: Release Readiness | Beta | ✅ | 4/4 tasks | [phase-13](phases/phase-13.md) |
+| M14: Public Release | Beta | 🔄 | 8/10 tasks | [phase-14](phases/phase-14.md) |
 | **EX1: Dynamic UI Engine** | **Experimental** | **✅** | **15/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
 | **EX2: UI Generation Agent** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
 | **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **✅** | **26/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
@@ -44,6 +45,25 @@
 | **EX9: Safe Agents (Actions, Approvals, Local Models)** | **Experimental** | **✅** | **6/6 tasks** | [phase-ex9](phases/phase-ex9.md) |
 | **EX10: Context Engineering for Agents** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex10](phases/phase-ex10.md) |
 | **EX11: Claude Models** | **Experimental** | **✅** | **2/2 tasks** | [phase-ex11](phases/phase-ex11.md) |
+
+---
+
+## M14: Public Release
+
+> Clear what stands between the repository and its first public release (v0.2.0): dependency advisories, stale build output, CI, a security policy, the README, a packaged build, the version and notes. Going public and tagging are the owner's decisions. See [phase-14.md](phases/phase-14.md).
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| M14.1 | `npm audit fix` (same majors) and a `dompurify` override | ✅ | 11 high/critical advisories down to 2 (zod, and openai through it). fastify 5.12.7 and 47 other in-range updates; the unused `@fastify/static` removed; dompurify 3.4.17 in the lock (monaco's own bundled copy uses neither affected mode). Server 2537 passed (+2 skipped), client 657 |
+| M14.2 | zod 4, openai upgrade, `z.toJSONSchema` instead of `zod-to-json-schema` | ✅ | Production dependencies: 0 advisories. Models get the same JSON Schema as before (pinned against the old library); OpenAI parses strictly when it can and with a plain JSON schema plus Zod otherwise; local Ollama accepts the new format, the 21 KB view schema included. Server 2543 passed (+2 skipped), client 657. Dev-only: vitest 3 (fix is vitest 5) |
+| M14.3 | Stop tracking `electron/server.cjs` / `server.mjs` | ✅ | Both untracked and ignored; `npm run build:server` still writes `server.mjs` (5.7 MB, new dependencies bundled); the stale `main.js` comment fixed |
+| M14.4 | CI on pull requests and `main`; release workflow runs the checks first | ✅ | `ci.yml` (Ubuntu, Node 20: npm ci, shared build, both typechecks, both suites) on PRs, `main` and as a reusable workflow; `release.yml` runs it before building |
+| M14.5 | `SECURITY.md` and `CONTRIBUTING.md` | ✅ | SECURITY.md: reporting, storage and encryption, the local server's checks, agent limits, what each provider (and the weather) receives; every statement checked against the code. CONTRIBUTING.md: setup, the doc-first loop, commit format, CI checks. docs/SECURITY.md brought up to date |
+| M14.6 | README: Claude, install and download, screenshots | ✅ | Install from Releases (asset names from release.yml; Linux from source), unsigned-build steps, Claude throughout, links to SECURITY.md and CONTRIBUTING.md; three screenshots taken from an isolated copy connected only to the dev container (no real server or key can show) |
+| M14.7 | Packaged Windows build starts | ✅ | `win-unpacked` built with the new server bundle and client; the packaged server starts on a free port and answers (health, models incl. Claude, the isolated server list). The NSIS step fails only on this machine (symlink privilege); CI's Windows runner builds it. Window and installer checked on the release assets (M14.10) |
+| M14.8 | Version 0.2.0 and `CHANGELOG.md` | ✅ | 0.2.0 in every package.json and both lockfiles, and in the three places the app shows its version; CHANGELOG.md with 0.2.0 (Added, Security, Changed, Fixed) and a 0.1.0 summary checked against the tag |
+| M14.9 | Make the repository public | ⬜ | |
+| M14.10 | Tag v0.2.0 and check the release | ⬜ | |
 
 ---
 
@@ -613,6 +633,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-10-27 | **M14 specced** after an audit for going public: 11 high or critical dependency advisories (one critical, in `dompurify` under the code editor), six-month-old server bundles committed, no CI on pull requests, no security policy, and a README without Claude or install steps. The owner decides when to publish and tag v0.2.0. |
 | 2026-10-27 | **EX11 ✅** Claude (Haiku 5.5, Sonnet 5.5, Opus 5.5) is now a choice in Settings → AI, next to OpenAI and Ollama. The key is checked with Anthropic before it is saved, stored encrypted, and kept when switching to another provider and back. Parsing, the AI Agent, Dynamic UI and the UI Agent all run on the chosen Claude model, which sends its earlier reasoning back between steps; traces show what each call costs. |
 | 2026-10-27 | **EX11 specced** (ADR-027): Claude models (Haiku 5.5, Sonnet 5.5, Opus 5.5) become a third choice in Settings → AI, with the owner's own Anthropic key, through Anthropic's own SDK. The agents keep their history format; the new provider translates it, and sends Claude's thinking back so multi-step runs keep their reasoning. |
 | 2026-10-25 | **EX10.9 ✅ (EX10 complete)** The next prompt in the UI Agent panel now refines the view that is open, in the same window: "also add memory usage" adds to the disk view instead of starting over, and "New view" starts fresh. A request that names nothing, like "help" or "fix it", gets one question back instead of a guessed view. |

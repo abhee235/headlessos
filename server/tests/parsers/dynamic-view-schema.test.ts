@@ -1046,21 +1046,21 @@ describe('Edge Cases', () => {
 
 // ── zodResponseFormat Compatibility ─────────────────────
 
-describe('OpenAI zodResponseFormat compatibility', () => {
-  it('schema converts to zodResponseFormat without error', async () => {
-    const { zodResponseFormat } = await import('openai/helpers/zod');
-    const format = zodResponseFormat(DynamicViewSchema, 'dynamic_view');
-
-    expect(format.type).toBe('json_schema');
-    expect(format.json_schema.name).toBe('dynamic_view');
-    expect(format.json_schema.strict).toBe(true);
-    expect(format.json_schema.schema).toBeDefined();
+// M14.2: with zod 4, OpenAI's strict helper refuses maps (sections, rows, badgeVariant), so the
+// view goes to OpenAI as a plain JSON schema and the reply is checked with Zod
+describe('OpenAI text format for the view', () => {
+  it('is a non-strict JSON schema, since strict mode cannot express its maps', async () => {
+    const { textFormatFor } = await import('../../src/llm/providers/openai.js');
+    const tf = textFormatFor(DynamicViewSchema, 'dynamic_view');
+    expect(tf.kind).toBe('json');
+    if (tf.kind !== 'json') return;
+    expect(tf.format).toMatchObject({ type: 'json_schema', name: 'dynamic_view', strict: false });
   });
 
   it('JSON schema has correct top-level properties', async () => {
-    const { zodResponseFormat } = await import('openai/helpers/zod');
-    const format = zodResponseFormat(DynamicViewSchema, 'dynamic_view');
-    const props = Object.keys(format.json_schema.schema?.properties ?? {});
+    const { textFormatFor } = await import('../../src/llm/providers/openai.js');
+    const tf = textFormatFor(DynamicViewSchema, 'dynamic_view');
+    const props = Object.keys((tf.kind === 'json' ? tf.format.schema.properties : {}) as Record<string, unknown>);
 
     expect(props).toContain('title');
     expect(props).toContain('sidebarItems');

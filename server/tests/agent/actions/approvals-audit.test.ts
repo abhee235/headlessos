@@ -156,17 +156,25 @@ describe('ActionAudit', () => {
     expect(statSync(dir).mode & 0o777).toBe(0o700);
   });
 
-  it('starts a new file past the size cap, keeping the old one', async () => {
-    const dir = tempDir();
-    const audit = new ActionAudit({ dir, maxBytes: 300 });
-    for (let i = 0; i < 5; i++) {
-      await audit.log({ event: 'asked', runId: `r${i}`, serverId: 's', actionId: 'service_restart', risk: 'change', command: 'sudo -n systemctl restart -- nginx' });
+  // M14.4: with the clock frozen every rotation gets the same timestamp; on Linux the old
+  // name made the rename replace the previous rotated file (CI lost 2 of 5 entries)
+  it('starts a new file past the size cap, keeping the old one, even within one millisecond', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-27T12:00:00.000Z'));
+    try {
+      const dir = tempDir();
+      const audit = new ActionAudit({ dir, maxBytes: 300 });
+      for (let i = 0; i < 5; i++) {
+        await audit.log({ event: 'asked', runId: `r${i}`, serverId: 's', actionId: 'service_restart', risk: 'change', command: 'sudo -n systemctl restart -- nginx' });
+      }
+      const files = readdirSync(dir).sort();
+      expect(files.filter((f) => /^actions-.*\.jsonl$/.test(f)).length).toBeGreaterThan(1);
+      expect(files).toContain('actions.jsonl');
+      const total = files.flatMap((f) => readFileSync(join(dir, f), 'utf8').trim().split('\n'));
+      expect(total).toHaveLength(5);
+    } finally {
+      vi.useRealTimers();
     }
-    const files = readdirSync(dir).sort();
-    expect(files.filter((f) => /^actions-.*\.jsonl$/.test(f)).length).toBeGreaterThan(0);
-    expect(files).toContain('actions.jsonl');
-    const total = files.flatMap((f) => readFileSync(join(dir, f), 'utf8').trim().split('\n'));
-    expect(total).toHaveLength(5);
   });
 
   it('never throws when it cannot write', async () => {

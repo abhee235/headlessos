@@ -37,3 +37,7 @@ temp/
 
 # M13.3: dev/inspect-frontend.py writes this on every run (it can show real servers)
 dev/screenshot.png
+
+# M14.3: build output — npm run build:server (electron/) writes server.mjs; server.cjs is an old format
+electron/server.mjs
+electron/server.cjs
