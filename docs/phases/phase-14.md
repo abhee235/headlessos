@@ -220,3 +220,11 @@ The fix is vitest 5, a test-runner upgrade. Nothing here ships in the app.
     tailwind oxide).
 - **`.github/workflows/release.yml`:** a `check` job calls `ci.yml`. `build-mac` and
   `build-windows` need it, so a tag on failing code builds nothing.
+
+**First CI run (Linux).**
+- **The bug:** CI found an EX9.2 audit-log bug that Windows never showed. Past the size cap
+  the log was renamed to `actions-<iso>.jsonl`. Two rotations in one millisecond got the
+  same name, and on Linux the rename replaced the earlier file: the test lost 2 of 5
+  entries.
+- **The fix:** `ActionAudit.rotatedPath()` adds `-1`, `-2` … when the name is taken.
+- **The test:** it now freezes the clock, so it fails on every platform without the fix.
