@@ -43,7 +43,7 @@
 | **EX8: LumenOS v3 Design System** | **Experimental** | **✅** | **9/9 tasks** | [phase-ex8](phases/phase-ex8.md) |
 | **EX9: Safe Agents (Actions, Approvals, Local Models)** | **Experimental** | **✅** | **6/6 tasks** | [phase-ex9](phases/phase-ex9.md) |
 | **EX10: Context Engineering for Agents** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex10](phases/phase-ex10.md) |
-| **EX11: Claude Models** | **Experimental** | **🔄** | **0/2 tasks** | [phase-ex11](phases/phase-ex11.md) |
+| **EX11: Claude Models** | **Experimental** | **🔄** | **1/2 tasks** | [phase-ex11](phases/phase-ex11.md) |
 
 ---
 
@@ -68,7 +68,7 @@
 
 | Task ID | Task | Status | Verification |
 |---------|------|--------|--------------|
-| EX11.1 | `AnthropicProvider`: history and tools mapped to the Messages API, thinking kept and sent back (`drop_block`), effort, caching, reply mapping, refusals and fallbacks, JSON parsing, errors, limits | ⬜ | |
+| EX11.1 | `AnthropicProvider`: history and tools mapped to the Messages API, thinking kept and sent back (`drop_block`), effort, caching, reply mapping, refusals and fallbacks, JSON parsing, errors, limits | ✅ | 25 tests against a scripted SDK client, including a shared-loop run that sends the first reply's thinking back with its result; a "prompt is too long" error still reads as overflow. Not yet run against the API (needs the owner's key) |
 | EX11.2 | Settings → AI: saved key and model, route with key check, startup wiring, Claude prices, client provider/key/model UI, benchmark flag | ⬜ | |
 
 ---

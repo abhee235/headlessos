@@ -1315,6 +1315,14 @@ None (all changes to existing files).
 - **Verification:** server 2503 passed (+2 skipped), client 655, both typechecks clean; four live runs and a Playwright check (see the phase doc)
 - **Modified:** EX10.10 — the executor's opening message now describes the widget workflow
 
+### EX11.1: Anthropic provider (ADR-027)
+- **Status:** ✅ Complete
+- **Date:** 2026-10-27
+- **Files created:** `server/src/llm/providers/anthropic.ts`, `server/tests/llm/anthropic.test.ts`
+- **Files modified:** `server/src/llm/provider.ts` (`ChatMessage.reasoning`), `server/src/llm/model-limits.ts` (`^claude-`), `server/package.json` (`@anthropic-ai/sdk`)
+- **Docs:** `docs/DECISIONS.md` (ADR-027), `docs/phases/phase-ex11.md` (§1, "EX11.1 — as built")
+- **Verification:** 25 tests against a scripted SDK client; not yet run against the API
+
 ## How to Use This File
 
 ### After completing a task:
