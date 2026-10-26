@@ -1378,6 +1378,13 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-14.md` ("M14.6 — as built")
 - **Verification:** screenshots from an isolated instance on the dev container; install details match `release.yml`
 
+### M14.7: Packaged Windows build
+- **Status:** ✅ Complete
+- **Date:** 2026-10-27
+- **Files modified:** none (build output only)
+- **Docs:** `docs/phases/phase-14.md` ("M14.7 — as built")
+- **Verification:** packaged `server.mjs` starts on a free port and serves the API against an isolated data folder; installer and window deferred to the release assets
+
 ## How to Use This File
 
 ### After completing a task:

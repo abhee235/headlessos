@@ -111,7 +111,7 @@ must pass unchanged, except where a test asserts zod 3's own error wording.
 | M14.4 | CI on pull requests and `main`; release workflow runs the checks first | ✅ |
 | M14.5 | `SECURITY.md` and `CONTRIBUTING.md` | ✅ |
 | M14.6 | README: Claude, install and download, screenshots | ✅ |
-| M14.7 | Packaged Windows build starts | ⬜ |
+| M14.7 | Packaged Windows build starts | ✅ |
 | M14.8 | Version 0.2.0 and `CHANGELOG.md` | ⬜ |
 | M14.9 | Publish (owner's decision: new repository or this one) | ⬜ |
 | M14.10 | Tag v0.2.0 and check the release | ⬜ |
@@ -282,3 +282,28 @@ recorded as a follow-up; it is outside M14.
   - The separate copy was stopped afterwards. Its data stays in the scratch folder.
 - **Links:** the documentation index links the root `SECURITY.md` and `CONTRIBUTING.md`
   next to `docs/SECURITY.md`.
+
+**Third CI run:** green. Install, the shared build, both typechecks and both suites pass on
+Ubuntu with Node 20. GitHub then flagged `actions/checkout@v4` and `setup-node@v4` as
+targeting the deprecated Node 20 Actions runtime; both workflows now use v5.
+
+## M14.7 — Packaged Windows build (as built)
+
+- **What `npm run build:dist:win` did:**
+  - built the client (33 s), ran `npm install` in `electron/`, and bundled the server;
+  - electron-builder produced `electron/dist/win-unpacked/`, with the new 5.98 MB
+    `resources/server.mjs` and `resources/client/dist`;
+  - `electron/package-lock.json` did not change.
+- **The installer step failed on this machine only.** electron-builder unpacks its
+  `winCodeSign` tools archive, which holds macOS symlinks. Windows refuses to create
+  symlinks without Developer Mode or admin rights ("A required privilege is not held by the
+  client"). GitHub's `windows-latest` runner has the right; v0.1.0's installer was built
+  there.
+- **The packaged server starts.** `resources/server.mjs` was run the way `main.js` forks it
+  (`PORT=0`), against a scratch data folder. It printed `HEADLESSOS_PORT:55678`; `/health`
+  answered 200; `/api/llm/models` returned the OpenAI and Claude lists; `/api/servers` read
+  the scratch store, not the owner's. It was stopped afterwards.
+- **Not checked here:** the Electron window, because launching `HeadlessOS.exe` would open
+  on the owner's desktop while they are using it, and the NSIS installer. Both are checked
+  on the release assets (M14.10).
+- The client build rewrites the tracked `client/tsconfig.tsbuildinfo`; it was restored.
