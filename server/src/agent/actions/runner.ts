@@ -5,6 +5,7 @@
 // → risk gate (EX9.2: change actions wait for the owner) → run inside a grant
 // (CommandPolicy lets exactly this command through) → cap output → parse.
 
+import { posix } from 'node:path';
 import { z, type ZodError } from 'zod';
 import type { SFTPWrapper } from 'ssh2';
 import type { ConnectionManager } from '../../ssh/connection-manager.js';
@@ -215,9 +216,18 @@ export class ActionRunner {
   /** Run one built command inside its grant, then cap and parse. Never throws. */
   private async execGranted(serverId: string, def: ActionDef, command: string, started: number): Promise<ActionRunResult> {
     try {
-      const res = await withGrant({ kind: 'exec', actionId: def.id, command }, () =>
+      const execOnce = () => withGrant({ kind: 'exec', actionId: def.id, command }, () =>
         this.ssh.exec(serverId, command, def.timeoutMs, { maxBytes: channelCap(def) }),
       );
+      // EX10.8: two samples (cpu_usage, network_traffic): the first one feeds parse() as `previous`
+      let previous: string | undefined;
+      const interval = def.run.kind === 'exec' ? def.run.sampleTwiceMs : undefined;
+      if (interval) {
+        const first = await execOnce();
+        if ((def.okExitCodes ?? [0]).includes(first.exitCode) && !first.truncated) previous = first.stdout;
+        await new Promise((resolve) => setTimeout(resolve, interval));
+      }
+      const res = await execOnce();
       const out = capText(res.stdout, def.maxOutputBytes, def.keep ?? 'head');
       const ok = (def.okExitCodes ?? [0]).includes(res.exitCode);
       // EX9.5: no secret leaves the runner
@@ -233,7 +243,7 @@ export class ActionRunner {
         stderr: stderr.text,
         ...(redacted ? { redacted } : {}),
         truncated: out.truncated || !!res.truncated,
-        ...(def.parse && ok && !res.truncated ? tryParse(def, res.stdout) : {}),
+        ...(def.parse && ok && !res.truncated ? tryParse(def, res.stdout, previous) : {}),
         durationMs: Date.now() - started,
         ...(ok ? {} : { error: `exit code ${res.exitCode}` }),
       };
@@ -261,15 +271,33 @@ export class ActionRunner {
     const command = describeCommand(def, params);
 
     const sftp = await withGrant({ kind: 'sftp', actionId: def.id, path }, () => this.ssh.getSftp(serverId));
+    // EX10.12: a missing or unreadable path answers what to do instead
+    const unreadable = async (err: unknown): Promise<ActionRunResult> => {
+      const steer = await steeringError(sftp, path, err);
+      return {
+        ok: false, actionId: def.id, command, exitCode: null, stdout: steer.listing ?? '', stderr: '', truncated: false,
+        durationMs: Date.now() - started, error: steer.error,
+      };
+    };
     // A symlink under an allowed root must not lead somewhere secret
-    const real = await sftpCall<string>((cb) => sftp.realpath(path, cb));
+    let real: string;
+    try {
+      real = await sftpCall<string>((cb) => sftp.realpath(path, cb));
+    } catch (err) {
+      return unreadable(err);
+    }
     if (!isUnderRoot(real, READ_ROOTS) || isSecretPath(real)) {
       return {
         ok: false, actionId: def.id, command, exitCode: null, stdout: '', stderr: '', truncated: false,
         durationMs: Date.now() - started, error: `${path} resolves to ${real}, which agents cannot read`,
       };
     }
-    const stats = await sftpCall<{ size: number; isDirectory(): boolean }>((cb) => sftp.stat(real, cb));
+    let stats: { size: number; isDirectory(): boolean };
+    try {
+      stats = await sftpCall<{ size: number; isDirectory(): boolean }>((cb) => sftp.stat(real, cb));
+    } catch (err) {
+      return unreadable(err);
+    }
     if (stats.isDirectory()) {
       return {
         ok: false, actionId: def.id, command, exitCode: null, stdout: '', stderr: '', truncated: false,
@@ -279,7 +307,19 @@ export class ActionRunner {
     const size = stats.size;
     const start = tailLines ? Math.max(0, size - maxBytes) : 0;
     const length = Math.min(size - start, maxBytes);
-    let text = length > 0 ? await readRange(sftp, real, start, length) : '';
+    let text: string;
+    try {
+      text = length > 0 ? await readRange(sftp, real, start, length) : '';
+    } catch (err) {
+      return unreadable(err); // EX10.12 follow-up: refused on open (root:adm 0640 passes stat)
+    }
+    // EX10.12 follow-up: binary content (NULs escape to six characters each for the model)
+    if (isBinaryText(text)) {
+      return {
+        ok: false, actionId: def.id, command, exitCode: null, stdout: '', stderr: '', truncated: false,
+        durationMs: Date.now() - started, error: binaryFileMessage(path, length),
+      };
+    }
     let truncated = tailLines ? start > 0 : size > maxBytes;
     if (tailLines) {
       const lines = text.split('\n');
@@ -362,9 +402,9 @@ function describeCommand(def: ActionDef, params: Record<string, unknown>, sandbo
   return toCommand(def.run.build(params), { sudo: def.run.sudo && !inSandbox, sandboxContainer: inSandbox });
 }
 
-function tryParse(def: ActionDef, stdout: string): { data?: unknown } {
+function tryParse(def: ActionDef, stdout: string, previous?: string): { data?: unknown } {
   try {
-    return { data: def.parse!(stdout) };
+    return { data: def.parse!(stdout, previous) };
   } catch {
     return {}; // the model gets the raw text instead
   }
@@ -376,6 +416,73 @@ export function capText(text: string, maxBytes: number, keep: 'head' | 'tail'): 
   if (buf.length <= maxBytes) return { text: text ?? '', truncated: false };
   const slice = keep === 'head' ? buf.subarray(0, maxBytes) : buf.subarray(buf.length - maxBytes);
   return { text: slice.toString('utf8'), truncated: true };
+}
+
+/** EX10.12 follow-up: NUL bytes, or more than 10% other control characters (tab, newline, CR aside) */
+export function isBinaryText(text: string): boolean {
+  if (text.includes('\u0000')) return true;
+  if (!text) return false;
+  let controls = 0;
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    if ((c < 32 && c !== 9 && c !== 10 && c !== 13) || c === 0xfffd) controls++;
+  }
+  return controls / text.length > 0.1;
+}
+
+/** Binary login records under /var/log, read with `last` instead */
+const LOGIN_RECORDS = /(^|\/)(wtmp|btmp|lastlog|faillog)(\.\d+)?$/;
+
+export function binaryFileMessage(path: string, bytes: number): string {
+  const hint = LOGIN_RECORDS.test(path) ? ' It holds login records: use recent_logins.' : '';
+  return `${path} is a binary file, not text (${bytes.toLocaleString('en-US')} bytes read); its contents cannot be shown. Do not read it again.${hint}`;
+}
+
+/** SFTP status codes (draft-ietf-secsh-filexfer) */
+const SFTP_NO_SUCH_FILE = 2;
+const SFTP_PERMISSION_DENIED = 3;
+/** EX10.12: names shown from the folder of a missing file */
+export const LISTED_NAMES = 30;
+
+const sftpCode = (err: unknown): unknown => (err as { code?: unknown } | null)?.code;
+
+/**
+ * EX10.12: the error for a path that does not exist or cannot be read: what happened, not
+ * to retry, and for a missing file what its folder holds. The listing is server text, so it
+ * goes in the output (marked as data for the model), never in the error. Other errors are
+ * re-thrown.
+ */
+async function steeringError(sftp: SFTPWrapper, path: string, err: unknown): Promise<{ error: string; listing?: string }> {
+  const code = sftpCode(err);
+  if (code === SFTP_PERMISSION_DENIED) return { error: `${path} cannot be read by the login user. Do not read it again.` };
+  if (code !== SFTP_NO_SUCH_FILE) throw err;
+  const dir = posix.dirname(path);
+  let realDir: string;
+  try {
+    realDir = await sftpCall<string>((cb) => sftp.realpath(dir, cb));
+  } catch (dirErr) {
+    return sftpCode(dirErr) === SFTP_NO_SUCH_FILE
+      ? { error: `${path} does not exist, and neither does ${dir}. Do not read it again.` }
+      : { error: `${path} does not exist. Do not read it again.` };
+  }
+  const plain = { error: `${path} does not exist. Do not read it again.` };
+  if (!isUnderRoot(realDir, READ_ROOTS) || isSecretPath(realDir)) return plain;
+  let entries: Array<{ filename: string; longname?: string; attrs?: { isDirectory?(): boolean } }>;
+  try {
+    entries = await sftpCall((cb) => sftp.readdir(realDir, cb as never));
+  } catch {
+    return plain;
+  }
+  const names = entries
+    .filter((e) => e.filename !== '.' && e.filename !== '..' && !isSecretPath(posix.join(realDir, e.filename)))
+    .map((e) => (e.attrs?.isDirectory?.() || e.longname?.startsWith('d') ? `${e.filename}/` : e.filename))
+    .sort((a, b) => a.localeCompare(b));
+  const more = names.length > LISTED_NAMES ? ` (and ${names.length - LISTED_NAMES} more)` : '';
+  const listing = names.length ? `${dir} has: ${names.slice(0, LISTED_NAMES).join(', ')}${more}` : `${dir} is empty.`;
+  return {
+    error: `${path} does not exist. Do not read it again; what ${dir} holds is listed below.`,
+    listing: redactSecrets(listing).text,
+  };
 }
 
 function sftpCall<T>(fn: (cb: (err: Error | undefined | null, value: T) => void) => void): Promise<T> {

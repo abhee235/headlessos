@@ -1199,6 +1199,85 @@ Agent runs on a local model failed because the window filled up. The Ollama wind
 
 ---
 
+## ADR-026: The Server Fills Widgets from Action Results
+
+**Status:** Accepted
+**Date:** 2026-10-25
+**Builds on:** ADR-024 (typed actions), ADR-025 (one context plan); EX10.8 (actions return structured data).
+
+**Context:**
+The UI Agent's model writes every value in the view itself, and `update_view` resends the
+whole view on every step. On a local 9B model, the first filled view of "show my system
+logs" ran past the 8,192-token reply cap in four of five runs (2026-10-25, 08:28–09:56). It
+copied 100-line log tails from three files into log-viewers. Each cut-off cost 130–160 s of
+silent generation, because Ollama drops a tool call that is cut off unfinished. Values a
+small model copies can also be mistyped: a percentage rounded differently, a row dropped.
+Since EX10.8, the actions behind most views return structured data.
+
+**Options Considered:**
+1. **Tighter limits in the prompt** (EX10.3 follow-up): 30 log lines, 20 rows. This
+   helped in one of two runs; the model still copies.
+2. **Server-side templates per kind of request.** Fast and exact, but rigid; the template
+   registry already covers the common cases and misses the rest.
+3. **Widgets bound to action results.** The model builds the view one widget at a time and
+   points each widget's values at an action result it has already fetched (`source`). The
+   server fills them in. The model writes the structure (titles, which fields, which
+   file), never the data.
+
+**Decision:** Option 3.
+
+- **Tools:**
+  - `start_view` sets the title and sections.
+  - `add_widget(section, widget)` adds one widget; a widget may carry `source`.
+  - `replace_widget` and `remove_widget` change one widget (used by EX10.9 refinements).
+  - `finish` ends the run with the view as built.
+  - `update_view` and `generate_schema` stay: a whole view, or a template, still works.
+- **Binding:** `source: { action, params?, path?, reduce?, limit? }`.
+  - It points at the latest result of `action` in this run whose parameters include
+    `params`.
+  - `path` is a dot path into the parsed data; `*` maps a list.
+  - `reduce` (`count`, `sum`, `avg`, `max`, `min`) computes totals.
+  - The binding is consumed when the widget is filled. It never appears in the view, so
+    `DynamicViewSchema` does not change.
+- **Filling:**
+  - table rows (and columns, when none are given);
+  - a stat-card, sparkline-stat, progress-bar or gauge value;
+  - key-value pairs;
+  - chart data;
+  - log-viewer lines: the last lines of the output, with the level guessed;
+  - code-block code.
+  Values are redacted like everything else from the server (EX9.5).
+- **Errors steer:** "No cpu_usage result yet: call it first"; "disk_usage has no field
+  'use'; its fields: …"; "cores is a list of 12: give a path to one value, or a reduce".
+- **Answers:** each tool answers in one line. The client gets a `partial_view` snapshot
+  after every change, as before.
+- **Prompts:** every tier describes this one workflow.
+
+**Rationale:**
+- What the model generates grows with the view's structure, not with the server's data. A
+  log-viewer of 30 lines is a 40-token call instead of about 1,500 tokens.
+- Values come from the parser, so they cannot be mistyped; totals are computed, not
+  estimated.
+- Small calls suit small models: each one is easy to get right, and a broken one costs one
+  widget, not the view.
+- No client change: the client receives the same snapshots and the same final view.
+
+**Consequences:**
+- (+) The cut-off and copying failures of the logs runs go away at the source.
+- (+) Views are exact copies of what the actions returned.
+- (–) The model must read field names from the JSON it was shown. A bad path gets a
+  steering error that lists the fields.
+- (–) An action without parsed data can feed only text widgets (log-viewer, code-block)
+  and counts of its lines.
+- (–) Two ways to build a view remain: widget by widget, or the whole view with
+  `update_view` / `generate_schema`.
+- (–) Values are a snapshot taken when the view was built; refreshing stays with each
+  widget's own `dataSource`.
+
+**Reference:** See [phases/phase-ex10.md](phases/phase-ex10.md) §9b for the design and "EX10.10 — as built".
+
+---
+
 ## Template for New ADRs
 
 ```markdown

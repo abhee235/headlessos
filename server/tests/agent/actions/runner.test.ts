@@ -4,10 +4,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import { Readable } from 'node:stream';
 import { z } from 'zod';
-import { ActionRunner, capText, describeParamError } from '../../../src/agent/actions/runner.js';
+import { ActionRunner, binaryFileMessage, capText, describeParamError, isBinaryText } from '../../../src/agent/actions/runner.js';
 import { ActionCatalog, getDefaultCatalog } from '../../../src/agent/actions/catalog/index.js';
 import { readAction } from '../../../src/agent/actions/catalog/define.js';
 import { currentAgentScope } from '../../../src/services/policy/agent-scope.js';
+import { formatForModel } from '../../../src/agent/actions/tools.js';
 import type { ActionDef } from '../../../src/agent/actions/types.js';
 
 function sshReturning(result: Partial<{ stdout: string; stderr: string; exitCode: number }>) {
@@ -226,6 +227,69 @@ describe('ActionRunner.run — SFTP reads', () => {
   });
 });
 
+describe('ActionRunner.run — a missing file steers the model (EX10.12)', () => {
+  /** Like OpenSSH's sftp-server: realpath fails on a path that does not exist */
+  function serverSftp(files: Record<string, string>, dirs: Record<string, string[]>, denied: string[] = []) {
+    const exists = (p: string) => p in files || p in dirs;
+    const missing = () => Object.assign(new Error('No such file'), { code: 2 });
+    return {
+      realpath: vi.fn((p: string, cb: (e: Error | null, v?: string) => void) => (exists(p) ? cb(null, p) : cb(missing()))),
+      stat: vi.fn((p: string, cb: (e: Error | null, v?: unknown) => void) => {
+        if (denied.includes(p)) return cb(Object.assign(new Error('Permission denied'), { code: 3 }));
+        if (!exists(p)) return cb(missing());
+        cb(null, { size: Buffer.byteLength(files[p] ?? ''), isDirectory: () => p in dirs });
+      }),
+      readdir: vi.fn((p: string, cb: (e: Error | null, v?: unknown) => void) =>
+        cb(null, ['.', '..', ...dirs[p]!].map((name) => ({ filename: name, longname: '', attrs: { isDirectory: () => `${p}/${name}` in dirs } })))),
+      createReadStream: vi.fn(),
+    };
+  }
+  const read = (sftp: unknown, action: string, path: string) =>
+    new ActionRunner({ ssh: { exec: vi.fn(), getSftp: vi.fn().mockResolvedValue(sftp) } as never }).run('srv', action, { path });
+
+  const logDir = { '/var/log': ['dpkg.log', 'apt', 'alternatives.log', '.env'], '/var/log/apt': [] };
+
+  it('says the file does not exist, not to read it again, and lists the folder in the output', async () => {
+    const result = await read(serverSftp({ '/var/log/dpkg.log': 'x' }, logDir), 'file_tail', '/var/log/syslog');
+    expect(result).toMatchObject({
+      ok: false,
+      error: '/var/log/syslog does not exist. Do not read it again; what /var/log holds is listed below.',
+      stdout: '/var/log has: alternatives.log, apt/, dpkg.log', // sorted, folders marked, the secret .env left out
+    });
+    expect(formatForModel(result, 'tail')).toBe(
+      'failed: /var/log/syslog does not exist. Do not read it again; what /var/log holds is listed below.\n/var/log has: alternatives.log, apt/, dpkg.log',
+    );
+  });
+
+  it('shows at most 30 names', async () => {
+    const names = Array.from({ length: 45 }, (_, i) => `f${String(i).padStart(2, '0')}.log`);
+    const result = await read(serverSftp({}, { '/var/log': names }), 'file_read', '/var/log/missing.log');
+    expect(result.stdout).toMatch(/^\/var\/log has: f00\.log, .*, f29\.log \(and 15 more\)$/);
+  });
+
+  it('says when the folder is missing too', async () => {
+    const result = await read(serverSftp({}, logDir), 'file_read', '/var/log/nginx/error.log');
+    expect(result).toMatchObject({ error: '/var/log/nginx/error.log does not exist, and neither does /var/log/nginx. Do not read it again.', stdout: '' });
+  });
+
+  it('lists nothing outside the read roots', async () => {
+    const result = await read(serverSftp({}, { '/': ['etc', 'root'] }), 'file_read', '/srv');
+    expect(result).toMatchObject({ error: '/srv does not exist. Do not read it again.', stdout: '' });
+  });
+
+  it('says a file the login user cannot read cannot be read', async () => {
+    const result = await read(serverSftp({ '/var/log/btmp': 'x' }, logDir, ['/var/log/btmp']), 'file_read', '/var/log/btmp');
+    expect(result).toMatchObject({ ok: false, error: '/var/log/btmp cannot be read by the login user. Do not read it again.' });
+  });
+
+  it('passes other SFTP errors through as before', async () => {
+    const sftp = serverSftp({ '/var/log/x': 'x' }, logDir);
+    sftp.stat.mockImplementation((_p: string, cb: (e: Error | null) => void) => cb(Object.assign(new Error('Failure'), { code: 4 })));
+    const result = await read(sftp, 'file_read', '/var/log/x');
+    expect(result).toMatchObject({ ok: false, error: 'Failure' });
+  });
+});
+
 describe('helpers', () => {
   it('capText keeps whole text under the cap', () => {
     expect(capText('abc', 10, 'head')).toEqual({ text: 'abc', truncated: false });
@@ -240,5 +304,50 @@ describe('helpers', () => {
     const problems = message.split('. Parameters:')[0]!.replace(/^file_find: /, '').split('; ');
     expect(problems).toHaveLength(3);
     expect(problems[0]).toMatch(/^path: expected an absolute path/);
+  });
+});
+
+// EX10.12 follow-up (phase-ex10 §8d item 8): the 07:16 run read /var/log/faillog six times —
+// 8,000 NUL bytes, 48,000 characters once JSON-escaped, about 12,000 tokens a read
+describe('ActionRunner.run — binary files (EX10.12 follow-up)', () => {
+  const read = (files: Record<string, string>, action: string, path: string) =>
+    new ActionRunner({ ssh: { exec: vi.fn(), getSftp: vi.fn().mockResolvedValue(fakeSftp(files)) } as never }).run('srv', action, { path });
+
+  it('refuses a binary login record, pointing at recent_logins', async () => {
+    const result = await read({ '/var/log/faillog': '\u0000'.repeat(8_000) }, 'file_tail', '/var/log/faillog');
+    expect(result).toMatchObject({
+      ok: false, stdout: '',
+      error: '/var/log/faillog is a binary file, not text (8,000 bytes read); its contents cannot be shown. Do not read it again. It holds login records: use recent_logins.',
+    });
+  });
+
+  it('refuses other binary files without the hint, and reads text as before', async () => {
+    const binary = await read({ '/opt/app/data.db': `SQLite format 3${'\u0000'.repeat(50)}` }, 'file_read', '/opt/app/data.db');
+    expect(binary.error).toBe('/opt/app/data.db is a binary file, not text (65 bytes read); its contents cannot be shown. Do not read it again.');
+    const text = await read({ '/var/log/dpkg.log': '2026-10-19 status installed nginx\n' }, 'file_read', '/var/log/dpkg.log');
+    expect(text).toMatchObject({ ok: true, stdout: '2026-10-19 status installed nginx\n' });
+  });
+
+  it('tells binary from text with a few odd characters', () => {
+    expect(isBinaryText('a\u0000b')).toBe(true);
+    expect(isBinaryText('\u0001\u0002\u0003'.repeat(10) + 'text')).toBe(true);
+    expect(isBinaryText('tab\tnewline\ncarriage\r\n')).toBe(false);
+    expect(isBinaryText(`colour \u001b[31mred\u001b[0m in a long enough log line of text`)).toBe(false);
+    expect(isBinaryText('')).toBe(false);
+    expect(binaryFileMessage('/var/log/wtmp.1', 1024)).toContain('use recent_logins');
+  });
+});
+
+// EX10.12 follow-up (§8d item 9): /var/log/apt/term.log (root:adm 0640) passes stat, then fails to open
+describe('ActionRunner.run — refused when opened (EX10.12 follow-up)', () => {
+  it('steers a permission error from the read itself', async () => {
+    const sftp = fakeSftp({ '/var/log/apt/term.log': 'secret-ish' });
+    sftp.createReadStream.mockImplementation(() => {
+      const stream = new Readable({ read() { /* never yields */ } });
+      setImmediate(() => stream.emit('error', Object.assign(new Error('Permission denied'), { code: 3 })));
+      return stream;
+    });
+    const result = await new ActionRunner({ ssh: { exec: vi.fn(), getSftp: vi.fn().mockResolvedValue(sftp) } as never }).run('srv', 'file_tail', { path: '/var/log/apt/term.log' });
+    expect(result).toMatchObject({ ok: false, error: '/var/log/apt/term.log cannot be read by the login user. Do not read it again.' });
   });
 });

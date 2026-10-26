@@ -46,21 +46,34 @@ export function shieldFrom(messages: ChatMessage[], head: number, keep: number):
 }
 
 /**
- * Start of the recent region kept verbatim: at least `keepGroups` tool-calling groups,
- * and more while they fit in `keepTokens`.
+ * EX10.2 follow-up: start of the protected tail, after an earlier agent project — the
+ * messages that fit in `keepTokens` from the end, and the last `keepResults` tool results
+ * (never fewer than one) wherever they sit. Results from here on are never trimmed.
+ * Four whole turns of 5–7 log reads each were more than the plan compacts down to.
  */
-export function recentFrom(messages: ChatMessage[], head: number, keepGroups: number, keepTokens: number, estimate: (m: ChatMessage[]) => number): number {
-  const shield = shieldFrom(messages, head, keepGroups);
-  let from = shield;
-  let tokens = estimate(messages.slice(shield));
-  const groups = groupsOf(messages, head).filter((g) => g.end <= shield).reverse();
-  for (const g of groups) {
-    const t = estimate(messages.slice(g.start, g.end));
-    if (tokens + t > keepTokens) break;
-    tokens += t;
-    from = g.start;
+export function protectedFrom(messages: ChatMessage[], head: number, keepResults: number, keepTokens: number, estimate: (m: ChatMessage[]) => number): number {
+  let byTokens = messages.length;
+  let tokens = 0;
+  for (let i = messages.length - 1; i >= head; i--) {
+    tokens += estimate([messages[i]!]);
+    if (tokens > keepTokens) break;
+    byTokens = i;
   }
-  return from;
+  const results: number[] = [];
+  for (let i = head; i < messages.length; i++) if (messages[i]!.role === 'tool') results.push(i);
+  const byCount = results.length ? results[Math.max(0, results.length - Math.max(1, keepResults))]! : messages.length;
+  return Math.max(head, Math.min(byTokens, byCount));
+}
+
+/** The start of the turn holding `index`: a cut there never parts a result from its call. */
+export function groupStart(messages: ChatMessage[], head: number, index: number): number {
+  for (const g of groupsOf(messages, head)) if (index >= g.start && index < g.end) return g.start;
+  return index;
+}
+
+/** Start of the recent region kept verbatim by summarizing and dropping: the protected tail, from its turn's start. */
+export function recentFrom(messages: ChatMessage[], head: number, keepResults: number, keepTokens: number, estimate: (m: ChatMessage[]) => number): number {
+  return groupStart(messages, head, protectedFrom(messages, head, keepResults, keepTokens, estimate));
 }
 
 export function toolNames(messages: ChatMessage[]): Map<string, string> {

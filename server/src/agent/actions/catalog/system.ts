@@ -1,9 +1,11 @@
 // EX9.1: read actions — system, disk, processes
-// @see docs/phases/phase-ex9.md §1
+// EX10.8: structured data from the deterministic parsers; cpu_usage samples /proc/stat twice
+// @see docs/phases/phase-ex9.md §1, docs/phases/phase-ex10.md §9a
 
 import { z } from 'zod';
 import { readAction } from './define.js';
 import { lineCount, pid, readPath } from '../params.js';
+import { SAMPLE_INTERVAL_MS, cpuData, diskData, loadData, memoryData, processData } from './parsed.js';
 
 export const SYSTEM_ACTIONS = [
   readAction({
@@ -45,6 +47,16 @@ export const SYSTEM_ACTIONS = [
     category: 'system',
     keywords: ['load', 'cpu', 'busy'],
     run: { kind: 'exec', build: () => ['cat', '/proc/loadavg'] },
+    parse: loadData,
+  }),
+  readAction({
+    id: 'cpu_usage',
+    title: 'CPU usage',
+    description: 'CPU busy % overall and per core, measured over one second (/proc/stat sampled twice).',
+    category: 'system',
+    keywords: ['cpu', 'usage', 'busy', 'utilization', 'utilisation', 'cores'],
+    run: { kind: 'exec', build: () => ['cat', '/proc/stat'], sampleTwiceMs: SAMPLE_INTERVAL_MS },
+    parse: cpuData,
   }),
   readAction({
     id: 'memory_usage',
@@ -53,6 +65,7 @@ export const SYSTEM_ACTIONS = [
     category: 'system',
     keywords: ['memory', 'ram', 'swap', 'oom'],
     run: { kind: 'exec', build: () => ['free', '-m'] },
+    parse: memoryData,
   }),
   readAction({
     id: 'logged_in_users',
@@ -88,6 +101,7 @@ export const SYSTEM_ACTIONS = [
     category: 'disk',
     keywords: ['disk', 'space', 'full', 'storage', 'filesystem', 'df'],
     run: { kind: 'exec', build: () => ['df', '-hT'] },
+    parse: diskData,
   }),
   readAction({
     id: 'disk_inodes',
@@ -141,6 +155,7 @@ export const SYSTEM_ACTIONS = [
       kind: 'exec',
       build: (p) => ['ps', 'aux', p.sortBy === 'cpu' ? '--sort=-%cpu' : p.sortBy === 'memory' ? '--sort=-%mem' : '--sort=pid'],
     },
+    parse: processData,
   }),
   readAction({
     id: 'process_detail',

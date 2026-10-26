@@ -37,6 +37,14 @@ export function headAndTail(text: string, maxChars: number): { text: string; cut
   return { text: `${text.slice(0, head)}\n[… ${text.length - maxChars} chars cut …]\n${text.slice(text.length - tail)}`, cut: true };
 }
 
+/** EX10.10: the end of an action's output kept for widgets (log tails keep their last lines) */
+const RESULT_KEEP_CHARS = 64 * 1024;
+
+/** EX10.12 follow-up: ANSI escape sequences and C0 control characters other than tab, newline and CR */
+export function stripControls(text: string): string {
+  return text.replace(/\u001b\[[0-9;?]*[ -/]*[@-~]/g, '').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '');
+}
+
 /** The text the model gets back from an action. */
 export function formatForModel(result: ActionRunResult, keep: 'head' | 'tail' = 'head', maxChars = MODEL_OUTPUT_CHARS): string {
   if (!result.command && result.error) return `error: ${result.error}`;
@@ -44,7 +52,8 @@ export function formatForModel(result: ActionRunResult, keep: 'head' | 'tail' = 
   if (!result.ok) parts.push(result.error ? `failed: ${result.error}` : 'failed');
   // parsed data is redacted here; stdout already was, in the runner (EX9.5)
   const dataText = result.data !== undefined ? redactSecrets(JSON.stringify(result.data)) : null;
-  const body = dataText ? dataText.text : result.stdout;
+  // EX10.12 follow-up: no control characters, which JSON escapes to six characters each
+  const body = stripControls(dataText ? dataText.text : result.stdout);
   const removed = (result.redacted ?? 0) + (dataText?.count ?? 0);
   const capped = keep === 'tail'
     ? (() => { const t = capText(body, maxChars, 'tail'); return { text: t.text, cut: t.truncated }; })()
@@ -53,7 +62,7 @@ export function formatForModel(result: ActionRunResult, keep: 'head' | 'tail' = 
   if (result.truncated || capped.cut) {
     parts.push(keep === 'tail' ? '[earlier output cut]' : '[output cut — ask for less, e.g. fewer lines or a narrower path]');
   }
-  if (result.stderr.trim()) parts.push(`stderr: ${result.stderr.trim()}`);
+  if (result.stderr.trim()) parts.push(`stderr: ${stripControls(result.stderr.trim())}`);
   if (removed) parts.push(`[${removed} secret value${removed === 1 ? '' : 's'} removed]`);
   return parts.join('\n');
 }
@@ -79,6 +88,14 @@ export function actionTool(def: ActionDef): AgentTool {
         ...(sandboxContainer ? { sandboxContainer } : {}),
         ...(context.onApproval ? { onApproval: context.onApproval } : {}),
         ...(context.allowChange ? { allowChange: true } : {}),
+      });
+      // EX10.10: kept for widgets bound to this result (ADR-026)
+      context.actionResults?.push({
+        action: def.id,
+        params: args && typeof args === 'object' && !Array.isArray(args) ? { ...(args as Record<string, unknown>) } : {},
+        ok: result.ok,
+        ...(result.data !== undefined ? { data: result.data } : {}),
+        stdout: stripControls(result.stdout).slice(-RESULT_KEEP_CHARS),
       });
       return {
         success: result.ok,
@@ -121,19 +138,29 @@ const CATEGORY_WORDS: Record<ActionCategory, string[]> = {
   cli: ['cli', 'help', 'command', 'tool', 'program', 'version', 'flags', 'options'],
 };
 
+/** EX10.8: a match this strong (an id word, a keyword) beats the core set when slots are few */
+const STRONG_MATCH = 3;
+
 /** Offered to every run: enough to orient on any server. */
 export const CORE_ACTIONS = [
   'kernel_info', 'os_release', 'uptime', 'memory_usage', 'disk_usage',
   'process_list', 'service_list', 'file_read', 'dir_list',
 ];
 
+/** EX10.8: words that say nothing about the action ("show me the network and ports") */
+const STOP_WORDS = new Set([
+  'a', 'an', 'and', 'or', 'the', 'of', 'to', 'in', 'on', 'for', 'with', 'by', 'from', 'at', 'is', 'are', 'be', 'do', 'does',
+  'my', 'me', 'it', 'its', 'this', 'that', 'what', 'which', 'how', 'show', 'tell', 'give', 'can', 'you', 'please', 'about', 'all', 'any',
+]);
+
 function words(text: string): string[] {
-  return text.toLowerCase().split(/[^a-z0-9.]+/).filter((w) => w.length > 1);
+  return text.toLowerCase().split(/[^a-z0-9.]+/).filter((w) => w.length > 1 && !STOP_WORDS.has(w));
 }
 
 /**
- * Choose the actions to offer for a request: the core set, then the best keyword
- * matches, up to `max`. Returned in catalog order so the tool list is stable.
+ * Choose the actions to offer for a request, up to `max`, returned in catalog order so the
+ * tool list is stable. EX10.8: strong matches (score ≥ 3) first, then the core set, then
+ * weak matches, then catalog order — with few slots, request words beat the core set.
  */
 export function selectActions(
   request: string,
@@ -157,21 +184,22 @@ export function selectActions(
     for (const w of words(def.description)) if (tokens.has(w)) score += 1;
     for (const k of def.keywords ?? []) if (k.includes(' ') ? text.includes(k) : tokens.has(k)) score += 3;
     if (hotCategories.has(def.category)) score += 2;
-    if (CORE_ACTIONS.includes(def.id)) score += 100;
     return { def, index, score };
   });
 
-  const chosen = new Set(
-    scored
-      .filter((s) => s.score > 0)
-      .sort((a, b) => b.score - a.score || a.index - b.index)
-      .slice(0, max)
-      .map((s) => s.def.id),
-  );
+  const byScore = scored.filter((s) => s.score > 0).sort((a, b) => b.score - a.score || a.index - b.index);
+  const chosen = new Set<string>();
+  const take = (ids: Iterable<string>) => {
+    for (const id of ids) {
+      if (chosen.size >= max) return;
+      chosen.add(id);
+    }
+  };
+  const inPool = new Set(pool.map((d) => d.id));
+  take(byScore.filter((s) => s.score >= STRONG_MATCH).map((s) => s.def.id));
+  take(CORE_ACTIONS.filter((id) => inPool.has(id)));
+  take(byScore.map((s) => s.def.id));
   // Fill any room left with catalog order, so a vague request still gets breadth
-  for (const def of pool) {
-    if (chosen.size >= max) break;
-    chosen.add(def.id);
-  }
+  take(pool.map((d) => d.id));
   return pool.filter((def) => chosen.has(def.id));
 }

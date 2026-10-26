@@ -10,6 +10,8 @@
 
 import { z } from 'zod';
 import type { AgentTool, ToolContext, ToolResult } from './types.js';
+import { WorkingView } from '../../dynamic-ui/working-view.js';
+import type { DynamicView } from 'headlessos-shared/schemas/dynamic-view';
 import { describeCounts, readViewArg, viewArgSchema, viewCounts, viewInputSchema } from './view-arg.js';
 
 const VIEW_DESCRIPTION =
@@ -34,7 +36,7 @@ export const updateViewTool: AgentTool = {
   inputSchema: viewInputSchema('view', VIEW_DESCRIPTION),
   securityTier: 'local',
 
-  async execute(rawArgs: unknown, _context: ToolContext): Promise<ToolResult> {
+  async execute(rawArgs: unknown, context: ToolContext): Promise<ToolResult> {
     try {
       const args = UpdateViewParams.parse(rawArgs);
 
@@ -59,6 +61,11 @@ export const updateViewTool: AgentTool = {
           output: '',
           error: 'View must have at least a "title", "sidebarItems", or "sections" field.',
         };
+      }
+
+      // EX10.10: add_widget and finish can carry on from this view
+      if (Array.isArray(view.sidebarItems) && view.sections && typeof view.sections === 'object') {
+        context.workingView = new WorkingView(view as unknown as DynamicView);
       }
 
       // Return the partial view in metadata for the executor to detect

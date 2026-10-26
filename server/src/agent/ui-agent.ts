@@ -19,6 +19,8 @@ import { ActionRunner } from './actions/runner.js';
 import { selectActions } from './actions/tools.js';
 import { planForProvider } from './context/plan.js';
 import { outsideAgentScope, runGenAsAgent } from '../services/policy/agent-scope.js';
+import { VAGUE_QUESTION, namesNothing, type FollowUp } from './follow-up.js';
+import { WorkingView } from '../dynamic-ui/working-view.js';
 
 
 // ── Agent Meta ──
@@ -55,13 +57,17 @@ export interface UIAgentOptions {
   sandboxMode?: boolean;
   /** EX5-B.3: CLI tool name to discover in sandbox (e.g. 'nginx', 'restic') */
   toolName?: string;
+  /** EX10.9: refine the open view (the earlier request and the view as it is now) */
+  followUp?: FollowUp;
 }
 
 // ── Complete Event (extends AgentEvent) ──
 
 export type UIAgentEvent =
   | AgentEvent
-  | { type: 'complete'; view: DynamicView; meta: AgentMeta };
+  | { type: 'complete'; view: DynamicView; meta: AgentMeta }
+  /** EX10.9: the request was too unclear; the run ends with one question for the owner */
+  | { type: 'question'; question: string };
 
 // ── Stack Item ──
 
@@ -156,6 +162,8 @@ export class UIAgent {
       ssh: this.ssh,
       templateRegistry: this.templateRegistry,
       previousOutputs: new Map(),
+      // EX10.10: action results kept for widgets bound to them (ADR-026)
+      actionResults: [],
       actions: new ActionRunner({ ssh: this.ssh }),
       runId: sessionId,
       // EX9.3 / EX10.3: sized to the model by the plan — 40 for hosted models, ~10% of a local window
@@ -163,6 +171,8 @@ export class UIAgent {
       // EX9.4 / EX10.3: what one action result may cost in the model's window
       modelOutputChars: plan.resultChars,
       plan,
+      // EX10.9: a follow-up starts from the open view
+      ...(options.followUp ? { workingView: new WorkingView(options.followUp.view), followUp: { prompt: options.followUp.prompt } } : {}),
     };
 
     // ── EX5-B.3: SANDBOX SETUP (when sandboxMode=true) ──
@@ -219,8 +229,21 @@ export class UIAgent {
         case 'plan': {
           yield { type: 'thinking', message: 'Understanding your request...' };
 
+          // EX10.9: nothing named, nothing to plan: ask (a follow-up has the open view as its subject)
+          if (!options.followUp && namesNothing(request)) {
+            yield { type: 'question', question: VAGUE_QUESTION };
+            return;
+          }
+
           try {
-            const hints = await this.planner.plan(request);
+            const hints = options.followUp
+              ? await this.planner.plan(request, undefined, { followUp: options.followUp })
+              : await this.planner.plan(request);
+            // EX10.9: too unclear to build anything: ask, and stop here
+            if (hints.question?.trim()) {
+              yield { type: 'question', question: hints.question.trim() };
+              return;
+            }
             yield {
               type: 'thinking',
               message: `Plan: expecting ${hints.expectedWidgets.join(', ')} (${hints.estimatedComplexity})`,

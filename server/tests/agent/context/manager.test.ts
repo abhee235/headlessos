@@ -59,13 +59,14 @@ describe('ContextManager.prepare', () => {
     expect(collapseViews(out.messages)).toBe(out.messages); // nothing left to collapse
   });
 
-  it('stubs long old results, then all old results, keeping the latest four calls whole', async () => {
+  // EX10.2 follow-up: the shield is the last five results (and the last keepRecent tokens), not four turns
+  it('stubs long old results, then all old results, keeping the latest five results whole', async () => {
     const m = history(8, 3_000);
     const out = await new ContextManager({ plan: plan() }).prepare(m);
     expect(out.used).toBeLessThanOrEqual(plan().stopAt);
     const results = out.messages.filter((x) => x.role === 'tool').map((x) => x.content!);
-    expect(results.slice(0, 4).every((c) => c.startsWith('[output trimmed — act_'))).toBe(true);
-    expect(results.slice(4).every((c) => c === big(3_000))).toBe(true);
+    expect(results.slice(0, 3).every((c) => c.startsWith('[output trimmed — act_'))).toBe(true);
+    expect(results.slice(3).every((c) => c === big(3_000))).toBe(true);
     expect(out.messages.slice(0, 2)).toEqual(m.slice(0, 2));
     expect(wellFormed(out.messages)).toBe(true);
   });

@@ -20,6 +20,7 @@ import { ToolRegistry } from '../agent/tools/tool-registry.js';
 import { ALL_AGENT_TOOLS } from '../agent/tools/index.js';
 import { WriteBackRequestSchema, executeWriteBack } from '../agent/writeback.js';
 import { SecurityError } from '../security/validators.js';
+import { readFollowUp, type FollowUp } from '../agent/follow-up.js';
 
 // ── Types ──
 
@@ -31,6 +32,8 @@ interface ClientMessage {
   writeBack?: unknown;
   values?: Record<string, unknown>;
   /** EX5-B.3: Run CLI discovery in sandboxed container */
+  /** EX10.9: refine the open view */
+  followUp?: unknown;
   sandboxMode?: boolean;
   /** EX5-B.3: CLI tool name to discover (e.g. 'nginx') */
   toolName?: string;
@@ -173,10 +176,14 @@ export async function agentUIRoutes(
         const abortController = new AbortController();
         sessions.set(msg.requestId, { abortController, running: true });
 
+        // EX10.9: a follow-up refines the open view; anything invalid runs as a new request
+        const followUp = readFollowUp(msg.followUp);
+
         // Run agent in background (async generator)
         void runAgent(msg.requestId, msg.prompt, abortController.signal, {
           sandboxMode: msg.sandboxMode,
           toolName: msg.toolName,
+          ...(followUp ? { followUp } : {}),
         });
       }
 
@@ -184,13 +191,14 @@ export async function agentUIRoutes(
         requestId: string,
         prompt: string,
         signal: AbortSignal,
-        opts: { sandboxMode?: boolean; toolName?: string } = {},
+        opts: { sandboxMode?: boolean; toolName?: string; followUp?: FollowUp } = {},
       ): Promise<void> {
         try {
           for await (const event of agent.generate(serverId, prompt, {
             signal,
             sandboxMode: opts.sandboxMode,
             toolName: opts.toolName,
+            ...(opts.followUp ? { followUp: opts.followUp } : {}),
           })) {
             sendAgentEvent(requestId, event);
           }

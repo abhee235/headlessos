@@ -100,7 +100,8 @@ describe('loop guard inside runAgentLoop', () => {
       .mockResolvedValueOnce(reply(0, null));
     await (async () => { for await (const _ of runAgentLoop({ chat, system: 's', user: 'u', tools: [echo], context: ctx, maxTurns: 6 })) { /* drain */ } })();
     const fourth = chat.mock.calls[3]![0] as { messages: ChatMessage[] };
-    expect(fourth.messages.some((m) => m.content === '3 turns left. Start wrapping up: gather only what you still need, then answer.')).toBe(true);
+    // EX10.11: a note — on the last tool result, or (here, after text-only turns) a user message
+    expect(fourth.messages.some((m) => m.content === '3 turns left. Start wrapping up: gather only what you still need, then answer. Do not reply to this note.')).toBe(true);
   });
 });
 

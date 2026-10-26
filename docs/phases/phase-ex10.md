@@ -6,7 +6,7 @@
 > reply gets. The UI Agent executor, which had no context handling at all, moves onto
 > the same machinery, and its view tools stop wasting the window.
 >
-> Decision record: [ADR-025](../DECISIONS.md). Builds on [phase-ex9.md](phase-ex9.md)
+> Decision records: [ADR-025](../DECISIONS.md) (context), [ADR-026](../DECISIONS.md) (widgets filled by the server). Builds on [phase-ex9.md](phase-ex9.md)
 > (actions, shared loop, EX9.4 trimming), which it replaces for context handling.
 
 ## Why
@@ -254,6 +254,228 @@ Fixes:
    with the last valid partial view. The reason is "the model kept taking too long to
    answer".
 
+### 8c. Loops, steering errors, garbled replies and slow starts (EX10.11–EX10.13)
+
+Three UI Agent runs on `ornith:latest` at 64K (2026-10-25, 05:44–05:51 UTC) showed:
+
+- **Logs (135 s, empty view).** `file_tail` failed with "No such file" on `/var/log/syslog`,
+  `auth.log`, `kern.log`, `daemon.log` and `messages`. The model asked for the same files
+  again on every turn, 3–5 calls a turn, until the 30-step limit. The error never said what
+  the folder held. The model read `dpkg.log` successfully but never put it in the view.
+- **Overview (151 s).** `generate_schema` was sent 8 times with the same broken string.
+  The run ended at the step limit with the last partial view, which had 6 widgets.
+- **Ports (49 s).** Clean.
+
+The executor still used the EX2 `ToolRepetitionDetector`. After 8 identical calls it
+answers "try a different approach", and it never stops a run. The investigation agent has
+had the EX9.4 loop guard since EX9; the executor never got it.
+
+An earlier agent project of the author's handles this in layers, which these tasks adapt:
+
+- **Repeats:** the same call with the same result is warned about, then refused without
+  running, then the run stops. The model gets one turn to finish with what it has.
+- **Errors that steer:** an error says what to do instead. A missing file says it does not
+  exist, not to retry, and what is there.
+- **Notes:** reminders ride on the last tool result and end "Do not reply to this note", so
+  the model does not answer them as if the owner had spoken.
+- **Garbled replies:** a reply that degenerates into one repeated character is cut off while
+  it streams, and the model is asked again.
+- **Slow starts:** before giving up on a model that has not started answering, the provider
+  checks whether it is still up.
+
+**EX10.11 Loop control in the UI Agent.**
+
+1. The executor uses the EX9.4 `LoopGuard`. `ToolRepetitionDetector` and `maxToolRepetitions`
+   are removed. Every call is folded, failures included:
+   - the key is the tool and its input (the raw text when the arguments were not JSON);
+   - the result is the text the model saw.
+   A call that changes the server (`mutating`) still clears the history.
+2. "Back to back" in the guard now means *made in the previous turn*, not only *the very last
+   call*. Small models make several calls a turn, in varying order: the logs run kept
+   repeating its first calls, never its last. The new rule includes the old one and applies
+   to both agents.
+3. The ladder is unchanged:
+   - 3 identical results → a warning.
+   - After that, an identical call in the next turn is not run. It gets "Not run: … already
+     returned the same result N times".
+   - A second refusal, or 6 identical results, stops the run.
+   The guard's wording names the agent's way out: "give your answer" for the investigation
+   agent, "build the view with what you have" for the UI Agent.
+4. A stuck UI Agent run ends in the first of these that applies:
+   - **The last partial view is valid and has no empty section.** It completes as a normal
+     view (`generation_complete`, reviewed as usual). The overview run would have ended here.
+   - **One wrap-up turn.** It offers only `generate_schema`, with "You are stuck repeating X.
+     Stop gathering data. Call generate_schema now with the data you already have …". A
+     valid view completes the run. A small model may call `update_view` instead, though it
+     is not offered (it did in the 07:30 UTC run); its view counts the same.
+   - **The EX10.4 early stop.** The reason is "the model kept repeating X without getting
+     anything new".
+   A run that runs out of steps gets the same wrap-up turn before the EX10.4 early stop.
+5. Three steps before the limit, the model is told "3 steps left: call generate_schema soon
+   …". The shared loop has done this since EX9.4.
+6. Notes reach the model inside the last tool result:
+   - in the executor, a `note` field in the JSON result;
+   - in the shared loop, a trailing "Note:" paragraph after the result text.
+   Each note ends "Do not reply to this note." After a text-only reply there is no tool
+   result to carry it, so the note is a user message. This covers the loop warnings and the
+   steps-left warning in both loops.
+7. **Shared loop:** a text-only reply whose last sentence announces a next step ("Let me
+   check the logs.", "I'll run …", "Next, I will …") is not taken as the answer. A note tells
+   the model it did not make the call, and asks it to make the call or give the answer. This
+   happens at most twice a run; after that, the text is the answer.
+
+**EX10.12 Errors that steer.** An SFTP read action (`file_read`, `file_tail`, …) on a
+missing path answers:
+
+- **error:** `/var/log/syslog does not exist. Do not read it again; what /var/log holds is
+  listed below.`
+- **output**, inside `<server_output>` because the names come from the server:
+  `/var/log has: alternatives.log, apt/, dpkg.log, … (and N more)`. Up to 30 names, sorted;
+  folders end in `/`; secret paths are left out.
+
+Edge cases:
+
+- the folder is outside the read roots, or is a secret path: no listing;
+- the folder does not exist either: the error says so;
+- a permission error: the error says the login user cannot read the file, and not to retry.
+
+The same goes for a view sent as a string that does not parse (`update_view`,
+`generate_schema`, `validate_schema`). In a logs run after the EX10.11 loop guard was in
+(07:30 UTC) the model sent three slightly different broken strings, five times in all. It
+was told only where the JSON broke. Its section had no `layout`, which nothing told it.
+
+- **Keys pushed into `sections`.** When closing the brackets leaves the view's own keys
+  (`title`, `description`, `icon`, `sidebarItems`, `meta`) inside `sections`, because a
+  container was closed too early, they are moved back to the top. This applies only when
+  the value fits the key (a string title, an array of sidebar items), and the result is used
+  only if it is a valid view, like the EX10.5 bracket repair.
+- **Still not a valid view.** The error goes on to say what is wrong, up to three problems:
+  `With the brackets fixed, the view still has: sections.system-logs.layout: missing or
+  wrong, expected one of stack, grid, tabs.`
+
+**EX10.13 Garbled replies and slow starts (Ollama).**
+
+1. While a reply streams, the provider checks the text so far. If the last 400 characters
+   hold at most 2 distinct characters, or end in a run of 200 identical ones, the stream is
+   cancelled and `LLMDegenerateError` is thrown. Tool calls arrive whole and are not checked.
+2. Both loops discard such a reply and ask again, with a note that the last reply was
+   garbled and discarded. That happens at most twice a run. After that, the UI Agent stops
+   early with the last valid view, and the shared loop gives its short tools-off answer.
+3. A silence is checked before it is given up: no first chunk after 180 s, or no chunk for
+   60 s once the reply has started. The provider asks Ollama whether it is up
+   (`GET /api/ps`, 5 s):
+   - **It answers.** The wait goes on, 60 s at a time:
+     - for the first chunk, up to 600 s in all, since retrying would make Ollama evaluate
+       the whole prompt again;
+     - mid-reply, up to 900 s of silence. Ollama sends a tool call only once it is whole, so
+       a long view looks like a stall. In the first run after EX10.11 (2026-10-25, 07:12
+       UTC) a view was cut off after 60 s of silence, 28 tokens into the reply.
+   - **It does not answer.** `LLMTimeoutError` carries `alive: false`. The loops do not ask
+     for a smaller step; they end the run at once.
+
+### 8d. Follow-ups from the live checks of EX10.11–EX10.13 (2026-10-25)
+
+The EX10.13 paths were checked against the real Ollama (`ornith:latest`, 64K; see
+"EX10.13 — as built"). These checks, and the 07:16 run, left these gaps:
+
+1. **(EX10.13) A garbled final answer is an error.** When the shared loop's tools-off
+   answer also breaks down, the run ends with the provider's error. It now ends as the
+   `garbled` final, with the text "No answer: the model's replies kept coming back
+   broken."
+2. **(EX10.13) Garbled tool calls go unseen.** Ollama sends a tool call only once it is
+   whole, so the streaming check never sees its arguments. When a tool call arrives, its
+   arguments are checked for a run of 200 identical characters anywhere in them. A hit
+   throws `LLMDegenerateError`, and the loops ask again, as for garbled text.
+3. **(EX10.11) A trimmed result read again counts as a repeat.** After compaction has
+   trimmed or dropped tool results, the model is told to run a call again if it needs the
+   output. The loop guard then counted that call as returning the same result again. Both
+   loops now clear the guard's history when a compaction trims, summarizes or drops tool
+   results.
+4. **(EX10.2) The recency shield protects results, not turns.** The shield kept the last
+   four tool-calling turns whole, whatever their size. At 07:16 each turn read 5–7 log
+   files, about 2,000 tokens each, so four turns were about 48K, more than the 36K the 64K
+   plan compacts down to. Compaction removed 35–169 tokens a time, then fell back to
+   survival ("kept only the latest step", 59,003 → 36,206). The earlier project protects:
+   - the messages that fit in `keepRecent` tokens from the end (14,336 at 64K); and
+   - the last five tool results wherever they sit, never fewer than one.
+   The rest is trimmed. HeadlessOS adopts that:
+   - masking and microcompaction stub results before the protected tail;
+   - summarizing and dropping stop at the start of the turn that holds the tail's first
+     message, so a result never loses its call;
+   - survival still keeps only the latest turn whole.
+   `KEEP_GROUPS` (4) becomes `KEEP_RECENT_RESULTS` (5).
+5. **(EX10.13) Transient failures end the run.** A dropped connection, a socket closed
+   mid-reply (undici's bare "terminated"), an HTTP 5xx or 429, or a runner crash reported
+   mid-stream ("model runner has unexpectedly stopped") ended the run on the first try. The
+   earlier project retries these.
+   - **Retries:** up to 5, with a backoff of `min(500 ms · 2^(n−1), 8 s)` plus up to 25%
+     jitter. A partial reply is discarded; nothing from it reaches the loop.
+   - **Waiting for Ollama:** from the second failure in a row, Ollama must answer
+     `GET /api/ps` within 30 s before the next try; if it does not, the run gets the error.
+     The earlier project instead unloads and reloads the model. Ollama restarts a crashed
+     runner on the next request by itself, and unloading would take the model away from
+     the owner's other work.
+   - **Not retried:** context overflow (the loops compact), other 4xx, timeouts and
+     garbled replies (the loops handle those), and a malformed stream line.
+   - The errors say what happened: "Ollama closed the connection N tokens into the reply",
+     "… (5 retries)".
+6. **(EX10.13) A stream that ends without its final line.** Asked for a tool call stuffed
+   with one character, Ollama cancelled the task itself after 47 tokens and closed a 200
+   response with no lines at all. The provider returned an empty reply, which the loops
+   took for a reply with nothing in it. Every complete Ollama stream ends with
+   `"done": true`.
+   - **One identical retry.** The provider tries such a stream again once, as the earlier
+     project does after an empty reply.
+   - **Then it is the model's problem.** The failure repeated on every try (six in 23.8 s
+     live), so more identical retries only lose time. After the retry the provider throws
+     `LLMIncompleteError` ("Ollama ended the reply without finishing it, N tokens in").
+   - **The loops treat it like a garbled reply.** They discard it and ask again with a
+     note ("Your last reply ended before it was finished and was discarded …"); a changed
+     prompt can avoid what tripped Ollama. The two kinds share the limit of two re-asks,
+     and the ending says which one it was.
+   This makes item 1's wording general: the wrap-up asks for an answer because "your
+   replies keep coming back broken", and with none the answer is "No answer: the model's
+   replies kept coming back broken."
+7. **(EX10.4) A model call that keeps failing loses the view.** When a call still fails
+   after the provider's retries, the executor threw, and the run ended with a bare error,
+   throwing away the partial view. It now ends with the EX10.4 early stop instead, with
+   the reason "the model call failed (<error>)". Context overflow keeps its own handling.
+8. **(EX10.12) Binary files fill the window.** Replaying the 07:16 run through the context
+   manager showed what really filled it: `file_tail` on `/var/log/faillog` (six times) and
+   `/var/log/wtmp`. They are binary login records, mostly NUL bytes. A result is capped
+   at 8,000 characters, but JSON escapes each NUL as `\\u0000`, six characters, so each
+   read cost about 12,000 tokens; the prompt jumped from 18K to 54K in one turn. No shield
+   can trim a 12K result inside the protected tail, so the run fell to survival with
+   either shield.
+   - **Binary files get a steering error.** A file whose content holds NUL bytes, or more
+     than 10% other control characters, is not shown: "/var/log/faillog is a binary file,
+     not text (8,000 bytes read); its contents cannot be shown. Do not read it again." For
+     `wtmp`, `btmp`, `lastlog` and `faillog`, the error adds "It holds login records: use
+     recent_logins."
+   - **Control characters are stripped from every action result** before the model sees
+     it: ANSI escape sequences, and C0 characters other than tab and newline. No result can
+     grow past its cap through escaping.
+9. **(EX10.12) Permission denied on open.** `/var/log/apt/term.log` (root:adm, 0640)
+   passes `realpath` and `stat`, and is refused only when it is opened. The model got the
+   bare "Permission denied". That error now gets the same steering message as one from
+   `stat`.
+10. **(EX10.4) A cut-off reply costs minutes on a local model.** In the 08:28 logs run, two
+    replies ran to the 8,192-token cap, in 132 s and 162 s. Each returned only its opening
+    sentence ("Now let me fill the section with actual log data …"), because Ollama drops a
+    tool call that is cut off unfinished. The reminder worked on the third try, after five
+    minutes. Now each cut-off (or timeout) strike halves the next reply's cap, never below
+    2,048 tokens: 8,192 → 4,096 → 2,048. A reply that is not cut off restores the plan's
+    cap. Both loops send the cap as `maxTokens` (Ollama `num_predict`).
+11. **(EX10.3) The first view is too big.** In the 08:28, 08:38 and 08:43 logs runs the
+    model's first filled `update_view` ran past 8,192 tokens every time. It copied whole
+    log tails (100 lines each from three files) into the view. The size limits appeared
+    only in the reminder after a cut-off. Every prompt tier now states them up front, in
+    the workflow:
+    - "Keep every view small: you write each character, and a reply past the output
+      limit is lost."
+    - "At most 30 log lines per log-viewer (the latest), 20 rows per table, short titles;
+      never paste a whole file or command output."
+
 ### 9. Later (specced here, built after EX10.7)
 
 - **EX10.8 Action selection and data.** When slots are few, request words beat the fixed core
@@ -269,10 +491,205 @@ Fixes:
   results (`source: { action, path }`) and the server fills the values from parsed output and
   computes totals; `finish()` ends the run without resending the view. Needs its own ADR.
 
+### 9a. EX10.8 in detail: action selection and structured data
+
+**Selection** (`actions/tools.ts` `selectActions`). Today every `CORE_ACTIONS` id scores
++100, so with 8 slots (an 8K window) the nine core actions fill everything: a "network"
+request gets no network action. The ranking becomes:
+
+1. **strong matches**, score ≥ 3: an id word, a keyword, or several title and description
+   words, sorted by score;
+2. **the core set**, in its order;
+3. **weak matches**, score 1–2 (a description word, or only the request's category);
+4. **catalog order**.
+
+With enough slots this is the same set as before. With few, request words win: "show
+network traffic" at 8 slots gets `network_traffic`, `network_interfaces`,
+`network_connections`, `listening_ports` and more before `kernel_info`.
+
+**Two new actions, no shell.** An exec action may set `sampleTwiceMs`. The runner then
+runs its command twice, that far apart, each inside its own grant, and `parse(stdout,
+previous)` gets both outputs.
+
+- **`cpu_usage`** runs `cat /proc/stat` twice, 1 s apart, through `procStatParser` and
+  `computeCpuUsage`.
+  - Data: `{ overallPercent, cores: [{ id, percent }], basis: "1 s" }`.
+  - When both samples are equal (a fake server), it falls back to the since-boot average,
+    with `basis: "since boot"`.
+- **`network_traffic`** runs `cat /proc/net/dev` twice, 1 s apart, through `netDevParser`.
+  - Data: `[{ interface, rxBytesPerSec, txBytesPerSec, rxTotalBytes, txTotalBytes }]`
+    (loopback left out).
+
+**Parsers on existing actions.** Each returns structured data, which the model sees as
+compact JSON (as the Docker actions have since EX9); a parse that fails keeps the raw text.
+
+| Action | Parser | Data |
+|--------|--------|------|
+| `memory_usage` | `freeParser`, plus the percentages | `{ totalMb, usedMb, freeMb, availableMb, usedPercent, swapTotalMb, swapUsedMb, swapUsedPercent }` |
+| `disk_usage` | `dfParser`, which now reads the Type column of `df -hT`. Today it misreads that column without throwing (size "ext4", Use% 180). | `[{ filesystem, type, size, used, available, usePercent, mountPoint }]` |
+| `process_list` | `psAuxParser`, first 25 rows (ps sorts them) | `[{ pid, user, cpu, memory, rss, stat, started, time, command }]` |
+| `load_average` | new | `{ load1, load5, load15, running, total }` |
+| `listening_ports` | `ssListeningParser` | `[{ protocol, localAddress, localPort, process, pid }]` |
+| `network_connections` | `ssConnectionsParser` | `[{ protocol, localAddress, localPort, remoteAddress, remotePort, state, process, pid }]` |
+| `network_interfaces` | `ipParser` | `[{ name, status, ipAddresses }]` |
+
+**Supporting changes:**
+- The fake SSH proxy gets canned `/proc/stat` and `/proc/net/dev` output.
+- The catalog's read cap (60) goes to 64.
+
+### 9b. EX10.10 in detail: widgets filled by the server (ADR-026)
+
+**Run state** (`ToolContext`):
+- `actionResults`: every action result of the run, as `{ action, params, ok, data?,
+  stdout }`. `actionTool.execute` appends it. `stdout` is redacted, has its control
+  characters stripped, and is capped at 64 KiB.
+- `workingView`: the `WorkingView` being built. `start_view` creates it, and so does a
+  successful `update_view`.
+
+**Tools** (local tier, in `LOCAL_AGENT_TOOLS`):
+
+| Tool | Input | Effect |
+|------|-------|--------|
+| `start_view` | `{ title, icon?, description?, sections: [{ id, label, icon?, layout?: stack \| grid }] }` | New `WorkingView` (`createSkeleton`); a `partial_view` snapshot |
+| `add_widget` | `{ section, widget, tab? }` | Fills `widget` from its `source`, validates it, appends it; a snapshot |
+| `replace_widget` | `{ section, index, widget }` | Same, in place of the widget at `index` (0-based) |
+| `remove_widget` | `{ section, index }` | Removes it; a snapshot |
+| `finish` | `{}` | Validates the view and ends the run, like a valid `generate_schema` |
+
+`finish` with empty sections answers "Still empty: Docker. Add widgets, or call finish
+again to leave them out". A second `finish` in a row drops those sections.
+
+Every answer is one line: "Added table 'Filesystems' to disk (3 rows from disk_usage).
+disk: 2 widgets; still empty: network."
+
+**Binding** (`source`):
+- `action` (required): the latest successful result of that action in the run whose
+  `params` include the given ones (`file_tail` with `{ path }` picks the file).
+- `path` (optional): a dot path into the result's parsed data; `cores.0.percent`;
+  `cores.*.percent` maps a list; empty is the whole result.
+- `reduce` (optional): `count`, `sum`, `avg`, `max` or `min`, over a list.
+- `limit` (optional): rows or lines. Default 20 rows or 30 lines; at most 50 rows or 100
+  lines.
+
+**Filling by widget type:**
+
+| Widget | Filled from the bound value |
+|--------|-----------------------------|
+| stat-card, sparkline-stat | `value`: one number or string; numbers keep at most one decimal |
+| progress-bar | `value`: a number, clamped to 0–100 |
+| gauge | `value`: a number |
+| key-value | `pairs`, from an object (up to 20 entries) |
+| table | `rows`, from a list of objects (up to `limit`); `columns` from the first row's keys when none are given (up to 8) |
+| chart | `data`, from a list of objects (up to `limit`); `xKey` and `yKeys` from the model |
+| log-viewer | `lines`, the last `limit` lines of the output (`stdout`), or of a list of strings at `path`; a line with error/fail/fatal is `error`, with warn is `warn` |
+| code-block | `code`, the first `limit` lines of the output |
+
+Other widget types take no `source`. Strings filled in are redacted (EX9.5).
+
+**Errors that steer:**
+- no result yet: "No result of cpu_usage in this run yet: call cpu_usage first";
+- unknown path: "disk_usage has no field 'use' (at use); its fields: filesystem, type,
+  size, used, available, usePercent, mountPoint";
+- a list where one value is needed: "cores is a list of 12: give a path to one value
+  (cores.0.percent) or a reduce (avg)";
+- an invalid widget: up to three problems in plain words (`viewProblems`);
+- **copied lines are replaced by the real ones**:
+  - What counts: a log-viewer with 3 or more lines, or a code-block of 10 or more, sent
+    without a `source`, whose lines appear in the output of an action result of the run.
+  - The widget is bound to that result, and its lines become the result's real last 30.
+    The answer says so: "… (the lines you wrote were replaced by the last 30 of
+    file_tail /var/log/dpkg.log; next time send only the source)".
+  - Lines that match no result are the model's own text and stay as written.
+  - Why:
+    - In the first live run (10:19 UTC) the model wrote 20 dpkg lines itself, despite the
+      prompt.
+    - An earlier version refused such a widget, with a binding hint built from the latest
+      text result. That pointed at `dir_list /var/log/journal`; the model resent the
+      same widget until the loop guard stopped the run (10:21, empty view).
+    - The copied tokens are already spent by the time the widget arrives, so binding it
+      is the cheaper fix.
+
+**Executor:**
+- A tool result whose metadata carries `partialView` updates the last partial view and
+  sends `partial_view`; this was `update_view` only.
+- One whose metadata carries `schema` with `isTerminalTool` completes the run; this was
+  `generate_schema` only.
+- The wrap-up turn (EX10.11) offers `finish` as well when a working view exists.
+
+**Steering the model toward bindings.** Live (10:24 UTC), `ornith:latest` never wrote a
+`source`. It copied lines and rows into its widgets, then resent the whole view through
+`generate_schema` (2,631 tokens, 46 s). So:
+- in a run with `add_widget`, every successful action result the model sees carries
+  `widgetSource`, the binding that shows it (the action plus the parameters that name
+  the call: path, unit, name, container …);
+- once no section is empty, `add_widget`'s answer ends "Call finish() when the view is
+  done: the view is not resent.";
+- the short workflow (lean and minimal tiers) no longer offers the whole-view alternative;
+  `update_view` and `generate_schema` still work if called.
+
+**Prompt:** one workflow in every tier, replacing the update_view one.
+1. `get_server_context` once.
+2. `start_view`.
+3. Per section, the actions, then `add_widget` with `source`: "never copy values or log
+   lines yourself".
+4. `finish`.
+The full tier keeps its longer explanation, now with a worked example of `source`.
+`update_view` and `generate_schema` are listed as the way to send a whole view.
+
+### 9c. EX10.9 in detail: follow-ups and questions
+
+Today every prompt in the UI Agent panel starts from nothing and opens a new window.
+Nothing about the open view or the earlier request is sent, and the planner cannot ask
+anything.
+
+**Follow-ups refine the open view.**
+- **Client:** after a run ends with a view, the next prompt in the panel refines it.
+  - A chip above the composer says "Refining “<title>”", with "New view" to start fresh
+    instead.
+  - A follow-up sends `followUp: { prompt, view }`: the earlier request, and the view as
+    it is now.
+  - It updates the same window rather than opening a new one; if that window was closed,
+    a new one opens.
+- **Route:** `followUp.prompt` up to 2,000 characters; the view at most 256 KiB and a
+  valid `DynamicViewSchema`. Anything else runs as a new request.
+- **Planner:** the user prompt adds:
+  - the earlier request;
+  - an outline of the open view: its title, and per section its label and widgets as
+    `type 'title'`;
+  - "Plan the refined view: keep what still fits, change what the request asks."
+- **Executor:** the run starts with the open view loaded, as `workingView` and as the last
+  partial view, so an early stop keeps it. The first user message lists the widgets with
+  their positions and says: "The owner is refining the view that is open now … change it
+  with replace_widget, remove_widget and add_widget (positions are 0-based); start_view
+  would start over; finish when done."
+
+**Unclear requests get a question.**
+- **Planner:** the hints gain `question`. It is null unless the request names nothing to
+  show ("show me stuff", "fix it", "help"). Then it holds one short question.
+- **A deterministic check first.** A request with no word that names anything is asked
+  about before the planner runs. "Nothing" means words like help, fix, it, stuff,
+  something, please, hi, or what's wrong. The question: "What would you like to see? For
+  example: system health, logs, Docker containers, services, disk or network."
+  - Why: live (10:46 UTC), the planner never set `question`. "help" got a view called
+    "Planner Output"; "fix it" got an empty overview.
+  - The check is skipped for follow-ups, where "make it better" has the open view as its
+    subject.
+- **UI Agent:** a question ends the run before the executor, with `{ type: "question",
+  question }`.
+- **Client:**
+  - the panel shows "The agent asks: …";
+  - the window opened for the run closes;
+  - the composer's placeholder becomes "Your answer…";
+  - the answer is sent as "<earlier request> — <answer>"; if the question came on a
+    follow-up, the answer is one too (same view, same window).
+  - Question runs are not saved in the run history.
+
 ## What does not change
 
 - The action catalog, approvals, audit log, redaction and untrusted-data marking (EX9).
-- The loop guard (EX9.4), the planner/executor/reflector structure, templates, the Observatory.
+- The planner/executor/reflector structure, templates, the Observatory. The EX9.4 loop guard
+  keeps its ladder; EX10.11 only widens what counts as back to back and moves it into the
+  executor.
 - OpenAI request parameters other than `max_tokens` where a call sets it.
 
 ## Tasks
@@ -286,9 +703,12 @@ Fixes:
 | EX10.5 | View tools: object or string, JSON repair, error position, no echo of the view, short outputs | ✅ |
 | EX10.6 | Tool input for every tool: `jsonSchema7`, nulls dropped, one-line errors | ✅ |
 | EX10.7 | Trace cost keeps the span's own cost; no default price | ✅ |
-| EX10.8 | Action selection favours request words; `cpu_usage`, `network_traffic`; actions reuse deterministic parsers | ⬜ |
-| EX10.9 | Follow-up requests refine the open view; unclear requests get a question | ⬜ |
-| EX10.10 | Widget-by-widget building with server-filled data (`add_widget`, `WorkingView`, `finish`) — own ADR | ⬜ |
+| EX10.8 | Action selection favours request words; `cpu_usage`, `network_traffic`; actions reuse deterministic parsers | ✅ |
+| EX10.9 | Follow-up requests refine the open view; unclear requests get a question | ✅ |
+| EX10.10 | Widget-by-widget building with server-filled data (`add_widget`, `WorkingView`, `finish`) — own ADR | ✅ |
+| EX10.11 | Loop control in the UI Agent: the EX9.4 loop guard in the executor (previous-turn repeats); a stuck run finishes with its view or a wrap-up turn; steps-left warning; notes on the last tool result; announced-but-not-made calls in the shared loop | ✅ |
+| EX10.12 | Errors that steer: a missing file says so, says not to retry, and lists its folder | ✅ |
+| EX10.13 | Garbled replies cut off and asked again; a slow start is checked before the wait is given up | ✅ |
 
 ## EX10.1 — Model limits (as built)
 
@@ -384,6 +804,27 @@ compaction yields `compacted { layer, before, after, forced }`. The LLM span get
 **Retired:** `agent/loop/context.ts` (EX9.4 `historyBudget` / `trimHistory`), and
 `agent/context-manager.ts` (EX2.13), which was never imported, with its test.
 
+**Follow-up (§8d item 4): the shield protects results, not turns.**
+
+- `layers.ts` `protectedFrom(messages, head, keepResults, keepTokens)` is the further
+  reaching of two points: the messages that fit in `keepTokens` from the end, and the
+  `keepResults`-th last tool result (never fewer than one).
+- `groupStart` moves a cut back to the start of its turn, and `recentFrom` is now
+  `groupStart(protectedFrom(…))`.
+- The manager:
+  - mask and microcompact stub results before `protectedFrom`;
+  - summarize and drop stop at its turn's start;
+  - survival is unchanged (the latest turn).
+- `KEEP_GROUPS` (4) became `KEEP_RECENT_RESULTS` (5); the option is `keepResults`.
+- The same commit adds `replyCap()` for EX10.4 (see there).
+
+Replayed traces, on the 64K plan, before the EX10.12 binary fix:
+
+| Run | Compactions (old → new) | Largest prompt after the first (old → new) |
+|-----|------------------------|---------------------------------------------|
+| 07:11 (5–7 calls a turn) | 2 → 1. Old: four layers, 53,431 → 50,492, still over the trigger. New: one mask, 53,431 → 21,079 | 50,492 → 40,002 |
+| 07:16 (one call a turn, 12K-token binary reads) | Both still fell to survival: a single result too big for any shield | — |
+
 ## EX10.3 — Prompt tiers and plan budgets (as built)
 
 **UI Agent executor.** The prompt blocks moved into constants. The `full` tier is
@@ -414,6 +855,14 @@ result cap keeps EX9.4's 15% share but of the effective window: 3,686 chars at 8
 **Reviewer.** `PostGenerationReflector.reflect(…, plan)` gives each output
 `min(2,000, half the effective window less the view, shared)` chars, at least 300, head
 and tail kept (`headAndTail`, now exported). Without a plan it keeps EX2's 500-char cut.
+
+**Follow-up (§8d item 11).** `executor.ts` `VIEW_SIZE_RULE` goes in both workflow
+blocks, so every tier states it once (pinned in `prompt-tiers.test.ts`). In two live logs
+runs (09:54, 09:56):
+- one first view came back at 1,598 tokens, and the run completed in 75 s;
+- the other still ran to the 8,192-token cap once (135 s) and completed in 207 s.
+Before the rule, all three runs (08:28, 08:38, 08:43) hit the cap. The rule helps but does
+not settle it; EX10.10 removes the copying itself.
 
 ## EX10.4 — Executor on the context manager (as built)
 
@@ -469,6 +918,21 @@ the two share the same three strikes.
 - **Shared loop** (investigation agent): `TIMED_OUT`, then the short tools-off answer
   (`final.reason: 'length'`).
 - Other errors are thrown as before.
+
+**Follow-ups (§8d items 7 and 10).**
+
+- **A call that keeps failing keeps the view.** The executor ends the run with the EX10.4
+  early stop, "the model call failed (<error>)". This covers any error other than
+  overflow, a timeout or an unusable reply, after the provider's own retries.
+- **A cut-off shrinks the next reply.** Both loops send `maxTokens: ctx.replyCap()`.
+  `ContextManager.replyCap()` halves the plan's cap per cut-off or timeout strike, never
+  below `MIN_REPLY_CAP` (2,048) or above the plan's cap. It is undefined, meaning the
+  plan's own cap, once `resetLength()` runs.
+- **Live (logs request):**
+  - 08:28, before the cap: two cut-offs at 8,192 tokens (132 s and 162 s); 387 s in all.
+  - 08:38 and 08:43: the first view attempt was cut at 8,192 tokens (144 s, 146 s). The
+    capped retry came back in 64–67 s with 3,844 and 3,671 tokens. Both runs completed
+    (6 widgets, 311 s; 302 s).
 
 ## EX10.5 — View tools (as built)
 
@@ -540,6 +1004,437 @@ Strings still work, so the fake-mode scenarios (which send strings) pass unchang
 - Tokens are still counted everywhere.
 
 The three `ornith:latest` runs priced at $0.16, $0.56 and $0.69 would now show $0.
+
+## EX10.8 — Action selection and structured data (as built)
+
+**Selection.** `actions/tools.ts` `selectActions` takes, up to `max`:
+1. matches scoring ≥ `STRONG_MATCH` (3);
+2. `CORE_ACTIONS`;
+3. the remaining matches;
+4. catalog order.
+Returned in catalog order. `words()` drops `STOP_WORDS` ("show", "and", "the", "my" …):
+without the old +100, "Kernel **and** host" had matched "network traffic **and** ports".
+At 8 slots, "show network traffic and open ports" gets six network actions plus
+`os_release` and `kernel_info`. Before, it got eight core actions.
+
+**Two samples.** The `exec` run kind takes `sampleTwiceMs`. `ActionRunner.execGranted`
+runs the command once, waits, and runs it again; the first output reaches `parse(stdout,
+previous)` only if that run succeeded. The command and the grant are the same both times.
+
+**Parsers.** In `catalog/parsed.ts`: `memoryData`, `diskData`, `processData`
+(`PROCESS_ROWS` = 25), `loadData`, `portsData`, `connectionsData`, `interfacesData`,
+`cpuData`, `trafficData`. They are wired into `system.ts` and `network.ts`, which gain
+`cpu_usage` and `network_traffic`. In `dfParser`:
+- it detects the Type column of `-hT`;
+- it rejects a row whose Use% is not a percentage, which is how the old misreading showed;
+- plain `df -h` parses as before.
+`DiskUsageEntrySchema` gains an optional `type`.
+
+**Other files.** The fake SSH proxy answers `cat /proc/stat` and `cat /proc/net/dev`. The
+catalog's read cap is 64 (62 reads).
+
+**Verified:**
+- **Tests:** `tests/agent/actions/parsed.test.ts` runs each parser on output captured from
+  the dev container (Ubuntu 22.04). It also covers the one-second sampling (two `cat
+  /proc/stat` calls, ≥ 950 ms apart), the fallback when the first sample fails, and
+  selection at 8, 9 and 30 slots.
+- **Live (UI Agent, "Show my CPU usage per core and the network traffic per interface",
+  10:07 UTC):**
+  - `cpu_usage` → `{"overallPercent":0.4,"cores":[…12 cores…],"basis":"1 s"}` in 1,015 ms;
+  - `network_traffic` → eth0 at 6,042 B/s in and 12,416 B/s out;
+  - the view completed in 36 s.
+- **Benchmark (`ornith:latest`):** picked 100%, answered 10 of 12. That is within the
+  10–11 of the last three runs; the same two fake-server gaps account for the misses.
+
+## EX10.9 — Follow-ups and questions (as built)
+
+**Server:**
+- `agent/follow-up.ts`:
+  - `readFollowUp`: the limits of §9c; anything else is a new request;
+  - `outlineView`: the title, then per section its widgets (tabs by id), 40 at most and
+    the rest counted; with positions for the executor;
+  - `VAGUE_QUESTION` and `namesNothing`: at most 8 words, all from a fixed set of words
+    that name nothing.
+- `routes/agent-ui.ts`: `generate` messages take `followUp`.
+- `planner.ts`:
+  - `question` in `PlannerHintsSchema` (optional, nullable);
+  - the system prompt gains "Unclear requests" and "Follow-ups";
+  - `plan(request, serverContext, { followUp })` adds the earlier request, the outline
+    and "Plan the refined view: keep what still fits, change what the request asks."
+- `ui-agent.ts`:
+  - a request that names nothing gets `VAGUE_QUESTION` before the planner runs (not on
+    follow-ups);
+  - a planner `question` ends the run before the executor;
+  - both send `{ type: 'question', question }`;
+  - a follow-up's context starts with `workingView` holding the open view, and
+    `followUp.prompt`.
+- `executor.ts`:
+  - the last partial view starts as the open view, so a run that stops early gives it
+    back;
+  - on a follow-up, the opening message says the owner is refining the open view, lists
+    its widgets with positions, and names `replace_widget` / `remove_widget` /
+    `add_widget`, `start_view` (starts over) and `finish`.
+  - **Also fixed (EX10.10):** a new run's opening message still said "skeleton first …
+    generate_schema last". It now says "Build it widget by widget: start_view with these
+    sections → for each section, its actions, then add_widget with a source → finish
+    last."
+
+**Client:**
+- `agent-store.ts`: status `question`, `question`, and `askSession`. Question runs are
+  not persisted.
+- `useUIAgent.ts`: `generate(prompt, { followUp })` sends it; a `question` message calls
+  `askSession`.
+- `UIAgentView.tsx`:
+  - **Refine chip.** After a run with a view, a chip says "Refining “<title>”", with "New
+    view" (`refine-chip`, `refine-new-view`). The placeholder becomes "Describe the change…
+    e.g., 'add a memory chart'".
+  - **Follow-ups.** A typed prompt then sends `followUp` and reuses that view's window,
+    marked loading. If the window was closed, a new one opens. Presets and history entries
+    always start fresh.
+  - **Questions.** The card reads "The agent asks" (`agent-question`). The window opened
+    for the run closes; a reused window just stops loading and keeps its view. The
+    placeholder becomes "Your answer…". The answer is sent as "<request> — <answer>", with
+    the same follow-up when the question came on one.
+  - The composer clears after a typed send.
+
+**Verified:**
+- **Tests:**
+  - `tests/agent/follow-up.test.ts` (9): reading and outlining, the planner prompt,
+    questions with and without the planner, a follow-up's context, and the executor
+    changing the open view in place and keeping it on an early stop;
+  - `client/tests/components/ui-agent-follow-up.test.tsx` (5): the chip, the same window,
+    "New view", a question closing its window, and the answer to a follow-up's question.
+- **Live** (`ornith:latest`, Local Ubuntu Dev, 2026-10-25 UTC):
+
+| Run | Result |
+|-----|--------|
+| 10:46 "help", "fix it" (before the deterministic check) | "help" → a view called "Planner Output" (16 s); "fix it" → "Server Overview" with no widgets (31 s). The planner set no `question` |
+| 10:44 "Show a detailed disk usage breakdown for all mounted filesystems" | "Disk Usage", 3 widgets, `finish`, 26 s |
+| 10:45 follow-up "also add memory usage" | "Disk & Memory Usage", 2 sections, 8 widgets, `finish`, 22 s. It kept the stat-card and progress-bar but removed the Filesystems table, which was not asked |
+| 10:48 "fix it" | the question, at once (0.0 s) |
+
+- **Playwright** (1440×900, signed in to Local Ubuntu Dev):
+  - "show disk", then "also add memory usage": the same window was reused (still 4 open
+    windows). The disk widgets stayed and Memory Total / Used / Available / Use were
+    added.
+  - The refine chip is 24 px tall, with 8 px gaps, aligned with the sandbox row and the
+    composer.
+  - "New view", then "help": the question card is 766.7 px wide, radius 18 px, padding
+    12/16 px, 20 px below the item above it. The placeholder became "Your answer…", and
+    the empty window closed.
+  - Only the windows the check opened were closed.
+
+The 9B model's edits on a follow-up are not always minimal: it may drop a widget it was
+not asked to touch. The open view is still kept whole when a run stops early.
+
+## EX10.10 — Widgets filled by the server (as built)
+
+**Files:**
+- `agent/tools/widget-source.ts`: `WidgetSourceSchema`, `findResult`, `resolvePath`,
+  `fillWidget`, `sourceFor`.
+- `agent/tools/widget-tools.ts`:
+  - `start_view`, `add_widget`, `replace_widget`, `remove_widget` and `finish`
+    (`WIDGET_TOOLS`, in `LOCAL_AGENT_TOOLS`);
+  - `bindCopied`;
+  - the finish warning about empty sections, kept per working view.
+- `dynamic-ui/working-view.ts`: `childrenOf` (tabs too), `removeWidget`,
+  `emptySectionIds`, `countWidgets`, `dropSections`.
+- `ToolContext`:
+  - `actionResults` (`ActionResultRecord`), appended by `actionTool.execute`, which
+    strips control characters and keeps the last 64 KiB;
+  - `workingView`, set by `start_view` and by any `update_view` with sidebar items and
+    sections.
+- `view-arg.ts` `describeIssues` is shared by the view and widget errors.
+
+**Executor:**
+- Any tool result with `partialView` sends `partial_view`. Any result with `schema` and
+  `isTerminalTool` completes the run.
+- The wrap-up turn offers `finish` and `generate_schema`. A finish that meets empty
+  sections is run again, so they are left out.
+- The loop notes name `finish`.
+- Action results carry `widgetSource` when `add_widget` is registered.
+- The prompt:
+  - **Full tier:** `WORKFLOW_FULL` is widget by widget, with `WIDGET_EXAMPLES`,
+    `SOURCE_FIELDS` and the progressive example rewritten for `start_view` / `add_widget` /
+    `finish`.
+  - **Lean and minimal tiers:** `WORKFLOW_SHORT` no longer offers the whole-view path.
+
+**Live** (`ornith:latest`, Local Ubuntu Dev, 2026-10-25 UTC):
+
+| Run | Result |
+|-----|--------|
+| 10:19 logs | 37 s, done with `finish`; the log-viewer was 20 dpkg lines the model wrote itself |
+| 10:21 logs (copies refused, with a hint from the latest text result) | the hint pointed at `dir_list`; the model resent the same widget; stopped by the loop guard, empty view, 86 s. Refusing was replaced by binding |
+| 10:24 logs (copied lines bound) | 117 s, 3 widgets, the log-viewer bound to dpkg.log; but the model then resent everything through `generate_schema` (2,631 tokens) |
+| 10:28 logs (`widgetSource` on results, "call finish()") | 56 s, 3 widgets, `finish`; two widgets bound; one missed because the model altered some lines (matching now takes a majority) |
+| 10:30 logs | 32 s, `finish`; largest reply 602 tokens |
+| 10:31 overview | 61 s, 10 widgets added in one turn; ended with `generate_schema` |
+
+Before EX10.10 the logs request took 75–387 s, and three runs in five ran into the
+8,192-token cap.
+
+The model never wrote a `source` itself. It copies, and binding corrects the text widgets
+it copies. Values it writes into stat-cards and tables are still its own. The binding is
+exact when used (tests, and the executor run from the real `disk_usage` parse). A model
+that follows the prompt, or a later prompt or few-shot change, gets the full benefit.
+
+## EX10.11 — Loop control (as built)
+
+**Loop guard** (`agent/loop/loop-guard.ts`):
+
+- `blocked()` checks every call of the previous turn (`previousTurn`, run or refused), not
+  only the last one. `fold()` rolls the turn over; a refusal counts as a call of its turn.
+- `LoopGuard({ finish })` names the agent's way out in its messages: "give your answer" by
+  default, "build the view with what you have (generate_schema)" in the executor.
+- The in-a-row nudge is sent once per streak. A changed result no longer re-arms it; at
+  07:16 UTC it fired on each of ten `grep_output` calls.
+- `announcesStep(text)`: the last sentence opens a next step ("Let me check …", "I'll run
+  …", "I need to read …") with one of a list of verbs. "Let me know …" does not count.
+
+**Notes** (`agent/loop/notes.ts`): `appendNote(messages, text)` adds the note to the last
+message:
+- a JSON tool result gets a `note` field;
+- a text tool result gets a "Note:" paragraph, after any `</server_output>`;
+- if the last message is not a tool result, the note is a user message.
+`asNote` ends each note with "Do not reply to this note."
+
+**Executor** (`agent/executor.ts`):
+
+- `ToolRepetitionDetector` (EX2) and `maxToolRepetitions` are gone, and so is the empty
+  `safety/` folder.
+- Every call is folded with the text the model got, including failures, unknown tools,
+  guardrail blocks and bad arguments. Arguments that do not parse are folded as `{ raw }`.
+- A refused call gets `{"success":false,"error":"Not run: …"}` and a `tool_result` event.
+  Findings become `safety_warning` (`tool_repetition`) events. A stop's message is the
+  executor's own (`viewStuck`), not the investigation agent's.
+- **A stuck run** ends in the first of these that applies:
+  - `completeView(lastPartialView)`: the view is valid, has at least one sidebar item and
+    no empty section → `generation_complete`.
+  - `wrapUp()`: one call offering only `generate_schema`, with the stuck note (or
+    `VIEW_OUT_OF_STEPS` at the step limit). An `update_view` call there counts too.
+  - Any failure in the wrap-up returns null → the EX10.4 early stop, with "the model kept
+    repeating X without getting anything new".
+- The steps-left note comes at `maxSteps − 2` (step 28 of 30).
+- `grep_output` results are no longer cached for later searches. Each search embedded the
+  previous one, so its result never repeated: 13 searches in a row at 07:16, none caught.
+- **EX10.13 errors:**
+  - A garbled reply is dropped and asked again with `VIEW_GARBLED`, twice. After that comes
+    the early stop "the model's replies kept breaking down into repeated characters".
+  - `alive: false` ends the run at once, with "the model stopped answering".
+- The text-only nudge is a note.
+
+**Shared loop** (`agent/loop/run-loop.ts`):
+
+- Loop warnings and the steps-left warning are notes. A refusal's text is not repeated in
+  a note.
+- A text-only reply that `announcesStep` gets `ANNOUNCED` as a note, at most `MAX_ANNOUNCED`
+  (2) times a run.
+- **EX10.13 errors:**
+  - A garbled reply gets a `GARBLED` note and is asked again (`MAX_GARBLED` = 2). Then comes
+    a tools-off answer with the final reason `garbled`; the investigation agent reports it
+    as `max_steps_reached`.
+  - `alive: false` → an `error` at once.
+
+**Live** (Local Ubuntu Dev, `ornith:latest`, 64K, 2026-10-25 UTC):
+
+| Request | Before (05:44–05:51) | After |
+|---------|----------------------|-------|
+| System logs | 135 s; asked for the same missing files until step 30; empty view | 07:38: 139 s, 7 widgets, complete, no warning |
+| System overview | 151 s; the same broken schema 8 times; 6 widgets at the step limit | 07:41: 32 s, 10 widgets, complete (no loop arose) |
+
+Runs in between, each of which led to a fix above:
+
+- **07:11.** The missing-file listing worked. A view was lost to the 60 s mid-reply limit;
+  this led to the EX10.13 change.
+- **07:16.** `grep_output` ran 13 times in a row; this led to the cache fix and the
+  once-per-streak nudge. The dev server's watcher restarted it at 07:21:16, during the
+  run's last call. No file in the repo had changed, and the run's own ending, replayed
+  offline, completes cleanly.
+- **07:30.** `update_view` resent the same broken string. The guard warned at 3, refused,
+  and stopped at 175 s. The wrap-up turn called `update_view` (now accepted) with the same
+  string, and the run ended as an early stop. This led to the EX10.12 view errors.
+
+**Benchmark** (`npm run bench:agents -- --provider ollama --model ornith:latest`, 12
+questions on `fake-server`, run after the changes):
+
+- picked 100%, answered 83% (10 of 12);
+- on average 3.0 steps, 10,468 tokens and 6.1 s;
+- no repaired, malformed or unknown tool calls, and no parameter errors.
+
+The two not counted as answered (memory, failed services) stopped on repeated failures of
+commands `fake-server` has no canned output for. Their hand-overs still answered: a memory
+table, and `certbot.service` as the failing service. No earlier score was recorded to
+compare with.
+
+**Follow-ups (§8d items 1 and 3, and the loops' side of item 6).**
+
+- **Trimmed results.** `LoopGuard.reset()` clears every count. Both loops call it after a
+  compaction with any layer other than `collapse`: the shared loop inside `call()`, the
+  executor after `prepare()`.
+- **Unusable replies** (`isUnusableReply`) are dropped and asked again, at most twice
+  between them:
+  - a garbled one with `GARBLED` / `VIEW_GARBLED`;
+  - an unfinished one with `UNFINISHED` / `VIEW_UNFINISHED` ("Your last reply ended before
+    it was finished and was discarded …").
+- **Endings:**
+  - The shared loop's tools-off wrap-up says "Your replies keep coming back broken". If
+    that answer is unusable too, the run ends as the `garbled` final, with "No answer: the
+    model's replies kept coming back broken."
+  - The executor stops early with "the model's replies kept breaking down into repeated
+    characters" or "Ollama kept ending the model's replies before they were finished".
+- **Live (`runAgentLoop` on `ornith:latest`):**
+  - A literal of 500 `a`: three garbled turns were dropped, then the tools-off answer
+    (7.3 s).
+  - A tool call stuffed with them: two re-asks with the unfinished note. The tools-off
+    answer was unusable as well, and the run ended with the no-answer text (9.1 s).
+- **Benchmark after all §8d fixes:** picked 100%, answered 11 of 12. On average 2.0 steps,
+  9,092 tokens and 5.6 s; no transient retries.
+
+## EX10.12 — Errors that steer (as built)
+
+`agent/actions/runner.ts`: `readFile` sends the SFTP errors of `realpath` and `stat` to
+`steeringError(sftp, path, err)`.
+
+- **No such file (SFTP status 2).** The folder is resolved with `realpath`. If it is under
+  the read roots and not a secret path, it is read with `readdir`: `.`, `..` and secret
+  paths are dropped, folders get a `/`, and the names are sorted. The first `LISTED_NAMES`
+  (30) are shown, then "(and N more)". The listing is redacted and goes in `stdout`, so the
+  model sees it inside `<server_output>`; the error says not to read the file again.
+  - A missing folder gives "… and neither does <folder>."
+  - Outside the roots, or when `readdir` fails, there is no listing.
+- **Permission denied (status 3).** "<path> cannot be read by the login user. Do not read it
+  again."
+- **Anything else** is re-thrown and sanitized, as before.
+
+`agent/tools/view-arg.ts`:
+
+- `hoistTopLevel(value)` moves `title`, `description`, `icon`, `sidebarItems` and `meta` out
+  of `sections` when the top level lacks the key and the value fits it.
+- `readViewArg` tries, in order: the ladder repair, the ladder repair with keys moved back
+  out, then the one-bracket move. A result is used only if it is a valid view.
+- Otherwise the error ends "With the brackets fixed, the view still has: …", from
+  `viewProblems`: up to three Zod issues in plain words ("missing or wrong, expected one of
+  stack, grid, tabs", "missing (string)").
+
+**Live** (Local Ubuntu Dev, `ornith:latest`, 2026-10-25):
+
+- **07:11 logs run.** After one turn of missing files, the model read `bootstrap.log`,
+  `alternatives.log`, `btmp`, `lastlog`, `faillog` and `wtmp`, names from the listing,
+  instead of asking for `syslog` again. It asked for `syslog` and `kern.log` once more on
+  turn 5.
+- **07:30 logs run, replayed.** All three broken strings now get "sections.system-logs.layout:
+  missing or wrong, expected one of stack, grid, tabs" in their error. Before, they got only
+  the JSON position.
+- **07:38 logs run.** The first `update_view` got that message. The next call added the
+  layout and was repaired into a valid view (7 widgets), and `generate_schema` accepted it.
+  The run completed in 139 s with no warning. Before EX10.11–EX10.12 the same request ended
+  after 135 s with an empty view.
+
+**Follow-ups (§8d items 8 and 9).**
+
+- **Binary files.** `runner.ts` checks what `readFile` read with `isBinaryText`: a NUL, or
+  more than 10% control characters (U+FFFD counted, tab/newline/CR not). It answers with
+  `binaryFileMessage` and no content. `LOGIN_RECORDS` (`wtmp`, `btmp`, `lastlog`,
+  `faillog`, with or without `.N`) adds "It holds login records: use recent_logins."
+- **Control characters.** `tools.ts` `stripControls` removes ANSI CSI sequences and C0
+  characters other than tab, newline and CR. `formatForModel` applies it to stdout, parsed
+  data and stderr.
+- **Refused on open.** An error from `readRange` (the open itself) goes through
+  `steeringError` like one from `realpath` or `stat`.
+- **Replays.** The 07:16 run with binary reads answered this way peaks at 14,894 tokens
+  and never compacts; it reached 52,833, then survival. The 07:11 run peaks at 20,908
+  with no compaction (was 50,492).
+- **Live (08:38 and 08:43).** `lastlog` (262,144 bytes) and `wtmp` got the binary message
+  with the `recent_logins` hint, and the model did not read them again.
+
+## EX10.13 — Garbled replies and silences (as built)
+
+`llm/providers/ollama.ts`:
+
+- **Garbled replies.** `isDegenerate(text)` is true when the text ends in a run of
+  `DEGENERATE_RUN` (200) of one character, or when its last `DEGENERATE_WINDOW` (400)
+  characters hold at most two distinct ones. `readChatStream` checks the text after every
+  content chunk. On a hit it throws `LLMDegenerateError` (`llm/provider.ts`, with `received`)
+  and cancels the body, which ends the request; Ollama logs "cancel task". Tool calls
+  arrive whole and are not checked.
+- **Silences.** `Watchdog` takes a `StallCheck`. When a wait runs out, it probes
+  `GET /api/ps` (5 s):
+  - up → another `STALL_STEP_MS` (60 s), until `MAX_FIRST_CHUNK_WAIT_MS` (600 s) before the
+    first chunk, or `MAX_IDLE_WAIT_MS` (900 s) of silence mid-reply;
+  - no answer → abort, with `alive = false`.
+  A probe that returns after a chunk has arrived, or after the request ended, does nothing.
+  Options: `maxFirstChunkWaitMs`, `maxIdleWaitMs`, `stallStepMs`.
+- **`LLMTimeoutError.alive`** is false when the probe got no answer, true when Ollama was up
+  but the ceiling was reached, and undefined when no probe ran. The messages:
+  - "Ollama did not start answering within 600 s; it is running, but this prompt may be too
+    long for ornith:latest on this machine"
+  - "Ollama stopped answering: nothing after 180 s, and no answer to a status check"
+  - "Ollama sent nothing for 900 s, N tokens into the reply; it is running, but the reply
+    seems stuck"
+  - "Ollama stopped answering N tokens into the reply: nothing for 60 s, and no answer to a
+    status check"
+
+How the loops answer these errors (ask again, or stop at once) is in EX10.11's code; see
+"EX10.11 — as built".
+
+**Why mid-reply silences are waited out.** The spec first kept the 60 s mid-reply limit.
+The first live run after EX10.11 (07:12 UTC) lost a view to it: "Ollama stopped sending for
+60 s, 28 tokens into the reply". Ollama sends a tool call only once it is whole, so a long
+view looks like a stall. The retry ("send a smaller step") then produced a 739-token view.
+
+**Verified with mocked streams:**
+- A garbled stream is cut at 218 characters (18 of text, then 200 newlines), with its body
+  cancelled after fewer than 400 chunks.
+- A first chunk at 110 ms behind a 20 ms wait arrives, with two or more probes and one chat
+  request.
+- An idle pause of 110 ms behind a 20 ms wait completes the tool call.
+- A dead probe stops the wait at once (first chunk and mid-reply).
+- A probe that returns after the reply has started does not abort it.
+
+**Verified live** against `ornith:latest` (2026-10-25, about 08:00 UTC), with the waits
+shortened so the checks could happen:
+- **Garbled.** A request for a 500-character string literal was cut after 211 characters
+  in 0.8 s, and Ollama logged `cancel task`.
+- **Slow start.** A fresh 32,770-token prompt started answering at 12.8 s, behind a 1.5 s
+  first wait. Eight probes kept the wait going; there was one chat request.
+- **Mid-reply.** The model wrote "I will save the report.", then Ollama was silent for 5.7 s
+  while it built a 401-token tool call. Two probes kept the wait going, and the call
+  arrived whole.
+- **The shared loop.** Three garbled turns were dropped, then the tools-off answer.
+- **A hung server** (a local stand-in, since Ollama was not stopped) gave
+  `alive: false` after 6 s.
+
+**Follow-ups (§8d items 2, 5, 6):**
+
+- **Garbled tool calls.** `hasDegenerateSpan` finds a run of 200, or a 400-character window
+  with at most two distinct characters, anywhere in a text. `readChatStream` applies it to
+  every string in a tool call's arguments (to the raw text when they do not parse) as the
+  call arrives. A hit throws "Ollama's <tool> call broke down into repeated characters and
+  was dropped".
+- **Transient failures.** `chat()` now wraps `chatOnce()`. These count as transient:
+  - a failed connection;
+  - HTTP 408, 409, 429 or 5xx without overflow wording;
+  - an error line matching `RUNNER_TROUBLE`;
+  - a body that fails mid-stream ("Ollama closed the connection N tokens into the reply
+    (terminated)");
+  - a stream that ends without `done`.
+  Up to `MAX_TRANSIENT_RETRIES` (5), with a backoff of `min(500 ms · 2^(n−1), 8 s)` plus up to
+  25%. From the second retry on, `waitUntilUp` polls `/api/ps` once a second for up to
+  `RECOVER_WAIT_MS` (30 s). The final error ends "(N retries)". Each retry logs one
+  `[ollama] … trying again` line. Options: `maxTransientRetries`, `retryBaseMs`,
+  `recoverWaitMs`.
+- **Not retried:** timeouts and garbled replies (the loops handle those), overflow, other
+  4xx, malformed lines, other error lines.
+- **Unfinished streams.** One identical retry, then `LLMIncompleteError` (`provider.ts`,
+  with `isLLMIncomplete` and `isUnusableReply`).
+- **The body cancel** after a throw is no longer awaited: a cancel can stay pending.
+- **Live:**
+  - A proxy that cut the first request 4 tokens in: retried once, answered in 2.4 s.
+  - Ollama itself closing a stuffed tool call with an empty stream: `LLMIncompleteError`
+    after one retry, in 2.5 s; before, 5 retries and 23.8 s. Because Ollama cancels such
+    calls itself, the argument check has been seen only with mocks.
+
+## Prior art
 
 ## Prior art
 

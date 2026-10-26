@@ -1,13 +1,15 @@
 // EX9.3: Shared agent loop — typed events, native tool calls, one tool-execution path
 // EX10.2: one context manager per run (compaction, calibration, cut-off and overflow handling)
-// @see docs/phases/phase-ex9.md §8, docs/phases/phase-ex10.md §3, docs/DECISIONS.md (ADR-024, ADR-025)
+// EX10.11: reminders as notes on the last tool result; a step announced but not taken is asked for
+// EX10.13: garbled replies are asked again; an Ollama that stopped answering ends the run
+// @see docs/phases/phase-ex9.md §8, docs/phases/phase-ex10.md §3, §8c, docs/DECISIONS.md (ADR-024, ADR-025)
 //
 // turn: ask the model (tools offered natively) → for each tool call: repair the
 // arguments, check guardrails, execute (approval cards stream out while a change
 // action waits) → feed results back. A turn with text and no tool call is the
 // answer. When turns run out, one last turn with tools off asks for a conclusion.
 
-import { isLLMTimeout, type ChatMessage, type ChatWithToolsInput, type ChatWithToolsResult } from '../../llm/provider.js';
+import { isLLMIncomplete, isLLMTimeout, isUnusableReply, type ChatMessage, type ChatWithToolsInput, type ChatWithToolsResult } from '../../llm/provider.js';
 import type { AgentTool, ToolContext } from '../tools/types.js';
 import { toolsToOpenAIFunctions } from '../tools/tool-converter.js';
 import { checkGuardrails } from '../guardrails.js';
@@ -15,7 +17,8 @@ import { withSpan, setSpanAttributes } from '../../observatory/context.js';
 import type { ApprovalEvent } from '../actions/runner.js';
 import type { ApprovalRequest } from '../actions/approvals.js';
 import { checkToolArgs, dropNullArgs, malformedArgsMessage, parseToolArgs } from './tool-input.js';
-import { LoopGuard, stopMessage, type FoldedCall, type LoopFinding } from './loop-guard.js';
+import { LoopGuard, announcesStep, stopMessage, type FoldedCall, type LoopFinding } from './loop-guard.js';
+import { appendNote } from './notes.js';
 import { markUntrusted } from '../actions/tools.js';
 import { planForProvider, type ContextPlan } from '../context/plan.js';
 import { ContextManager, type CompactionLayer, type Summarizer } from '../context/manager.js';
@@ -33,7 +36,7 @@ export type LoopEvent =
   | { type: 'context'; turn: number; used: number; window: number; trigger: number }
   /** EX10.2: history compacted before a call */
   | { type: 'compacted'; turn: number; layer: CompactionLayer; before: number; after: number; forced: boolean }
-  | { type: 'final'; text: string; reason: 'answered' | 'max_turns' | 'aborted' | 'stuck' | 'length'; turns: number; tokens: number }
+  | { type: 'final'; text: string; reason: 'answered' | 'max_turns' | 'aborted' | 'stuck' | 'length' | 'garbled'; turns: number; tokens: number }
   | { type: 'error'; message: string; turns: number; tokens: number };
 
 export interface LoopOptions {
@@ -72,6 +75,17 @@ const CUT_OFF_WRAP_UP = 'Your replies keep getting cut off. In at most five sent
 export const TIMED_OUT = 'Your last reply took too long and was stopped. Send your next step as ONE tool call, or give your answer in fewer words.';
 /** EX10.2: forced compactions + retries after a context-overflow error */
 const MAX_OVERFLOW_RETRIES = 2;
+/** EX10.11: "Let me check…" with no tool call is asked for this many times a run, then taken as the answer */
+const MAX_ANNOUNCED = 2;
+export const ANNOUNCED = 'You said what you would do next but did not call a tool. Make that call now, or, if you are done, give your final answer.';
+/** EX10.13: a reply that broke down into repeated characters is discarded and asked again this many times a run */
+export const MAX_GARBLED = 2;
+export const GARBLED = 'Your last reply broke down into repeated characters and was discarded. Send your next step again: one tool call, or a short answer.';
+/** EX10.13 follow-up: Ollama closed the reply before it was finished (LLMIncompleteError) */
+export const UNFINISHED = 'Your last reply ended before it was finished and was discarded. Send your next step again: one tool call with plain values, or a short answer.';
+const GARBLED_WRAP_UP = 'Your replies keep coming back broken. In at most five sentences, give your best answer from what you have gathered. Do not call tools.';
+/** EX10.13 follow-up: the tools-off answer was unusable as well */
+export const GARBLED_NO_ANSWER = "No answer: the model's replies kept coming back broken.";
 
 export async function* runAgentLoop(opts: LoopOptions): AsyncGenerator<LoopEvent> {
   const span = opts.spanName ?? 'AgentLoop';
@@ -90,6 +104,9 @@ export async function* runAgentLoop(opts: LoopOptions): AsyncGenerator<LoopEvent
   const overhead = estimateToolsTokens(offered);
   let stuck = false;
   let cutOff = false;
+  let garbled = false;
+  let garbledRetries = 0;
+  let announced = 0;
   const pending: LoopEvent[] = [];
 
   /** Compact if needed (into `messages`), then ask; an overflow error forces compaction and retries. */
@@ -98,6 +115,8 @@ export async function* runAgentLoop(opts: LoopOptions): AsyncGenerator<LoopEvent
       const prepared = await ctx.prepare(messages, overhead, { force: attempt > 0 });
       if (prepared.messages !== messages) messages.splice(0, messages.length, ...prepared.messages);
       for (const e of prepared.events) pending.push({ type: 'compacted', turn, ...e });
+      // EX10.11 follow-up: a result read again after it was trimmed is not a repeat
+      if (prepared.events.some((e) => e.layer !== 'collapse')) guard.reset();
       const sent = [...messages];
       try {
         const res = await withSpan(label, 'LLM', async () => {
@@ -130,20 +149,32 @@ export async function* runAgentLoop(opts: LoopOptions): AsyncGenerator<LoopEvent
     }
     yield { type: 'turn', turn };
     if (opts.maxTurns > STEPS_LEFT_WARNING + 1 && turn === opts.maxTurns - STEPS_LEFT_WARNING + 1) {
-      messages.push({ role: 'user', content: `${STEPS_LEFT_WARNING} turns left. Start wrapping up: gather only what you still need, then answer.` });
+      appendNote(messages, `${STEPS_LEFT_WARNING} turns left. Start wrapping up: gather only what you still need, then answer.`);
     }
     let res: ChatWithToolsResult;
     try {
-      res = await call({ tools: offered, tool_choice: 'auto' }, `${span}.think[${turn}]`, turn);
+      // EX10.4 follow-up: after a cut-off or timeout, a smaller cap for the retry
+      const cap = ctx.replyCap();
+      res = await call({ tools: offered, tool_choice: 'auto', ...(cap ? { maxTokens: cap } : {}) }, `${span}.think[${turn}]`, turn);
     } catch (err) {
       yield* pending.splice(0);
       // EX10.4 follow-up: too slow is treated like cut off — remind, then a short tools-off answer
-      if (isLLMTimeout(err)) {
+      // EX10.13: unless Ollama no longer answers at all; asking again would only wait again
+      if (isLLMTimeout(err) && err.alive !== false) {
         if (ctx.lengthStrike()) {
           messages.push({ role: 'user', content: TIMED_OUT });
           continue;
         }
         cutOff = true;
+        break;
+      }
+      // EX10.13: a garbled or unfinished reply is dropped and asked again (twice), then a short tools-off answer
+      if (isUnusableReply(err)) {
+        if (garbledRetries++ < MAX_GARBLED) {
+          appendNote(messages, isLLMIncomplete(err) ? UNFINISHED : GARBLED);
+          continue;
+        }
+        garbled = true;
         break;
       }
       yield { type: 'error', message: err instanceof Error ? err.message : String(err), turns: turn, tokens };
@@ -169,6 +200,12 @@ export async function* runAgentLoop(opts: LoopOptions): AsyncGenerator<LoopEvent
     if (narration) findings.push(narration);
 
     if (calls.length === 0) {
+      // EX10.11: "Let me check the logs." with no call is not an answer
+      if (text && announced < MAX_ANNOUNCED && announcesStep(text)) {
+        announced++;
+        appendNote(messages, ANNOUNCED);
+        continue;
+      }
       if (text) {
         yield { type: 'final', text, reason: 'answered', turns: turn, tokens };
         return;
@@ -209,8 +246,10 @@ export async function* runAgentLoop(opts: LoopOptions): AsyncGenerator<LoopEvent
     for (const f of findings) yield { type: 'loop_warning', turn, kind: f.kind, rule: f.rule, message: f.message };
     if (findings.some((f) => f.kind === 'stop')) {
       stuck = true;
-    } else if (findings.length) {
-      messages.push({ role: 'user', content: findings.map((f) => f.message).join('\n') });
+    } else {
+      // EX10.11: a refusal already says so in its own tool result
+      const notes = findings.filter((f) => f.rule !== 'refused').map((f) => f.message);
+      if (notes.length) appendNote(messages, notes.join('\n'));
     }
   }
 
@@ -219,14 +258,19 @@ export async function* runAgentLoop(opts: LoopOptions): AsyncGenerator<LoopEvent
     yield { type: 'final', text: 'Stopped by the owner.', reason: 'aborted', turns: lastTurn, tokens };
     return;
   }
-  messages.push({ role: 'user', content: cutOff ? CUT_OFF_WRAP_UP : stuck ? stopMessage() : opts.wrapUp ?? DEFAULT_WRAP_UP });
+  messages.push({ role: 'user', content: cutOff ? CUT_OFF_WRAP_UP : garbled ? GARBLED_WRAP_UP : stuck ? stopMessage() : opts.wrapUp ?? DEFAULT_WRAP_UP });
   try {
     const res = await call({ tools: offered, tool_choice: 'none' }, `${span}.finalAnswer`, lastTurn);
     yield* pending.splice(0);
     const text = res.message.content?.trim() || 'No conclusion was reached in the steps available.';
-    yield { type: 'final', text, reason: cutOff ? 'length' : stuck ? 'stuck' : 'max_turns', turns: lastTurn, tokens };
+    yield { type: 'final', text, reason: cutOff ? 'length' : garbled ? 'garbled' : stuck ? 'stuck' : 'max_turns', turns: lastTurn, tokens };
   } catch (err) {
     yield* pending.splice(0);
+    // EX10.13 follow-up: an unusable last answer is still the garbled ending, not a failure
+    if (isUnusableReply(err)) {
+      yield { type: 'final', text: GARBLED_NO_ANSWER, reason: 'garbled', turns: lastTurn, tokens };
+      return;
+    }
     yield { type: 'error', message: err instanceof Error ? err.message : String(err), turns: lastTurn, tokens };
   }
 }

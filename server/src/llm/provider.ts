@@ -122,6 +122,8 @@ ${rawOutput}
  * EX10.1 follow-up: the provider gave up waiting — no first token in time, or the reply
  * stopped arriving. Not a connection failure and not an HTTP error: agent loops treat it
  * like a reply cut off at the output limit (ask for a smaller step).
+ * EX10.13: `alive: false` — the backend did not answer a status check either, so asking
+ * again would only wait again; loops end the run.
  */
 export class LLMTimeoutError extends Error {
   override readonly name = 'LLMTimeoutError';
@@ -130,6 +132,8 @@ export class LLMTimeoutError extends Error {
     readonly phase: 'first-token' | 'idle',
     /** chunks (about one token each) received before it stopped */
     readonly received = 0,
+    /** EX10.13: false when a status check got no answer; undefined when none was made */
+    readonly alive?: boolean,
   ) {
     super(message);
   }
@@ -138,4 +142,47 @@ export class LLMTimeoutError extends Error {
 /** By name, so it survives being re-thrown across module copies */
 export function isLLMTimeout(err: unknown): err is LLMTimeoutError {
   return err instanceof Error && err.name === 'LLMTimeoutError';
+}
+
+/**
+ * EX10.13: the reply broke down into one or two characters repeated, and was cut off
+ * while streaming. Loops discard it and ask again.
+ */
+export class LLMDegenerateError extends Error {
+  override readonly name = 'LLMDegenerateError';
+  constructor(
+    message: string,
+    /** characters of text received before it was cut off */
+    readonly received: number,
+  ) {
+    super(message);
+  }
+}
+
+export function isLLMDegenerate(err: unknown): err is LLMDegenerateError {
+  return err instanceof Error && err.name === 'LLMDegenerateError';
+}
+
+/**
+ * EX10.13 follow-up: the backend closed the reply before it was finished, again after one
+ * retry as is. Loops treat it like a garbled reply: discard it, ask again with a note.
+ */
+export class LLMIncompleteError extends Error {
+  override readonly name = 'LLMIncompleteError';
+  constructor(
+    message: string,
+    /** chunks received before it ended */
+    readonly received: number,
+  ) {
+    super(message);
+  }
+}
+
+export function isLLMIncomplete(err: unknown): err is LLMIncompleteError {
+  return err instanceof Error && err.name === 'LLMIncompleteError';
+}
+
+/** EX10.13 follow-up: a reply the loops discard and ask again for — garbled, or ended unfinished */
+export function isUnusableReply(err: unknown): err is LLMDegenerateError | LLMIncompleteError {
+  return isLLMDegenerate(err) || isLLMIncomplete(err);
 }
