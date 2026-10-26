@@ -25,6 +25,8 @@ export type ActionRun<P extends ActionParams> =
       build(params: z.infer<P>): string[];
       /** prefix `sudo -n` (never prompts) */
       sudo?: boolean;
+      /** EX10.8: run the command twice, this many ms apart; parse() gets the first output as `previous` */
+      sampleTwiceMs?: number;
     }
   | {
       /** read a file over SFTP; the resolved real path is re-checked against the read rules */
@@ -50,7 +52,7 @@ export interface ActionDef<P extends ActionParams = ActionParams> {
    * instead of raw stdout — used where that is smaller or safer (e.g. it drops
    * container environment variables).
    */
-  parse?(stdout: string): unknown;
+  parse?(stdout: string, previous?: string): unknown;
   timeoutMs: number;
   maxOutputBytes: number;
   /** which end of stdout to keep when it passes maxOutputBytes (logs keep the tail) */

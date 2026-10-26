@@ -280,7 +280,7 @@ export class InvestigationAgent {
             answer = 'Investigation aborted by user.';
           } else {
             // EX9.4: a run stopped for repeating itself (or EX10.2: for cut-off replies) ends like one out of steps
-            status = ev.reason === 'max_turns' || ev.reason === 'stuck' || ev.reason === 'length' ? 'max_steps_reached' : 'completed';
+            status = ev.reason === 'max_turns' || ev.reason === 'stuck' || ev.reason === 'length' || ev.reason === 'garbled' ? 'max_steps_reached' : 'completed';
             answer = ev.text;
             const headline = ev.text.split('\n').find((l) => l.trim())?.trim().slice(0, 120) ?? 'Answer';
             emit({ kind: 'thought', step: stepNo + 1, thought: headline, decision: 'answer' });

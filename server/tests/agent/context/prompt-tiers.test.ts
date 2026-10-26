@@ -2,7 +2,7 @@
 // @see docs/phases/phase-ex10.md §4
 
 import { describe, it, expect, vi } from 'vitest';
-import { ReactiveExecutor } from '../../../src/agent/executor.js';
+import { ReactiveExecutor, VIEW_SIZE_RULE } from '../../../src/agent/executor.js';
 import { ToolRegistry } from '../../../src/agent/tools/tool-registry.js';
 import { InvestigationAgent } from '../../../src/agent/investigation-agent.js';
 import { PostGenerationReflector as Reflector } from '../../../src/agent/reflector.js';
@@ -53,7 +53,9 @@ describe('UI Agent executor prompt tiers', () => {
     const lean = await executorPrompt(planOf(65_536));
     expect(lean).not.toContain('Rich cell segments');
     expect(lean).not.toContain('## Example: Progressive Sections Pattern');
-    expect(lean).toContain('## Workflow — build the view live');
+    expect(lean).toContain('## Workflow — build the view widget by widget'); // EX10.10
+    expect(lean).toContain('Each action result carries "widgetSource"');
+    expect(lean).not.toContain('To send a whole view at once instead'); // §9b: one way for small models
     for (const widget of ['stat-card', 'table', 'key-value', 'badge-grid', 'progress-bar', 'code-block', 'alert', 'card-list', 'chart', 'tree', 'log-viewer', 'form']) {
       expect(lean, widget).toContain(`**${widget}**`);
     }
@@ -71,6 +73,15 @@ describe('UI Agent executor prompt tiers', () => {
     expect(estimateText(minimal)).toBeLessThan(estimateText(full) * 0.6);
     const interactive = await executorPrompt(planOf(16_384), hints({ interactivityLevel: 'interactive' } as Partial<PlannerHints>));
     expect(interactive).toContain('## Row buttons');
+  });
+
+  // EX10.3 follow-up (§8d item 11): the first filled view kept running past 8,192 tokens
+  it('every tier states the view size limits up front, once', async () => {
+    for (const plan of [undefined, planOf(65_536), planOf(16_384)]) {
+      const prompt = await executorPrompt(plan);
+      expect(prompt.split(VIEW_SIZE_RULE)).toHaveLength(2);
+    }
+    expect(VIEW_SIZE_RULE).toContain('At most 30 log lines per log-viewer');
   });
 });
 

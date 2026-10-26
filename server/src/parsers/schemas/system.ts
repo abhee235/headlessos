@@ -19,6 +19,8 @@ export type SystemInfoParsed = z.infer<typeof SystemInfoSchema>;
 
 export const DiskUsageEntrySchema = z.object({
   filesystem: z.string(),
+  /** EX10.8: with `df -hT` */
+  type: z.string().optional(),
   size: z.string(),
   used: z.string(),
   available: z.string(),

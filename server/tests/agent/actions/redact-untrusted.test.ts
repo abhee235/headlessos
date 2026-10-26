@@ -90,7 +90,7 @@ describe('untrusted-data marking', () => {
     const chat = vi.fn().mockResolvedValueOnce(reply('uptime')).mockResolvedValueOnce(reply('note')).mockResolvedValueOnce(reply());
     const ctx = { serverId: 's', ssh, templateRegistry: {}, previousOutputs: new Map(), actions: new ActionRunner({ ssh: ssh as never }) } as unknown as ToolContext;
     const shown: string[] = [];
-    for await (const e of runAgentLoop({ chat, system: 's', user: 'u', tools: [uptime, local], context: ctx, maxTurns: 5 })) {
+    for await (const e of runAgentLoop({ chat, system: 's', user: 'u', tools: [uptime, local], context: ctx, maxTurns: 10 })) {
       if (e.type === 'tool_result') shown.push(e.output);
     }
     const toModel = (chat.mock.calls[2]![0] as { messages: ChatMessage[] }).messages.filter((m) => m.role === 'tool').map((m) => m.content);

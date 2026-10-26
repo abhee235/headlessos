@@ -135,9 +135,18 @@ describe('executor context handling', () => {
     expect(events.at(-1)).toMatchObject({ type: 'generation_incomplete', reason: 'the model’s context window is full' });
   });
 
-  it('rethrows other errors', async () => {
-    const chat = vi.fn().mockRejectedValue(new Error('401 Unauthorized'));
-    await expect(run(chat, [updateViewTool])).rejects.toThrow('401 Unauthorized');
+  // EX10.4 follow-up (phase-ex10 §8d): no longer rethrown, so a partial view survives
+  it('ends with the early stop when the model call keeps failing, keeping the view', async () => {
+    const failing = vi.fn().mockRejectedValue(new Error('401 Unauthorized'));
+    expect((await run(failing, [updateViewTool])).at(-1)).toMatchObject({
+      type: 'error', message: 'Stopped: the model call failed (401 Unauthorized), before any complete view was built.',
+    });
+    const afterAView = vi.fn()
+      .mockResolvedValueOnce(reply({ call: 'update_view', args: { view: SKELETON } }))
+      .mockRejectedValue(new Error('Ollama answered 503: busy (5 retries)'));
+    expect((await run(afterAView, [updateViewTool])).at(-1)).toMatchObject({
+      type: 'generation_incomplete', reason: 'the model call failed (Ollama answered 503: busy (5 retries))', emptySections: ['Images'],
+    });
   });
 
   it('emptySections names the sidebar items with nothing in them, tabs included', () => {

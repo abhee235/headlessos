@@ -12,7 +12,8 @@ import { writeFileSync } from 'node:fs';
 import { BENCH_QUESTIONS, formatBench, runBench } from '../src/agent/bench/bench.js';
 import type { LLMProvider } from '../src/llm/provider.js';
 import { OpenAIProvider } from '../src/llm/providers/openai.js';
-import { DEFAULT_OLLAMA_URL, OllamaProvider, checkOllamaUrl, ollamaContextWindow } from '../src/llm/providers/ollama.js';
+import { DEFAULT_OLLAMA_URL, OllamaProvider, checkOllamaUrl } from '../src/llm/providers/ollama.js';
+import { probeOllamaLimits } from '../src/llm/model-limits.js';
 import { loadLLMSettings } from '../src/llm/llm-settings-store.js';
 
 function arg(name: string): string | undefined {
@@ -27,8 +28,9 @@ async function provider(): Promise<LLMProvider> {
     if (!model) throw new Error('--model is required for Ollama, e.g. --model qwen3:8b');
     const checked = checkOllamaUrl(arg('url') ?? DEFAULT_OLLAMA_URL, process.argv.includes('--allow-remote'));
     if (!checked.ok) throw new Error(checked.error);
-    const contextWindow = await ollamaContextWindow(checked.url, model);
-    return new OllamaProvider({ baseUrl: checked.url, model, contextWindow });
+    // EX10.1: the model's real window (lowest of the Modelfile, trained length, 64K auto cap)
+    const limits = await probeOllamaLimits(checked.url, model);
+    return new OllamaProvider({ baseUrl: checked.url, model, limits });
   }
   if (kind === 'openai') {
     const key = loadLLMSettings()?.apiKey || process.env.OPENAI_API_KEY;

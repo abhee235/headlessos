@@ -1,5 +1,7 @@
 // EX10.5: the view argument of update_view / generate_schema / validate_schema
-// @see docs/phases/phase-ex10.md §6
+// EX10.12: keys pushed into `sections` are moved back; a string still wrong once its
+// brackets close gets told what is wrong, not only where the JSON broke
+// @see docs/phases/phase-ex10.md §6, §8c
 //
 // Models send the view as a JSON object (preferred) or as a JSON string. A string that
 // does not parse is repaired when it can be (EX9.3 repairJson); otherwise the error says
@@ -43,10 +45,61 @@ export function readViewArg(value: unknown, name: 'view' | 'schema'): ViewArg {
     // bracket near the error; otherwise the model gets the position and sends it again.
     const valid = (v: unknown) => DynamicViewSchema.safeParse(v).success;
     const ladder = repairJson(value);
-    const repaired = ladder && valid(ladder) ? ladder : repairNearError(value, valid);
+    const hoisted = hoistTopLevel(ladder);
+    const repaired = [ladder, hoisted].find((v) => v && valid(v)) ?? repairNearError(value, valid);
     if (repaired && valid(repaired)) return { ok: true, value: repaired, repaired: true };
-    return { ok: false, error: jsonErrorAt(value, err, name) };
+    // EX10.12: the brackets close, but that is not a view yet — say what is missing
+    const closed = hoisted ?? ladder;
+    const still = closed && typeof closed === 'object' ? viewProblems(closed) : '';
+    return { ok: false, error: jsonErrorAt(value, err, name) + (still ? ` With the brackets fixed, the ${name} still has: ${still}.` : '') };
   }
+}
+
+/** EX10.12: the view's own keys, and what each must look like to be one */
+const TOP_LEVEL: Record<string, (v: unknown) => boolean> = {
+  title: (v) => typeof v === 'string',
+  description: (v) => typeof v === 'string',
+  icon: (v) => typeof v === 'string',
+  sidebarItems: (v) => Array.isArray(v),
+  meta: (v) => !!v && typeof v === 'object' && !Array.isArray(v) && !('layout' in v),
+};
+
+/**
+ * EX10.12: a container closed too early leaves the view's own keys inside `sections`
+ * (a section is a layout object, never a string or an array). They move back to the
+ * top; null when nothing moved.
+ */
+export function hoistTopLevel(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const view = value as Record<string, unknown>;
+  if (!view.sections || typeof view.sections !== 'object' || Array.isArray(view.sections)) return null;
+  const sections = { ...(view.sections as Record<string, unknown>) };
+  const out: Record<string, unknown> = { ...view, sections };
+  let moved = false;
+  for (const [key, fits] of Object.entries(TOP_LEVEL)) {
+    if (key in sections && !(key in view) && fits(sections[key])) {
+      out[key] = sections[key];
+      delete sections[key];
+      moved = true;
+    }
+  }
+  return moved ? out : null;
+}
+
+/** EX10.12: "sections.logs.layout: missing or wrong, expected one of stack, grid, tabs" — at most three */
+export function viewProblems(value: unknown, max = 3): string {
+  const parsed = DynamicViewSchema.safeParse(value);
+  return parsed.success ? '' : describeIssues(parsed.error.issues, max);
+}
+
+/** Zod issues in plain words, at most `max` (EX10.10: widgets too) */
+export function describeIssues(issues: readonly z.ZodIssue[], max = 3, whole = 'the view'): string {
+  return issues.slice(0, max).map((issue) => {
+    const where = issue.path.join('.') || whole;
+    if (issue.code === 'invalid_union_discriminator') return `${where}: missing or wrong, expected one of ${issue.options.map(String).join(', ')}`;
+    if (issue.code === 'invalid_type' && issue.received === 'undefined') return `${where}: missing (${issue.expected})`;
+    return `${where}: ${issue.message}`;
+  }).join('; ');
 }
 
 /** "Invalid JSON in view at character 3121 (… "value": 12,} …)" — where it broke, and what is there */

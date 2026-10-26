@@ -1213,6 +1213,101 @@ None (all changes to existing files).
 - **Tests modified:** `server/tests/agent/context/executor-context.test.ts`
 - **Verification:** server and client suites, both typechecks clean
 
+### EX10.11: Loop control
+- **Status:** ✅ Complete
+- **Date:** 2026-10-25
+- **Files created:** `server/src/agent/loop/notes.ts`, `server/tests/agent/loop/notes.test.ts`, `server/tests/agent/loop/loop-control.test.ts`, `server/tests/agent/context/executor-loop-control.test.ts`
+- **Files modified:** `server/src/agent/loop/loop-guard.ts` (previous-turn repeats, `finish`, once-per-streak nudge, `announcesStep`), `server/src/agent/executor.ts` (loop guard, refusals, `completeView`, `wrapUp`, `viewStuck`, `VIEW_OUT_OF_STEPS`, steps-left note, notes, `grep_output` not cached, `VIEW_GARBLED`, `alive: false`), `server/src/agent/loop/run-loop.ts` (notes, `ANNOUNCED`, `GARBLED`, final reason `garbled`, `alive: false`), `server/src/agent/investigation-agent.ts` (`garbled` status), `CLAUDE.md` (loop control bullet)
+- **Files deleted:** `server/src/agent/safety/tool-repetition-detector.ts`, `server/tests/agent/safety/tool-repetition-detector.test.ts`
+- **Docs:** `docs/phases/phase-ex10.md` (§8c, "EX10.11 — as built")
+- **Tests modified:** `server/tests/agent/executor.test.ts` (warn, refuse, stop, wrap-up), `server/tests/agent/loop/guards-budgets.test.ts` (steps-left note), `server/tests/agent/actions/redact-untrusted.test.ts` (more turns, so no note lands on the checked result)
+- **Verification:** server 2429 passed (+2 skipped), client 650, both typechecks clean; live runs and the benchmark in the phase doc
+
+### EX10.12: Errors that steer
+- **Status:** ✅ Complete
+- **Date:** 2026-10-25
+- **Files modified:** `server/src/agent/actions/runner.ts` (`steeringError`, `LISTED_NAMES`, SFTP status codes; `readFile` routes `realpath`/`stat` errors), `server/src/agent/tools/view-arg.ts` (`hoistTopLevel`, `viewProblems`, `readViewArg` tries the hoisted repair and says what is still wrong)
+- **Docs:** `docs/phases/phase-ex10.md` (§8c, "EX10.12 — as built")
+- **Tests modified:** `server/tests/agent/actions/runner.test.ts` (missing file with listing, 30-name cap, missing folder, outside the roots, permission denied, other errors), `server/tests/agent/tools/view-arg.test.ts` (keys moved back out, only fitting values, what is still wrong, plain-word problems)
+- **Verification:** live runs on Local Ubuntu Dev (see the phase doc); the three broken strings of the 07:30 run replayed; `tsc -p server` clean
+
+### EX10.13: Garbled replies and silences
+- **Status:** ✅ Complete
+- **Date:** 2026-10-25
+- **Files modified:** `server/src/llm/providers/ollama.ts` (`isDegenerate`, `DEGENERATE_WINDOW` / `DEGENERATE_RUN`, body cancelled on a throw, `StallCheck` in `Watchdog`, `/api/ps` probe, `MAX_FIRST_CHUNK_WAIT_MS` / `MAX_IDLE_WAIT_MS` / `STALL_STEP_MS`, messages by `alive`), `server/src/llm/provider.ts` (`LLMDegenerateError`, `isLLMDegenerate`, `LLMTimeoutError.alive`)
+- **Docs:** `docs/phases/phase-ex10.md` (§8c, "EX10.13 — as built")
+- **Tests modified:** `server/tests/llm/ollama.test.ts` (garbled text and stream, slow start, mid-reply silence, dead probe, late probe; the old timeout tests pin their ceilings)
+- **Verification:** `ollama.test.ts` 29 passed, `tsc -p server` clean; the loops' handling ships with EX10.11
+
+### EX10.12 follow-up: binary files, control characters, refused on open
+- **Status:** ✅ Complete
+- **Date:** 2026-10-25
+- **Files modified:** `server/src/agent/actions/runner.ts` (`isBinaryText`, `binaryFileMessage`, `LOGIN_RECORDS`; open errors steered), `server/src/agent/actions/tools.ts` (`stripControls` in `formatForModel`)
+- **Docs:** `docs/phases/phase-ex10.md` (§8d items 8–9, "EX10.12 — as built" follow-ups)
+- **Tests modified:** `server/tests/agent/actions/runner.test.ts` (binary login record with hint, other binary, text unchanged, detector, refused on open), `server/tests/agent/actions/tools.test.ts` (controls stripped, escaped size bounded)
+- **Verification:** replays of the 07:16 and 07:11 traces (peaks 14,894 and 20,908 tokens, no compaction); live runs at 08:38 and 08:43 refused `lastlog` and `wtmp`
+
+### EX10.13 follow-up: transient retries, unfinished streams, garbled tool calls
+- **Status:** ✅ Complete
+- **Date:** 2026-10-25
+- **Files modified:** `server/src/llm/providers/ollama.ts` (`chat` retries `chatOnce`; `transient`, `isTransient`, `backoffMs`, `waitUntilUp`, `MAX_TRANSIENT_RETRIES`, `RECOVER_WAIT_MS`, `RUNNER_TROUBLE`, `OVERFLOW_TEXT`; unfinished streams; `hasDegenerateSpan` on tool-call arguments; cancel not awaited), `server/src/llm/provider.ts` (`LLMIncompleteError`, `isLLMIncomplete`, `isUnusableReply`)
+- **Docs:** `docs/phases/phase-ex10.md` (§8d items 2, 5, 6; "EX10.13 — as built" live checks and follow-ups)
+- **Tests modified:** `server/tests/llm/ollama.test.ts` (dropped connection, 5xx/429 vs 4xx/overflow, mid-stream cut, Ollama down, five retries, timeouts and garbled not retried, unfinished stream once then `LLMIncompleteError`, garbled tool calls; the old down/error tests pin `maxTransientRetries: 0`)
+- **Verification:** `ollama.test.ts` 39 passed; live against `ornith:latest`: proxy cut retried (2.4 s), empty stream → `LLMIncompleteError` after one retry (2.5 s)
+
+### EX10.2 follow-up: the recency shield protects results, not turns
+- **Status:** ✅ Complete
+- **Date:** 2026-10-25
+- **Files modified:** `server/src/agent/context/layers.ts` (`protectedFrom`, `groupStart`; `recentFrom` from the protected tail), `server/src/agent/context/manager.ts` (`KEEP_RECENT_RESULTS`, `keepResults`, layers use the protected tail; `replyCap`, `MIN_REPLY_CAP` for the EX10.4 follow-up)
+- **Docs:** `docs/phases/phase-ex10.md` (§8d item 4, "EX10.2 — as built" follow-up)
+- **Tests modified:** `server/tests/agent/context/manager.test.ts` (the latest five results stay whole); the shield's own tests ship with the EX10.11 follow-up (`tests/agent/context/shield.test.ts`)
+- **Verification:** replay of the 07:11 trace (one compaction, 53,431 → 21,079, instead of two); server suite green
+
+### EX10.11 follow-up: the loops after the live checks
+- **Status:** ✅ Complete
+- **Date:** 2026-10-25
+- **Files created:** `server/tests/agent/context/shield.test.ts` (protected tail, the 07:16 shape on the 64K plan, whole-turn drops, guard reset in both loops, reply cap in both loops)
+- **Files modified:** `server/src/agent/loop/loop-guard.ts` (`reset`), `server/src/agent/loop/run-loop.ts` (reset on compaction, `UNFINISHED`, `GARBLED_NO_ANSWER`, unusable final answer, `maxTokens` from `replyCap`), `server/src/agent/executor.ts` (reset on compaction, `VIEW_UNFINISHED`, failing calls end with the early stop, `maxTokens` from `replyCap`), `CLAUDE.md`
+- **Docs:** `docs/phases/phase-ex10.md` (§8d items 1, 3, 6, 7, 10; "EX10.4 — as built" and "EX10.11 — as built" follow-ups), `docs/PROGRESS.md` (changelog)
+- **Tests modified:** `server/tests/agent/context/executor-context.test.ts` (a failing call keeps the view), `server/tests/agent/context/executor-loop-control.test.ts` (unfinished replies), `server/tests/agent/loop/loop-control.test.ts` (unusable final answer, unfinished note)
+- **Verification:** server 2458 passed (+2 skipped), client 650, both typechecks clean; live: logs 311 s / 302 s with the capped retry, overview 63 s, benchmark 11/12
+
+### EX10.3 follow-up: view size limits up front
+- **Status:** ✅ Complete
+- **Date:** 2026-10-25
+- **Files modified:** `server/src/agent/executor.ts` (`VIEW_SIZE_RULE` in `WORKFLOW_FULL` and `WORKFLOW_SHORT`)
+- **Docs:** `docs/phases/phase-ex10.md` (§8d item 11, "EX10.3 — as built" follow-up)
+- **Tests modified:** `server/tests/agent/context/prompt-tiers.test.ts` (every tier states the rule once)
+- **Verification:** two live logs runs, 75 s with no cut-off and 207 s with one (before: three runs, a cut-off each)
+
+### EX10.8: Action selection and structured data
+- **Status:** ✅ Complete
+- **Date:** 2026-10-25
+- **Files created:** `server/src/agent/actions/catalog/parsed.ts`, `server/tests/agent/actions/parsed.test.ts`
+- **Files modified:** `server/src/agent/actions/tools.ts` (`STRONG_MATCH`, `STOP_WORDS`, ranking), `server/src/agent/actions/types.ts` (`sampleTwiceMs`, `parse(stdout, previous)`), `server/src/agent/actions/runner.ts` (two samples), `server/src/agent/actions/catalog/{system,network}.ts` (parsers, `cpu_usage`, `network_traffic`), `server/src/parsers/deterministic/df.ts` (Type column), `server/src/parsers/schemas/system.ts` (`type`), `server/src/llm/providers/fake-ssh-proxy.ts` (`/proc/stat`, `/proc/net/dev`)
+- **Docs:** `docs/phases/phase-ex10.md` (§9a, "EX10.8 — as built")
+- **Tests modified:** `server/tests/agent/actions/catalog.test.ts` (two actions, cap 64), `server/tests/agent/investigation-agent.test.ts` and `investigation-progress.test.ts` (parsed output)
+- **Verification:** server 2474 passed (+2 skipped), `tsc -p server` clean; live UI Agent run with both new actions; benchmark 10/12
+
+### EX10.10: Widgets filled by the server (ADR-026)
+- **Status:** ✅ Complete
+- **Date:** 2026-10-25
+- **Files created:** `server/src/agent/tools/widget-source.ts`, `server/src/agent/tools/widget-tools.ts`, `server/tests/agent/tools/widgets.test.ts`
+- **Files modified:** `server/src/agent/tools/types.ts` (`ActionResultRecord`, `actionResults`, `workingView`), `server/src/agent/actions/tools.ts` (results kept), `server/src/agent/tools/{index,update-view,view-arg}.ts`, `server/src/dynamic-ui/working-view.ts`, `server/src/agent/executor.ts` (snapshots and terminal results from any tool, wrap-up with `finish`, `widgetSource`, widget workflow in every tier), `server/src/agent/ui-agent.ts` (`actionResults`), `CLAUDE.md`
+- **Docs:** `docs/DECISIONS.md` (ADR-026), `docs/phases/phase-ex10.md` (§9b, "EX10.10 — as built")
+- **Tests modified:** `server/tests/agent/tools/tools.test.ts` (local tools), `server/tests/agent/context/prompt-tiers.test.ts` (workflow), `server/tests/agent/context/executor-loop-control.test.ts` (notes)
+- **Verification:** server 2494 passed (+2 skipped), both typechecks clean; six live runs (see the phase doc)
+
+### EX10.9: Follow-ups and questions
+- **Status:** ✅ Complete
+- **Date:** 2026-10-25
+- **Files created:** `server/src/agent/follow-up.ts`, `server/tests/agent/follow-up.test.ts`, `client/tests/components/ui-agent-follow-up.test.tsx`
+- **Files modified:** `server/src/routes/agent-ui.ts` (`followUp`), `server/src/agent/planner.ts` (`question`, follow-up prompt), `server/src/agent/ui-agent.ts` (`question` event, `namesNothing` check, context from the open view), `server/src/agent/tools/types.ts` (`followUp`), `server/src/agent/executor.ts` (starts from the open view; refine message; the EX10.10 opening message), `client/src/store/agent-store.ts` (`question`, `askSession`), `client/src/hooks/useUIAgent.ts` (`followUp`, `question`), `client/src/components/Agent/UIAgentView.tsx` (refine chip, window reuse, question card), `CLAUDE.md`
+- **Docs:** `docs/phases/phase-ex10.md` (§9c, "EX10.9 — as built")
+- **Tests modified:** `server/tests/agent/ui-agent.test.ts` (requests that name something)
+- **Verification:** server 2503 passed (+2 skipped), client 655, both typechecks clean; four live runs and a Playwright check (see the phase doc)
+- **Modified:** EX10.10 — the executor's opening message now describes the widget workflow
+
 ## How to Use This File
 
 ### After completing a task:

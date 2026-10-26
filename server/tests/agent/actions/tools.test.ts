@@ -2,7 +2,7 @@
 // @see docs/phases/phase-ex9.md §6
 
 import { describe, it, expect, vi } from 'vitest';
-import { actionTool, formatForModel, selectActions, CORE_ACTIONS, MODEL_OUTPUT_CHARS } from '../../../src/agent/actions/tools.js';
+import { actionTool, formatForModel, selectActions, stripControls, CORE_ACTIONS, MODEL_OUTPUT_CHARS } from '../../../src/agent/actions/tools.js';
 import { getDefaultCatalog } from '../../../src/agent/actions/catalog/index.js';
 import { toolsToOpenAIFunctions } from '../../../src/agent/tools/tool-converter.js';
 import type { ToolContext } from '../../../src/agent/tools/types.js';
@@ -114,5 +114,18 @@ describe('selectActions', () => {
 
   it('is stable for the same request', () => {
     expect(selectActions('disk full', { max: 12 })).toEqual(selectActions('disk full', { max: 12 }));
+  });
+});
+
+// EX10.12 follow-up: no result grows past its cap through JSON escaping
+describe('control characters (EX10.12 follow-up)', () => {
+  it('strips ANSI sequences and C0 controls, keeping tabs and newlines', () => {
+    expect(stripControls('\u001b[1;31mfailed\u001b[0m\tunit\r\nnext\u0007\u0000 line')).toBe('failed\tunit\r\nnext line');
+  });
+
+  it('keeps a JSON-escaped result within reach of its cap', () => {
+    const text = formatForModel({ ok: true, actionId: 'x', command: 'x', exitCode: 0, stdout: `log${'\u0001'.repeat(4_000)}`, stderr: '\u001b[33mwarn\u001b[0m', truncated: false, durationMs: 1 });
+    expect(text).toBe('log\nstderr: warn');
+    expect(JSON.stringify(text).length).toBeLessThan(40);
   });
 });
