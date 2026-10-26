@@ -179,5 +179,45 @@ with the key from `ANTHROPIC_API_KEY`.
 
 | Task ID | Task | Status |
 |---------|------|--------|
-| EX11.1 | `AnthropicProvider`: history and tools mapped to the Messages API, thinking kept and sent back (`drop_block`), effort, caching, reply mapping, refusals and fallbacks, JSON parsing, errors, limits | ⬜ |
+| EX11.1 | `AnthropicProvider`: history and tools mapped to the Messages API, thinking kept and sent back (`drop_block`), effort, caching, reply mapping, refusals and fallbacks, JSON parsing, errors, limits | ✅ |
 | EX11.2 | Settings → AI: saved key and model, route with key check, startup wiring, Claude prices, client provider/key/model UI, benchmark flag | ⬜ |
+
+## EX11.1 — The provider (as built)
+
+**Files:**
+- `llm/providers/anthropic.ts` (new). Exported for tests: `toAnthropicMessages`,
+  `assistantBlocks`, `toAnthropicTools`, `anthropicRequest`, `fromAnthropicReply`,
+  `usageOf`, `anthropicError`, `jsonValue`, `claudeVersion`, `thinksAdaptively`.
+- `llm/provider.ts`: `ChatMessage.reasoning` (`ProviderReasoning`).
+- `llm/model-limits.ts`: `^claude-` in the hosted table.
+- `server/package.json`: `@anthropic-ai/sdk` ^0.135.0.
+
+**As specced, plus:**
+- **Fallback blocks.** The SDK documents that a `fallback` block must be echoed back in its
+  place: the server checks the boundary between the thinking before and after a switch.
+  So the reply's blocks go back in order, `fallback` included. Text before a switch stays;
+  calls before it never ran and are left out.
+- **What gets rebuilt.** A text or call the agents changed (a collapsed view, a dropped
+  call) is rebuilt from the message, and everything else goes back verbatim.
+- **Thinking-only turns.** A turn that is only thinking (cut off before any text) is left
+  out, since the API does not take one.
+- **Reply cap.** It is 16,000 tokens (an eighth of the 128K plan, as for GPT-6), with
+  thinking room added on top.
+- **Older models.** Models before 4.6 get no `thinking` or `effort` settings; Settings
+  offers only 5.5 models.
+- **Parsing refusals.** A declined parse throws ("Claude declined to parse this."), so the
+  pipeline's retry and fallback take over.
+
+**Verified:**
+- `tests/llm/anthropic.test.ts` (25), against a scripted SDK client:
+  - the history mapping (grouped results, missing and orphaned pairs, no prefill);
+  - thinking round trips, verbatim and after the agents' edits;
+  - fallback echoes;
+  - the request: thinking, `drop_block`, effort, caps, caching, fallbacks per model;
+  - reply mapping: calls, cut-offs, refusals;
+  - usage with cache tokens;
+  - JSON parsing;
+  - error wording: the overflow error still reads as overflow to the context manager;
+  - one run of the shared agent loop, which sends the first reply's thinking back with
+    its result.
+- Not yet run against the API: that needs the owner's key (EX11.2 adds it to Settings).
