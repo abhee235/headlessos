@@ -1427,7 +1427,7 @@ function AboutPage() {
           </div>
           <div className="flex min-w-0 flex-col gap-0.5">
             <h2 className="text-[17px] font-semibold text-foreground">HeadlessOS</h2>
-            <p className="text-[14px] text-label-2">Version 0.1.0 (Alpha)</p>
+            <p className="text-[14px] text-label-2">Version 0.2.0 (Alpha)</p>
           </div>
         </div>
       </Section>

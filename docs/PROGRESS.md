@@ -33,7 +33,7 @@
 | M11: Fleet, Agent & Platform | Week 15-16 | ✅ | 8/8 tasks | — |
 | M12: Backend Architecture Refactor | Beta | ✅ | 7/7 tasks | [phase-12](phases/phase-12.md) |
 | M13: Release Readiness | Beta | ✅ | 4/4 tasks | [phase-13](phases/phase-13.md) |
-| M14: Public Release | Beta | 🔄 | 7/10 tasks | [phase-14](phases/phase-14.md) |
+| M14: Public Release | Beta | 🔄 | 8/10 tasks | [phase-14](phases/phase-14.md) |
 | **EX1: Dynamic UI Engine** | **Experimental** | **✅** | **15/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
 | **EX2: UI Generation Agent** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
 | **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **✅** | **26/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
@@ -61,7 +61,7 @@
 | M14.5 | `SECURITY.md` and `CONTRIBUTING.md` | ✅ | SECURITY.md: reporting, storage and encryption, the local server's checks, agent limits, what each provider (and the weather) receives; every statement checked against the code. CONTRIBUTING.md: setup, the doc-first loop, commit format, CI checks. docs/SECURITY.md brought up to date |
 | M14.6 | README: Claude, install and download, screenshots | ✅ | Install from Releases (asset names from release.yml; Linux from source), unsigned-build steps, Claude throughout, links to SECURITY.md and CONTRIBUTING.md; three screenshots taken from an isolated copy connected only to the dev container (no real server or key can show) |
 | M14.7 | Packaged Windows build starts | ✅ | `win-unpacked` built with the new server bundle and client; the packaged server starts on a free port and answers (health, models incl. Claude, the isolated server list). The NSIS step fails only on this machine (symlink privilege); CI's Windows runner builds it. Window and installer checked on the release assets (M14.10) |
-| M14.8 | Version 0.2.0 and `CHANGELOG.md` | ⬜ | |
+| M14.8 | Version 0.2.0 and `CHANGELOG.md` | ✅ | 0.2.0 in every package.json and both lockfiles, and in the three places the app shows its version; CHANGELOG.md with 0.2.0 (Added, Security, Changed, Fixed) and a 0.1.0 summary checked against the tag |
 | M14.9 | Make the repository public | ⬜ | |
 | M14.10 | Tag v0.2.0 and check the release | ⬜ | |
 
