@@ -415,7 +415,7 @@ async function main(): Promise<void> {
 
   app.get("/api/v1/status", async () => {
     return {
-      version: "0.1.0",
+      version: "0.2.0",
       services: ["config", "ssh", "parser", "orchestrator"],
       llm: pipeline["llmProvider"] ? "openai" : "none",
       cache: outputCache.getStats(),

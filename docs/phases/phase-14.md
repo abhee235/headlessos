@@ -112,7 +112,7 @@ must pass unchanged, except where a test asserts zod 3's own error wording.
 | M14.5 | `SECURITY.md` and `CONTRIBUTING.md` | ✅ |
 | M14.6 | README: Claude, install and download, screenshots | ✅ |
 | M14.7 | Packaged Windows build starts | ✅ |
-| M14.8 | Version 0.2.0 and `CHANGELOG.md` | ⬜ |
+| M14.8 | Version 0.2.0 and `CHANGELOG.md` | ✅ |
 | M14.9 | Publish (owner's decision: new repository or this one) | ⬜ |
 | M14.10 | Tag v0.2.0 and check the release | ⬜ |
 
@@ -307,3 +307,17 @@ targeting the deprecated Node 20 Actions runtime; both workflows now use v5.
   on the owner's desktop while they are using it, and the NSIS installer. Both are checked
   on the release assets (M14.10).
 - The client build rewrites the tracked `client/tsconfig.tsbuildinfo`; it was restored.
+
+## M14.8 — Version 0.2.0 and changelog (as built)
+
+- **0.2.0** in the root `package.json` (which had no version), `client`, `server`, `shared`
+  and `electron` (`npm version --no-git-tag-version`; both lockfiles follow). npm's
+  reformatting of `electron/package.json`'s arrays was undone, so only the version changed.
+- **Hard-coded versions the owner sees,** now 0.2.0: the desktop's About dialog
+  (`Desktop.tsx`), Settings → About (`SettingsView.tsx`) and `GET /api/v1/status`
+  (`index.ts`).
+- **`CHANGELOG.md` (new).**
+  - 0.2.0 is grouped as Added, Security, Changed and Fixed, written from the PROGRESS change
+    log since 2026-04-26 (M12, the October security audit, EX7–EX11, M13, M14).
+  - 0.1.0 is summarised; checked against the `v0.1.0` tree (Observatory, both agents,
+    Dynamic UI, sessions and Docker were in it).

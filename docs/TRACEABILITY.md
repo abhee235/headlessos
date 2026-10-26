@@ -1385,6 +1385,14 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-14.md` ("M14.7 — as built")
 - **Verification:** packaged `server.mjs` starts on a free port and serves the API against an isolated data folder; installer and window deferred to the release assets
 
+### M14.8: Version 0.2.0 and changelog
+- **Status:** ✅ Complete
+- **Date:** 2026-10-27
+- **Files created:** `CHANGELOG.md`
+- **Files modified:** `package.json`, `client/package.json`, `server/package.json`, `shared/package.json`, `electron/package.json`, `package-lock.json`, `electron/package-lock.json`, `client/src/components/Desktop/Desktop.tsx`, `client/src/components/Desktop/SettingsView.tsx`, `server/src/index.ts`
+- **Docs:** `docs/phases/phase-14.md` ("M14.8 — as built")
+- **Verification:** both typechecks clean; no test pins the old version
+
 ## How to Use This File
 
 ### After completing a task:
