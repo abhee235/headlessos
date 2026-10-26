@@ -1370,6 +1370,14 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-14.md` ("M14.5 — as built")
 - **Verification:** each statement checked against the code it describes
 
+### M14.6: README
+- **Status:** ✅ Complete
+- **Date:** 2026-10-27
+- **Files created:** `docs/images/dashboard.webp`, `docs/images/file-explorer.webp`, `docs/images/settings-ai.webp`
+- **Files modified:** `README.md`
+- **Docs:** `docs/phases/phase-14.md` ("M14.6 — as built")
+- **Verification:** screenshots from an isolated instance on the dev container; install details match `release.yml`
+
 ## How to Use This File
 
 ### After completing a task:

@@ -8,6 +8,8 @@ HeadlessOS is a **localhost app** (in the browser or as an Electron desktop app)
 
 **Zero footprint on the server.** The server doesn't know it's being managed through a GUI. It only receives and answers SSH commands like normal.
 
+![The Dashboard: CPU, memory, uptime, disks and network of a server, read over SSH](docs/images/dashboard.webp)
+
 ## The Problem
 
 You have a VPS. You SSH into it. You can never remember:
@@ -57,12 +59,23 @@ You want a **visual interface**, like Windows Explorer for files, Task Manager f
   - Anything that changes a server waits for your approval and is written to an audit log.
   - Secrets are removed from server output before a model sees it.
 
+<table>
+  <tr>
+    <td><img src="docs/images/file-explorer.webp" alt="File Explorer browsing the server's root folder over SFTP"></td>
+    <td><img src="docs/images/settings-ai.webp" alt="Settings → AI: None, OpenAI, Anthropic (Claude) or a local Ollama model"></td>
+  </tr>
+  <tr>
+    <td align="center">Files over SFTP</td>
+    <td align="center">Choose the AI: OpenAI, Claude or a local model</td>
+  </tr>
+</table>
+
 ## Key Principles
 
 1. **Zero server install.** The server runs no additional software. All intelligence is local.
 2. **Deterministic first, LLM as fallback.** Regex parsers and JSON-output flags come first; an LLM parses only what no parser handles.
 3. **Terminal is always available.** The UI is a convenience layer. You can always drop to a real terminal.
-4. **Your choice of model.** OpenAI, or a model running on your own machine through [Ollama](https://ollama.com), behind one provider interface. Without either, parsing stays deterministic.
+4. **Your choice of model.** OpenAI, Claude (Anthropic), or a model running on your own machine through [Ollama](https://ollama.com), behind one provider interface. Without any of them, parsing stays deterministic.
 
 ## Tech Stack
 
@@ -70,7 +83,7 @@ You want a **visual interface**, like Windows Explorer for files, Task Manager f
 |-------|-----------|-----|
 | Backend | Node.js + Fastify + TypeScript | Fast, native WebSocket, great TS support |
 | SSH | ssh2 (npm) | Pure JS, multi-channel, SFTP, PTY support |
-| LLM | OpenAI SDK or Ollama (local), one provider interface | Structured output validated with Zod |
+| LLM | OpenAI SDK, Anthropic SDK (Claude) or Ollama (local), one provider interface | Structured output validated with Zod |
 | Frontend | React + Vite + TypeScript + TailwindCSS | Fast dev, modern UI |
 | Terminal | xterm.js + addons | Industry standard (used by VS Code) |
 | Schema | Zod | Runtime + compile-time type safety, LLM schema generation |
@@ -81,7 +94,7 @@ You want a **visual interface**, like Windows Explorer for files, Task Manager f
 ```
 headlessos/
 ├── docs/                    # 📖 All project documentation (DDD)
-│   ├── phases/              # Per-phase specs: phase-0…13 (milestones), phase-ex1…ex10 (experimental)
+│   ├── phases/              # Per-phase specs: phase-0…14 (milestones), phase-ex1…ex11 (experimental)
 │   ├── PROGRESS.md          # Task tracker, status, changelog
 │   ├── TRACEABILITY.md      # Task → files → tests audit trail
 │   ├── DECISIONS.md         # Architecture Decision Records (ADRs)
@@ -91,7 +104,7 @@ headlessos/
 │       ├── index.ts         # Entry point: wires every component and route
 │       ├── ssh/             # SSH connections, SFTP, terminal sessions
 │       ├── parsers/         # Deterministic parsers + LLM parsing pipeline
-│       ├── llm/             # Provider interface, OpenAI and Ollama providers, model limits
+│       ├── llm/             # Provider interface, OpenAI, Anthropic and Ollama providers, model limits
 │       ├── agent/           # AI Agent and UI Agent: action catalog, approvals, context management
 │       ├── dynamic-ui/      # Generated views, templates
 │       ├── observatory/     # Traces of model and tool calls
@@ -104,10 +117,28 @@ headlessos/
 ├── electron/                # Electron desktop app
 ├── dev/                     # Local test server (Docker, SSH on port 2222)
 ├── AGENTS.md                # Rules for AI coding assistants
+├── SECURITY.md              # Security policy: reporting, what is stored and sent where
+├── CONTRIBUTING.md          # Setup, workflow, commit format, checks
 └── package.json             # npm workspaces root
 ```
 
-## Quick Start
+## Install
+
+Download the desktop app from this repository's **Releases** page:
+
+| Platform | File |
+|----------|------|
+| macOS (Apple Silicon and Intel) | `HeadlessOS-*-universal.dmg` |
+| Windows | `HeadlessOS Setup *.exe` (installer) or `HeadlessOS *.exe` (portable) |
+| Linux | No build yet: run from source, or `npm run build:dist:linux` |
+
+The builds may be unsigned, so the first launch shows a warning:
+- **macOS:** right-click the app → **Open**, or **System Settings → Privacy & Security** → **Open Anyway**.
+- **Windows:** in SmartScreen choose **More info** → **Run anyway**.
+
+Then add a server (host, user, password or key) and connect. To use an AI, open **Settings → AI** and choose OpenAI, Claude or a local Ollama model. Keys are stored encrypted on your computer ([SECURITY.md](SECURITY.md)).
+
+## Run From Source
 
 ```bash
 # Prerequisites: Node.js 20+, npm 9+
@@ -115,7 +146,7 @@ headlessos/
 npm install
 
 # Optional: an OpenAI key. You can also add one later in Settings → AI,
-# or choose a local Ollama model there instead.
+# or choose Claude or a local Ollama model there instead.
 cp .env.example .env         # .env lives at the repo root
 
 # Start the server (:3001) and the web UI (:3000)
@@ -142,7 +173,9 @@ npm run dev
 | [APP_REGISTRY.md](docs/APP_REGISTRY.md) | How apps work, adding new apps | Adding a new app module |
 | [API_SPEC.md](docs/API_SPEC.md) | REST + WebSocket API reference | Writing frontend/backend code |
 | [LLM_STRATEGY.md](docs/LLM_STRATEGY.md) | LLM integration, parser migration | Working on parsing |
-| [SECURITY.md](docs/SECURITY.md) | Threat model, command safety | Any code that executes commands |
+| [SECURITY.md](SECURITY.md) | Security policy: reporting, storage, what is sent where | Before reporting a vulnerability |
+| [docs/SECURITY.md](docs/SECURITY.md) | Threat model, command safety | Any code that executes commands |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Setup, workflow, commit format, checks | Before opening a pull request |
 | [TESTING.md](docs/TESTING.md) | Test strategy, how to write tests | Writing or running tests |
 | [PROGRESS.md](docs/PROGRESS.md) | Task tracker, current status | Checking what to work on next |
 | [DECISIONS.md](docs/DECISIONS.md) | Why decisions were made (ADRs) | Understanding past choices |
