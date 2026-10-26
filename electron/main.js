@@ -27,9 +27,9 @@ let serverPort = IS_DEV ? 3001 : null; // dev mode: developer runs server separa
 let serverToken = null; // C3: API auth token, read from the server's stdout in prod
 
 /**
- * Resolve path to the bundled server.cjs.
+ * Resolve path to the bundled server.mjs (built by `npm run build:server`; M14.3: not in git).
  * - Packaged app: process.resourcesPath (outside asar)
- * - Unpackaged production: __dirname/server.cjs
+ * - Unpackaged production: __dirname/server.mjs
  */
 function getServerPath() {
   if (app.isPackaged) {

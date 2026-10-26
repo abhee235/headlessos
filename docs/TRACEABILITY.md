@@ -1340,6 +1340,13 @@ None (all changes to existing files).
 - **Tests modified:** `server/tests/parsers/dynamic-view-schema.test.ts` (OpenAI format)
 - **Verification:** production advisories 0; server 2543 passed (+2 skipped), client 657, both typechecks clean; local Ollama accepts the new schemas
 
+### M14.3: Build output out of git
+- **Status:** ✅ Complete
+- **Date:** 2026-10-27
+- **Files modified:** `.gitignore`, `electron/main.js` (comment); `electron/server.mjs`, `electron/server.cjs` untracked
+- **Docs:** `docs/phases/phase-14.md` ("M14.3 — as built")
+- **Verification:** `npm run build:server` writes `server.mjs`
+
 ## How to Use This File
 
 ### After completing a task:
