@@ -108,7 +108,7 @@ must pass unchanged, except where a test asserts zod 3's own error wording.
 | M14.1 | `npm audit fix` (same majors) and a `dompurify` override | ✅ |
 | M14.2 | zod 4, openai upgrade, `z.toJSONSchema` instead of `zod-to-json-schema` | ✅ |
 | M14.3 | Stop tracking `electron/server.cjs` / `server.mjs` | ✅ |
-| M14.4 | CI on pull requests and `main`; release workflow runs the checks first | ⬜ |
+| M14.4 | CI on pull requests and `main`; release workflow runs the checks first | ✅ |
 | M14.5 | `SECURITY.md` and `CONTRIBUTING.md` | ⬜ |
 | M14.6 | README: Claude, install and download, screenshots | ⬜ |
 | M14.7 | Packaged Windows build starts | ⬜ |
@@ -207,3 +207,16 @@ The fix is vitest 5, a test-runner upgrade. Nothing here ships in the app.
   openai 6 and the Anthropic SDK bundled. The committed one was 3.6 MB, from April.
 - The two files stay in history (about 7 MB). Publishing `main` to a new repository (M14.9)
   would carry them too. Rewriting history to drop them was not asked for.
+
+## M14.4 — CI (as built)
+
+- **`.github/workflows/ci.yml` (new).**
+  - Runs on pull requests, on pushes to `main`, and as a reusable workflow
+    (`workflow_call`).
+  - Ubuntu, Node 20 (the release builds use 20; the code needs 20.11+ for
+    `import.meta.dirname`). Steps: `npm ci`, build `shared`, `tsc` for server and client,
+    then the server and client suites.
+  - The lockfile already carries the Linux native packages (rollup, esbuild, lightningcss,
+    tailwind oxide).
+- **`.github/workflows/release.yml`:** a `check` job calls `ci.yml`. `build-mac` and
+  `build-windows` need it, so a tag on failing code builds nothing.
