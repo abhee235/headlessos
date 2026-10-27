@@ -107,8 +107,10 @@ must pass unchanged, except where a test asserts zod 3's own error wording.
 | M14.6 | README: Claude, install and download, screenshots | ✅ |
 | M14.7 | Packaged Windows build starts | ✅ |
 | M14.8 | Version 0.2.0 and `CHANGELOG.md` | ✅ |
-| M14.9 | Make the repository public | ⬜ |
+| M14.9 | Make the repository public | ✅ |
 | M14.10 | Tag v0.2.0 and check the release | ⬜ |
+| M14.11 | The desktop app reaches its own backend: the sandboxed preload no longer `require`s `package.json` | ✅ |
+| M14.12 | The desktop app ships its system wallpapers | ✅ |
 
 ## M14.1 — Same-major fixes and dompurify (as built)
 
@@ -313,3 +315,61 @@ targeting the deprecated Node 20 Actions runtime; both workflows now use v5.
     log since 2026-04-26 (M12, the October security audit, EX7–EX11, M13, M14).
   - 0.1.0 is summarised; checked against the `v0.1.0` tree (Observatory, both agents,
     Dynamic UI, sessions and Docker were in it).
+
+## M14.11 — The desktop app reaches its own backend
+
+**Found** while testing the packaged Windows app from `main` (the M14.7 check started only
+the bundled server, not the window). The sign-in screen said "Couldn't load your saved
+servers", and the console said:
+
+> Unable to load preload script … `Error: module not found: ./package.json`
+
+The window runs with `sandbox: true`, and a sandboxed preload can `require` only
+`electron`, `events`, `timers` and `url`. `preload.js` read the app version with
+`require('./package.json')`, which threw before `contextBridge.exposeInMainWorld` ran, so
+`window.electronAPI` (server port and API token) never existed and the client fell back to
+`localhost:3001`. Both lines came in together on 2026-04-06, so v0.1.0's desktop builds have
+the same fault, on every platform.
+
+**Fix:** the main process answers `get-app-version` with `app.getVersion()`, and the
+preload asks for it over IPC like the port and token. The sandbox stays on.
+
+**Guard:** a test reads `electron/preload.js` and fails if it `require`s anything a
+sandboxed preload cannot load, or calls a `sendSync` channel `main.js` does not answer,
+or if `main.js` stops sandboxing the window.
+
+**Check (done):** `win-unpacked` rebuilt from `main` plus the fix, launched with a scratch
+data folder (`USERPROFILE` and `--user-data-dir`) and driven over the remote-debugging port.
+`window.electronAPI` now has the bundled server's port (53159 in that run), the token, version
+0.2.0 and `win32`. Signed in to the dev box: the saved server listed, the desktop restored its
+windows, File Explorer listed `/`, the dock lanes followed the front window, and the Home hub's
+network card showed live `eth0` rates. The test fails on the old preload (`./package.json`).
+
+Two things to know when launching the packaged app from a VS Code terminal: VS Code sets
+`ELECTRON_RUN_AS_NODE=1` for its child processes, which makes `HeadlessOS.exe` run as plain
+Node ("bad option: --remote-debugging-port"), so unset it first; and overriding `APPDATA` /
+`LOCALAPPDATA` made it exit with code 3, while `--user-data-dir` isolates the profile cleanly.
+
+## M14.12 — The desktop app ships its system wallpapers
+
+**Found** in the same check, once the app reached its backend: no wallpaper on the lock
+screen or the desktop (the image's alt text "Wallpaper" showed under the menu bar), and
+the Home hub's photo frame had no wallpapers to fall back on. The bundled server answered
+`GET /api/wallpapers` with `{"system":[],"user":[]}`.
+
+`routes/wallpapers.ts` looked for `server/assets/wallpapers/system` two folders above its
+own file, which is right in the source tree only. In the packaged app the server is
+`resources/server.mjs`, and electron-builder never copied `server/assets` at all.
+
+**Fix:**
+- `electron/package.json` copies `../server/assets` to `resources/assets`.
+- The route uses the first of these that has `wallpapers/system`: next to the server file
+  (the packaged app), two folders up (the source tree, tests), or `../server/assets`
+  (`npm run test:prod`, which runs `electron/server.mjs`).
+
+**Guard:** tests for the folder choice in all three layouts, and that the electron-builder
+config copies `server/assets`.
+
+**Check (done):** the rebuilt `win-unpacked` has `resources/assets/wallpapers/system` (16
+images and the credits file); `GET /api/wallpapers` lists 16; the wallpaper image loads on the
+lock screen and the desktop, and the Home hub's photo frame runs its wallpaper slideshow.

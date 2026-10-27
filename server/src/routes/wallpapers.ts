@@ -1,9 +1,9 @@
 // Wallpaper Routes — serves system + user wallpapers from local filesystem
-// System wallpapers: server/assets/wallpapers/system/
+// System wallpapers: server/assets/wallpapers/system/ (the desktop app: resources/assets/…)
 // User wallpapers:   ~/.headlessos/wallpapers/
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { promises as fs } from 'fs';
+import { existsSync, promises as fs } from 'fs';
 import { join, extname, basename } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -26,9 +26,27 @@ const MIME_TYPES: Record<string, string> = {
   '.avif': 'image/avif',
 };
 
+/**
+ * M14.12: where the system wallpapers are, from the folder this code runs in. The first
+ * that exists wins: next to the server file (the desktop app's resources/server.mjs,
+ * with resources/assets), two folders up (the source tree), or ../server/assets
+ * (`npm run test:prod` runs electron/server.mjs).
+ */
+export function findSystemDir(codeDir: string, exists: (dir: string) => boolean = existsSync): string {
+  const candidates = [
+    join(codeDir, 'assets'),
+    join(codeDir, '..', '..', 'assets'),
+    join(codeDir, '..', 'server', 'assets'),
+  ].map((assets) => join(assets, 'wallpapers', 'system'));
+  return candidates.find((dir) => exists(dir)) ?? candidates[1];
+}
+
+let systemDir: string | null = null;
+
 /** Resolve the system wallpapers directory */
 function getSystemDir(): string {
-  return join(__dirname, '..', '..', 'assets', 'wallpapers', 'system');
+  systemDir ??= findSystemDir(__dirname);
+  return systemDir;
 }
 
 /** Resolve the user wallpapers directory (~/.headlessos/wallpapers/) */

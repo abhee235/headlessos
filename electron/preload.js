@@ -13,8 +13,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   /** Whether running in Electron (vs browser) */
   isElectron: true,
 
-  /** App version from package.json */
-  version: require('./package.json').version,
+  /**
+   * App version, from the main process (M14.11): this preload is sandboxed, and a
+   * sandboxed preload can only require electron, events, timers and url.
+   */
+  version: ipcRenderer.sendSync('get-app-version'),
 
   /**
    * Backend server port (dynamically assigned at startup via PORT=0).

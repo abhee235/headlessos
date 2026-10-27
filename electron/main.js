@@ -105,6 +105,11 @@ ipcMain.on('get-server-port', (event) => {
   event.returnValue = serverPort ?? 3001;
 });
 
+// M14.11: the sandboxed preload cannot require package.json, so it asks for the version
+ipcMain.on('get-app-version', (event) => {
+  event.returnValue = app.getVersion();
+});
+
 // C3: renderer reads the API token (prod only; in dev the Vite proxy injects it).
 // Prefer the token captured from stdout, but fall back to reading the token file
 // directly — this is race-free because the server writes ~/.headlessos/api-token

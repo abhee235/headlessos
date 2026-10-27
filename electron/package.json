@@ -47,6 +47,10 @@
       {
         "from": "../client/dist",
         "to": "client/dist"
+      },
+      {
+        "from": "../server/assets",
+        "to": "assets"
       }
     ]
   },
