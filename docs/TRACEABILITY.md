@@ -1408,6 +1408,14 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-14.md` ("M14.8 — as built")
 - **Verification:** both typechecks clean; no test pins the old version
 
+### M14.11: The desktop app reaches its own backend
+- **Status:** ✅ Complete
+- **Date:** 2026-10-27
+- **Files created:** `server/tests/electron/preload.test.ts`
+- **Files modified:** `electron/preload.js` (version over IPC), `electron/main.js` (`get-app-version`)
+- **Docs:** `docs/phases/phase-14.md` ("M14.11")
+- **Verification:** packaged `win-unpacked` driven over CDP with an isolated data folder: bridge present, sign-in, Files, dock, Home hub
+
 ## How to Use This File
 
 ### After completing a task:

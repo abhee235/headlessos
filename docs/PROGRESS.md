@@ -33,7 +33,7 @@
 | M11: Fleet, Agent & Platform | Week 15-16 | ✅ | 8/8 tasks | — |
 | M12: Backend Architecture Refactor | Beta | ✅ | 7/7 tasks | [phase-12](phases/phase-12.md) |
 | M13: Release Readiness | Beta | ✅ | 4/4 tasks | [phase-13](phases/phase-13.md) |
-| M14: Public Release | Beta | 🔄 | 8/10 tasks | [phase-14](phases/phase-14.md) |
+| M14: Public Release | Beta | 🔄 | 10/11 tasks | [phase-14](phases/phase-14.md) |
 | **EX1: Dynamic UI Engine** | **Experimental** | **✅** | **15/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
 | **EX2: UI Generation Agent** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
 | **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **✅** | **26/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
@@ -62,8 +62,9 @@
 | M14.6 | README: Claude, install and download, screenshots | ✅ | Install from Releases (asset names from release.yml; Linux from source), unsigned-build steps, Claude throughout, links to SECURITY.md and CONTRIBUTING.md; three screenshots taken from an isolated copy connected only to the dev container (no real server or key can show) |
 | M14.7 | Packaged Windows build starts | ✅ | `win-unpacked` built with the new server bundle and client; the packaged server starts on a free port and answers (health, models incl. Claude, the isolated server list). The NSIS step fails only on this machine (symlink privilege); CI's Windows runner builds it. Window and installer checked on the release assets (M14.10) |
 | M14.8 | Version 0.2.0 and `CHANGELOG.md` | ✅ | 0.2.0 in every package.json and both lockfiles, and in the three places the app shows its version; CHANGELOG.md with 0.2.0 (Added, Security, Changed, Fixed) and a 0.1.0 summary checked against the tag |
-| M14.9 | Make the repository public | ⬜ | |
+| M14.9 | Make the repository public | ✅ | Public since 2026-10-27 |
 | M14.10 | Tag v0.2.0 and check the release | ⬜ | |
+| M14.11 | The desktop app reaches its own backend | ✅ | The sandboxed preload threw on `require('./package.json')`, so the window had no server port or token (v0.1.0 too). The version now comes over IPC; a test keeps the preload to modules a sandbox can load. Packaged app driven end to end on Windows |
 
 ---
 
@@ -633,6 +634,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-10-27 | **M14.9 ✅, M14.11 ✅** The repository is public. Testing the packaged Windows app from `main` showed it could not reach its own backend: its sandboxed preload threw on `require('./package.json')`, so the window never got the server's port or token (v0.1.0's builds too). The version now comes from the main process over IPC; a test guards the preload. The packaged app was then driven end to end: sign-in, File Explorer, dock, Home hub. |
 | 2026-10-27 | **EX8.27 revised** The open-app background in the dock was hardly visible, so it is now a lane across the dock's full thickness, lit from its base, and the app in front gets a brighter lane with an accent bar on that edge. |
 | 2026-10-27 | **EX8.28 ✅** When the HeadlessOS backend is down or restarting, the sign-in screen says "Couldn't load your saved servers" with Retry and tries again every 3 s, instead of "No servers configured yet". The list comes back by itself once the backend answers. |
 | 2026-10-27 | **EX8.27 ✅** Open apps in the dock sit on a soft background, stronger for the app in front, so an app that is minimized or behind another window reads as open rather than switched off. Clicking the app in front still minimizes it. |
