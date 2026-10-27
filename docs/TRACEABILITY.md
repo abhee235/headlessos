@@ -1023,8 +1023,8 @@ None (all changes to existing files).
 - **Status:** ✅ Complete
 - **Date:** 2026-10-27
 - **Files created:** `client/tests/components/taskbar-open-apps.test.tsx`
-- **Files modified:** `client/src/components/Desktop/Taskbar.tsx` (`DockTile` background; unpinned windows always `running`), `client/src/styles.css` (`--dock-open`, `--dock-front`)
-- **Verification:** Playwright on the dev box, measured in light and dark and on the right-side dock
+- **Files modified:** `client/src/components/Desktop/Taskbar.tsx` (`DockTile` lane; unpinned windows always `running`), `client/src/styles.css` (`--dock-open`, `--dock-front`, `.dock-lane`, `.dock-lane-front`, `.dock-lane-bar`)
+- **Verification:** Playwright on the dev box, measured in light and dark, both dock positions, dusk and alpine wallpapers
 
 ### EX8.28: Server list when the HeadlessOS server is down
 - **Status:** ✅ Complete

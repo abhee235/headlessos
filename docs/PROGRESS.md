@@ -633,6 +633,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-10-27 | **EX8.27 revised** The open-app background in the dock was hardly visible, so it is now a lane across the dock's full thickness, lit from its base, and the app in front gets a brighter lane with an accent bar on that edge. |
 | 2026-10-27 | **EX8.28 ✅** When the HeadlessOS backend is down or restarting, the sign-in screen says "Couldn't load your saved servers" with Retry and tries again every 3 s, instead of "No servers configured yet". The list comes back by itself once the backend answers. |
 | 2026-10-27 | **EX8.27 ✅** Open apps in the dock sit on a soft background, stronger for the app in front, so an app that is minimized or behind another window reads as open rather than switched off. Clicking the app in front still minimizes it. |
 | 2026-10-27 | **EX8.26 ✅** The Home hub's music card is now the selected server's network traffic: download above and upload below a centre line for the last 1, 5 or 15 minutes, the live rates (or the moment under the pointer) as its title, and peak, average and total under the graph. It reuses the hub's existing 2 s poll, keeps 15 minutes per server while the app is open, and needs no new route. |

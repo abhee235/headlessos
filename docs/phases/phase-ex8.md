@@ -88,7 +88,7 @@ this document; its token layer was merged into `client/src/styles.css`.
 | EX8.24 | AI Agent live progress (user report): steps stream in while it runs; Stop works | ✅ |
 | EX8.25 | Spinner size standard (user review): the H mark fills its box; 16px minimum | ✅ |
 | EX8.26 | Home hub network card (requested): the sample music card becomes the selected server's live download / upload graph with peak / average / total, same place and size | ✅ |
-| EX8.27 | Open apps in the dock (user review): a soft background behind the tile of every open app, stronger for the app in front, so a minimized or background app reads as open | ✅ |
+| EX8.27 | Open apps in the dock (user review): a lane across the dock behind every open app, brighter with an accent bar for the app in front, so a minimized or background app reads as open | ✅ |
 | EX8.28 | Server list when the HeadlessOS server is down (user report): "Couldn't load your saved servers" with Retry and a retry every 3 s, instead of "No servers configured yet" | ✅ |
 
 ## Additions beyond the handoff
@@ -569,27 +569,32 @@ it back (the Windows taskbar convention, since M6.6). The user keeps that, but w
 only the 7px dot to tell them apart, a minimized app looked switched off, as if the
 tile were a toggle.
 
-Every open app now sits on a soft rounded background behind its tile, outside the
-button so it stays put when the tile lifts on hover. Along the dock it is 2px wider
-than the tile on each side, across it 5px (54×60 on the bottom dock, 60×54 on the
-right one; radius 18), which leaves 4px between two open neighbours and fits the
-72px bar without moving anything.
+Every open app gets a **lane**: a band across the whole dock behind its tile, lit
+from the dock's base (the bottom edge of the bottom dock, the outer edge of the
+right one) and fading to 30% at the far edge. The app in front gets a brighter lane
+and a 28×3 accent bar (with the accent glow) on that base edge. The lane sits outside
+the button, so it stays put while the tile lifts on hover.
 
-| App | Background | Dot |
-|---|---|---|
-| Not open | none | none |
-| Open, minimized or behind another window | `--dock-open`: white 8% (dark), ink 10% (light) | 55% |
-| Open and in front | `--dock-front`: white 16% (dark), ink 18% (light) | glowing |
+| App | Lane at the base | Accent bar | Dot |
+|---|---|---|---|
+| Not open | none | none | none |
+| Open, minimized or behind another window | `--dock-open`: white 14% (dark), ink 13% (light) | none | 55% |
+| Open and in front | `--dock-front`: white 28% (dark), ink 22% (light) | yes | glowing |
 
-The light values are a step above the `fill` tokens: at 6% a minimized app's
-background did not show on the light dock. The same applies to pinned apps and to
-unpinned open windows (whose dot used to disappear while minimized), in both dock
-positions and both dock styles (Colour and Glass).
+Size: 3px past the tile along the dock and the dock's full thickness inside its 1px
+border (56×70 on the bottom dock, 70×56 on the right), with square sides; two open
+neighbours stay 2px apart. Classes `.dock-lane`, `.dock-lane-front`, `.dock-lane-bar`
+in `styles.css`. The same applies to pinned apps and to unpinned open windows (whose
+dot used to disappear while minimized), in both dock positions and dock styles.
 
-Verified live on the dev box (1440×900): with File Explorer in front and Dashboard and
-Terminal minimized, the backgrounds measured 54×60 with the tile 2px / 5px inside and
-4px apart, `dock-front` on File Explorer and `dock-open` on the other two, in light
-and dark; 60×54 on the right-side dock.
+**First version (replaced):** a rounded background 2–5px around the tile (white 8% /
+16%, ink 10% / 18%). On review it was hardly visible, on the user's right-side dock
+over a bright wallpaper; the user suggested taking it to the dock's full thickness.
+
+Verified live on the dev box (1440×900) with File Explorer in front and Dashboard and
+Terminal minimized: lanes measured 56×70 from 1px inside the dock, 2px apart, the bar
+28×3 under File Explorer only; on the right dock 70×56 with a 3×28 bar on the outer
+edge. Looked at in light and dark, over the dusk and the alpine (bright snow) wallpapers.
 
 ## EX8.28 — Server list when the HeadlessOS server is down
 

@@ -1,4 +1,4 @@
-// EX8.27: open apps in the dock sit on a soft background, stronger for the app in front
+// EX8.27: open apps in the dock get a lane across it; the app in front a brighter one with an accent bar
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 
@@ -40,9 +40,12 @@ describe('dock: open apps', () => {
       useDesktopStore.getState().openWindow('terminal', 's1', 'Terminal', 'terminal');
     });
     renderDock();
-    expect(bgOf('Terminal')).toHaveClass('bg-dock-front');
-    expect(bgOf('File Explorer')).toHaveClass('bg-dock-open');
+    expect(bgOf('Terminal')).toHaveClass('dock-lane-front');
+    expect(bgOf('File Explorer')).not.toHaveClass('dock-lane-front');
     expect(bgOf('Dashboard')).toBeNull();
+    // only the app in front gets the accent bar at the dock's base
+    expect(bgOf('Terminal')!.querySelector('.dock-lane-bar')).not.toBeNull();
+    expect(bgOf('File Explorer')!.querySelector('.dock-lane-bar')).toBeNull();
   });
 
   it('keeps the background when the app in front is minimized from the dock', () => {
@@ -50,9 +53,9 @@ describe('dock: open apps', () => {
     renderDock();
     fireEvent.click(screen.getByRole('button', { name: 'Terminal' }));
     expect(useDesktopStore.getState().windows[0].minimized).toBe(true);
-    expect(bgOf('Terminal')).toHaveClass('bg-dock-open');
+    expect(bgOf('Terminal')).not.toHaveClass('dock-lane-front');
     fireEvent.click(screen.getByRole('button', { name: 'Terminal' }));
-    expect(bgOf('Terminal')).toHaveClass('bg-dock-front');
+    expect(bgOf('Terminal')).toHaveClass('dock-lane-front');
   });
 
   it('marks an unpinned window as open while it is minimized', () => {
@@ -61,6 +64,6 @@ describe('dock: open apps', () => {
       useDesktopStore.getState().minimizeWindow(useDesktopStore.getState().windows[0].id);
     });
     renderDock();
-    expect(bgOf('Services')).toHaveClass('bg-dock-open');
+    expect(bgOf('Services')).not.toHaveClass('dock-lane-front');
   });
 });

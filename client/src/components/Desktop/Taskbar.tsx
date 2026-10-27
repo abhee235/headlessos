@@ -117,7 +117,7 @@ function WellButton({
 
 /**
  * 50px app plate; an accent dot at its top-left marks a running app (glowing when focused).
- * EX8.27: an open app also sits on a soft background, stronger for the app in front.
+ * EX8.27: an open app also gets a lane across the dock; the app in front a brighter one with an accent bar.
  */
 function DockTile({
   label,
@@ -146,17 +146,20 @@ function DockTile({
   const noPlate = style === 'color' && bare;
   return (
     <span className="relative flex shrink-0">
-      {/* Outside the button, so it stays put while the tile lifts on hover */}
+      {/* A lane across the whole dock, lit from its base; outside the button, so it stays put while the tile lifts */}
       {(focused || running) && (
         <span
           aria-hidden
           data-testid="dock-open-bg"
+          data-side={side}
           className={cn(
-            'pointer-events-none absolute rounded-[18px] transition-colors duration-200',
-            side === 'right' ? '-inset-x-[5px] -inset-y-[2px]' : '-inset-x-[2px] -inset-y-[5px]',
-            focused ? 'bg-dock-front' : 'bg-dock-open',
+            'dock-lane pointer-events-none absolute',
+            side === 'right' ? '-inset-x-[10px] -inset-y-[3px]' : '-inset-x-[3px] -inset-y-[10px]',
+            focused && 'dock-lane-front',
           )}
-        />
+        >
+          {focused && <span className="dock-lane-bar" />}
+        </span>
       )}
       <Tooltip>
         <TooltipTrigger asChild>
