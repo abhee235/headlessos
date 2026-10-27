@@ -87,6 +87,7 @@ this document; its token layer was merged into `client/src/styles.css`.
 | EX8.23 | Observatory "Failed to fetch" (user report): its REST calls go through the dev proxy | ✅ |
 | EX8.24 | AI Agent live progress (user report): steps stream in while it runs; Stop works | ✅ |
 | EX8.25 | Spinner size standard (user review): the H mark fills its box; 16px minimum | ✅ |
+| EX8.26 | Home hub network card (requested): the sample music card becomes the selected server's live download / upload graph with peak / average / total, same place and size | ✅ |
 
 ## Additions beyond the handoff
 
@@ -289,7 +290,7 @@ from the server; the music card stays a sample for now).
 | Ambient LED → Display | `displayLevel` 0–100 with **50 = the normal look**: below dims (to 0.4 at 0), above brightens (to 1.35 at 100) through one full-screen `backdrop-filter: brightness()` layer that exists only off 50 (`lib/display-level.ts`); the bar is the design's colour ramp without its cyan/blue stops; LED + power = Night light (warm tint, `nightLight`) |
 | Alexa → Assistant | opens the AI agent; LED/power reflect whether an LLM provider is configured (power opens Settings → AI / LLM when not) |
 | WiFi → Connection | selected server's connection; power connects / disconnects; command latency underneath |
-| Music player | unchanged sample (decided later) |
+| Music player | unchanged sample until EX8.26 made it the network traffic card |
 | Top nav | Search → command palette · Overview → hub · Calendar → notification centre · Scenes → Launcher · Bell → notifications on/off · Pie → Task Manager |
 
 Outbound calls: only the weather routes, server-side, to `geocoding-api.open-meteo.com`
@@ -511,6 +512,53 @@ is what you see, and `min-h-4 min-w-4` keeps every use at 16px or more.
 21 call sites below 16px went to 16; the UI Agent panel and Observatory status
 lines to 18. Measured live: the Dashboard panel loader's painted mark matches
 its box.
+
+## EX8.26 — Network traffic card
+
+The music card was the last sample left on the hub. It becomes the selected
+server's network traffic, in the same place (left 1131, top 583, 328×370), with
+the same title lines and frame (user's choice: a graph that moves a lot and is
+useful). A first cut kept the five music buttons with new jobs (range, previous /
+next interface, pause, open Dashboard) and the seek bar as a scrubber; on review
+they still read as music controls, and the interface buttons were always disabled
+on a one-NIC server. The user picked numbers instead of buttons.
+
+| Music part | Network card |
+|---|---|
+| Artist line | `Network · <interface>`; while the pointer is on the graph, that moment's offset (`−0:21`). With more than one interface it is a button (with a chevron) that shows the next one |
+| Track title | the rates at that moment (otherwise the latest) `↓ 3.1 KB/s  ↑ 6.2 KB/s`, a colour dot before each arrow as the legend |
+| Album art (framed 280×134) | mirrored area chart over the range: download above the centre line (teal `#1FA898`), upload below (violet `#7D63FF`, the health dial's knob). One shared scale, the peak rounded up to a 1 / 2 / 5 step and at least 1 KB/s, labelled at the top right. The line breaks where there are no readings. Hovering draws a crosshair with a dot on each series |
+| Repeat · Back · Play · Forward · Shuffle | three columns over the range: **Peak**, **Average** and **Total**, each `↓` download and `↑` upload. Average and total cover the measured time only (bytes moved ÷ seconds measured) |
+| Seek bar `1:30 … 3:56` | the time axis `−5:00 ··· now`; clicking it changes the range 5 → 15 → 1 → 5 minutes |
+
+**Data.** No new request: the 2 s Task Manager poll the health dial already makes
+(`useServerPulse`) also hands over each reading's `networkIo` counters. Rates are
+counter deltas over the time between readings, as in the Dashboard. A reading less
+than 1 s after the previous one is skipped, a counter that goes back counts as 0,
+and a gap longer than 10 s starts a new baseline instead of averaging over it.
+
+**Interfaces:** the server's `/proc/net/dev` parser already leaves out `lo`, so a
+one-NIC server shows just that interface and no switch. Docker hosts also list
+`docker0`, `veth*` and bridges: they are ordered busiest first (total bytes when
+first seen) and the busiest is shown; interfaces that appear later join the end.
+
+**History** is kept per server for 15 minutes, in memory, for the app session: reopening
+the hub shows what was recorded before, with a gap for the time it was closed.
+Nothing is sampled while the hub is closed.
+
+**Empty states:** not connected → "Not connected" in the frame; connected before the
+second reading → "Measuring…". The stats show `–` until there is data.
+
+**Colours** were checked with the data-viz palette validator on the frame's measured
+background (`#2D2721`–`#342F29`): both inside the dark lightness band, chroma ≥ 0.1,
+colour-blind ΔE 21, normal ΔE 27, contrast ≥ 3:1. Text stays white; the dots carry the colour.
+
+Built in `HomeHub/cards.tsx` (`addNetSample`, `useNetSeries`, `netStats`,
+`trafficPaths`, `NetworkTrafficCard`, replacing `PlayerCard`); `useServerPulse` gains
+`net`. The unused album photo (`public/hub/hub-album.jpg`) is removed. Verified live
+on the dev box at 1440×900: card 328×370 and frame 280×134 unchanged; stats 16px under
+the frame in three 88px columns (widest value 70px); the axis text on the old seek
+bar's line; hover readout and crosshair; range cycling.
 
 ## Deviations from the handoff text (prototype wins where they differ)
 

@@ -1011,6 +1011,14 @@ None (all changes to existing files).
 - **Files modified:** `server/src/index.ts`, `HomeHub/{HomeHub,cards,hub-ui}.tsx`, `Desktop/{DesktopLayout,SettingsView}.tsx`, `lib/api.ts`, `store/preferences-store.ts`, `client/tests/components/home-hub.test.tsx`
 - **Verification:** client 611 / server 2159 tests; Playwright of every card on the dev box
 
+### EX8.26: Home hub network card
+- **Status:** ✅ Complete
+- **Date:** 2026-10-27
+- **Files modified:** `client/src/components/HomeHub/cards.tsx` (`NetworkTrafficCard` replaces `PlayerCard`; `addNetSample`, `useNetSeries`, `netStats`, `trafficPaths`, `formatSize`/`formatRate`, `niceRateCeil`, `formatOffset`), `HomeHub/glance.tsx` (`ServerPulse.net`), `HomeHub/HomeHub.tsx`, `client/tests/components/home-hub.test.tsx`
+- **Files removed:** `client/public/hub/hub-album.jpg`
+- **Tests:** `home-hub.test.tsx` › network series (rates, skipped / reset / gap readings, 15-minute window, stats, scale, paths) and network traffic card (empty states, readout and stats, history across mounts, interface switch, range, hover)
+- **Verification:** Playwright on the dev box at 1440×900, measured (card and frame sizes unchanged, stats columns, axis line); palette validated on the measured frame background
+
 ## EX9: Safe Agents — Action Catalog, Approvals, Local Models
 
 > Agents run typed actions from a server-side catalog instead of shell commands. Spec: [phase-ex9.md](phases/phase-ex9.md), decision: ADR-024.
