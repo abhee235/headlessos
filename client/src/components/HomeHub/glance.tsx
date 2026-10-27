@@ -15,7 +15,7 @@ import { fetchWallpapers } from '../Desktop/wallpapers';
 import { useAppStore } from '../../store/app-store';
 import { useDesktopStore } from '../../store/window-store';
 import { usePreferencesStore } from '../../store/preferences-store';
-import { arcPath } from './cards';
+import { arcPath, type NetSample } from './cards';
 import { CardTitle, Glyph, HubCard, Led, Photo, PowerButton, hubIcon, raisedTile } from './hub-ui';
 
 // ─── Shared: the selected server's pulse ─────────────────────────────────────
@@ -25,13 +25,15 @@ export interface ServerPulse {
   memPct: number | null;
   diskPct: number | null;
   latencyMs: number | null;
+  /** The latest network counters, for the traffic card (EX8.26) */
+  net: NetSample | null;
 }
 
-/** Live CPU / memory / latency every 2 s and disk every 60 s while connected */
+/** Live CPU / memory / latency / network counters every 2 s and disk every 60 s while connected */
 export function useServerPulse(serverId: string | null, connected: boolean): ServerPulse {
-  const [pulse, setPulse] = useState<ServerPulse>({ cpu: null, memPct: null, diskPct: null, latencyMs: null });
+  const [pulse, setPulse] = useState<ServerPulse>({ cpu: null, memPct: null, diskPct: null, latencyMs: null, net: null });
   useEffect(() => {
-    setPulse({ cpu: null, memPct: null, diskPct: null, latencyMs: null });
+    setPulse({ cpu: null, memPct: null, diskPct: null, latencyMs: null, net: null });
     if (!serverId || !connected) return;
     let alive = true;
     let busy = false;
@@ -47,6 +49,7 @@ export function useServerPulse(serverId: string | null, connected: boolean): Ser
             cpu: r.data!.cpu.overallPercent,
             memPct: m.totalMb > 0 ? (m.usedMb / m.totalMb) * 100 : null,
             latencyMs: r.totalLatencyMs ?? p.latencyMs,
+            net: { serverId, at: Date.now(), ifaces: r.data!.networkIo ?? [] },
           }));
         }
       } catch { /* keep the last values */ } finally { busy = false; }

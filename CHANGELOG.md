@@ -26,6 +26,8 @@ All notable changes to HeadlessOS. Task IDs (M14, EX11, …) point to the phase 
 - **A new look** (EX8): a glass desktop with dock, launcher, Quick Settings, notifications,
   a Home hub, a code editor in Files, and more in Task Manager (app history, startup apps,
   users, services).
+- **Network traffic on the Home hub** (EX8.26): the selected server's download and upload for
+  the last 1, 5 or 15 minutes, with peak, average and total, in place of the sample music card.
 - **Docs:** `SECURITY.md` and `CONTRIBUTING.md`; a README with install steps and
   screenshots (M14).
 
@@ -43,11 +45,16 @@ All notable changes to HeadlessOS. Task IDs (M14, EX11, …) point to the phase 
 - Apple and Microsoft wallpapers removed; MIT licence added (M13).
 - Desktop builds no longer ship server code from git: the release build bundles it fresh.
   The release workflow runs the full typecheck and test suite first (M14).
+- Open apps get a lane across the dock, brighter with an accent bar for the app in front, so a
+  minimized app no longer looks switched off (EX8.27).
 
 ### Fixed
 - The agent audit log could replace an older rotated file when two rotations fell in the
   same millisecond, losing entries (M14.4).
 - Local-model runs no longer show a made-up cost (EX10.7).
+- When the HeadlessOS backend was down or restarting, the sign-in screen said "No servers
+  configured yet". It now says the list couldn't load, retries every 3 s, and shows your
+  servers once the backend answers (EX8.28).
 
 ## 0.1.0 — 2026-04-26
 

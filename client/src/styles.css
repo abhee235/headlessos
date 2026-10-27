@@ -249,6 +249,9 @@
   --glass-foreground: var(--lumen-label);
   --glass-border: var(--lumen-edge);
   --dock-hover: rgba(255, 255, 255, .14);
+  /* EX8.27: an open app's lane at the dock's base (in front: brighter); it fades to 30% at the far edge */
+  --dock-open: rgba(16, 30, 38, .13);
+  --dock-front: rgba(16, 30, 38, .22);
   --dock-active: var(--lumen-accent-soft);
   --dock-indicator: var(--lumen-accent);
 }
@@ -307,6 +310,8 @@
   --chart-5: #7FD3A0;
   --overlay: rgba(0, 0, 0, .5);
   --dock-hover: rgba(255, 255, 255, .14);
+  --dock-open: rgba(255, 255, 255, .14);
+  --dock-front: rgba(255, 255, 255, .28);
 }
 
 /* ── Accent presets (data-accent on <html>). Iris is the default above.
@@ -418,6 +423,35 @@ textarea::placeholder {
     background: linear-gradient(180deg, rgba(255, 255, 255, .2), rgba(255, 255, 255, .06));
     border: 1px solid var(--lumen-edge2);
     box-shadow: inset 0 1px 0 var(--lumen-spec2), 0 6px 14px -8px rgba(0, 0, 0, .45);
+  }
+  /* EX8.27: an open app's lane across the dock, lit from the dock's base;
+     the app in front gets a brighter lane and an accent bar on that edge */
+  .dock-lane {
+    --lane: var(--dock-open);
+    background: linear-gradient(to top, var(--lane), color-mix(in srgb, var(--lane) 30%, transparent));
+  }
+  .dock-lane[data-side="right"] {
+    background: linear-gradient(to left, var(--lane), color-mix(in srgb, var(--lane) 30%, transparent));
+  }
+  .dock-lane-front { --lane: var(--dock-front); }
+  .dock-lane-bar {
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    bottom: 0;
+    height: 3px;
+    border-radius: 3px 3px 0 0;
+    background: var(--lumen-accent);
+    box-shadow: 0 0 10px var(--lumen-accent-glow);
+  }
+  .dock-lane[data-side="right"] .dock-lane-bar {
+    top: 14px;
+    bottom: 14px;
+    left: auto;
+    right: 0;
+    width: 3px;
+    height: auto;
+    border-radius: 3px 0 0 3px;
   }
   /* Raised pill input (launcher search, sign-in password) */
   .lumen-field-raised {

@@ -1011,6 +1011,28 @@ None (all changes to existing files).
 - **Files modified:** `server/src/index.ts`, `HomeHub/{HomeHub,cards,hub-ui}.tsx`, `Desktop/{DesktopLayout,SettingsView}.tsx`, `lib/api.ts`, `store/preferences-store.ts`, `client/tests/components/home-hub.test.tsx`
 - **Verification:** client 611 / server 2159 tests; Playwright of every card on the dev box
 
+### EX8.26: Home hub network card
+- **Status:** ✅ Complete
+- **Date:** 2026-10-27
+- **Files modified:** `client/src/components/HomeHub/cards.tsx` (`NetworkTrafficCard` replaces `PlayerCard`; `addNetSample`, `useNetSeries`, `netStats`, `trafficPaths`, `formatSize`/`formatRate`, `niceRateCeil`, `formatOffset`), `HomeHub/glance.tsx` (`ServerPulse.net`), `HomeHub/HomeHub.tsx`, `client/tests/components/home-hub.test.tsx`
+- **Files removed:** `client/public/hub/hub-album.jpg`
+- **Tests:** `home-hub.test.tsx` › network series (rates, skipped / reset / gap readings, 15-minute window, stats, scale, paths) and network traffic card (empty states, readout and stats, history across mounts, interface switch, range, hover)
+- **Verification:** Playwright on the dev box at 1440×900, measured (card and frame sizes unchanged, stats columns, axis line); palette validated on the measured frame background
+
+### EX8.27: Open apps in the dock
+- **Status:** ✅ Complete
+- **Date:** 2026-10-27
+- **Files created:** `client/tests/components/taskbar-open-apps.test.tsx`
+- **Files modified:** `client/src/components/Desktop/Taskbar.tsx` (`DockTile` lane; unpinned windows always `running`), `client/src/styles.css` (`--dock-open`, `--dock-front`, `.dock-lane`, `.dock-lane-front`, `.dock-lane-bar`)
+- **Verification:** Playwright on the dev box, measured in light and dark, both dock positions, dusk and alpine wallpapers
+
+### EX8.28: Server list when the HeadlessOS server is down
+- **Status:** ✅ Complete
+- **Date:** 2026-10-27
+- **Files created:** `client/tests/components/login-server-list.test.tsx`
+- **Files modified:** `client/src/store/app-store.ts` (`serversError`; a failed load keeps the last list), `client/src/components/Login/LoginScreen.tsx` (message, Retry, 3 s retry)
+- **Verification:** Playwright against a stopped, then started, backend: message shown, list back without a click
+
 ## EX9: Safe Agents — Action Catalog, Approvals, Local Models
 
 > Agents run typed actions from a server-side catalog instead of shell commands. Spec: [phase-ex9.md](phases/phase-ex9.md), decision: ADR-024.

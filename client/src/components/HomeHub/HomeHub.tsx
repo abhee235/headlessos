@@ -5,7 +5,8 @@
 // local user, users on the selected server, a photo frame from ~/Pictures,
 // Open-Meteo weather, a server health dial, recent apps, display brightness /
 // night light, the AI assistant, the connection, and the saved servers in the
-// room bar. The music card is still the sample. See phase-ex8.md for the table.
+// room bar. EX8.26: the music card became the network traffic card. See
+// phase-ex8.md for the tables.
 // @see docs/phases/phase-ex8.md
 
 import { useEffect, useState, type MouseEvent } from 'react';
@@ -17,7 +18,7 @@ import { eventBus } from '../../lib/event-bus';
 import { fetchHostInfo } from '../../lib/api';
 import { APPS } from '../../lib/apps';
 import { Glyph, hubIcon, pressedPill } from './hub-ui';
-import { PlayerCard } from './cards';
+import { NetworkTrafficCard } from './cards';
 import {
   AssistantCard, ConnectionCard, DisplayCard, HealthDialCard, PhotoFrameCard, RecentAppsCard, ServerBar,
   UserAvatars, WeatherGlanceCard, glanceHeadline, greetingFor, useServerPulse, useServerUsers,
@@ -218,7 +219,8 @@ function HomeHubOverlay() {
           <DisplayCard />
           <AssistantCard canOpen={connected} onOpen={() => launch('agent')} onSettings={() => launch('settings', { initialPage: 'ai' })} />
           <ConnectionCard serverId={serverId} status={status} latencyMs={pulse.latencyMs} />
-          <PlayerCard />
+          {/* Keyed by server: its range and interface start fresh */}
+          <NetworkTrafficCard key={serverId ?? ''} serverId={serverId} connected={connected} sample={pulse.net} />
 
           {/* Room bar: saved servers */}
           <nav

@@ -30,6 +30,8 @@ interface AppState {
   servers: ServerWithState[];
   activeServerId: string | null;
   loadingServers: boolean;
+  /** EX8.28: why the last load of the server list failed (null after a good load) */
+  serversError: string | null;
 
   // Tabs
   tabs: Tab[];
@@ -73,6 +75,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   servers: [],
   activeServerId: null,
   loadingServers: false,
+  serversError: null,
   tabs: [],
   activeTabId: null,
   terminalVisible: false,
@@ -137,9 +140,10 @@ export const useAppStore = create<AppState>((set, get) => ({
         const connected = servers.find(s => s.state?.status === 'connected');
         activeServerId = connected?.id ?? servers[0].id;
       }
-      set({ servers, loadingServers: false, activeServerId });
-    } catch {
-      set({ loadingServers: false });
+      set({ servers, loadingServers: false, serversError: null, activeServerId });
+    } catch (err) {
+      // Keep the last list: a backend that is down or restarting is not "no servers"
+      set({ loadingServers: false, serversError: err instanceof Error ? err.message : String(err) });
     }
   },
 
