@@ -1026,6 +1026,13 @@ None (all changes to existing files).
 - **Files modified:** `client/src/components/Desktop/Taskbar.tsx` (`DockTile` background; unpinned windows always `running`), `client/src/styles.css` (`--dock-open`, `--dock-front`)
 - **Verification:** Playwright on the dev box, measured in light and dark and on the right-side dock
 
+### EX8.28: Server list when the HeadlessOS server is down
+- **Status:** ✅ Complete
+- **Date:** 2026-10-27
+- **Files created:** `client/tests/components/login-server-list.test.tsx`
+- **Files modified:** `client/src/store/app-store.ts` (`serversError`; a failed load keeps the last list), `client/src/components/Login/LoginScreen.tsx` (message, Retry, 3 s retry)
+- **Verification:** Playwright against a stopped, then started, backend: message shown, list back without a click
+
 ## EX9: Safe Agents — Action Catalog, Approvals, Local Models
 
 > Agents run typed actions from a server-side catalog instead of shell commands. Spec: [phase-ex9.md](phases/phase-ex9.md), decision: ADR-024.

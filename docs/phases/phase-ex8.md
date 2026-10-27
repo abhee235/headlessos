@@ -89,6 +89,7 @@ this document; its token layer was merged into `client/src/styles.css`.
 | EX8.25 | Spinner size standard (user review): the H mark fills its box; 16px minimum | ✅ |
 | EX8.26 | Home hub network card (requested): the sample music card becomes the selected server's live download / upload graph with peak / average / total, same place and size | ✅ |
 | EX8.27 | Open apps in the dock (user review): a soft background behind the tile of every open app, stronger for the app in front, so a minimized or background app reads as open | ✅ |
+| EX8.28 | Server list when the HeadlessOS server is down (user report): "Couldn't load your saved servers" with Retry and a retry every 3 s, instead of "No servers configured yet" | ✅ |
 
 ## Additions beyond the handoff
 
@@ -589,6 +590,24 @@ Verified live on the dev box (1440×900): with File Explorer in front and Dashbo
 Terminal minimized, the backgrounds measured 54×60 with the tile 2px / 5px inside and
 4px apart, `dock-front` on File Explorer and `dock-open` on the other two, in light
 and dark; 60×54 on the right-side dock.
+
+## EX8.28 — Server list when the HeadlessOS server is down
+
+**Report:** after closing the app, the sign-in screen said "No servers configured yet",
+as if the saved servers were gone. They were not: `~/.headlessos/servers.json` was
+intact, but the backend was not answering (stopped, or restarting under `tsx watch`),
+and `fetchServers` swallowed the error, so an empty list looked like no servers.
+
+`app-store` now keeps `serversError` (set when loading the list fails, cleared when
+it succeeds; a failed refresh keeps the last list). With no list to show, the sign-in
+screen says **"Couldn't load your saved servers"** with **Retry**, the error in its
+tooltip, and tries again every 3 s on its own, so the list appears once the backend
+answers. "No servers configured yet" shows only after a successful load that returned
+none.
+
+Verified live: with the backend stopped, the sign-in screen showed the message and
+Retry instead of the empty state; after starting the backend the list appeared by
+itself 17 s later (about 14 s of startup, then the next retry) and the message went away.
 
 ## Deviations from the handoff text (prototype wins where they differ)
 

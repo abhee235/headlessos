@@ -11,6 +11,7 @@ import { ServerAvatar } from './ServerAvatar';
 import { AddServerForm } from './AddServerForm';
 import { Server, Plus, ArrowLeft, ArrowRight, Eye, EyeOff, KeyRound, AlertCircle } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
+import { Button } from '@/components/ui/button';
 
 type LoginView = 'select' | 'credentials' | 'add-server';
 
@@ -30,6 +31,7 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
     setLoginError,
     addServer,
     loadingServers,
+    serversError,
   } = useAppStore();
 
   const [view, setView] = useState<LoginView>('select');
@@ -46,6 +48,14 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
   useEffect(() => {
     fetchServers();
   }, [fetchServers]);
+
+  // EX8.28: the list failed to load (backend down or restarting): try again every 3 s
+  const listFailed = !!serversError && servers.length === 0;
+  useEffect(() => {
+    if (!listFailed) return;
+    const id = setInterval(() => { void fetchServers(); }, 3000);
+    return () => clearInterval(id);
+  }, [listFailed, fetchServers]);
 
   // Focus password field when entering credentials view
   useEffect(() => {
@@ -162,7 +172,7 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
 
             {/* Server avatars */}
             <div className="flex flex-wrap justify-center gap-6 max-w-lg">
-              {loadingServers && servers.length === 0 && (
+              {loadingServers && servers.length === 0 && !listFailed && (
                 <div className="glass-heavy flex items-center gap-2 rounded-full px-4 py-2">
                   <Spinner className="w-5 h-5" />
                   <span className="text-sm text-label-2">Loading servers…</span>
@@ -194,8 +204,18 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
               </button>
             </div>
 
-            {/* Empty state */}
-            {servers.length === 0 && !loadingServers && (
+            {/* Couldn't load the list: not the same as having no servers */}
+            {listFailed && (
+              <div role="alert" title={serversError ?? undefined} className="glass-heavy flex items-center gap-3 rounded-full py-1 pl-4 pr-1 text-[13px] text-label-2">
+                <span>Couldn't load your saved servers. Retrying…</span>
+                <Button size="sm" variant="secondary" onClick={() => { void fetchServers(); }}>
+                  Retry
+                </Button>
+              </div>
+            )}
+
+            {/* Empty state: only after a load that worked */}
+            {servers.length === 0 && !loadingServers && !serversError && (
               <p className="glass-heavy rounded-full px-4 py-2 text-[13px] text-label-2">
                 No servers configured yet. Click "Add Server" to get started.
               </p>
