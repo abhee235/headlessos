@@ -1416,6 +1416,14 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-14.md` ("M14.11")
 - **Verification:** packaged `win-unpacked` driven over CDP with an isolated data folder: bridge present, sign-in, Files, dock, Home hub
 
+### M14.12: The desktop app ships its system wallpapers
+- **Status:** ✅ Complete
+- **Date:** 2026-10-27
+- **Files created:** `server/tests/electron/packaging.test.ts`
+- **Files modified:** `electron/package.json` (`extraResources`: `../server/assets` → `assets`), `server/src/routes/wallpapers.ts` (`findSystemDir`)
+- **Docs:** `docs/phases/phase-14.md` ("M14.12")
+- **Verification:** packaged app lists 16 system wallpapers and shows one on the lock screen and desktop
+
 ## How to Use This File
 
 ### After completing a task:

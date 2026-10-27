@@ -110,6 +110,7 @@ must pass unchanged, except where a test asserts zod 3's own error wording.
 | M14.9 | Make the repository public | ✅ |
 | M14.10 | Tag v0.2.0 and check the release | ⬜ |
 | M14.11 | The desktop app reaches its own backend: the sandboxed preload no longer `require`s `package.json` | ✅ |
+| M14.12 | The desktop app ships its system wallpapers | ✅ |
 
 ## M14.1 — Same-major fixes and dompurify (as built)
 
@@ -348,3 +349,27 @@ Two things to know when launching the packaged app from a VS Code terminal: VS C
 `ELECTRON_RUN_AS_NODE=1` for its child processes, which makes `HeadlessOS.exe` run as plain
 Node ("bad option: --remote-debugging-port"), so unset it first; and overriding `APPDATA` /
 `LOCALAPPDATA` made it exit with code 3, while `--user-data-dir` isolates the profile cleanly.
+
+## M14.12 — The desktop app ships its system wallpapers
+
+**Found** in the same check, once the app reached its backend: no wallpaper on the lock
+screen or the desktop (the image's alt text "Wallpaper" showed under the menu bar), and
+the Home hub's photo frame had no wallpapers to fall back on. The bundled server answered
+`GET /api/wallpapers` with `{"system":[],"user":[]}`.
+
+`routes/wallpapers.ts` looked for `server/assets/wallpapers/system` two folders above its
+own file, which is right in the source tree only. In the packaged app the server is
+`resources/server.mjs`, and electron-builder never copied `server/assets` at all.
+
+**Fix:**
+- `electron/package.json` copies `../server/assets` to `resources/assets`.
+- The route uses the first of these that has `wallpapers/system`: next to the server file
+  (the packaged app), two folders up (the source tree, tests), or `../server/assets`
+  (`npm run test:prod`, which runs `electron/server.mjs`).
+
+**Guard:** tests for the folder choice in all three layouts, and that the electron-builder
+config copies `server/assets`.
+
+**Check (done):** the rebuilt `win-unpacked` has `resources/assets/wallpapers/system` (16
+images and the credits file); `GET /api/wallpapers` lists 16; the wallpaper image loads on the
+lock screen and the desktop, and the Home hub's photo frame runs its wallpaper slideshow.
