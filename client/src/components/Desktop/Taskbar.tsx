@@ -115,7 +115,10 @@ function WellButton({
   );
 }
 
-/** 50px app plate; an accent dot at its top-left marks a running app (glowing when focused). */
+/**
+ * 50px app plate; an accent dot at its top-left marks a running app (glowing when focused).
+ * EX8.27: an open app also sits on a soft background, stronger for the app in front.
+ */
 function DockTile({
   label,
   appId,
@@ -142,44 +145,58 @@ function DockTile({
   const tile = style === 'color' && appId ? colourTile(appId) : null;
   const noPlate = style === 'color' && bare;
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          aria-label={label}
+    <span className="relative flex shrink-0">
+      {/* Outside the button, so it stays put while the tile lifts on hover */}
+      {(focused || running) && (
+        <span
+          aria-hidden
+          data-testid="dock-open-bg"
           className={cn(
-            'group relative h-[50px] w-[50px] shrink-0 rounded-[16px] transition-transform duration-[180ms] ease-out',
-            side === 'right' ? 'hover:-translate-x-[5px] hover:scale-[1.07]' : 'hover:-translate-y-[5px] hover:scale-[1.07]',
-            // No ring on click; keyboard focus still gets one
-            'outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            dimmed && 'opacity-40',
+            'pointer-events-none absolute rounded-[18px] transition-colors duration-200',
+            side === 'right' ? '-inset-x-[5px] -inset-y-[2px]' : '-inset-x-[2px] -inset-y-[5px]',
+            focused ? 'bg-dock-front' : 'bg-dock-open',
           )}
-          onClick={onClick}
-        >
-          {tile ? tile.plate : !noPlate && <span className="lumen-plate absolute inset-0 rounded-[16px]" />}
-          <span
+        />
+      )}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            aria-label={label}
             className={cn(
-              'absolute inset-0 grid place-items-center [&>*]:block',
-              // Colour tiles carry their own contrast; keep only a hint of lift on the glyph
-              tile ? 'drop-shadow-[0_1px_1px_rgba(0,0,0,.18)]' : 'drop-shadow-[0_2px_3px_rgba(0,0,0,.3)]',
+              'group relative h-[50px] w-[50px] shrink-0 rounded-[16px] transition-transform duration-[180ms] ease-out',
+              side === 'right' ? 'hover:-translate-x-[5px] hover:scale-[1.07]' : 'hover:-translate-y-[5px] hover:scale-[1.07]',
+              // No ring on click; keyboard focus still gets one
+              'outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              dimmed && 'opacity-40',
             )}
+            onClick={onClick}
           >
-            {tile ? tile.glyph : children}
-          </span>
-          {(focused || running) && (
+            {tile ? tile.plate : !noPlate && <span className="lumen-plate absolute inset-0 rounded-[16px]" />}
             <span
-              aria-hidden
               className={cn(
-                'absolute left-[5px] top-[5px] size-[7px] rounded-full bg-accent-solid shadow-[0_0_0_1.5px_rgba(0,0,0,.28)] transition-[opacity,box-shadow] duration-200',
-                focused
-                  ? 'shadow-[0_0_0_1.5px_rgba(0,0,0,.28),0_0_8px_var(--lumen-accent-glow)]'
-                  : 'opacity-55',
+                'absolute inset-0 grid place-items-center [&>*]:block',
+                // Colour tiles carry their own contrast; keep only a hint of lift on the glyph
+                tile ? 'drop-shadow-[0_1px_1px_rgba(0,0,0,.18)]' : 'drop-shadow-[0_2px_3px_rgba(0,0,0,.3)]',
               )}
-            />
-          )}
-        </button>
-      </TooltipTrigger>
-      <TooltipContent side={side === 'right' ? 'left' : 'top'} sideOffset={16}>{label}</TooltipContent>
-    </Tooltip>
+            >
+              {tile ? tile.glyph : children}
+            </span>
+            {(focused || running) && (
+              <span
+                aria-hidden
+                className={cn(
+                  'absolute left-[5px] top-[5px] size-[7px] rounded-full bg-accent-solid shadow-[0_0_0_1.5px_rgba(0,0,0,.28)] transition-[opacity,box-shadow] duration-200',
+                  focused
+                    ? 'shadow-[0_0_0_1.5px_rgba(0,0,0,.28),0_0_8px_var(--lumen-accent-glow)]'
+                    : 'opacity-55',
+                )}
+              />
+            )}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side={side === 'right' ? 'left' : 'top'} sideOffset={16}>{label}</TooltipContent>
+      </Tooltip>
+    </span>
   );
 }
 
@@ -368,7 +385,8 @@ export function Taskbar() {
                           label={win.title}
                           appId={win.appId}
                           focused={isFocused}
-                          running={!win.minimized}
+                          // An unpinned tile exists only while its window is open (EX8.27)
+                          running
                           onClick={() =>
                             handleAppClick(win.appId, {
                               id: win.id,

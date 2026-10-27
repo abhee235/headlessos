@@ -1019,6 +1019,13 @@ None (all changes to existing files).
 - **Tests:** `home-hub.test.tsx` › network series (rates, skipped / reset / gap readings, 15-minute window, stats, scale, paths) and network traffic card (empty states, readout and stats, history across mounts, interface switch, range, hover)
 - **Verification:** Playwright on the dev box at 1440×900, measured (card and frame sizes unchanged, stats columns, axis line); palette validated on the measured frame background
 
+### EX8.27: Open apps in the dock
+- **Status:** ✅ Complete
+- **Date:** 2026-10-27
+- **Files created:** `client/tests/components/taskbar-open-apps.test.tsx`
+- **Files modified:** `client/src/components/Desktop/Taskbar.tsx` (`DockTile` background; unpinned windows always `running`), `client/src/styles.css` (`--dock-open`, `--dock-front`)
+- **Verification:** Playwright on the dev box, measured in light and dark and on the right-side dock
+
 ## EX9: Safe Agents — Action Catalog, Approvals, Local Models
 
 > Agents run typed actions from a server-side catalog instead of shell commands. Spec: [phase-ex9.md](phases/phase-ex9.md), decision: ADR-024.

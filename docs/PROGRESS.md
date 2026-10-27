@@ -633,6 +633,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-10-27 | **EX8.27 ✅** Open apps in the dock sit on a soft background, stronger for the app in front, so an app that is minimized or behind another window reads as open rather than switched off. Clicking the app in front still minimizes it. |
 | 2026-10-27 | **EX8.26 ✅** The Home hub's music card is now the selected server's network traffic: download above and upload below a centre line for the last 1, 5 or 15 minutes, the live rates (or the moment under the pointer) as its title, and peak, average and total under the graph. It reuses the hub's existing 2 s poll, keeps 15 minutes per server while the app is open, and needs no new route. |
 | 2026-10-27 | **M14 specced** after an audit for going public: 11 high or critical dependency advisories (one critical, in `dompurify` under the code editor), six-month-old server bundles committed, no CI on pull requests, no security policy, and a README without Claude or install steps. The owner decides when to publish and tag v0.2.0. |
 | 2026-10-27 | **EX11 ✅** Claude (Haiku 5.5, Sonnet 5.5, Opus 5.5) is now a choice in Settings → AI, next to OpenAI and Ollama. The key is checked with Anthropic before it is saved, stored encrypted, and kept when switching to another provider and back. Parsing, the AI Agent, Dynamic UI and the UI Agent all run on the chosen Claude model, which sends its earlier reasoning back between steps; traces show what each call costs. |

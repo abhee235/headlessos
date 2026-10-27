@@ -88,6 +88,7 @@ this document; its token layer was merged into `client/src/styles.css`.
 | EX8.24 | AI Agent live progress (user report): steps stream in while it runs; Stop works | ✅ |
 | EX8.25 | Spinner size standard (user review): the H mark fills its box; 16px minimum | ✅ |
 | EX8.26 | Home hub network card (requested): the sample music card becomes the selected server's live download / upload graph with peak / average / total, same place and size | ✅ |
+| EX8.27 | Open apps in the dock (user review): a soft background behind the tile of every open app, stronger for the app in front, so a minimized or background app reads as open | ✅ |
 
 ## Additions beyond the handoff
 
@@ -559,6 +560,35 @@ Built in `HomeHub/cards.tsx` (`addNetSample`, `useNetSeries`, `netStats`,
 on the dev box at 1440×900: card 328×370 and frame 280×134 unchanged; stats 16px under
 the frame in three 88px columns (widest value 70px); the axis text on the old seek
 bar's line; hover readout and crosshair; range cycling.
+
+## EX8.27 — Open apps in the dock
+
+Clicking the dock tile of the app in front minimizes it, and clicking again brings
+it back (the Windows taskbar convention, since M6.6). The user keeps that, but with
+only the 7px dot to tell them apart, a minimized app looked switched off, as if the
+tile were a toggle.
+
+Every open app now sits on a soft rounded background behind its tile, outside the
+button so it stays put when the tile lifts on hover. Along the dock it is 2px wider
+than the tile on each side, across it 5px (54×60 on the bottom dock, 60×54 on the
+right one; radius 18), which leaves 4px between two open neighbours and fits the
+72px bar without moving anything.
+
+| App | Background | Dot |
+|---|---|---|
+| Not open | none | none |
+| Open, minimized or behind another window | `--dock-open`: white 8% (dark), ink 10% (light) | 55% |
+| Open and in front | `--dock-front`: white 16% (dark), ink 18% (light) | glowing |
+
+The light values are a step above the `fill` tokens: at 6% a minimized app's
+background did not show on the light dock. The same applies to pinned apps and to
+unpinned open windows (whose dot used to disappear while minimized), in both dock
+positions and both dock styles (Colour and Glass).
+
+Verified live on the dev box (1440×900): with File Explorer in front and Dashboard and
+Terminal minimized, the backgrounds measured 54×60 with the tile 2px / 5px inside and
+4px apart, `dock-front` on File Explorer and `dock-open` on the other two, in light
+and dark; 60×54 on the right-side dock.
 
 ## Deviations from the handoff text (prototype wins where they differ)
 

@@ -92,6 +92,8 @@
   --color-glass-foreground: var(--glass-foreground);
   --color-glass-border: var(--glass-border);
   --color-dock-hover: var(--dock-hover);
+  --color-dock-open: var(--dock-open);
+  --color-dock-front: var(--dock-front);
   --color-dock-active: var(--dock-active);
   --color-dock-indicator: var(--dock-indicator);
 
@@ -249,6 +251,9 @@
   --glass-foreground: var(--lumen-label);
   --glass-border: var(--lumen-edge);
   --dock-hover: rgba(255, 255, 255, .14);
+  /* EX8.27: behind an open app's tile (in front: stronger) */
+  --dock-open: rgba(16, 30, 38, .1);
+  --dock-front: rgba(16, 30, 38, .18);
   --dock-active: var(--lumen-accent-soft);
   --dock-indicator: var(--lumen-accent);
 }
@@ -307,6 +312,8 @@
   --chart-5: #7FD3A0;
   --overlay: rgba(0, 0, 0, .5);
   --dock-hover: rgba(255, 255, 255, .14);
+  --dock-open: rgba(255, 255, 255, .08);
+  --dock-front: rgba(255, 255, 255, .16);
 }
 
 /* ── Accent presets (data-accent on <html>). Iris is the default above.
