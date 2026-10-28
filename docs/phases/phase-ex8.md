@@ -91,6 +91,7 @@ this document; its token layer was merged into `client/src/styles.css`.
 | EX8.27 | Open apps in the dock (user review): a lane across the dock behind every open app, brighter with an accent bar for the app in front, so a minimized or background app reads as open | ✅ |
 | EX8.28 | Server list when the HeadlessOS server is down (user report): "Couldn't load your saved servers" with Retry and a retry every 3 s, instead of "No servers configured yet" | ✅ |
 | EX8.29 | Fleet overview in the Home hub's language (user review): dial gauges for CPU, memory and disk, a status LED, no icon chips or flat bars | ✅ |
+| EX8.30 | File Explorer favourites point at the signed-in user's home (bug found while capturing the website): no more `/home/testuser` | 🔄 |
 
 ## Additions beyond the handoff
 
@@ -662,6 +663,26 @@ Verified in the isolated app on two demo servers at 1440×900 and 820 wide, dark
 number's centre within 1px of the disc's; both cards 389×258; the fleet CPU dial is the mean of
 the two servers' (46% and 38% → 42%); Connect on an offline card connects it; the CPU dials fill
 in about 2 s after opening. Server 2558 passed (+4), client 688 passed (+9), both typechecks clean.
+
+## EX8.30 — File Explorer favourites follow the user's home
+
+**Bug:** the Favorites in File Explorer's sidebar were written for the dev container:
+Home, Desktop, Documents and Downloads all pointed into `/home/testuser`. On any other
+server, or as any other user, they opened "Failed to read directory: No such file".
+Found while capturing the website's screenshots as `deploy`.
+
+**Home** is now the folder the SSH login lands in, asked of the server: SFTP `realpath('.')`
+through a new `GET /api/servers/:id/files/home` → `{ path }`. That is right for `root`
+(`/root`), for users whose home is not under `/home`, and for service accounts, with no
+guessing from the user name.
+
+**Desktop, Documents, Downloads** are subfolders of that home, and a server often has
+none of them (no desktop session ever created them). Each is shown only when it exists
+in the home folder, so the list never offers a link that fails. Home itself always shows.
+
+While the home is being looked up, or if the lookup fails, the Favorites group shows only
+the entries that don't depend on it (Recents, Recycle Bin); Locations are unchanged. The
+lookup runs once per server for the window's life.
 
 ## Deviations from the handoff text (prototype wins where they differ)
 
