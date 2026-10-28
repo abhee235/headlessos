@@ -15,6 +15,8 @@ import type {
   DiskUsageParsed,
   MemoryInfoParsed,
 } from '../../parsers/schemas/system.js';
+import { ProcStatSchema, type ProcStatParsed } from '../../parsers/schemas/taskmanager.js';
+import { computeCpuUsage } from '../../parsers/deterministic/proc-stat.js';
 import type { ConfigStore } from '../../config/store.js';
 import type { ExecutionPlan } from '../../orchestrator/orchestrator.js';
 
@@ -31,6 +33,11 @@ export interface FleetServerSummary {
     uptime: string;
     kernel: string;
     architecture: string;
+  };
+  /** EX8.29: average CPU since this server's previous fleet sample; null on the first one */
+  cpu?: {
+    usedPercent: number | null;
+    cores: number;
   };
   memory?: {
     totalMb: number;
@@ -56,12 +63,16 @@ export interface FleetOverview {
     usedMemoryMb: number;
     totalDiskGb: number;
     usedDiskGb: number;
+    /** EX8.29: mean CPU of the connected servers that have a reading; null when none do */
+    avgCpuPercent: number | null;
   };
   fetchedAt: string;
 }
 
 export class FleetService extends DomainService {
   private configStore!: ConfigStore;
+  /** EX8.29: each server's previous /proc/stat sample, for CPU between refreshes */
+  private cpuSamples = new Map<string, ProcStatParsed>();
 
   protected async _construct(): Promise<void> {}
 
@@ -102,6 +113,7 @@ export class FleetService extends DomainService {
             },
             { id: 'memory', command: 'free -m', schema: MemoryInfoSchema, timeout: 8_000 },
             { id: 'disk', command: 'df -h', schema: DiskUsageSchema, timeout: 8_000 },
+            { id: 'proc-stat', command: 'cat /proc/stat', schema: ProcStatSchema, timeout: 8_000 },
           ],
           parallel: true,
         };
@@ -114,13 +126,15 @@ export class FleetService extends DomainService {
               sysInfo: results.get('system-info') as SystemInfoParsed | undefined,
               memory: results.get('memory') as MemoryInfoParsed | undefined,
               diskArr: results.get('disk') as DiskUsageParsed | undefined,
+              procStat: results.get('proc-stat') as ProcStatParsed | undefined,
             }),
           );
 
-          const { sysInfo, memory, diskArr } = result.data as {
+          const { sysInfo, memory, diskArr, procStat } = result.data as {
             sysInfo?: SystemInfoParsed;
             memory?: MemoryInfoParsed;
             diskArr?: DiskUsageParsed;
+            procStat?: ProcStatParsed;
           };
 
           let totalDiskGb = 0;
@@ -140,6 +154,7 @@ export class FleetService extends DomainService {
 
           return {
             ...base,
+            cpu: this.cpuFrom(srv.id, procStat),
             system: sysInfo
               ? {
                   hostname: sysInfo.hostname,
@@ -189,10 +204,15 @@ export class FleetService extends DomainService {
       let totalDiskGb = 0;
       let usedDiskGb = 0;
 
+      const cpuReadings: number[] = [];
       for (const s of summaries) {
         if (s.memory) { totalMemoryMb += s.memory.totalMb; usedMemoryMb += s.memory.usedMb; }
         if (s.disk) { totalDiskGb += s.disk.totalGb; usedDiskGb += s.disk.usedGb; }
+        if (s.cpu?.usedPercent != null) cpuReadings.push(s.cpu.usedPercent);
       }
+      const avgCpuPercent = cpuReadings.length
+        ? Math.round((cpuReadings.reduce((a, b) => a + b, 0) / cpuReadings.length) * 10) / 10
+        : null;
 
       return ok({
         servers: summaries,
@@ -204,12 +224,27 @@ export class FleetService extends DomainService {
           usedMemoryMb,
           totalDiskGb,
           usedDiskGb,
+          avgCpuPercent,
         },
         fetchedAt: new Date().toISOString(),
       });
     } catch (err) {
       return fail(err instanceof Error ? err.message : 'Failed to fetch fleet overview');
     }
+  }
+
+  /**
+   * EX8.29: CPU since this server's previous sample (counter deltas, as in the Task
+   * Manager). The first sample has nothing to compare with, so its CPU is null rather
+   * than the since-boot average; a read inside the same clock tick also gives null.
+   */
+  private cpuFrom(serverId: string, stat: ProcStatParsed | undefined): FleetServerSummary['cpu'] {
+    if (!stat || stat.length === 0) return undefined;
+    const prev = this.cpuSamples.get(serverId);
+    this.cpuSamples.set(serverId, stat);
+    const cores = stat.filter((c) => c.id >= 0).length || 1;
+    const usage = prev ? computeCpuUsage(prev, stat) : null;
+    return { usedPercent: usage ? usage.overallPercent : null, cores };
   }
 
   // ── Set tags ─────────────────────────────────────────

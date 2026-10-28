@@ -72,8 +72,8 @@ export const pressedPill = (on: boolean): CSSProperties => ({
   boxShadow: on ? 'inset 0 1px 3px rgba(0,0,0,.35), 0 1px 0 rgba(255,255,255,.08)' : 'none',
 });
 
-/** EX8.15: LED colours — green (the design), amber / red for load, warm for night light */
-const LED_TONES = {
+/** EX8.15: LED colours — green (the design), amber / red for load, warm for night light (EX8.29: shared with Fleet) */
+export const LED_TONES = {
   green: ['radial-gradient(circle at 50% 40%, #46F04A, #18C21F 70%)', 'rgba(40,230,60,.75)'],
   amber: ['radial-gradient(circle at 50% 40%, #FFD36A, #E5A11A 70%)', 'rgba(245,184,61,.75)'],
   red: ['radial-gradient(circle at 50% 40%, #FF7A70, #D9362C 70%)', 'rgba(229,83,75,.8)'],

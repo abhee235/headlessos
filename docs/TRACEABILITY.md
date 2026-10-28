@@ -1033,6 +1033,14 @@ None (all changes to existing files).
 - **Files modified:** `client/src/store/app-store.ts` (`serversError`; a failed load keeps the last list), `client/src/components/Login/LoginScreen.tsx` (message, Retry, 3 s retry)
 - **Verification:** Playwright against a stopped, then started, backend: message shown, list back without a click
 
+### EX8.29: Fleet overview
+- **Status:** ✅ Complete
+- **Date:** 2026-10-28
+- **Files created:** `client/tests/components/fleet-dashboard.test.tsx`
+- **Files modified:** `client/src/components/Fleet/FleetDashboardView.tsx` (`FleetDial`, `fleetTone`, `shortUptime`, `updatedAgo`; summary card, server cards, one-time CPU retry), `client/src/components/HomeHub/hub-ui.tsx` (`LED_TONES` exported), `client/src/lib/api.ts` (`cpu`, `avgCpuPercent`), `server/src/services/domain/fleet-service.ts` (`cat /proc/stat` step, per-server samples, `avgCpuPercent`), `server/tests/services/domain/fleet-service.test.ts`
+- **Docs:** `docs/phases/phase-ex8.md` ("EX8.29")
+- **Verification:** Playwright on the isolated app with two demo servers, dark and light, 1440 and 820 wide; measured dial text centring and card sizes
+
 ## EX9: Safe Agents — Action Catalog, Approvals, Local Models
 
 > Agents run typed actions from a server-side catalog instead of shell commands. Spec: [phase-ex9.md](phases/phase-ex9.md), decision: ADR-024.

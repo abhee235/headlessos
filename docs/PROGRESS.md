@@ -635,6 +635,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-10-28 | **EX8.29 ✅** The Control Center's Fleet tab now looks like the Home hub: each server is a card with a status LED and three dials (CPU, memory, disk) that turn amber at 75% and red at 90%, under one summary card for the whole fleet. CPU is new to the fleet data (from `/proc/stat` between refreshes). The old icon chips and flat bars are gone, and an offline server's Connect button now works from the keyboard. |
 | 2026-10-27 | **M14.12 ✅** The desktop app had no wallpapers (its server looked for them in the source tree, and the build never copied them). It now ships `server/assets` and finds them in every layout. |
 | 2026-10-27 | **M14.9 ✅, M14.11 ✅** The repository is public. Testing the packaged Windows app from `main` showed it could not reach its own backend: its sandboxed preload threw on `require('./package.json')`, so the window never got the server's port or token (v0.1.0's builds too). The version now comes from the main process over IPC; a test guards the preload. The packaged app was then driven end to end: sign-in, File Explorer, dock, Home hub. |
 | 2026-10-27 | **EX8.27 revised** The open-app background in the dock was hardly visible, so it is now a lane across the dock's full thickness, lit from its base, and the app in front gets a brighter lane with an accent bar on that edge. |

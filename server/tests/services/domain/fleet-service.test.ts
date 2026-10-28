@@ -102,6 +102,56 @@ describe('FleetService', () => {
       expect(r.data!.servers[0]!.status).toBe('connected');
     });
 
+    // EX8.29: CPU from /proc/stat deltas between refreshes
+    const stat = (busy: number, total: number) => [
+      { id: -1, busy, total },
+      { id: 0, busy: busy / 2, total: total / 2 },
+      { id: 1, busy: busy / 2, total: total / 2 },
+    ];
+    const withStat = (procStat: unknown) => ({ data: { procStat }, steps: [], totalLatencyMs: 4 });
+
+    it('asks each connected server for /proc/stat', async () => {
+      cfg.getServers.mockResolvedValue([baseServer]);
+      orch.execute.mockResolvedValue(withStat(stat(100, 1000)));
+      await svc.getOverview();
+      const plan = orch.execute.mock.calls[0]![1] as { steps: Array<{ id: string; command: string }> };
+      expect(plan.steps.find((s) => s.id === 'proc-stat')?.command).toBe('cat /proc/stat');
+    });
+
+    it('has no CPU percentage on the first sample, then the change since it', async () => {
+      cfg.getServers.mockResolvedValue([baseServer]);
+      orch.execute.mockResolvedValueOnce(withStat(stat(100, 1000)));
+      const first = await svc.getOverview();
+      expect(first.data!.servers[0]!.cpu).toEqual({ usedPercent: null, cores: 2 });
+      expect(first.data!.totals.avgCpuPercent).toBeNull();
+
+      // 250 of the next 1000 ticks were busy → 25%
+      orch.execute.mockResolvedValueOnce(withStat(stat(350, 2000)));
+      const second = await svc.getOverview();
+      expect(second.data!.servers[0]!.cpu).toEqual({ usedPercent: 25, cores: 2 });
+      expect(second.data!.totals.avgCpuPercent).toBe(25);
+    });
+
+    it('averages CPU over the servers that have a reading, each against its own sample', async () => {
+      const other = { ...baseServer, id: 's2', name: 'Other' };
+      cfg.getServers.mockResolvedValue([baseServer, other]);
+      orch.execute.mockImplementation(async (id: string) => withStat(id === 's1' ? stat(0, 1000) : stat(0, 1000)));
+      await svc.getOverview();
+      orch.execute.mockImplementation(async (id: string) => withStat(id === 's1' ? stat(100, 2000) : stat(500, 2000)));
+      const r = await svc.getOverview();
+      const byId = Object.fromEntries(r.data!.servers.map((s) => [s.id, s.cpu?.usedPercent]));
+      expect(byId).toEqual({ s1: 10, s2: 50 });
+      expect(r.data!.totals.avgCpuPercent).toBe(30);
+    });
+
+    it('leaves CPU out when /proc/stat gave nothing', async () => {
+      cfg.getServers.mockResolvedValue([baseServer]);
+      orch.execute.mockResolvedValue(withStat(undefined));
+      const r = await svc.getOverview();
+      expect(r.data!.servers[0]!.cpu).toBeUndefined();
+      expect(r.data!.totals.avgCpuPercent).toBeNull();
+    });
+
     it('marks server as error when orchestrator throws', async () => {
       cfg.getServers.mockResolvedValue([baseServer]);
       ssh.getState.mockReturnValue({ status: 'connected' });

@@ -1435,6 +1435,11 @@ export interface FleetServerSummary {
     kernel: string;
     architecture: string;
   };
+  /** EX8.29: CPU since the previous fleet refresh; null until there are two samples */
+  cpu?: {
+    usedPercent: number | null;
+    cores: number;
+  };
   memory?: {
     totalMb: number;
     usedMb: number;
@@ -1459,6 +1464,8 @@ export interface FleetOverview {
     usedMemoryMb: number;
     totalDiskGb: number;
     usedDiskGb: number;
+    /** EX8.29: mean CPU of the connected servers with a reading */
+    avgCpuPercent: number | null;
   };
   fetchedAt: string;
 }
