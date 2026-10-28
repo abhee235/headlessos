@@ -18,6 +18,7 @@ class MockSftp {
   unlink = vi.fn();
   rmdir = vi.fn();
   readlink = vi.fn();
+  realpath = vi.fn();
   createReadStream = vi.fn(() => new EventEmitter());
   createWriteStream = vi.fn(() => {
     const ee = new EventEmitter() as EventEmitter & { end: (buf: Buffer) => void };
@@ -85,6 +86,33 @@ describe('FilesService', () => {
 
   beforeEach(async () => {
     ({ svc, ssh } = await boot());
+  });
+
+  // ── homeDir (EX8.30) ─────────────────────────────────────
+
+  describe('homeDir', () => {
+    it('asks the server where the login lands, so any user and home layout works', async () => {
+      ssh._sftp.realpath.mockImplementation((p: string, cb: (e: Error | null, abs?: string) => void) => cb(null, p === '.' ? '/var/lib/deploy' : p));
+      const r = await svc.homeDir('s1');
+      expect(r).toMatchObject({ ok: true, data: { path: '/var/lib/deploy' } });
+      expect(ssh._sftp.realpath).toHaveBeenCalledWith('.', expect.any(Function));
+    });
+
+    it('fails when SFTP cannot resolve it, or returns something that is not a path', async () => {
+      ssh._sftp.realpath.mockImplementationOnce((_p: string, cb: (e: Error | null) => void) => cb(new Error('Permission denied')));
+      const denied = await svc.homeDir('s1');
+      expect(denied.ok).toBe(false);
+      expect(denied.error).toContain('Permission denied');
+
+      ssh._sftp.realpath.mockImplementationOnce((_p: string, cb: (e: Error | null, abs?: string) => void) => cb(null, ''));
+      expect((await svc.homeDir('s1')).ok).toBe(false);
+    });
+
+    it('needs a connected server', async () => {
+      ssh.getState.mockReturnValue({ status: 'disconnected' });
+      const r = await svc.homeDir('s1');
+      expect(r).toMatchObject({ ok: false, statusCode: 400 });
+    });
   });
 
   // ── listDirectory ────────────────────────────────────────

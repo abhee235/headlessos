@@ -1041,6 +1041,14 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-ex8.md` ("EX8.29")
 - **Verification:** Playwright on the isolated app with two demo servers, dark and light, 1440 and 820 wide; measured dial text centring and card sizes
 
+### EX8.30: File Explorer favourites follow the user's home
+- **Status:** ✅ Complete
+- **Date:** 2026-10-28
+- **Files created:** `server/tests/routes/files-home.test.ts`, `client/tests/components/navigation-pane.test.tsx`
+- **Files modified:** `server/src/services/domain/files-service.ts` (`homeDir`), `server/src/routes/files.ts` (`GET /api/servers/:id/files/home`), `server/tests/services/domain/files-service.test.ts`, `client/src/lib/api.ts` (`fetchHomeDir`), `client/src/components/FileExplorer/NavigationPane.tsx` (`useHomeFolders`, `favouritesFor`), `client/src/components/FileExplorer/FileExplorerView.tsx`
+- **Docs:** `docs/phases/phase-ex8.md` ("EX8.30")
+- **Verification:** Playwright on the demo server as `deploy`: favourites listed and Home opened `/home/deploy`
+
 ## EX9: Safe Agents — Action Catalog, Approvals, Local Models
 
 > Agents run typed actions from a server-side catalog instead of shell commands. Spec: [phase-ex9.md](phases/phase-ex9.md), decision: ADR-024.
