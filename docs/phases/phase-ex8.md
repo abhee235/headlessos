@@ -90,6 +90,7 @@ this document; its token layer was merged into `client/src/styles.css`.
 | EX8.26 | Home hub network card (requested): the sample music card becomes the selected server's live download / upload graph with peak / average / total, same place and size | ✅ |
 | EX8.27 | Open apps in the dock (user review): a lane across the dock behind every open app, brighter with an accent bar for the app in front, so a minimized or background app reads as open | ✅ |
 | EX8.28 | Server list when the HeadlessOS server is down (user report): "Couldn't load your saved servers" with Retry and a retry every 3 s, instead of "No servers configured yet" | ✅ |
+| EX8.29 | Fleet overview in the Home hub's language (user review): dial gauges for CPU, memory and disk, a status LED, no icon chips or flat bars | 🔄 |
 
 ## Additions beyond the handoff
 
@@ -613,6 +614,41 @@ none.
 Verified live: with the backend stopped, the sign-in screen showed the message and
 Retry instead of the empty state; after starting the backend the list appeared by
 itself 17 s later (about 14 s of startup, then the next retry) and the message went away.
+
+## EX8.29 — Fleet overview
+
+**Review:** the Control Center's Fleet tab still had the pre-EX8 look: an icon chip on
+each total, and memory and disk as thin bars with an icon and a label, under a host line
+with a server icon. Next to the Home hub, which shows the same numbers as a dial with a
+knob and a status LED, it read as a different, rawer product. The user asked for the hub's
+monitor style here too, and for no icon-per-number decoration.
+
+**Layout** (the Fleet tab and the `fleet` window; theme tokens, so it works in light and
+dark and on any accent):
+
+| Part | Before | After |
+|---|---|---|
+| Header | "Fleet Overview" + Refresh | **Fleet** with a live subtitle, `2 of 2 online · updated 12 s ago`, and Refresh |
+| Totals | four cards, each an icon chip + big number | one **summary card**: an LED per server (its state at a glance), then three dials for the fleet: **CPU** (average of connected servers), **Memory** and **Disk** (used ÷ total across them) |
+| Server card | dot + name + "Online" badge, host line with an icon, memory and disk bars with icons, latency | **LED** (green / amber / red by the busiest of CPU, memory and disk; off when not connected) + name + `host:port`; three **dials** — CPU, Memory, Disk — with the amount under each (`12 cores`, `2.1 / 15.2 GB`, `57 / 1007 GB`); a footer with OS · uptime and the latency pill |
+| Offline card | "Not connected — click to connect" with an icon | dials drawn empty with `–`, LED off, and a **Connect** button |
+| Error | red text with an icon | LED red, the message in the footer |
+
+**The dial** is the health dial's shape at card size: a 200° arc from −100° to 100°, a
+dotted inner ring, a track, the value arc from the start, a knob at the value (accent, white
+rim) and the number in the middle. The arc and knob use the accent colour; at 75% they turn
+amber and at 90% red (the same thresholds as the hub's LED). It is a `meter` with the metric
+name and value for screen readers.
+
+**CPU** is new to the fleet data: `FleetService` adds `cat /proc/stat` to each connected
+server's plan and keeps that server's previous sample, so CPU is the average over the time
+since the last refresh (the Task Manager's counter-delta method, `computeCpuUsage`). The
+first load has only one sample, so CPU is `null` (`–`); the view refreshes once more after
+2 s when any connected server has no CPU yet, so the dials fill in almost at once. `cores`
+comes from the same sample.
+
+**Keeps:** opening a server's desktop from its card (click, or Enter), auto-refresh at the
+Settings interval (at least 30 s), tags, the empty and error states with Retry.
 
 ## Deviations from the handoff text (prototype wins where they differ)
 
