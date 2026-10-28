@@ -90,7 +90,7 @@ this document; its token layer was merged into `client/src/styles.css`.
 | EX8.26 | Home hub network card (requested): the sample music card becomes the selected server's live download / upload graph with peak / average / total, same place and size | ✅ |
 | EX8.27 | Open apps in the dock (user review): a lane across the dock behind every open app, brighter with an accent bar for the app in front, so a minimized or background app reads as open | ✅ |
 | EX8.28 | Server list when the HeadlessOS server is down (user report): "Couldn't load your saved servers" with Retry and a retry every 3 s, instead of "No servers configured yet" | ✅ |
-| EX8.29 | Fleet overview in the Home hub's language (user review): dial gauges for CPU, memory and disk, a status LED, no icon chips or flat bars | 🔄 |
+| EX8.29 | Fleet overview in the Home hub's language (user review): dial gauges for CPU, memory and disk, a status LED, no icon chips or flat bars | ✅ |
 
 ## Additions beyond the handoff
 
@@ -649,6 +649,19 @@ comes from the same sample.
 
 **Keeps:** opening a server's desktop from its card (click, or Enter), auto-refresh at the
 Settings interval (at least 30 s), tags, the empty and error states with Retry.
+
+**As built.** The dial (`FleetDial`) puts its number on a small disc at the dial's centre, as
+the hub does, so the dotted ring never runs into it. Each card's name is its button, stretched
+over the whole card (a click anywhere opens the server's desktop); Connect sits above it as its
+own button. A whole-card `role="button"` would have hidden Connect from keyboard and screen-reader
+users, because a button's children are presentational. The LED colours are the hub's
+(`LED_TONES`, now exported from `hub-ui.tsx`). Memory reads `2.2 / 15.2 GB`, uptime is shortened
+to its two largest units (`up 2d 19h`).
+
+Verified in the isolated app on two demo servers at 1440×900 and 820 wide, dark and light: the
+number's centre within 1px of the disc's; both cards 389×258; the fleet CPU dial is the mean of
+the two servers' (46% and 38% → 42%); Connect on an offline card connects it; the CPU dials fill
+in about 2 s after opening. Server 2558 passed (+4), client 688 passed (+9), both typechecks clean.
 
 ## Deviations from the handoff text (prototype wins where they differ)
 

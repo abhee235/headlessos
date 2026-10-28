@@ -47,6 +47,8 @@ All notable changes to HeadlessOS. Task IDs (M14, EX11, …) point to the phase 
   The release workflow runs the full typecheck and test suite first (M14).
 - Open apps get a lane across the dock, brighter with an accent bar for the app in front, so a
   minimized app no longer looks switched off (EX8.27).
+- The Fleet overview matches the Home hub: a status light and dials for CPU, memory and disk
+  on every server card, and one summary for the whole fleet. CPU is new to it (EX8.29).
 
 ### Fixed
 - The agent audit log could replace an older rotated file when two rotations fell in the
