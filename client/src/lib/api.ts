@@ -258,6 +258,12 @@ export async function fetchFiles(serverId: string, path: string): Promise<FileEn
   return request<FileEntryData[]>(`/servers/${serverId}/files?path=${encodeURIComponent(path)}`);
 }
 
+/** EX8.30: the folder the SSH login lands in (the server resolves it, so any user works) */
+export async function fetchHomeDir(serverId: string): Promise<string> {
+  const r = await request<{ path: string }>(`/servers/${serverId}/files/home`);
+  return r.path;
+}
+
 export async function fetchFileStat(serverId: string, path: string): Promise<FileStatData> {
   return request<FileStatData>(`/servers/${serverId}/files/stat?path=${encodeURIComponent(path)}`);
 }

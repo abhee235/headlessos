@@ -91,7 +91,7 @@ this document; its token layer was merged into `client/src/styles.css`.
 | EX8.27 | Open apps in the dock (user review): a lane across the dock behind every open app, brighter with an accent bar for the app in front, so a minimized or background app reads as open | ✅ |
 | EX8.28 | Server list when the HeadlessOS server is down (user report): "Couldn't load your saved servers" with Retry and a retry every 3 s, instead of "No servers configured yet" | ✅ |
 | EX8.29 | Fleet overview in the Home hub's language (user review): dial gauges for CPU, memory and disk, a status LED, no icon chips or flat bars | ✅ |
-| EX8.30 | File Explorer favourites point at the signed-in user's home (bug found while capturing the website): no more `/home/testuser` | 🔄 |
+| EX8.30 | File Explorer favourites point at the signed-in user's home (bug found while capturing the website): no more `/home/testuser` | ✅ |
 
 ## Additions beyond the handoff
 
@@ -683,6 +683,15 @@ in the home folder, so the list never offers a link that fails. Home itself alwa
 While the home is being looked up, or if the lookup fails, the Favorites group shows only
 the entries that don't depend on it (Recents, Recycle Bin); Locations are unchanged. The
 lookup runs once per server for the window's life.
+
+**As built.** `FilesService.homeDir` + `GET /api/servers/:id/files/home`; on the client
+`fetchHomeDir`, and in `NavigationPane.tsx` `useHomeFolders(serverId)` (home, then one listing
+of it) and `favouritesFor(homeFolders)`, which `FileExplorerView` passes to both of its panes.
+If the home can be found but not listed, Home still shows without the shortcuts.
+
+Verified live as `deploy` on the demo server: Favorites read Home, Documents, Downloads, Recents,
+Recycle Bin (no Desktop, which that home doesn't have), and Home opened `/home/deploy` with no
+error. Server 2563 passed (+5), client 694 passed (+6), both typechecks clean.
 
 ## Deviations from the handoff text (prototype wins where they differ)
 

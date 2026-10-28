@@ -11,7 +11,7 @@ import { fetchFiles, listTrash, restoreFromTrash, deleteFromTrash, emptyTrash, t
 import { FileList } from './FileListNew';
 import { FileViewer } from './FileViewer';
 import { AddressBar } from './AddressBar';
-import { NavigationPane } from './NavigationPane';
+import { NavigationPane, useHomeFolders } from './NavigationPane';
 import { ExplorerToolbar, type ViewMode } from './ExplorerToolbar';
 import { usePreferencesStore } from '../../store/preferences-store';
 import { DisconnectedState } from '@/components/ui/disconnected-state';
@@ -32,6 +32,8 @@ interface FileExplorerViewProps {
 
 export function FileExplorerView({ serverId, initialPath }: FileExplorerViewProps) {
   const [currentPath, setCurrentPath] = useState(initialPath ?? '/');
+  // EX8.30: Favorites point into the signed-in user's own home
+  const homeFolders = useHomeFolders(serverId);
   const [entries, setEntries] = useState<FileEntryData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -232,7 +234,7 @@ export function FileExplorerView({ serverId, initialPath }: FileExplorerViewProp
     return (
       <div className="flex h-full">
         {/* Full-height sidebar */}
-        <NavigationPane currentPath={currentPath} onNavigate={navigateTo} />
+        <NavigationPane currentPath={currentPath} onNavigate={navigateTo} homeFolders={homeFolders} />
         {/* Right: file viewer */}
         <div className="flex min-w-0 flex-1 flex-col pb-4 pl-3 pr-4">
           <FileViewer
@@ -249,7 +251,7 @@ export function FileExplorerView({ serverId, initialPath }: FileExplorerViewProp
   return (
     <div className="flex h-full">
       {/* Full-height sidebar — floating glass-subtle inset pane */}
-      <NavigationPane currentPath={currentPath} onNavigate={navigateTo} />
+      <NavigationPane currentPath={currentPath} onNavigate={navigateTo} homeFolders={homeFolders} />
 
       {/* Right column: address bar + toolbar + files + status bar */}
       <div className="flex min-w-0 flex-1 flex-col">

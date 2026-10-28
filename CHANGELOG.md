@@ -57,6 +57,9 @@ All notable changes to HeadlessOS. Task IDs (M14, EX11, …) point to the phase 
 - When the HeadlessOS backend was down or restarting, the sign-in screen said "No servers
   configured yet". It now says the list couldn't load, retries every 3 s, and shows your
   servers once the backend answers (EX8.28).
+- File Explorer's Home, Desktop, Documents and Downloads opened `/home/testuser` on every server.
+  Home is now your own home folder, as the server reports it, and the others show only when
+  they exist there (EX8.30).
 - The desktop app could not reach its own backend: its sandboxed preload failed to load,
   so the window never got the server's port or token. v0.1.0's builds have the same fault
   (M14.11).

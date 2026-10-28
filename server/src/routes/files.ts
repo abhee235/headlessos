@@ -32,6 +32,17 @@ export async function fileRoutes(
     },
   );
 
+  // ── GET /api/servers/:id/files/home — the login's home folder (EX8.30) ──
+
+  fastify.get<{ Params: { id: string } }>(
+    '/api/servers/:id/files/home',
+    async (req, reply) => {
+      const r = await filesService.homeDir(req.params.id);
+      if (!r.ok) { reply.code(r.statusCode ?? 500); return { error: r.error }; }
+      return r.data;
+    },
+  );
+
   // ── GET /api/servers/:id/files/read — read file content ──
 
   fastify.get<{ Params: { id: string }; Querystring: { path?: string } }>(

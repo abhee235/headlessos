@@ -294,6 +294,29 @@ export class FilesService extends DomainService {
     }
   }
 
+  // ── Home directory ────────────────────────────────────
+
+  /**
+   * EX8.30: the folder the SSH login lands in, from the server itself (SFTP resolves
+   * "." against it), so root's /root and homes outside /home come out right.
+   */
+  async homeDir(serverId: string): Promise<ServiceResult<{ path: string }>> {
+    try {
+      const sftp = await this.sftp(serverId);
+      const path = await new Promise<string>((resolve, reject) => {
+        sftp.realpath('.', (err, absPath) => {
+          if (err) return reject(Object.assign(new Error(`Failed to find the home folder: ${err.message}`), { statusCode: 500 }));
+          resolve(absPath);
+        });
+      });
+      if (!path.startsWith('/')) return fail('The server returned no home folder', 500);
+      return ok({ path });
+    } catch (err) {
+      const e = err as Error & { statusCode?: number };
+      return fail(e.message ?? 'Failed to find the home folder', e.statusCode ?? 500);
+    }
+  }
+
   /** Returns the SFTP read stream for a download — route handles HTTP headers. */
   async getReadStream(
     serverId: string,
