@@ -57,6 +57,10 @@ jobs:
       # Vite build → client/dist/  (picked up by electron extraResources)
       - name: Build client (React + Vite)
         run: npm run build --workspace=client
+        # Node sizes its default heap from the runner's RAM: about 2 GB on the 7 GB macOS
+        # runner, and the client build needs more (v0.2.0 ran out of memory there)
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
 
       # electron workspace has its own esbuild + electron-builder devDeps
       - name: Install electron workspace dependencies
@@ -120,6 +124,10 @@ jobs:
 
       - name: Build client (React + Vite)
         run: npm run build --workspace=client
+        # Node sizes its default heap from the runner's RAM: about 2 GB on the 7 GB macOS
+        # runner, and the client build needs more (v0.2.0 ran out of memory there)
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
 
       - name: Install electron workspace dependencies
         working-directory: electron
