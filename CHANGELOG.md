@@ -3,7 +3,7 @@
 All notable changes to HeadlessOS. Task IDs (M14, EX11, …) point to the phase specs in
 [docs/phases/](docs/phases/); [docs/PROGRESS.md](docs/PROGRESS.md) has the full log.
 
-## 0.2.0 — 2026-10-27
+## 0.2.0 — 2026-10-29
 
 ### Added
 - **Claude as a model provider** (EX11). Choose Claude Haiku 5.5, Sonnet 5.5 or Opus 5.5 in

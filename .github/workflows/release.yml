@@ -194,5 +194,9 @@ jobs:
             | Windows (installer) | `HeadlessOS Setup *.exe` | Recommended — installs to Program Files |
             | Windows (portable) | `HeadlessOS *.exe` | No installation needed |
 
-            > **macOS note:** If the app is not signed, macOS will show a security warning on first launch.
-            > Right-click the `.dmg` → Open, or go to **System Settings → Privacy & Security** and click **Open Anyway**.
+            > **macOS note:** The app is not signed, so macOS blocks the first launch. Open it once, then go to
+            > **System Settings → Privacy & Security** and click **Open Anyway**. If macOS says the app
+            > "is damaged", run `xattr -cr /Applications/HeadlessOS.app` in Terminal and open it again.
+            >
+            > **Windows note:** The installer is not signed. If SmartScreen shows "Windows protected your PC",
+            > click **More info → Run anyway**.
