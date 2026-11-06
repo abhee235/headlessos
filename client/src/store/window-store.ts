@@ -36,6 +36,8 @@ interface DesktopState {
   windows: WindowState[];
   nextZIndex: number;
   startMenuOpen: boolean;
+  /** EX8.31: the dock is up over a maximized window */
+  dockRevealed: boolean;
   /** EX8.10: HomeHub smart-home overlay (client-only sample) */
   homeHubOpen: boolean;
   /** EX8.17: why the hub is open — the dock button, or the idle privacy screen */
@@ -54,6 +56,7 @@ interface DesktopState {
   snapWindow: (id: string, zone: SnapZone) => void;
   setSnapPreview: (zone: SnapZone) => void;
   toggleStartMenu: () => void;
+  setDockRevealed: (revealed: boolean) => void;
   closeStartMenu: () => void;
   toggleHomeHub: () => void;
   closeHomeHub: () => void;
@@ -69,8 +72,8 @@ let windowCounter = 0;
 // Default sizes for different apps
 /**
  * EX8.3: Space kept clear at the bottom of the screen for the floating dock
- * (14px gap + 72px dock + 12px breathing room). Maximized and snapped windows
- * stop here.
+ * (14px gap + 72px dock + 12px breathing room). Snapped windows stop here;
+ * a maximized one takes the space, and the dock makes way (EX8.31).
  */
 export const DOCK_RESERVE = 98;
 
@@ -88,7 +91,7 @@ export function dockInsets(position: DockPosition = usePreferencesStore.getState
   return position === 'right' ? { bottom: 0, right: DOCK_RESERVE } : { bottom: DOCK_RESERVE, right: 0 };
 }
 
-/** Reactive dockInsets() for components (maximized windows, snap preview) */
+/** Reactive dockInsets() for components (the snap preview) */
 export function useDockInsets(): DockInsets {
   return dockInsets(usePreferencesStore((s) => s.dockPosition));
 }
@@ -110,6 +113,7 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
   windows: [],
   nextZIndex: 100,
   startMenuOpen: false,
+  dockRevealed: false,
   homeHubOpen: false,
   homeHubReason: null,
   snapPreview: null,
@@ -382,6 +386,8 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
   closeStartMenu: () => {
     set({ startMenuOpen: false });
   },
+
+  setDockRevealed: (revealed) => set({ dockRevealed: revealed }),
 
   toggleShowDesktop: () => {
     set(s => {

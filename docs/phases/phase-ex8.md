@@ -92,7 +92,7 @@ this document; its token layer was merged into `client/src/styles.css`.
 | EX8.28 | Server list when the HeadlessOS server is down (user report): "Couldn't load your saved servers" with Retry and a retry every 3 s, instead of "No servers configured yet" | ✅ |
 | EX8.29 | Fleet overview in the Home hub's language (user review): dial gauges for CPU, memory and disk, a status LED, no icon chips or flat bars | ✅ |
 | EX8.30 | File Explorer favourites point at the signed-in user's home (bug found while capturing the website): no more `/home/testuser` | ✅ |
-| EX8.31 | The dock makes way for a maximized window (owner's review): the window takes the full height, the dock slides away, and a handle at the edge brings it back | ⬜ |
+| EX8.31 | The dock makes way for a maximized window (owner's review): the window takes the full height, the dock slides away, and a handle at the edge or Show dock in the menu bar brings it back | ✅ |
 
 ## Additions beyond the handoff
 
@@ -715,15 +715,28 @@ and is 10 px deep. It doesn't cover the whole edge, because a scrollbar runs dow
   from raising the dock. Nothing happens while a mouse button is held, as in a text selection.
 - Clicking the handle, at once. This is also the way on a touch screen.
 - Tabbing to the dock, or to the handle.
+- **Show dock** in the menu bar, beside the status glyphs, which reads **Hide dock** while the dock
+  is up. The handle is easy to miss the first time, and this can't be. It's there only while a
+  maximized window has the dock's space, so it adds nothing to a normal desktop. It has a text
+  label because a lone icon in a 28 px bar wouldn't tell a new user anything.
 
 The dock floats over the window, and goes again 500 ms after the pointer leaves it or the handle.
 The delay covers the 4 px between the handle and the dock.
 
 **It stays while it's in use:** the Launcher, the Home hub or a dock menu being open keeps it up. A
-press anywhere outside it sends it away, which is the only way to on a touch screen.
+press anywhere outside it sends it away, which is how it goes on a touch screen, or after Show
+dock, when the pointer never reached it.
 
-The owner also suggested a floating button, like AssistiveTouch. The handle does that job without
-covering the app, so no button is added. There is no setting for now.
+The owner also suggested a floating button, like AssistiveTouch. The handle and Show dock do that
+job without covering the app, so no floating button is added. There is no setting for now.
+
+**Checked** in a packaged Windows build at 1386 × 837, with real pointer events over CDP. A maximized
+window runs from 29 to 837 and 0 to 1386. The dock sits 10 px below the screen at opacity 0, and the
+pill is 64 × 4, centred, 3 px from the edge. A pointer passing the edge leaves the dock down; hovering
+raises it with its usual 14 px gap, and it survives the gap to the dock. It stays up for the Launcher
+and for a right-click menu, and goes once they close. On the right it does the same along that edge.
+That run found a bug the unit tests missed: clicking Show dock with focus on the handle started the
+hide timer, so the dock left by itself. Focus moving to the button no longer counts as leaving.
 
 ## Deviations from the handoff text (prototype wins where they differ)
 

@@ -1590,6 +1590,14 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-15.md` ("M15.6")
 - **Verification:** the packaged app reports 0.2.1
 
+### EX8.31: The dock makes way for a maximized window
+- **Status:** ✅ Complete
+- **Date:** 2026-11-06
+- **Files created:** `client/src/components/Desktop/useDockAutoHide.ts`, `client/tests/components/dock-autohide.test.tsx`, `client/tests/components/dock-menubar-button.test.tsx`, `client/tests/components/window-maximized.test.tsx`
+- **Files modified:** `client/src/components/Desktop/Taskbar.tsx`, `client/src/components/Desktop/MenuBar.tsx`, `client/src/components/Desktop/Window.tsx`, `client/src/components/Desktop/DesktopLayout.tsx`, `client/src/store/window-store.ts`
+- **Docs:** `docs/phases/phase-ex8.md` ("EX8.31")
+- **Verification:** packaged Windows build with real pointer events, dock at the bottom and on the right
+
 ## How to Use This File
 
 ### After completing a task:

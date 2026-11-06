@@ -2,6 +2,7 @@
 // EX8.4: LumenOS v3 — a floating, centred glass dock (utility well → app
 // tiles → Recycle Bin) plus a separate tray pill at the bottom-right that
 // opens Quick Settings (glyphs) and the Notification Center (clock).
+// EX8.31: it slides away for a maximized window; a handle at the edge brings it back.
 // @see docs/phases/phase-6.md, docs/phases/phase-ex8.md
 
 import { useDesktopStore } from '../../store/window-store';
@@ -33,6 +34,7 @@ import {
 } from '@/components/ui/tooltip';
 import { AppIcon, RecycleBinIcon } from '@/components/ui/FileIcon';
 import { colourTile } from './dock-tiles';
+import { useDockAutoHide, useDockMakingWay } from './useDockAutoHide';
 import { listTrash } from '../../lib/api';
 import { cn } from '@/lib/utils';
 import { eventBus } from '@/lib/event-bus';
@@ -270,20 +272,32 @@ export function Taskbar() {
     : [];
   const unpinnedWindows = sessionWindows.filter((w) => !pinnedIdSet.has(w.appId));
 
+  // EX8.31: a maximized window takes the dock's space
+  const makingWay = useDockMakingWay();
+  const { hidden, show, showSoon, hideSoon, hideOnBlur } = useDockAutoHide(makingWay, startMenuOpen || homeHubOpen);
+
   return (
     <DockSideContext.Provider value={dockPosition}>
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
             className={cn(
-              'glass-heavy shadow-dock absolute z-[9999] flex items-center gap-2.5 rounded-[30px]',
+              'glass-heavy shadow-dock absolute z-[9999] flex items-center gap-2.5 rounded-[30px] transition-[translate,opacity] duration-200 ease-out motion-reduce:transition-none',
               vertical
                 ? 'right-[14px] top-[calc(50%+14px)] max-h-[calc(100vh-57px)] w-[72px] -translate-y-1/2 flex-col pb-3 pt-2.5'
                 : 'bottom-[14px] left-1/2 h-[72px] max-w-[calc(100vw-28px)] -translate-x-1/2 pl-2.5 pr-3',
+              hidden && 'pointer-events-none opacity-0',
+              hidden && (vertical ? 'translate-x-[calc(100%+24px)]' : 'translate-y-[calc(100%+24px)]'),
             )}
             aria-orientation={vertical ? 'vertical' : 'horizontal'}
             role="toolbar"
             aria-label="Dock"
+            data-dock
+            data-away={hidden}
+            onMouseEnter={show}
+            onMouseLeave={hideSoon}
+            onFocusCapture={(e) => { if (e.target.matches(':focus-visible')) show(); }}
+            onBlurCapture={hideOnBlur}
           >
             {/* ── Utility well: Launcher · Home hub · Search (prototype order) ── */}
             <div
@@ -456,6 +470,36 @@ export function Taskbar() {
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
+
+      {/* EX8.31: the way back. It spans the dock, not the edge: a scrollbar runs down the right one. */}
+      {makingWay && (
+        <button
+          type="button"
+          aria-label="Show dock"
+          data-dock
+          data-side={dockPosition}
+          data-testid="dock-handle"
+          onMouseEnter={showSoon}
+          onMouseLeave={hideSoon}
+          onClick={show}
+          onFocus={show}
+          onBlur={hideOnBlur}
+          className={cn(
+            'group absolute z-[9999] grid place-items-center',
+            vertical
+              ? 'right-0 top-[calc(50%+14px)] h-[min(480px,70vh)] w-2.5 -translate-y-1/2'
+              : 'bottom-0 left-1/2 h-2.5 w-[min(640px,90vw)] -translate-x-1/2',
+          )}
+        >
+          <span
+            className={cn(
+              'rounded-full bg-label-3 shadow-[0_0_0_1px_rgba(0,0,0,.14)] transition-[background-color,opacity] duration-200 group-hover:bg-label-2',
+              vertical ? 'h-16 w-1' : 'h-1 w-16',
+              !hidden && 'opacity-0',
+            )}
+          />
+        </button>
+      )}
 
       {/* EX8.11: the tray moved to the top menu bar (MenuBar.tsx) */}
     </DockSideContext.Provider>

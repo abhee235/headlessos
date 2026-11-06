@@ -61,8 +61,8 @@ function SnapPreview({ zone }: { zone: SnapZone }) {
   const halfW = `calc(50% - ${right / 2}px)`;
   const style: React.CSSProperties = (() => {
     switch (zone) {
-      case 'maximize':
-        return { top, left: 0, right, bottom: taskbarH };
+      case 'maximize': // EX8.31: the dock makes way
+        return { top, left: 0, right: 0, bottom: 0 };
       case 'left':
         return { top, left: 0, width: halfW, bottom: taskbarH };
       case 'right':

@@ -3,6 +3,12 @@
 All notable changes to HeadlessOS. Task IDs (M14, EX11, …) point to the phase specs in
 [docs/phases/](docs/phases/); [docs/PROGRESS.md](docs/PROGRESS.md) has the full log.
 
+## Unreleased
+
+### Changed
+- A maximized window now takes the full height. The dock slides away, and comes back when you hover
+  the handle at the screen's edge, click it, or click **Show dock** in the top bar (EX8.31).
+
 ## 0.2.1 — 2026-11-06
 
 ### Added

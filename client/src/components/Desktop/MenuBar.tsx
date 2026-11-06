@@ -3,15 +3,18 @@
 // notifications, theme) opens Quick Settings, the date + time open the
 // notification centre, and a dot between them marks unread notifications.
 // Sizes are measured from the Claude Design screen at DPR 1.5 (see phase-ex8.md).
+// EX8.31: Show dock appears here while a maximized window has the dock's space.
 
 import { useCallback, useEffect, useState } from 'react';
-import { Bell, BellOff, Moon, Sun, Wifi, WifiOff } from 'lucide-react';
+import { Bell, BellOff, Moon, PanelBottom, PanelRight, Sun, Wifi, WifiOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '../../store/app-store';
 import { useThemeStore } from '../../store/theme-store';
 import { usePreferencesStore } from '../../store/preferences-store';
 import { useNotificationStore } from '../../store/notification-store';
+import { useDesktopStore } from '../../store/window-store';
 import { QuickSettings } from './QuickSettings';
+import { useDockMakingWay } from './useDockAutoHide';
 
 /** "Wed Oct 21" — the design has no comma, which toLocaleDateString adds */
 export function menuBarDate(d: Date): string {
@@ -40,6 +43,10 @@ export function MenuBar() {
   const isConnected = activeServer?.state?.status === 'connected';
   const now = useNow();
   const closeQs = useCallback(() => setQsOpen(false), []);
+  const dockMakingWay = useDockMakingWay();
+  const dockRevealed = useDesktopStore((s) => s.dockRevealed);
+  const setDockRevealed = useDesktopStore((s) => s.setDockRevealed);
+  const DockIcon = usePreferencesStore((s) => s.dockPosition) === 'right' ? PanelRight : PanelBottom;
 
   const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: dateFormat === '12h' });
 
@@ -52,6 +59,25 @@ export function MenuBar() {
         <span className="font-bold">HeadlessOS</span>
 
         <div className="flex items-center gap-1.5">
+          {/* EX8.31: the dock is away, and this says so in words */}
+          {dockMakingWay && (
+            <button
+              type="button"
+              data-dock
+              data-testid="menubar-dock"
+              aria-pressed={dockRevealed}
+              onClick={() => setDockRevealed(!dockRevealed)}
+              className={cn(
+                'flex h-[22px] items-center gap-1.5 rounded-full px-[11px] text-[13px] font-medium transition-colors duration-150 [&_svg]:size-3.5',
+                'outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                dockRevealed ? 'bg-fill-2' : 'hover:bg-fill',
+              )}
+            >
+              <DockIcon strokeWidth={2} />
+              {dockRevealed ? 'Hide dock' : 'Show dock'}
+            </button>
+          )}
+
           {/* Status glyphs → Quick Settings */}
           <button
             type="button"
