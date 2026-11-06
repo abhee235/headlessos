@@ -16,6 +16,7 @@ import { getLayoutPattern, getPatternRulesText, generateDesignSystemRules } from
 import stripAnsi from 'strip-ansi';
 import { createHash } from 'node:crypto';
 import { withTrace, withSpan, setSpanAttributes } from '../observatory/context.js';
+import { redactSecrets } from '../agent/actions/redact.js';
 
 // ── System Prompt ──────────────────────────────────────────────────
 
@@ -234,7 +235,8 @@ export class DynamicUIGenerator {
     }
 
     // 4. Clean output
-    const cleanOutput = stripAnsi(rawOutput);
+    // M15.13: server output can hold secrets, and this goes to the model provider
+    const cleanOutput = redactSecrets(stripAnsi(rawOutput)).text;
 
     // 5. EX3-A.1: Run two-pass classification (if classifier available)
     // Wrapped in Observatory CHAIN span (EX4-B.3)

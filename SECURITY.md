@@ -20,7 +20,7 @@ the files that hold secrets are written `0600`.
 
 | What | File | How |
 |------|------|-----|
-| Server list and SSH passwords | `servers.json` | Passwords are AES-256-GCM encrypted. The key is derived from a random per-install secret (`enc-key`) plus machine facts. Private keys are referenced by path, never copied. |
+| Server list and SSH passwords | `servers.json` | Passwords are AES-256-GCM encrypted. The key is derived from a random per-install secret (`enc-key`) plus machine facts. SSH private keys and passphrases you add are encrypted the same way. |
 | LLM API keys (OpenAI, Anthropic) | `llm.json` | Encrypted the same way. The server never sends a key back to the browser. Choosing *None* in Settings → AI deletes them. |
 | API token | `api-token` | A random token that every API and WebSocket call must carry (see below). |
 | Agent actions | `audit/actions.jsonl` | An append-only log of every action an agent asked to run, and the answer. |
@@ -32,6 +32,11 @@ against someone who can run code as your user, because the key is on the same ma
 
 HeadlessOS installs no agent on your servers; it runs commands over SSH. (The Docker app
 can install Docker on a server, but only when you ask it to.)
+
+## Known limits
+
+HeadlessOS does not check SSH host keys yet, so it can't tell if another machine is pretending
+to be your server. Use it on networks you trust.
 
 ## The local server
 

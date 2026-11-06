@@ -6,6 +6,7 @@ import { EventEmitter } from 'events';
 import { BaseService } from '../services/base-service.js';
 import type { CommandPolicy } from '../services/policy/command-policy.js';
 import type { ServerConfig, ConnectionState, ConnectionStatus } from 'headlessos-shared';
+import { isAuthFailure } from '../security/validators.js';
 
 export interface ExecResult {
   stdout: string;
@@ -157,7 +158,7 @@ export class ConnectionManager extends BaseService {
         lastError = err as Error;
 
         // Don't retry auth failures
-        if ((err as Error).message?.includes('Authentication')) {
+        if (isAuthFailure((err as Error).message ?? '')) {
           break;
         }
 

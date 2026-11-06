@@ -20,6 +20,8 @@ import {
   SecurityError,
   sanitizeErrorMessage,
   connectErrorMessage,
+  isReadOnlyCommand,
+  isAuthFailure,
   ALLOWED_COMMANDS,
   BLOCKED_COMMANDS,
   validateIpAddress,
@@ -1297,7 +1299,63 @@ describe('connectErrorMessage', () => {
   });
 
   it('adds nothing to other errors on macOS', () => {
-    expect(connectErrorMessage('All configured authentication methods failed', 'darwin'))
-      .toBe('All configured authentication methods failed');
+    expect(connectErrorMessage('Timed out while waiting for handshake', 'darwin'))
+      .toBe('Timed out while waiting for handshake');
+  });
+
+  // M15.10: sign-in now shows this, and ssh2's wording says nothing useful to the owner
+  it('says plainly when the server refused the login', () => {
+    expect(connectErrorMessage('All configured authentication methods failed', 'linux'))
+      .toBe('The server refused this login. Check the username and password, or the key.');
+  });
+});
+
+// M15.9: what can run with no approval
+describe('isReadOnlyCommand', () => {
+  it('accepts reads, including harmless output handling', () => {
+    expect(isReadOnlyCommand('df -h')).toBe(true);
+    expect(isReadOnlyCommand('docker ps')).toBe(true);
+    expect(isReadOnlyCommand('crontab -l 2>&1')).toBe(true);
+    expect(isReadOnlyCommand('ls -1a /etc/nginx/sites-enabled 2>/dev/null')).toBe(true);
+  });
+
+  it('rejects allowlisted commands that change a server', () => {
+    expect(isReadOnlyCommand('sudo systemctl stop nginx')).toBe(false);
+    expect(isReadOnlyCommand('docker rm 0123456789ab')).toBe(false);
+    expect(isReadOnlyCommand('sudo apt remove -y nginx')).toBe(false);
+  });
+
+  it('rejects a redirect to a file', () => {
+    expect(isReadOnlyCommand('docker ps > /root/.bashrc')).toBe(false);
+    expect(isReadOnlyCommand('docker logs abc >> /home/pi/.profile')).toBe(false);
+  });
+
+  it('throws for anything not on the allowlist, as validateCommand does', () => {
+    expect(() => isReadOnlyCommand('curl https://example.com')).toThrow(SecurityError);
+  });
+});
+
+describe('find', () => {
+  it.each(['-delete', '-ok rm {} +', '-okdir rm {} +', '-fprint /tmp/x', '-fprint0 /tmp/x', '-fprintf /tmp/x %p', '-fls /tmp/x'])(
+    'refuses %s',
+    (action) => {
+      expect(() => validateCommand(`find /etc -maxdepth 1 ${action}`)).toThrow(SecurityError);
+    },
+  );
+
+  it('still searches', () => {
+    expect(() => validateCommand("find /home -maxdepth 3 -name '*.log'")).not.toThrow();
+  });
+});
+
+// M15.11: a retry on a wrong password can trip fail2ban
+describe('isAuthFailure', () => {
+  it("recognises ssh2's real message", () => {
+    expect(isAuthFailure('All configured authentication methods failed')).toBe(true);
+  });
+
+  it('leaves network errors to be retried', () => {
+    expect(isAuthFailure('connect ECONNREFUSED 192.168.1.20:22')).toBe(false);
+    expect(isAuthFailure('Timed out while waiting for handshake')).toBe(false);
   });
 });
