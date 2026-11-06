@@ -1491,6 +1491,45 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-15.md` ("M15.8")
 - **Verification:** unit tests; not run on a Mac
 
+### M15.9: Refreshes and view buttons may only read
+- **Status:** ✅ Complete
+- **Date:** 2026-11-06
+- **Files created:** `server/tests/routes/dynamic-ui-refresh.test.ts`
+- **Files modified:** `server/src/security/validators.ts` (`isReadOnlyCommand`, blocklist), `server/src/routes/dynamic-ui.ts`, `server/tests/security/validators.test.ts`
+- **Docs:** `docs/phases/phase-15.md` ("M15.9")
+- **Verification:** the new route tests failed against the old code, which ran each command
+
+### M15.10: Sign-in shows the real error
+- **Status:** ✅ Complete
+- **Date:** 2026-11-06
+- **Files created:** `client/tests/store/connect-server.test.ts`
+- **Files modified:** `client/src/store/app-store.ts`, `client/src/components/Login/LoginScreen.tsx`, `server/src/security/validators.ts`
+- **Docs:** `docs/phases/phase-15.md` ("M15.10")
+- **Verification:** store test
+
+### M15.11: A wrong password is tried once
+- **Status:** ✅ Complete
+- **Date:** 2026-11-06
+- **Files modified:** `server/src/ssh/connection-manager.ts`, `server/src/security/validators.ts` (`isAuthFailure`)
+- **Docs:** `docs/phases/phase-15.md` ("M15.11")
+- **Verification:** unit test on ssh2's real message
+
+### M15.12: SSH keys are encrypted, and a failed decrypt keeps the server list
+- **Status:** ✅ Complete
+- **Date:** 2026-11-06
+- **Files created:** `server/tests/config/config-store.test.ts`, `server/tests/routes/servers-secrets.test.ts`
+- **Files modified:** `server/src/config/store.ts`, `server/src/routes/servers.ts`, `SECURITY.md`
+- **Docs:** `docs/phases/phase-15.md` ("M15.12")
+- **Verification:** ConfigStore against a temp folder, and the routes through Fastify
+
+### M15.13: Output is redacted before the parsing fallback
+- **Status:** ✅ Complete
+- **Date:** 2026-11-06
+- **Files created:** `server/tests/parsers/pipeline-redaction.test.ts`
+- **Files modified:** `server/src/parsers/pipeline.ts`, `server/src/dynamic-ui/generator.ts`
+- **Docs:** `docs/phases/phase-15.md` ("M15.13")
+- **Verification:** pipeline test with a capturing provider
+
 ### M15.6: Version 0.2.1 and changelog
 - **Status:** ✅ Complete
 - **Date:** 2026-11-06

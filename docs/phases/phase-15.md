@@ -230,11 +230,11 @@ platform the owner can reach. Publishing stays manual.
 | M15.6 | Version 0.2.1 and changelog | ✅ |
 | M15.7 | Tag v0.2.1 and check the release | ⬜ |
 | M15.8 | macOS local network access | ✅ |
-| M15.9 | Refreshes and view buttons may only read | ⬜ |
-| M15.10 | Sign-in shows the real error | ⬜ |
-| M15.11 | A wrong password is tried once | ⬜ |
-| M15.12 | SSH keys are encrypted, and a failed decrypt keeps the server list | ⬜ |
-| M15.13 | Output is redacted before the parsing fallback | ⬜ |
+| M15.9 | Refreshes and view buttons may only read | ✅ |
+| M15.10 | Sign-in shows the real error | ✅ |
+| M15.11 | A wrong password is tried once | ✅ |
+| M15.12 | SSH keys are encrypted, and a failed decrypt keeps the server list | ✅ |
+| M15.13 | Output is redacted before the parsing fallback | ✅ |
 
 ## Checks
 
