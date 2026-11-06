@@ -34,7 +34,7 @@
 | M12: Backend Architecture Refactor | Beta | ✅ | 7/7 tasks | [phase-12](phases/phase-12.md) |
 | M13: Release Readiness | Beta | ✅ | 4/4 tasks | [phase-13](phases/phase-13.md) |
 | M14: Public Release | Beta | ✅ | 12/12 tasks | [phase-14](phases/phase-14.md) |
-| M15: Desktop Diagnostics | Beta | 🔄 | 0/7 tasks | [phase-15](phases/phase-15.md) |
+| M15: Desktop Diagnostics | Beta | 🔄 | 6/7 tasks | [phase-15](phases/phase-15.md) |
 | **EX1: Dynamic UI Engine** | **Experimental** | **✅** | **15/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
 | **EX2: UI Generation Agent** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
 | **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **✅** | **26/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
@@ -55,12 +55,12 @@
 
 | Task ID | Task | Status | Verification |
 |---------|------|--------|--------------|
-| M15.1 | A readable error when the backend can't be reached | ⬜ | |
-| M15.2 | The app notices when the backend stops | ⬜ | |
-| M15.3 | A log file with secrets kept out | ⬜ | |
-| M15.4 | Opening the log, and working Help links | ⬜ | |
-| M15.5 | Linux in the release | ⬜ | |
-| M15.6 | Version 0.2.1 and changelog | ⬜ | |
+| M15.1 | A readable error when the backend can't be reached | ✅ | Packaged app with the backend killed: Add Server shows the new text, no "Failed to fetch" |
+| M15.2 | The app notices when the backend stops | ✅ | Backend killed: dialog, Open Log, Restart with a new port. Missing `server.mjs`: error in about 1 s, was 20 s |
+| M15.3 | A log file with secrets kept out | ✅ | After a real sign-in: no token, password, computer name or home path in the log. 5 MB rotation tested |
+| M15.4 | Opening the log, and working Help links | ✅ | Global Settings and Settings → About on Windows; the macOS Help menu not run |
+| M15.5 | Linux in the release | ✅ | AppImage and deb built in WSL with the right metadata; not started (WSL lacks libnss3, libasound). The job first runs at the tag |
+| M15.6 | Version 0.2.1 and changelog | ✅ | Every version string; only our entries in the lockfiles |
 | M15.7 | Tag v0.2.1 and check the release | ⬜ | |
 
 ## M14: Public Release
@@ -650,6 +650,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-11-06 | **M15.1–M15.6 ✅** From GitHub issue #9: a readable error when the backend can't be reached, a dialog when it stops, `~/.headlessos/logs/headlessos.log` with secrets and names kept out, Open log in Global Settings and About, working Help links, and Linux builds. The packaged run found the computer's name in every log line and an unreadable exit code; both fixed. Not yet run: macOS, the Windows installer, and the Linux packages. |
 | 2026-11-06 | **M14.10 ✅** v0.2.0 is published, with macOS and Windows files (the first build ran out of memory on the macOS runner, so the client build now gets 4 GB). The release's portable `.exe` was driven end to end against a local SSH stand-in. The published 0.1.0 reproduces GitHub issue #9 ("Failed to fetch"), which is the M14.11 fault. Not yet checked: the Windows installer and the macOS build. |
 | 2026-10-28 | **EX8.30 ✅** File Explorer's Home, Desktop, Documents and Downloads pointed into `/home/testuser` (the dev container's user), so they failed for everyone else. Home now comes from the server (the folder the SSH login lands in, via a new `GET /files/home`), and the other three show only when they exist there. |
 | 2026-10-28 | **EX8.29 ✅** The Control Center's Fleet tab now looks like the Home hub: each server is a card with a status LED and three dials (CPU, memory, disk) that turn amber at 75% and red at 90%, under one summary card for the whole fleet. CPU is new to the fleet data (from `/proc/stat` between refreshes). The old icon chips and flat bars are gone, and an offline server's Connect button now works from the keyboard. |

@@ -139,12 +139,12 @@ platform the owner can reach. Publishing stays manual.
 
 | Task ID | Task | Status |
 |---------|------|--------|
-| M15.1 | A readable error when the backend can't be reached | ⬜ |
-| M15.2 | The app notices when the backend stops | ⬜ |
-| M15.3 | A log file with secrets kept out | ⬜ |
-| M15.4 | Opening the log, and working Help links | ⬜ |
-| M15.5 | Linux in the release | ⬜ |
-| M15.6 | Version 0.2.1 and changelog | ⬜ |
+| M15.1 | A readable error when the backend can't be reached | ✅ |
+| M15.2 | The app notices when the backend stops | ✅ |
+| M15.3 | A log file with secrets kept out | ✅ |
+| M15.4 | Opening the log, and working Help links | ✅ |
+| M15.5 | Linux in the release | ✅ |
+| M15.6 | Version 0.2.1 and changelog | ✅ |
 | M15.7 | Tag v0.2.1 and check the release | ⬜ |
 
 ## Checks
@@ -158,3 +158,33 @@ platform the owner can reach. Publishing stays manual.
   - The log has the session in it, and no token, password or `HEADLESSOS_TOKEN:` line.
   - Open log shows the file from Global Settings.
 - **Linux:** a package build in WSL, then the real job through `workflow_dispatch` or the tag.
+
+## As built
+
+All checks above ran. These are the results, and what the packaged run changed.
+
+**Packaged Windows build,** driven over CDP with an isolated home and a local `ssh2` stand-in:
+
+- Add Server with the backend killed shows the new message after about 2.3 s, which is how long
+  Windows takes to give up on a closed port. It fits the form and "Failed to fetch" is gone.
+- Killing the backend brings up the dialog. Open Log shows the folder and leaves the dialog up.
+  Restart gives a new port, and the reloaded window reaches it.
+- With `server.mjs` missing, the error box appears in about a second, where it took 20 s.
+- After a real sign-in the log has no API token, no password, no `HEADLESSOS_TOKEN:` line, no
+  computer name and no home path. A wallpaper request shows `?token=[redacted]`.
+- Open log works from Global Settings. Settings → About shows the row and version 0.2.1.
+- Ctrl+Shift+I opens DevTools on Windows, even with no menu bar.
+
+**What the packaged run changed.** The first run put the computer's name in every backend line
+and would have shown a killed process's exit code as 18446744073709552000. The unit tests
+could not have caught either, and both are fixed in the spec above. DevTools adds a few lines of
+Chromium's own CSS notices to the log while it is open; they are harmless and left in.
+
+**Linux:** `electron-builder --linux --x64` in WSL Ubuntu made `HeadlessOS-0.2.1.AppImage` and
+`headlessos-desktop_0.2.1_amd64.deb`, with the right maintainer and homepage, `diagnostics.js`
+in the asar and `server.mjs` in resources. **The packages have not been started:** that WSL
+install lacks libnss3 and libasound, so the first run on a Linux desktop is still to come. The
+workflow job itself first runs at the tag.
+
+**Not tested:** anything on macOS, including the Help menu's Open Logs and the 0.2.0 fix for
+issue #9. The Windows installer has not been run either.
