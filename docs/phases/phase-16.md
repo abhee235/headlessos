@@ -1,106 +1,113 @@
 # Phase 16 — Saved Secrets in the OS Keychain (M16)
 
-> **Status: proposed.** The spec is written, and two decisions are the owner's (see below). No code
-> until they're made. It adds protection, and replaces nothing that works: a backup taken before
-> this phase must still restore.
+> Moves the install secret into the OS keychain on every platform. It adds protection and replaces
+> nothing that works: a backup taken before this phase must still restore.
 
 ## Why
 
 Saved passwords, SSH keys and AI keys are encrypted, but `enc-key`, the secret that opens them, sits
-beside them in `~/.headlessos` as plain text. Anyone with a copy of that folder can read everything:
-an old backup, a synced folder, a disk image, another account on the computer. ADR-028 named the OS
-keychain as the real fix.
+beside them in `~/.headlessos` as plain text. HeadlessOS is open source, so anyone can see where it
+is. A program a user is tricked into installing can read both files and decrypt every login, and so
+can anything holding a copy of the folder.
 
-## What it does and doesn't protect
+Being open source doesn't cause this, because a closed app can be taken apart too. It only means the
+protection can't depend on the location being unknown. It has to come from something the file
+doesn't contain.
 
-- **Protects:** a copy of the folder on its own, which no longer opens anywhere else.
-- **Doesn't protect:** code running as you. On Windows, any program running as your user can ask the
-  OS to decrypt, and that isn't something an app can change. `SECURITY.md` must say so.
+## What it protects, by platform
+
+| Threat | macOS | Windows | Linux, with a secret store | Linux, without one |
+| --- | --- | --- | --- | --- |
+| A copy of the folder alone | Protected | Protected | Protected | Not protected |
+| Another account on the computer | Protected | Protected | Protected | Not protected |
+| A program running as you | **Protected:** the Keychain asks, naming the program | **Not protected** | **Not protected** | Not protected |
+
+The third row is the attack above. Electron's own documentation gives this split: Keychain access
+keeps out other apps in the same userspace, while DPAPI and the Linux stores don't. On Windows and
+Linux, a program running as you can ask the OS to decrypt, and no app can change that. `SECURITY.md`
+must say so, and must not imply more.
+
+A master password typed at startup would close that row on all three, because the secret would not
+be on the computer at all. That is a separate decision for later, not part of this phase.
 
 ## Design
 
-### Only `enc-key` moves
+### Only the install secret moves
 
-The keychain holds one thing: the install secret. Every `enc:v2:` value stays exactly as it is.
+The keychain holds one thing. Every `enc:v2:` value stays as it is, so nothing is re-encrypted, there
+is no per-secret migration to get wrong, and putting a plain `enc-key` back undoes the change.
 
-- Nothing needs re-encrypting, so there is no per-secret migration to get wrong.
-- Rolling back means putting the plain `enc-key` back.
-- The saved-secret stores don't change.
+`safeStorage` runs only in the main process, and the backend is a utility process, so
+`electron/keychain.js` opens the secret and hands it over in `HEADLESSOS_INSTALL_SECRET`.
+`getInstallSecret()` reads that first and removes it from `process.env`.
 
-Electron's `safeStorage` does the work: DPAPI on Windows, Keychain on macOS, libsecret or KWallet on
-Linux. It runs only in the main process, and the backend is a utility process, so the main process
-opens the secret and hands it over.
-
-### At startup, in the main process
+### At startup
 
 1. **`enc-key` exists:** use it. If the keychain is usable, write `enc-key.keychain`, read it back to
-   prove it opens, then remove `enc-key`. A restored backup takes this path, so `RESTORE.txt` stays
-   true.
-2. **Only `enc-key.keychain` exists:** open it with `safeStorage`.
-3. **Neither exists:** a new install. Make the secret, and store it as in step 1.
-4. **The keychain isn't usable:** stay on the plain `enc-key`, and say so in Settings. This covers
-   Linux with no secret store, where `getSelectedStorageBackend()` returns `basic_text`. `safeStorage`
-   then uses a hardcoded password, which would only look like protection.
+   prove it opens, then remove `enc-key`. A plain file always wins, so a restored backup works and
+   `RESTORE.txt` stays true.
+2. **Only `enc-key.keychain` exists:** open it. If that fails, logins are **locked**.
+3. **Neither exists:** a new install. Make a secret and store it as in step 1.
+4. **The keychain isn't usable, with nothing stored in it:** stay on the plain file. On Linux,
+   `basic_text` counts as not usable: `safeStorage` would use a hardcoded password, which only looks
+   like protection.
 
-The secret reaches the backend as `HEADLESSOS_INSTALL_SECRET`. `getInstallSecret()` reads it first
-and removes it from `process.env`, so nothing the backend starts inherits it.
+### Locked is not lost
 
-### A secret that can't be opened is kept, not dropped
+Nothing may turn a locked state into a real loss:
 
-M15.12 keeps the server but drops an unreadable secret at the next save. With a keychain, a refused
-prompt must not cost anyone their logins. `ConfigStore` and the AI settings keep the stored value as
-it is and write it back untouched, until it can be read again. The window shows that logins are
-locked, with what to do, on a `ProblemCard`.
+- **M16.1:** `getInstallSecret()` used to make a new secret when it found none. With
+  `enc-key.keychain` present, that would orphan every saved login, and step 1 would then overwrite
+  the keychain copy. It now throws `LoginsLockedError`.
+- **M16.1:** `ConfigStore` keeps a stored value it can't open and writes it back untouched. M15.12
+  dropped it at the next save. A new password can't be encrypted while locked, so that save fails
+  and is rolled back.
+- **M16.4:** a locked key server must not say "remove this server and add it again". The connect
+  route checks for locked first, and `keyLost` stays false. Typing a password at sign-in still works.
+
+### macOS explains the prompt first
+
+The build is unsigned, so macOS can't tell that a new version is the same app, and the Keychain asks
+again after each update. Electron's documentation confirms this. It's the cost of protecting Macs,
+and the owner accepts it, provided the app explains itself.
+
+Before opening the keychain, the first time and once after each new version, a dialog says why the
+prompt is coming, to click **Always Allow**, and that it's normal after an update. It also says to
+click **Deny** if any other app ever asks for the same item, because that is the attack this stops.
 
 ### The dev server
 
-`npm run dev` has no Electron, so it can't reach the keychain, and today it shares `~/.headlessos`
-with the desktop app. Once the desktop app removes `enc-key`, a dev server on the same computer
-can't open anything. See decision 2.
+`npm run dev` has no Electron, so it can't reach the keychain, and it shares `~/.headlessos` with the
+desktop app. Only someone running both on one computer is affected. They add
+`HEADLESSOS_INSTALL_SECRET` to their private `.env`. Someone who only runs from source never gets a
+keychain file, and nothing changes for them. The app's own data folder isn't split: 11 changes for
+one person's setup isn't worth it.
 
-## Decisions for the owner
+### Backups after this phase
 
-### 1. macOS, while the build is unsigned
-
-macOS ties Keychain access to an app's code signature. Reports suggest an unsigned Electron app is
-asked for the Keychain password again after each update, and that "Always Allow" doesn't carry over.
-That part is reported, not confirmed for our build, and needs testing on the Mac. Someone who clicks
-Deny has locked logins until they allow it.
-
-- **A. Windows and Linux now, macOS once the build is signed.** No prompts and nothing to go wrong on
-  a Mac, but Macs stay on the plain file. Signing needs an Apple Developer account.
-- **B. All three now.** Macs are protected too, and a Mac user may see a password prompt on every
-  update, on top of Open Anyway.
-
-**Recommended: A,** after a quick test on the Mac to see what actually happens.
-
-### 2. The dev server's data
-
-- **A. Separate folders.** A single `HEADLESSOS_HOME` setting replaces the 11 places that build the
-  path, and `npm run dev` uses `~/.headlessos-dev`, with its own plain `enc-key`. The desktop app and
-  the dev server stop sharing anything, which also rules out the M15.18 incident, where a dev server
-  changed the desktop app's data. The first dev run starts empty, and the owner's servers can be
-  copied in from the backup.
-- **B. Keep sharing.** Dev opens nothing while the desktop app holds the secret.
-
-**Recommended: A.**
+On Windows the key that opens `enc-key.keychain` lives in the app's user data folder, not in
+`~/.headlessos`, so a copy of `~/.headlessos` alone won't open. That is the point. It also means
+removing the app's data can lock logins for good, with only retyping them as the way back, unless a
+plain `enc-key` was kept. The docs say so.
 
 ## Tasks
 
 | ID | Task | Status |
 |----|------|--------|
-| M16.1 | One setting for the data folder, and a separate one for dev | ⬜ |
-| M16.2 | A secret that can't be opened is kept, not dropped | ⬜ |
-| M16.3 | The main process keeps the install secret in the OS keychain | ⬜ |
+| M16.1 | Locked is not lost: no new secret, and stored values are kept | ⬜ |
+| M16.2 | The desktop app keeps the install secret in the OS keychain | ⬜ |
+| M16.3 | macOS explains the prompt before it appears | ⬜ |
 | M16.4 | Locked logins say so, and Settings shows where the secret is held | ⬜ |
-| M16.5 | `SECURITY.md`, the docs, `RESTORE.txt` and the changelog | ⬜ |
+| M16.5 | `SECURITY.md`, the docs and the changelog | ⬜ |
 
 ## Checks
 
 - **Unit tests:** each startup path; `basic_text` stays on the plain file; a failed read-back keeps
-  `enc-key`; a locked secret survives a save.
-- **Packaged Windows build:** against a **copy** of the owner's backup, never the live folder. The
-  logins still open after `enc-key` moves, a copy of the folder doesn't open on its own, and putting
-  the plain `enc-key` back restores it.
-- **macOS:** decision 1's test, and a refused prompt.
+  `enc-key`; a plain file wins over a stored one; a locked secret survives a save; no new secret is
+  made while locked; the prompt note appears once per version, on macOS only.
+- **Packaged Windows build,** on a **copy** of `servers.json` and `enc-key` from the owner's backup,
+  never the live folder, and never connecting to a real server. The logins still open after
+  `enc-key` moves, the folder alone doesn't open with another app profile, nothing is lost while
+  locked, and a plain `enc-key` put back restores everything.
+- **macOS, by the owner:** the dialog, the prompt, Always Allow, and Deny.
 - **Linux:** a desktop with a secret store, and one without.
