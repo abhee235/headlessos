@@ -1347,3 +1347,15 @@ describe('find', () => {
     expect(() => validateCommand("find /home -maxdepth 3 -name '*.log'")).not.toThrow();
   });
 });
+
+// M15.11: a retry on a wrong password can trip fail2ban
+describe('isAuthFailure', () => {
+  it("recognises ssh2's real message", () => {
+    expect(isAuthFailure('All configured authentication methods failed')).toBe(true);
+  });
+
+  it('leaves network errors to be retried', () => {
+    expect(isAuthFailure('connect ECONNREFUSED 192.168.1.20:22')).toBe(false);
+    expect(isAuthFailure('Timed out while waiting for handshake')).toBe(false);
+  });
+});
