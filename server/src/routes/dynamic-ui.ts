@@ -10,7 +10,7 @@ import {
   type DynamicUIMessage,
 } from '../dynamic-ui/generator.js';
 import type { DynamicUIDiskCache } from '../cache/dynamic-ui-cache.js';
-import { validateCommand, shellEscape, SecurityError } from '../security/validators.js';
+import { isReadOnlyCommand, validateCommand, shellEscape, SecurityError } from '../security/validators.js';
 import { WriteBackRequestSchema, executeWriteBack } from '../agent/writeback.js';
 
 interface DynamicUIRouteDeps {
@@ -94,7 +94,13 @@ export async function dynamicUIRoutes(
     try {
       // SECURITY: widget refresh must only run allowlisted (read-only) commands.
       // Without this, the raw body `command` was passed straight to exec() — RCE.
-      validateCommand(command);
+      // M15.9: a refresh runs on a timer with no click, and a model can write its command
+      if (!isReadOnlyCommand(command)) {
+        return reply.status(403).send({
+          success: false,
+          error: 'This widget would change the server, so its refresh did not run.',
+        });
+      }
 
       const result = await connectionManager.exec(serverId, command, 10000);
       const rawOutput = result.stdout || result.stderr;
@@ -150,7 +156,7 @@ export async function dynamicUIRoutes(
 
       // EX9.2 (ADR-024): a button carrying free-form command text may only read.
       // Changes go through catalog actions and the owner's approval (/actions/preview).
-      if (rule.risk === 'medium' || rule.risk === 'high') {
+      if (!isReadOnlyCommand(resolvedCommand)) {
         return reply.status(403).send({
           success: false,
           error: 'This button was generated before actions existed and would change the server. Regenerate the view to get an approvable action.',

@@ -186,6 +186,7 @@ export const BLOCKED_COMMANDS: RegExp[] = [
   /\biptables\s+-F\b/,          // flush all iptables rules
   // Metacharacter-free escalations (not caught by the chaining check):
   /\s-exec(dir)?\b/,            // find … -exec/-execdir → arbitrary exec
+  /\bfind\b.*\s-(delete|ok|okdir|fprint0?|fprintf|fls)\b/, // find that deletes or writes (M15.9)
   /\bnsenter\b/,                // enter host namespaces (container escape)
   /\btar\b[\s\S]*--to-command/, // tar --to-command → arbitrary exec
   /\|\s*(ba|z|k|c|a)?sh\b/,     // pipe to a shell (generalizes curl|sh, wget|sh)
@@ -263,6 +264,21 @@ export function validateCommand(command: string): CommandRule {
   }
 
   return rule;
+}
+
+/** M15.9: output sent to a file. `2>&1` and /dev/null write nothing. */
+const WRITES_A_FILE = />>?\s*(?!&\d|\/dev\/null(?:\s|$))\S/;
+
+/**
+ * M15.9: may this run with no approval? Being allowlisted is not enough: the list also holds
+ * commands that change a server, and a redirect can follow any rule with an open end
+ * (`docker ps > ~/.bashrc`). Throws SecurityError, as validateCommand does, if it isn't
+ * allowed at all.
+ */
+export function isReadOnlyCommand(command: string): boolean {
+  const rule = validateCommand(command);
+  if (rule.risk === 'medium' || rule.risk === 'high') return false;
+  return !WRITES_A_FILE.test(command);
 }
 
 // ---------------------------------------------------------------------------
