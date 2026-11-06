@@ -10,6 +10,11 @@ import type { ConfigStore } from '../config/store.js';
 import type { ServerConfig } from 'headlessos-shared';
 import { connectErrorMessage } from '../security/validators.js';
 
+/** M15.12: credentials stay in the backend; the window never needs them back */
+function withoutSecrets<T extends ServerConfig>(server: T) {
+  return { ...server, password: undefined, passphrase: undefined, privateKeyPath: undefined };
+}
+
 export async function serverRoutes(
   fastify: FastifyInstance,
   opts: { connectionManager: ConnectionManager; configStore: ConfigStore },
@@ -21,9 +26,7 @@ export async function serverRoutes(
   fastify.get('/api/servers', async () => {
     const servers = await configStore.getServers();
     return servers.map(s => ({
-      ...s,
-      password: undefined,  // Strip sensitive data
-      passphrase: undefined,
+      ...withoutSecrets(s),
       state: connectionManager.getState(s.id),
     }));
   });
@@ -33,7 +36,7 @@ export async function serverRoutes(
   fastify.post<{ Body: Omit<ServerConfig, 'id'> }>('/api/servers', async (req, reply) => {
     const server = await configStore.addServer(req.body);
     reply.code(201);
-    return { ...server, password: undefined, passphrase: undefined };
+    return withoutSecrets(server);
   });
 
   // ── PUT /api/servers/:id — update server ──────────────
@@ -43,7 +46,7 @@ export async function serverRoutes(
     Body: Partial<ServerConfig>;
   }>('/api/servers/:id', async (req) => {
     const updated = await configStore.updateServer(req.params.id, req.body);
-    return { ...updated, password: undefined, passphrase: undefined };
+    return withoutSecrets(updated);
   });
 
   // ── DELETE /api/servers/:id ───────────────────────────

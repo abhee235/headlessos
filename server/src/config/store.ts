@@ -1,7 +1,7 @@
 // M1.6 + M5.3: Server Config Management with credential encryption
 // @see docs/phases/phase-1.md, docs/SECURITY.md
 
-import { readFile, writeFile, mkdir, chmod } from 'fs/promises';
+import { readFile, rename, writeFile, mkdir, chmod } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
@@ -10,11 +10,31 @@ import { BaseService } from '../services/base-service.js';
 import { encrypt, decrypt, isEncrypted } from '../security/encryption.js';
 import type { ServerConfig } from 'headlessos-shared';
 
-const CONFIG_DIR = join(homedir(), '.headlessos');
-const SERVERS_FILE = join(CONFIG_DIR, 'servers.json');
+const DEFAULT_CONFIG_DIR = join(homedir(), '.headlessos');
+
+/** M15.12: what must never sit on disk in plain text */
+const SECRET_FIELDS = ['password', 'privateKeyPath', 'passphrase'] as const;
+
+/** A secret that can't be decrypted is lost, but its server isn't: the owner signs in again */
+function readSecret(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  try {
+    return decrypt(value);
+  } catch {
+    return undefined;
+  }
+}
 
 export class ConfigStore extends BaseService {
   private servers: ServerConfig[] = [];
+  private readonly configDir: string;
+  private readonly serversFile: string;
+
+  constructor(name: string, configDir: string = DEFAULT_CONFIG_DIR) {
+    super(name);
+    this.configDir = configDir;
+    this.serversFile = join(configDir, 'servers.json');
+  }
 
   protected async _construct(): Promise<void> {
     await this.ensureConfigDir();
@@ -66,47 +86,63 @@ export class ConfigStore extends BaseService {
   // ── Persistence ───────────────────────────────────────
 
   private async ensureConfigDir(): Promise<void> {
-    if (!existsSync(CONFIG_DIR)) {
-      await mkdir(CONFIG_DIR, { recursive: true, mode: 0o700 });
+    if (!existsSync(this.configDir)) {
+      await mkdir(this.configDir, { recursive: true, mode: 0o700 });
     }
     // Ensure directory is owner-only (0700)
     try {
-      await chmod(CONFIG_DIR, 0o700);
+      await chmod(this.configDir, 0o700);
     } catch {
       // Non-fatal — may fail on some systems
     }
   }
 
   private async load(): Promise<void> {
+    let raw: string;
     try {
-      const raw = await readFile(SERVERS_FILE, 'utf-8');
-      const stored = JSON.parse(raw) as ServerConfig[];
-
-      // M5.3: Decrypt passwords on load
-      this.servers = stored.map(s => ({
-        ...s,
-        password: s.password ? decrypt(s.password) : undefined,
-      }));
-
-      // Migrate: if any passwords were stored in plaintext (not encrypted),
-      // re-save with encryption to upgrade the file
-      const needsMigration = stored.some(s => s.password && !isEncrypted(s.password));
-      if (needsMigration) {
-        await this.save();
-      }
+      raw = await readFile(this.serversFile, 'utf-8');
     } catch {
       // File doesn't exist yet — start with empty array
       this.servers = [];
+      return;
+    }
+
+    let stored: ServerConfig[];
+    try {
+      stored = JSON.parse(raw) as ServerConfig[];
+    } catch {
+      // M15.12: an empty list would be saved over this file, so move it out of the way
+      await rename(this.serversFile, `${this.serversFile}.broken`);
+      this.servers = [];
+      return;
+    }
+
+    // M5.3, M15.12: decrypt credentials on load
+    this.servers = stored.map(s => ({
+      ...s,
+      password: readSecret(s.password),
+      privateKeyPath: readSecret(s.privateKeyPath),
+      passphrase: readSecret(s.passphrase),
+    }));
+
+    // Migrate: if any secret was stored in plaintext, re-save with encryption to upgrade the file
+    const needsMigration = stored.some(s =>
+      SECRET_FIELDS.some(field => s[field] && !isEncrypted(s[field]!)),
+    );
+    if (needsMigration) {
+      await this.save();
     }
   }
 
   private async save(): Promise<void> {
-    // M5.3: Encrypt passwords before writing to disk
+    // M5.3, M15.12: encrypt credentials before writing to disk
     const encrypted = this.servers.map(s => ({
       ...s,
       password: s.password ? encrypt(s.password) : undefined,
+      privateKeyPath: s.privateKeyPath ? encrypt(s.privateKeyPath) : undefined,
+      passphrase: s.passphrase ? encrypt(s.passphrase) : undefined,
     }));
-    await writeFile(SERVERS_FILE, JSON.stringify(encrypted, null, 2), {
+    await writeFile(this.serversFile, JSON.stringify(encrypted, null, 2), {
       encoding: 'utf-8',
       mode: 0o600, // Owner read/write only
     });
