@@ -92,6 +92,7 @@ this document; its token layer was merged into `client/src/styles.css`.
 | EX8.28 | Server list when the HeadlessOS server is down (user report): "Couldn't load your saved servers" with Retry and a retry every 3 s, instead of "No servers configured yet" | ✅ |
 | EX8.29 | Fleet overview in the Home hub's language (user review): dial gauges for CPU, memory and disk, a status LED, no icon chips or flat bars | ✅ |
 | EX8.30 | File Explorer favourites point at the signed-in user's home (bug found while capturing the website): no more `/home/testuser` | ✅ |
+| EX8.31 | The dock makes way for a maximized window (owner's review): the window takes the full height, the dock slides away, and a handle at the edge brings it back | ⬜ |
 
 ## Additions beyond the handoff
 
@@ -245,7 +246,8 @@ bar; the utility well stacks vertically, tooltips open to the left and tiles lif
 leftwards. The Launcher, Home hub, Search, Quick Settings and notifications open
 where they always do. `dockInsets()` / `useDockInsets()` in `window-store` give the
 space windows keep clear (`{ bottom: 98, right: 0 }` or `{ bottom: 0, right: 98 }`),
-used by new/moved/restored/snapped windows, maximized windows and the snap preview.
+used by new/moved/restored/snapped windows and the snap preview. (Maximized windows used it too,
+until EX8.31.)
 
 ## EX8.13 — Process detail card (re-port)
 
@@ -692,6 +694,36 @@ If the home can be found but not listed, Home still shows without the shortcuts.
 Verified live as `deploy` on the demo server: Favorites read Home, Documents, Downloads, Recents,
 Recycle Bin (no Desktop, which that home doesn't have), and Home opened `/home/deploy` with no
 error. Server 2563 passed (+5), client 694 passed (+6), both typechecks clean.
+
+## EX8.31 — The dock makes way for a maximized window
+
+Owner's review: since EX8.12 a maximized window stops 98 px above the dock, so a full-screen app
+loses that height and the wallpaper shows in a strip below it.
+
+A maximized window now fills the screen below the menu bar, whichever side the dock is on, and the
+dock slides off that edge. A window that isn't maximized, and a snapped one, works as before.
+
+**When:** any window in the active session is maximized and not minimized. Another session's
+windows don't count, because they aren't on screen.
+
+**The handle:** while the dock is away, a thin pill stays at the middle of that edge, 64 × 4 px,
+like a phone's home bar, so the dock can still be found. Its hover area runs along the dock's span
+and is 10 px deep. It doesn't cover the whole edge, because a scrollbar runs down the right edge.
+
+**Bringing the dock back:**
+- Hovering the handle for 150 ms. The delay stops a pointer passing the edge, say to a status bar,
+  from raising the dock. Nothing happens while a mouse button is held, as in a text selection.
+- Clicking the handle, at once. This is also the way on a touch screen.
+- Tabbing to the dock, or to the handle.
+
+The dock floats over the window, and goes again 500 ms after the pointer leaves it or the handle.
+The delay covers the 4 px between the handle and the dock.
+
+**It stays while it's in use:** the Launcher, the Home hub or a dock menu being open keeps it up. A
+press anywhere outside it sends it away, which is the only way to on a touch screen.
+
+The owner also suggested a floating button, like AssistiveTouch. The handle does that job without
+covering the app, so no button is added. There is no setting for now.
 
 ## Deviations from the handoff text (prototype wins where they differ)
 
