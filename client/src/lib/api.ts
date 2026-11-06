@@ -61,6 +61,11 @@ export function resolveServerUrl(path: string): string {
   return path;
 }
 
+/** M15.4: shows the desktop app's log in the file manager. A browser has no log file. */
+export function desktopOpenLogs(): (() => Promise<void>) | undefined {
+  return (window as unknown as { electronAPI?: { openLogs?: () => Promise<void> } }).electronAPI?.openLogs;
+}
+
 /** M15.1: what to show when the backend gives no response at all */
 export function backendUnreachableMessage(desktop: boolean = isElectronProd): string {
   return desktop

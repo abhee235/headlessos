@@ -131,14 +131,18 @@ async function askAfterBackendStopped(code) {
     title: 'HeadlessOS — Backend Stopped',
     message: 'The HeadlessOS backend stopped.',
     detail: `It exited with code ${code}, so the app can't reach your servers until it restarts. The log may say why:\n\n${log.file}`,
-    buttons: ['Restart', 'Quit'],
+    buttons: ['Restart', 'Open Log', 'Quit'],
     defaultId: 0,
-    cancelId: 1,
+    cancelId: 2,
   };
-  const { response } = await (mainWindow
-    ? dialog.showMessageBox(mainWindow, options)
-    : dialog.showMessageBox(options));
-  if (response === 1) {
+  let response;
+  do {
+    ({ response } = await (mainWindow
+      ? dialog.showMessageBox(mainWindow, options)
+      : dialog.showMessageBox(options)));
+    if (response === 1) shell.showItemInFolder(log.file);
+  } while (response === 1);
+  if (response === 2) {
     app.quit();
     return;
   }
@@ -188,6 +192,9 @@ ipcMain.on('get-auth-token', (event) => {
     event.returnValue = '';
   }
 });
+
+// M15.4: the window has no menu bar on Windows and Linux, so Settings asks for the log here
+ipcMain.handle('open-logs', () => shell.showItemInFolder(log.file));
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -323,13 +330,15 @@ function createMenu() {
     {
       label: 'Help',
       submenu: [
+        { label: 'Open Logs', click: () => shell.showItemInFolder(log.file) },
+        { type: 'separator' },
         {
           label: 'Documentation',
-          click: () => shell.openExternal('https://github.com/headlessos/headlessos'),
+          click: () => shell.openExternal('https://headlessos.com/docs/introduction'),
         },
         {
           label: 'Report Issue',
-          click: () => shell.openExternal('https://github.com/headlessos/headlessos/issues'),
+          click: () => shell.openExternal('https://github.com/abhee235/headlessos/issues'),
         },
       ],
     },

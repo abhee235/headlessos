@@ -24,6 +24,19 @@ describe('electron preload', () => {
     for (const c of channels) expect(main, c).toContain(`ipcMain.on('${c}'`);
   });
 
+  it('sends invoke calls only to channels main.js handles', () => {
+    const channels = [...preload.matchAll(/invoke\(\s*['"]([^'"]+)['"]/g)].map((m) => m[1]);
+    expect(channels).toContain('open-logs');
+    for (const c of channels) expect(main, c).toContain(`ipcMain.handle('${c}'`);
+  });
+
+  // M15.4: these pointed at a GitHub organization that does not exist
+  it('sends the Help menu to the real project', () => {
+    expect(main).not.toContain('github.com/headlessos');
+    expect(main).toContain('https://github.com/abhee235/headlessos/issues');
+    expect(main).toContain('https://headlessos.com/docs/introduction');
+  });
+
   it('keeps the window sandboxed with the preload', () => {
     expect(main).toMatch(/preload: path\.join\(__dirname, 'preload\.js'\)/);
     expect(main).toMatch(/sandbox: true/);
