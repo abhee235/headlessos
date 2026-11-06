@@ -8,7 +8,9 @@ All notable changes to HeadlessOS. Task IDs (M14, EX11, …) point to the phase 
 ### Added
 - **A log file** (M15.3). The desktop app writes `~/.headlessos/logs/headlessos.log`, with
   passwords, keys and tokens masked. It stays on your computer. Open it from Global Settings,
-  Settings → About, or Help → Open Logs on macOS (M15.4).
+  Settings → About, or Help → Open Logs (M15.4).
+- **Help at the top of Control Center** (M15.15): Documentation, Troubleshooting, Open log and
+  Report an issue, before you've signed in to anything.
 - **Linux builds** (M15.5): every release now has an AppImage and a `.deb`.
 
 ### Security
@@ -35,11 +37,21 @@ All notable changes to HeadlessOS. Task IDs (M14, EX11, …) point to the phase 
   access, and the error says where to allow it (M15.8).
 - Help → Documentation and Report Issue opened a GitHub page that doesn't exist (M15.4).
 - The sign-in screen said "Connection failed. Check server credentials." for every failure. It now
-  shows the real reason (M15.10).
+  says what happened and what to try, shows the exact error to copy, and links to the fix and the
+  log (M15.10, M15.14).
 - A wrong password was tried four times, which could trip fail2ban and lock you out. It's now tried
   once (M15.11).
 - If a saved password couldn't be decrypted, the whole server list was lost on the next save. Your
   servers now stay, and you sign in again (M15.12).
+- Saved passwords, SSH keys and AI keys depended on the computer's name, so renaming it could make
+  them unreadable, and a Mac can pick up a new name from the network. They no longer do, and
+  existing ones move over at the next start (M15.18).
+- A server whose saved key can't be read said "SSH key configured", then "The server refused this
+  login". It now says the key is gone and what to do (M15.16).
+- A damaged server list looked like a new install. The screen now says so and names the kept file
+  (M15.17).
+- In the installed app, windows, panels and the top bar had no blur, so the desktop showed through
+  them. They now match the browser (M15.20).
 
 ## 0.2.0 — 2026-10-29
 

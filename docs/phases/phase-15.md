@@ -104,7 +104,7 @@ state, so the path is the same on every platform.
 - **Global Settings** gets an "Open log" row. It is the one place reachable without a server
   connection, which is when the log matters most, and it works on every platform.
 - **Settings → About** gets the same row. Both show only in the desktop app.
-- **Help menu (macOS):** Open Logs, Documentation (`https://headlessos.com/docs/introduction`)
+- **Help menu:** Open Logs, Documentation (`https://headlessos.com/docs/introduction`)
   and Report Issue (`https://github.com/abhee235/headlessos/issues`).
 - The README gets a "Logs" section. The website's docs follow after the release.
 
@@ -222,13 +222,16 @@ turns the raw error into a `ConnectFailure`, the route returns it, and `ProblemC
 | anything else | Couldn't connect to this server | `a-server-wont-connect` |
 | no response from the backend (client side) | the M15.1 message | `backend-errors` |
 
+The screen must still fit at the window's minimum size, so below 640px of height it tightens up:
+smaller gaps, a smaller avatar, and it scrolls if a long hint still doesn't fit.
+
 `connectErrorMessage()` goes. The store's `connectServer` returns a `ConnectFailure` or `null`.
 `loginError` leaves the store: only `LoginScreen` used it, and it now keeps the failure itself.
 
 ### M15.15 — Help in Control Center
 
-The log is three clicks away in Global Settings, and the docs are only in the Help menu, which
-Windows and Linux don't show. Someone stuck before signing in has neither.
+The log is in Global Settings and the app's Help menu, and the docs are only in that menu, which a
+browser doesn't have. Neither is where someone stuck at sign-in is looking.
 
 **Fix:** a Help button at the top right of Control Center, on every tab, with Documentation,
 Troubleshooting, Report an issue and, in the desktop app, Open log.
@@ -253,9 +256,9 @@ M15.12 moves an unreadable `servers.json` to `servers.json.broken`, but the scre
 servers configured yet", as if nothing had happened, and nothing is logged. A file that is valid
 JSON but not a list still stops the backend from starting.
 
-**Fix:** `ConfigStore` remembers that it set a file aside and logs it. `GET /api/servers/notice`
-reports it, and the empty sign-in screen shows a `ProblemCard` naming the kept file in place of
-"No servers configured yet". Anything that isn't a list counts as damaged.
+**Fix:** `ConfigStore` logs it, and `GET /api/servers/notice` reports `servers.json.broken` for as
+long as that file exists. The empty sign-in screen shows a `ProblemCard` naming the kept file in
+place of "No servers configured yet". Anything that isn't a list counts as damaged.
 
 ### M15.18 — Saved secrets survive a change of computer name
 
@@ -276,6 +279,21 @@ secrets; the hostname adds nothing an attacker can't read. See ADR-028.
 The notes in `release.yml` list `HeadlessOS Setup *.exe` and `HeadlessOS *.exe`, but GitHub
 replaces spaces with dots, and say the installer goes to Program Files. It installs per user: the
 build has no `nsis` setting, so it uses electron-builder's default. **Fix:** correct the template.
+
+### M15.20 — The built app keeps its glass
+
+In a built app, windows, panels and the top bar have no blur, so desktop icons show through a
+window. The dev server looks right, and the Windows, Mac and Linux builds are all wrong, so this
+isn't a platform difference: every build is Chromium, and they share one stylesheet.
+
+`styles.css` declares `backdrop-filter` and then `-webkit-backdrop-filter` on `.glass`,
+`.glass-heavy` and `.lumen-menubar`. Tailwind's build runs Lightning CSS, which treats the two as
+one property and keeps the last, and Chromium ignores the prefixed one. The dev server doesn't
+minify, so it keeps both. Tailwind's own `backdrop-blur-*` classes are unaffected, which is why the
+sign-in screen still blurred.
+
+**Fix:** remove the three prefixed lines, so Lightning CSS keeps `backdrop-filter`. No per-platform
+theme is needed. A test runs the stylesheet through Lightning CSS and checks all three rules.
 
 ### M15.5 — Linux in the release
 
@@ -321,12 +339,13 @@ platform the owner can reach. Publishing stays manual.
 | M15.11 | A wrong password is tried once | ✅ |
 | M15.12 | SSH keys are encrypted, and a failed decrypt keeps the server list | ✅ |
 | M15.13 | Output is redacted before the parsing fallback | ✅ |
-| M15.14 | A failed sign-in explains itself | ⬜ |
-| M15.15 | Help in Control Center | ⬜ |
-| M15.16 | A saved secret that's gone says so | ⬜ |
-| M15.17 | A damaged server list says so | ⬜ |
-| M15.18 | Saved secrets survive a change of computer name | ⬜ |
-| M15.19 | Release notes name the real files | ⬜ |
+| M15.14 | A failed sign-in explains itself | ✅ |
+| M15.15 | Help in Control Center | ✅ |
+| M15.16 | A saved secret that's gone says so | ✅ |
+| M15.17 | A damaged server list says so | ✅ |
+| M15.18 | Saved secrets survive a change of computer name | ✅ |
+| M15.19 | Release notes name the real files | ✅ |
+| M15.20 | The built app keeps its glass | ✅ |
 
 ## Checks
 
@@ -366,6 +385,34 @@ Chromium's own CSS notices to the log while it is open; they are harmless and le
 in the asar and `server.mjs` in resources. **The packages have not been started:** that WSL
 install lacks libnss3 and libasound, so the first run on a Linux desktop is still to come. The
 workflow job itself first runs at the tag.
+
+**M15.14 to M15.20,** packaged Windows build from the branch, driven over CDP with an isolated home
+and a local `ssh2` stand-in that logs every login attempt:
+
+- Glass, in the 0.2.1 draft and the fixed build, with the same steps and home: window blur `none`
+  against `blur(44px) saturate(1.9)`, top bar `none` against `blur(30px) saturate(1.6)`, and the
+  same colours. With the window maximized over the desktop icons, the draft shows them sharp, as
+  in the owner's screenshot, and the fixed build doesn't.
+- The test on Lightning CSS fails on the old stylesheet in all three rules and passes on the new.
+- A closed port shows the card, with the real address in the exact error. Copy puts that text on
+  the clipboard. The card is 380 × 171 with a 24 px gap, and its buttons are 36 px.
+- At 800 × 540, the window's smallest content area, the first version ran 2 px off the bottom and
+  put the avatar 6 px under the header. That is why the short layout exists. All four cards now
+  fit, with no scrolling.
+- A lost key shows "Saved key can't be read" and doesn't connect at all. A blank password connects
+  and sends none, and says so. A wrong password makes one attempt.
+- A `servers.json` written by the 0.2.1 draft moves to the new format at startup, before any click.
+- A damaged file shows its card at every start, names `servers.json.broken`, and logs one line.
+- Passwords, key text and the computer name stay out of the log.
+- Every section the code can link to exists on the built Troubleshooting page.
+
+**What the run changed:** the short layout. Separately, the owner's dev server picked up M15.18 from
+the main checkout and moved the real `servers.json` and `llm.json` to the new format, which the
+installed draft can't read. Both were converted back and the work moved to a worktree. Installing
+the rebuilt draft moves them again, and from then on older builds can't read them.
+
+**Not clicked in a packaged app:** How to fix this and the Help menu's links, which open the owner's
+browser, and whose pages aren't live until the docs are deployed. Their addresses are checked.
 
 **Not tested:** anything on macOS, including the Help menu's Open Logs, the local network
 prompt (M15.8) and the 0.2.0 fix for issue #9. The Windows installer has not been run either.

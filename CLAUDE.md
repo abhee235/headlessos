@@ -46,7 +46,7 @@ No linter or formatter is configured.
 - **Auto-reconnect:** a `preHandler` hook reconnects disconnected servers for URLs matching `dataRoutePattern` (`/api/servers/:id/(docker|system|files|…)`). Add any new per-server route prefix to that regex.
 - **Binding and ports:** the server binds `127.0.0.1`. With `PORT=0` it prints `HEADLESSOS_PORT:<n>`, which `electron/main.js` parses. The client (`lib/api.ts`) reads that port from `window.electronAPI.serverPort` under `file://`, and otherwise uses the Vite proxy.
 - **Module resolution:** ESM with Node16 resolution, so server relative imports need a `.js` extension. Shared code is imported as `headlessos-shared` or `headlessos-shared/schemas/<name>`.
-- **Persistent state** lives in `~/.headlessos/`: `servers.json`, `llm.json` (Settings → AI key, encrypted), `sessions/<id>.json`, `dynamic-ui-cache/`, `observatory/traces/`, and `logs/headlessos.log` (the desktop app only, M15.3). Passwords are AES-GCM encrypted with a key derived from hostname + uid (`security/encryption.ts`), so stored credentials don't move between machines.
+- **Persistent state** lives in `~/.headlessos/`: `servers.json`, `llm.json` (Settings → AI key, encrypted), `sessions/<id>.json`, `dynamic-ui-cache/`, `observatory/traces/`, and `logs/headlessos.log` (the desktop app only, M15.3). Passwords, SSH keys and AI keys are AES-GCM encrypted with a key derived from `enc-key` and the OS user ID (`security/encryption.ts`, ADR-028), so they only move with that file.
 
 ### Path 1: classic apps (Dashboard, Files, Docker, Services, Task Manager, Server Admin)
 A route calls `orchestrator.execute(plan)` or `connectionManager.exec()`, then `pipeline.parse(command, raw, schema, serverId)`. The pipeline tries the cache, then a deterministic parser, then the LLM, then validates with Zod.
@@ -88,6 +88,7 @@ The LLM emits `DynamicViewSchema` JSON (`shared/schemas/dynamic-view.ts`). A gen
   - Preferences are layered as global ⊕ per-session override (`store/effective-preferences.ts`, `useEffectivePref`). Only keys in `OVERRIDABLE_PREFERENCE_KEYS` can be overridden.
 - **Backend calls** go through `lib/api.ts`. WebSockets live under `/ws/…` (terminal, observatory, docker-install, agents, dynamic-ui). `@/` is an alias for `client/src`.
 - **Extra entry point:** `playground.html` / `playground-entry.tsx` is a second Vite entry, a standalone Dynamic UI playground at `/playground.html`.
+- **CSS that only breaks when built (M15.20):** the dev server doesn't minify; the build runs Lightning CSS, which treats a property and its `-webkit-` twin as one and keeps the last. Write `backdrop-filter` alone: Chromium ignores the prefixed form. `tests/lib/glass-blur.test.ts` guards the glass recipes.
 - **Vite gotcha:** editing `lib/api.ts` (or another module the stores import) while `npm run dev` runs can leave a reload with two copies of a store (`/src/store/window-store.ts` and `…?t=<stamp>`). Windows then stop rendering. Touch the store files and `lib/api.ts`, or restart Vite.
 - **Scratch files, not app code:** `temp-*.mjs` at the root and `client/src/icon-comparison.tsx` compare icon libraries.
 
