@@ -68,6 +68,7 @@
 | M15.11 | A wrong password is tried once | ✅ | Unit test on ssh2's real message |
 | M15.12 | SSH keys are encrypted, and a failed decrypt keeps the server list | ✅ | ConfigStore against a temp folder: encryption, migration, failed decrypt, broken file. Routes strip all three |
 | M15.13 | Output is redacted before the parsing fallback | ✅ | Pipeline test with a capturing provider |
+| M15.14 | First launch on a Mac, with a screenshot | ✅ | Docs only. The screenshot comes from opening the draft 0.2.1 DMG on macOS 26.5.2 |
 
 ## M14: Public Release
 
@@ -656,6 +657,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-11-06 | **M15.14 ✅** The README shows Mac users how to get past the first-launch block, with a screenshot from a real run. It also drops right-click → Open, which macOS 15 removed. |
 | 2026-11-06 | **M15.9–M15.13 ✅** Writing the docs against the code found real faults: widget refresh could run a change with no approval (the new tests ran the commands against the old route), sign-in hid every connection error, a wrong password was tried four times, SSH keys sat in plain text, a failed decrypt lost the server list, and the parsing fallback skipped redaction. All fixed with tests. SSH host keys are still not checked. |
 | 2026-11-06 | **M15.8 ✅** The Mac build declares why it needs the local network, and a blocked connection says where the permission is. From issue #9: Terminal is exempt from this macOS permission, and the app is not. Not run on a Mac. |
 | 2026-11-06 | **M15.1–M15.6 ✅** From GitHub issue #9: a readable error when the backend can't be reached, a dialog when it stops, `~/.headlessos/logs/headlessos.log` with secrets and names kept out, Open log in Global Settings and About, working Help links, and Linux builds. The packaged run found the computer's name in every log line and an unreadable exit code; both fixed. Not yet run: macOS, the Windows installer, and the Linux packages. |

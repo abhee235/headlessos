@@ -1530,6 +1530,14 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-15.md` ("M15.13")
 - **Verification:** pipeline test with a capturing provider
 
+### M15.14: First launch on a Mac, with a screenshot
+- **Status:** ✅ Complete
+- **Date:** 2026-11-06
+- **Files created:** `docs/images/macos-open-anyway.png`
+- **Files modified:** `README.md`
+- **Docs:** `docs/phases/phase-15.md` ("M15.14")
+- **Verification:** screenshot from opening the draft 0.2.1 DMG on macOS 26.5.2; docs only, test suite run before commit
+
 ### M15.6: Version 0.2.1 and changelog
 - **Status:** ✅ Complete
 - **Date:** 2026-11-06
