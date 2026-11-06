@@ -7,12 +7,13 @@
 // EX10.1: the Ollama settings carry the owner's context window (absent = Auto)
 // EX11.2: Claude (Anthropic) is a third provider; its key is encrypted like the OpenAI key,
 // and every switch keeps the other providers' settings
+// M15.18: keys under older encryption move to the current one when they load
 // @see docs/phases/phase-ex8.md, docs/phases/phase-ex9.md §8, docs/phases/phase-ex10.md §1, docs/phases/phase-ex11.md §2
 
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync, chmodSync } from 'fs';
 import { homedir } from 'os';
 import { dirname, join } from 'path';
-import { decrypt, encrypt, isEncrypted } from '../security/encryption.js';
+import { decrypt, encrypt, isCurrentEncryption, isEncrypted } from '../security/encryption.js';
 import { validContextSetting } from './model-limits.js';
 
 export const LLM_SETTINGS_FILE = join(homedir(), '.headlessos', 'llm.json');
@@ -89,6 +90,32 @@ function rawAnthropic(value: unknown): { model: string; apiKey?: string } | unde
   return { model: v.model, ...(typeof v.apiKey === 'string' && isEncrypted(v.apiKey) ? { apiKey: v.apiKey } : {}) };
 }
 
+/** Written to a temp file and renamed, so a crash never leaves half a file */
+function writeSettings(file: string, body: Record<string, unknown>): void {
+  const dir = dirname(file);
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true, mode: 0o700 });
+  const tmp = `${file}.tmp`;
+  writeFileSync(tmp, JSON.stringify(body, null, 2), { mode: 0o600 });
+  renameSync(tmp, file);
+  try { chmodSync(file, 0o600); } catch { /* no POSIX modes on Windows */ }
+}
+
+/** M15.18: re-encrypt keys that were saved under an older key. Called once they've been read. */
+function moveToCurrentEncryption(raw: RawSettings, file: string): void {
+  const stale = (value: unknown): value is string =>
+    typeof value === 'string' && isEncrypted(value) && !isCurrentEncryption(value);
+  const claude = typeof raw.anthropic === 'object' && raw.anthropic !== null
+    ? raw.anthropic as Record<string, unknown>
+    : undefined;
+  if (!stale(raw.apiKey) && !stale(claude?.apiKey)) return;
+
+  writeSettings(file, {
+    ...raw,
+    ...(stale(raw.apiKey) ? { apiKey: encrypt(decrypt(raw.apiKey)) } : {}),
+    ...(claude && stale(claude.apiKey) ? { anthropic: { ...claude, apiKey: encrypt(decrypt(claude.apiKey)) } } : {}),
+  });
+}
+
 /** Read and decrypt the saved settings; null when none are saved or they cannot be read */
 export function loadLLMSettings(file = LLM_SETTINGS_FILE): SavedLLMSettings | null {
   try {
@@ -100,13 +127,15 @@ export function loadLLMSettings(file = LLM_SETTINGS_FILE): SavedLLMSettings | nu
     if (raw.provider === 'anthropic' && !claude?.apiKey) return null;
     // Only an encrypted key is accepted, so a hand-edited plaintext key is never used silently
     const apiKey = raw.apiKey && isEncrypted(raw.apiKey) ? decrypt(raw.apiKey) : undefined;
-    return {
+    const settings: SavedLLMSettings = {
       provider: raw.provider as SavedLLMSettings['provider'],
       ...(raw.model ? { model: raw.model } : {}),
       ...(apiKey ? { apiKey } : {}),
       ...(ollama ? { ollama } : {}),
       ...(claude ? { anthropic: { model: claude.model, ...(claude.apiKey ? { apiKey: decrypt(claude.apiKey) } : {}) } } : {}),
     };
+    moveToCurrentEncryption(raw, file);
+    return settings;
   } catch {
     return null;
   }
@@ -116,7 +145,7 @@ export function loadLLMSettings(file = LLM_SETTINGS_FILE): SavedLLMSettings | nu
  * Save the choice. OpenAI: the model, and the key when a new one is given
  * (otherwise the saved key stays). Ollama: its URL and model. Claude (EX11.2): its
  * model, and its key when a new one is given. Every switch keeps the other providers'
- * settings. Written to a temp file and renamed, so a crash never leaves half a file.
+ * settings.
  */
 export function saveLLMSettings(update: LLMSettingsUpdate, file = LLM_SETTINGS_FILE): void {
   const prev = readRaw(file);
@@ -142,12 +171,7 @@ export function saveLLMSettings(update: LLMSettingsUpdate, file = LLM_SETTINGS_F
     body = { provider: 'openai', ...kept, model: openai.model, ...(encryptedKey ? { apiKey: encryptedKey } : {}) };
   }
 
-  const dir = dirname(file);
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true, mode: 0o700 });
-  const tmp = `${file}.tmp`;
-  writeFileSync(tmp, JSON.stringify(body, null, 2), { mode: 0o600 });
-  renameSync(tmp, file);
-  try { chmodSync(file, 0o600); } catch { /* no POSIX modes on Windows */ }
+  writeSettings(file, body);
 }
 
 /** Forget the saved keys, models and Ollama settings (Settings → AI → None) */

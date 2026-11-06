@@ -7,7 +7,7 @@ import { join } from 'path';
 import { homedir } from 'os';
 import { randomUUID } from 'crypto';
 import { BaseService } from '../services/base-service.js';
-import { encrypt, decrypt, isEncrypted } from '../security/encryption.js';
+import { encrypt, decrypt, isCurrentEncryption } from '../security/encryption.js';
 import type { ServerConfig } from 'headlessos-shared';
 
 const DEFAULT_CONFIG_DIR = join(homedir(), '.headlessos');
@@ -125,9 +125,12 @@ export class ConfigStore extends BaseService {
       passphrase: readSecret(s.passphrase),
     }));
 
-    // Migrate: if any secret was stored in plaintext, re-save with encryption to upgrade the file
+    // Migrate plain text and older encryption (M15.18). A secret that can't be read must not
+    // cause a save: that would drop it, and the next start may be able to read it.
     const needsMigration = stored.some(s =>
-      SECRET_FIELDS.some(field => s[field] && !isEncrypted(s[field]!)),
+      SECRET_FIELDS.some(field =>
+        s[field] && !isCurrentEncryption(s[field]!) && readSecret(s[field]) !== undefined,
+      ),
     );
     if (needsMigration) {
       await this.save();
