@@ -34,6 +34,7 @@
 | M12: Backend Architecture Refactor | Beta | ✅ | 7/7 tasks | [phase-12](phases/phase-12.md) |
 | M13: Release Readiness | Beta | ✅ | 4/4 tasks | [phase-13](phases/phase-13.md) |
 | M14: Public Release | Beta | ✅ | 12/12 tasks | [phase-14](phases/phase-14.md) |
+| M15: Desktop Diagnostics | Beta | 🔄 | 0/7 tasks | [phase-15](phases/phase-15.md) |
 | **EX1: Dynamic UI Engine** | **Experimental** | **✅** | **15/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
 | **EX2: UI Generation Agent** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
 | **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **✅** | **26/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
@@ -47,6 +48,20 @@
 | **EX11: Claude Models** | **Experimental** | **✅** | **2/2 tasks** | [phase-ex11](phases/phase-ex11.md) |
 
 ---
+
+## M15: Desktop Diagnostics
+
+> Release 0.2.1. From GitHub issue #9: a readable error when the backend can't be reached, a dialog when it stops, a log file anyone can open, working Help links, and Linux builds.
+
+| Task ID | Task | Status | Verification |
+|---------|------|--------|--------------|
+| M15.1 | A readable error when the backend can't be reached | ⬜ | |
+| M15.2 | The app notices when the backend stops | ⬜ | |
+| M15.3 | A log file with secrets kept out | ⬜ | |
+| M15.4 | Opening the log, and working Help links | ⬜ | |
+| M15.5 | Linux in the release | ⬜ | |
+| M15.6 | Version 0.2.1 and changelog | ⬜ | |
+| M15.7 | Tag v0.2.1 and check the release | ⬜ | |
 
 ## M14: Public Release
 
