@@ -46,7 +46,7 @@ No linter or formatter is configured.
 - **Auto-reconnect:** a `preHandler` hook reconnects disconnected servers for URLs matching `dataRoutePattern` (`/api/servers/:id/(docker|system|files|…)`). Add any new per-server route prefix to that regex.
 - **Binding and ports:** the server binds `127.0.0.1`. With `PORT=0` it prints `HEADLESSOS_PORT:<n>`, which `electron/main.js` parses. The client (`lib/api.ts`) reads that port from `window.electronAPI.serverPort` under `file://`, and otherwise uses the Vite proxy.
 - **Module resolution:** ESM with Node16 resolution, so server relative imports need a `.js` extension. Shared code is imported as `headlessos-shared` or `headlessos-shared/schemas/<name>`.
-- **Persistent state** lives in `~/.headlessos/`: `servers.json`, `llm.json` (Settings → AI key, encrypted), `sessions/<id>.json`, `dynamic-ui-cache/`, `observatory/traces/`. Passwords are AES-GCM encrypted with a key derived from hostname + uid (`security/encryption.ts`), so stored credentials don't move between machines.
+- **Persistent state** lives in `~/.headlessos/`: `servers.json`, `llm.json` (Settings → AI key, encrypted), `sessions/<id>.json`, `dynamic-ui-cache/`, `observatory/traces/`, and `logs/headlessos.log` (the desktop app only, M15.3). Passwords are AES-GCM encrypted with a key derived from hostname + uid (`security/encryption.ts`), so stored credentials don't move between machines.
 
 ### Path 1: classic apps (Dashboard, Files, Docker, Services, Task Manager, Server Admin)
 A route calls `orchestrator.execute(plan)` or `connectionManager.exec()`, then `pipeline.parse(command, raw, schema, serverId)`. The pipeline tries the cache, then a deterministic parser, then the LLM, then validates with Zod.

@@ -24,6 +24,7 @@ the files that hold secrets are written `0600`.
 | LLM API keys (OpenAI, Anthropic) | `llm.json` | Encrypted the same way. The server never sends a key back to the browser. Choosing *None* in Settings → AI deletes them. |
 | API token | `api-token` | A random token that every API and WebSocket call must carry (see below). |
 | Agent actions | `audit/actions.jsonl` | An append-only log of every action an agent asked to run, and the answer. |
+| Desktop app log | `logs/headlessos.log` | Backend output and app errors, for troubleshooting. Secrets are masked before writing, and it's never sent anywhere. Written `0600`, capped at 10 MB. |
 | Traces and sessions | `observatory/`, `sessions/` | Model calls, tool results and window layouts, for the trace viewer and for restoring sessions. |
 
 Encryption at rest protects against casual reading of these files. It does not protect
