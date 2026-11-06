@@ -35,3 +35,17 @@ describe('system wallpaper folder', () => {
     expect(pkg.build.extraResources).toEqual(expect.arrayContaining([{ from: '../server/assets', to: 'assets' }]));
   });
 });
+
+// M15.2: a file main.js loads but electron-builder leaves out stops the app from starting
+describe('desktop app files', () => {
+  const pkg = JSON.parse(readFileSync(join(root, 'electron', 'package.json'), 'utf8'));
+  const main = readFileSync(join(root, 'electron', 'main.js'), 'utf8');
+
+  it('packages every local file main.js requires', () => {
+    const local = [...main.matchAll(/require\(\s*['"]\.\/([^'"]+)['"]\s*\)/g)].map((m) => m[1]);
+    expect(local).toContain('diagnostics');
+    for (const file of local) {
+      expect(pkg.build.files, file).toContain(file.endsWith('.js') ? file : `${file}.js`);
+    }
+  });
+});

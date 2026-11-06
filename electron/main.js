@@ -9,6 +9,7 @@ const { app, BrowserWindow, Menu, shell, dialog, ipcMain, utilityProcess } = req
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const { backendExitAction } = require('./diagnostics');
 
 const IS_DEV = process.argv.includes('--dev') || process.env.NODE_ENV === 'development';
 const DEV_URL = 'http://localhost:3000';
@@ -25,6 +26,7 @@ let mainWindow = null;
 let serverProcess = null;
 let serverPort = IS_DEV ? 3001 : null; // dev mode: developer runs server separately
 let serverToken = null; // C3: API auth token, read from the server's stdout in prod
+let stopping = false; // M15.2: the app is quitting, so a backend exit is expected
 
 /**
  * Resolve path to the bundled server.mjs (built by `npm run build:server`; M14.3: not in git).
@@ -50,6 +52,7 @@ function startServer() {
     }
 
     const serverPath = getServerPath();
+    let ready = false;
 
     serverProcess = utilityProcess.fork(serverPath, [], {
       env: {
@@ -73,6 +76,7 @@ function startServer() {
       const match = text.match(/HEADLESSOS_PORT:(\d+)/);
       if (match) {
         clearTimeout(timeout);
+        ready = true;
         serverPort = parseInt(match[1], 10);
         resolve(serverPort);
       }
@@ -88,11 +92,62 @@ function startServer() {
         console.error(`[server] exited unexpectedly with code ${code}`);
       }
       serverProcess = null;
+
+      // M15.2: without this the app waits out the timeout, or every window just stops working
+      const action = backendExitAction({ stopping, ready });
+      if (action === 'failed-to-start') {
+        reject(new Error(`The backend exited with code ${code} before it was ready.`));
+      } else if (action === 'ask') {
+        askAfterBackendStopped(code);
+      }
     });
   });
 }
 
+function showStartError(err) {
+  dialog.showErrorBox(
+    'HeadlessOS — Server Error',
+    `The backend server could not start:
+
+${err.message}
+
+The application will now quit.`,
+  );
+  app.quit();
+}
+
+/**
+ * M15.2: the backend died while the app was running. Restarting it needs only a window
+ * reload: that runs the preload again, which reads the new port and token.
+ */
+async function askAfterBackendStopped(code) {
+  const options = {
+    type: 'error',
+    title: 'HeadlessOS — Backend Stopped',
+    message: 'The HeadlessOS backend stopped.',
+    detail: `It exited with code ${code}, so the app can't reach your servers until it restarts.`,
+    buttons: ['Restart', 'Quit'],
+    defaultId: 0,
+    cancelId: 1,
+  };
+  const { response } = await (mainWindow
+    ? dialog.showMessageBox(mainWindow, options)
+    : dialog.showMessageBox(options));
+  if (response === 1) {
+    app.quit();
+    return;
+  }
+
+  try {
+    await startServer();
+    if (mainWindow) mainWindow.reload();
+  } catch (err) {
+    showStartError(err);
+  }
+}
+
 function stopServer() {
+  stopping = true;
   if (serverProcess) {
     serverProcess.kill();
     serverProcess = null;
@@ -275,11 +330,7 @@ app.whenReady().then(async () => {
   try {
     await startServer();
   } catch (err) {
-    dialog.showErrorBox(
-      'HeadlessOS — Server Error',
-      `The backend server could not start:\n\n${err.message}\n\nThe application will now quit.`,
-    );
-    app.quit();
+    showStartError(err);
     return;
   }
 
