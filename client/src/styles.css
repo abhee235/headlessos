@@ -335,6 +335,9 @@
 [data-wall-tone="dark"][data-glass="balanced"]:not(.dark) { --lumen-mat-thin:rgba(255,255,255,.62); --lumen-mat:rgba(255,255,255,.76); --lumen-mat-thick:rgba(255,255,255,.92); }
 [data-wall-tone="dark"][data-glass="subtle"]:not(.dark) { --lumen-mat-thin:rgba(255,255,255,.8); --lumen-mat:rgba(255,255,255,.92); --lumen-mat-thick:rgba(255,255,255,.92); }
 
+/* M15.14: a window near its minimum height, where the sign-in screen has to tighten up */
+@custom-variant short (@media (max-height: 640px));
+
 /* "Transparency off" (Settings): near-opaque mats, no blur, solid panels */
 [data-transparency="off"],
 [data-transparency="off"][data-glass],
@@ -368,8 +371,7 @@ textarea::placeholder {
   /* Window body */
   .glass {
     background: linear-gradient(180deg, rgba(255, 255, 255, .14), rgba(255, 255, 255, 0) 42%), var(--lumen-mat);
-    backdrop-filter: var(--lumen-blur);
-    -webkit-backdrop-filter: var(--lumen-blur);
+    backdrop-filter: var(--lumen-blur); /* M15.20: no -webkit- twin, the build would keep only that */
     border: 1px solid var(--lumen-edge);
     color: var(--lumen-label);
   }
@@ -384,13 +386,11 @@ textarea::placeholder {
   .lumen-menubar {
     background: var(--lumen-menubar);
     backdrop-filter: blur(30px) saturate(160%);
-    -webkit-backdrop-filter: blur(30px) saturate(160%);
     box-shadow: 0 1px 0 var(--lumen-menubar-edge);
   }
   .glass-heavy {
     background: var(--lumen-panel);
     backdrop-filter: var(--lumen-panel-blur);
-    -webkit-backdrop-filter: var(--lumen-panel-blur);
     border: 1px solid var(--lumen-edge2);
     box-shadow: inset 0 1px 0 var(--lumen-spec2), var(--lumen-lift);
     color: var(--lumen-label);
