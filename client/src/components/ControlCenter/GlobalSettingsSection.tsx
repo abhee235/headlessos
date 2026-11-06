@@ -8,13 +8,14 @@
 // always global. This section exposes the global defaults; per-session
 // overrides are surfaced inside each session's in-desktop Settings app.
 
-import { ExternalLink, Palette, Image as ImageIcon, Bell, Calendar, Upload, FileText } from 'lucide-react';
-import { useState } from 'react';
+import { ExternalLink, Palette, Image as ImageIcon, Bell, Calendar, Upload, FileText, KeyRound } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import type { SecretStore } from 'headlessos-shared';
 import { usePreferencesStore } from '../../store/preferences-store';
 import { LUMEN_ACCENTS } from '../../lib/lumen-theme';
 import { useAppStore } from '../../store/app-store';
 import { importSessionViaPicker } from '../../lib/session-io';
-import { desktopOpenLogs } from '../../lib/api';
+import { desktopOpenLogs, fetchServerNotice } from '../../lib/api';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {
@@ -25,6 +26,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+
+/** M16.4: where the key to saved logins is held */
+const SECRET_STORE_TEXT: Record<SecretStore, string> = {
+  keychain: "The key to your saved logins is in this computer's keychain.",
+  file: "The key to your saved logins is in a file in the .headlessos folder. There's no keychain the app can use here.",
+  locked: "Your saved logins are locked. They're safe, but the key to them can't be reached right now.",
+};
 
 export function GlobalSettingsSection() {
   const accentColorIndex = usePreferencesStore((s) => s.accentColorIndex);
@@ -39,6 +47,16 @@ export function GlobalSettingsSection() {
   const goToDesktop = useAppStore((s) => s.goToDesktop);
   const activeServerId = useAppStore((s) => s.activeServerId);
   const openLogs = desktopOpenLogs();
+
+  // M16.4: where the key to saved logins is held
+  const [secretStore, setSecretStore] = useState<SecretStore | null>(null);
+  useEffect(() => {
+    let live = true;
+    fetchServerNotice()
+      .then((notice) => { if (live) setSecretStore(notice.secretStore); })
+      .catch(() => { /* the row just doesn't appear */ });
+    return () => { live = false; };
+  }, []);
 
   // EX6-D.4: import status
   const [importStatus, setImportStatus] = useState<{ kind: 'idle' | 'ok' | 'error'; message?: string }>({ kind: 'idle' });
@@ -202,6 +220,18 @@ export function GlobalSettingsSection() {
       </section>
 
       {/* M15.4: the one place to reach the log with no server connected */}
+      {secretStore && (
+        <section className="lumen-section flex items-center gap-4 rounded-[20px] px-6 py-5">
+          <KeyRound className="h-5 w-5 shrink-0 text-label-2" strokeWidth={1.75} />
+          <div className="flex-1">
+            <div className="text-[15px]">Saved logins</div>
+            <div className="text-[13px] text-label-2" data-testid="cc-secret-store">
+              {SECRET_STORE_TEXT[secretStore]}
+            </div>
+          </div>
+        </section>
+      )}
+
       {openLogs && (
         <section className="lumen-section flex items-center gap-4 rounded-[20px] px-6 py-5">
           <FileText className="h-5 w-5 shrink-0 text-label-2" strokeWidth={1.75} />

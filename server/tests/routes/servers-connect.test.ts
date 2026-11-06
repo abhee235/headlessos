@@ -80,12 +80,12 @@ describe('GET /api/servers/notice', () => {
   it('M15.17: names a damaged list', async () => {
     await start(async () => undefined, 'servers.json.broken');
     const res = await app.inject({ method: 'GET', url: '/api/servers/notice' });
-    expect(res.json()).toEqual({ damagedList: 'servers.json.broken' });
+    expect(res.json()).toMatchObject({ damagedList: 'servers.json.broken' });
   });
 
   it('M15.17: is empty otherwise', async () => {
     await start(async () => undefined);
     const res = await app.inject({ method: 'GET', url: '/api/servers/notice' });
-    expect(res.json()).toEqual({ damagedList: null });
+    expect(res.json()).toMatchObject({ damagedList: null, locked: null });
   });
 });

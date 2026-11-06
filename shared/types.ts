@@ -28,6 +28,9 @@ export interface ConnectionState {
   detectedTools?: string[];
 }
 
+/** M16.4: where the install secret is held */
+export type SecretStore = 'keychain' | 'file' | 'locked';
+
 /** M15.14: why a connection failed, in a form the owner can act on */
 export interface ConnectFailure {
   /** One plain sentence */

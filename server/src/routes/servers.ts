@@ -8,7 +8,8 @@ import type { FastifyInstance } from 'fastify';
 import type { ConnectionManager } from '../ssh/connection-manager.js';
 import type { ConfigStore } from '../config/store.js';
 import type { ServerConfig } from 'headlessos-shared';
-import { describeConnectFailure, isKeyLost, KEY_LOST } from '../ssh/connect-failure.js';
+import { describeConnectFailure, isKeyLost, KEY_LOST, loginsLockedFailure } from '../ssh/connect-failure.js';
+import { loginsLocked, secretStore } from '../security/encryption.js';
 
 /** M15.12: credentials stay in the backend; the window never needs them back */
 function withoutSecrets<T extends ServerConfig>(server: T) {
@@ -25,16 +26,22 @@ export async function serverRoutes(
 
   fastify.get('/api/servers', async () => {
     const servers = await configStore.getServers();
+    const locked = loginsLocked();
     return servers.map(s => ({
       ...withoutSecrets(s),
-      ...(isKeyLost(s) ? { keyLost: true } : {}), // M15.16: says so without sending a secret
+      // M15.16: says so without sending a secret. M16.4: locked isn't lost.
+      ...(!locked && isKeyLost(s) ? { keyLost: true } : {}),
       state: connectionManager.getState(s.id),
     }));
   });
 
-  // ── GET /api/servers/notice — M15.17 ──────────────────
+  // ── GET /api/servers/notice — M15.17, M16.4 ───────────
 
-  fastify.get('/api/servers/notice', async () => ({ damagedList: configStore.damagedListFile() }));
+  fastify.get('/api/servers/notice', async () => ({
+    damagedList: configStore.damagedListFile(),
+    locked: loginsLocked() ? loginsLockedFailure() : null,
+    secretStore: secretStore(),
+  }));
 
   // ── POST /api/servers — add a server ──────────────────
 
@@ -79,6 +86,16 @@ export async function serverRoutes(
     if (req.body?.password) connectConfig.password = req.body.password;
     if (req.body?.privateKey) connectConfig.privateKeyPath = req.body.privateKey;
     if (req.body?.passphrase) connectConfig.passphrase = req.body.passphrase;
+
+    // M16.4: a saved secret this needs is locked. Typing one at sign-in still works.
+    const needsSaved = connectConfig.authMethod === 'password'
+      ? !connectConfig.password
+      : connectConfig.authMethod === 'privateKey' && !connectConfig.privateKeyPath;
+    if (needsSaved && loginsLocked()) {
+      reply.code(423);
+      const failure = loginsLockedFailure();
+      return { error: failure.title, failure };
+    }
 
     // M15.16: with no key there is nothing to offer, and "the server refused" would be untrue
     if (isKeyLost(connectConfig)) {

@@ -20,15 +20,28 @@ the files that hold secrets are written `0600`.
 
 | What | File | How |
 |------|------|-----|
-| Server list and SSH passwords | `servers.json` | Passwords are AES-256-GCM encrypted. The key is derived from a random per-install secret (`enc-key`) and your OS user ID. SSH private keys and passphrases you add are encrypted the same way. |
+| Server list and SSH passwords | `servers.json` | Passwords are AES-256-GCM encrypted. The key is derived from a random per-install secret and your OS user ID. SSH private keys and passphrases you add are encrypted the same way. |
 | LLM API keys (OpenAI, Anthropic) | `llm.json` | Encrypted the same way. The server never sends a key back to the browser. Choosing *None* in Settings → AI deletes them. |
+| Install secret | `enc-key.keychain` | Held by the OS keychain in the desktop app (see below). Where there's no keychain, and under `npm run dev`, it's the plain file `enc-key`. |
 | API token | `api-token` | A random token that every API and WebSocket call must carry (see below). |
 | Agent actions | `audit/actions.jsonl` | An append-only log of every action an agent asked to run, and the answer. |
 | Desktop app log | `logs/headlessos.log` | Backend output and app errors, for troubleshooting. Secrets are masked before writing, and it's never sent anywhere. Written `0600`, capped at 10 MB. |
 | Traces and sessions | `observatory/`, `sessions/` | Model calls, tool results and window layouts, for the trace viewer and for restoring sessions. |
 
-Encryption at rest protects against casual reading of these files. It does not protect
-against someone who can run code as your user, because the key is on the same machine.
+### What the keychain protects
+
+| Threat | macOS | Windows | Linux, with a secret store | Linux, without one |
+|--------|-------|---------|----------------------------|--------------------|
+| A copy of the folder alone | Protected | Protected | Protected | Not protected |
+| Another account on the computer | Protected | Protected | Protected | Not protected |
+| A program running as you | Protected: the Keychain asks, naming the program | **Not protected** | **Not protected** | Not protected |
+
+On Windows and Linux, a program running as you can ask the OS to decrypt, and no app can change
+that. If you install something malicious, it can also read your `~/.ssh` keys and record what you
+type, whatever HeadlessOS does. Only run software you trust.
+
+On a Mac, if any app other than HeadlessOS asks for "HeadlessOS Safe Storage", click **Deny**. The
+build isn't signed yet, so macOS asks HeadlessOS itself again after each update.
 
 HeadlessOS installs no agent on your servers; it runs commands over SSH. (The Docker app
 can install Docker on a server, but only when you ask it to.)

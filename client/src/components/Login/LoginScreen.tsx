@@ -1,7 +1,7 @@
 // M6.11: Login Screen — Windows 11-style server selection + credential entry
 // EX8.5: LumenOS v3 sign-in — blurred wallpaper, 96px avatar ring, 52px raised
 // pill password field with the 40px round submit inside it; shake + danger hint.
-// M15.14, M15.16, M15.17: problems appear on a ProblemCard, with the way to the docs and the log
+// M15.14, M15.16, M15.17, M16.4: problems appear on a ProblemCard, with the way to the docs and the log
 // @see docs/phases/phase-ex8.md
 // @see docs/phases/phase-6.md
 
@@ -11,7 +11,7 @@ import { Wallpaper } from '../Desktop/Wallpaper';
 import { ServerAvatar } from './ServerAvatar';
 import { AddServerForm } from './AddServerForm';
 import { ProblemCard } from './ProblemCard';
-import { connectFailureOf, fetchServerNotice } from '../../lib/api';
+import { connectFailureOf, fetchServerNotice, type ServerNotice } from '../../lib/api';
 import type { ConnectFailure } from 'headlessos-shared';
 import { Server, Plus, ArrowLeft, ArrowRight, Eye, EyeOff, KeyRound } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
@@ -43,7 +43,7 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
   const [connecting, setConnecting] = useState(false);
   const [shakeError, setShakeError] = useState(false);
   const [failure, setFailure] = useState<ConnectFailure | null>(null);
-  const [damagedList, setDamagedList] = useState<string | null>(null);
+  const [notice, setNotice] = useState<ServerNotice | null>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
 
   const selectedServer = servers.find(s => s.id === selectedServerId);
@@ -61,16 +61,18 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
     return () => clearInterval(id);
   }, [listFailed, fetchServers]);
 
-  // M15.17: an empty list may be a damaged one, which isn't the same as a new install
+  // M15.17, M16.4: an empty list may be a damaged one, and saved logins may be locked. Asked again
+  // once the backend is back.
   const listEmpty = servers.length === 0 && !loadingServers && !serversError;
   useEffect(() => {
-    if (!listEmpty) return;
+    if (listFailed) return;
     let live = true;
     fetchServerNotice()
-      .then(({ damagedList: file }) => { if (live) setDamagedList(file); })
-      .catch(() => { /* the plain empty state still reads true */ });
+      .then((answer) => { if (live) setNotice(answer); })
+      .catch(() => { /* the screen still reads true without it */ });
     return () => { live = false; };
-  }, [listEmpty]);
+  }, [listFailed]);
+  const damagedList = notice?.damagedList ?? null;
 
   // Focus password field when entering credentials view
   useEffect(() => {
@@ -227,6 +229,9 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
                 </Button>
               </div>
             )}
+
+            {/* M16.4: locked isn't lost, and says what to do */}
+            {notice?.locked && <ProblemCard failure={notice.locked} />}
 
             {/* M15.17: a damaged list is kept, and says so */}
             {listEmpty && damagedList && (

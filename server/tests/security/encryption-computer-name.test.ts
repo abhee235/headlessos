@@ -4,7 +4,10 @@ import { createCipheriv, randomBytes, scryptSync } from 'crypto';
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
-const env = vi.hoisted(() => ({ name: 'macbook.local', home: '' }));
+const env = vi.hoisted(() => {
+  delete process.env.HEADLESSOS_INSTALL_SECRET; // this file needs the real enc-key path
+  return { name: 'macbook.local', home: '' };
+});
 
 vi.mock('os', async (orig) => {
   const actual = await orig<typeof import('os')>();

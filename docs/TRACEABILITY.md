@@ -1612,6 +1612,14 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-ex8.md` ("EX8.31")
 - **Verification:** packaged Windows build with real pointer events, dock at the bottom and on the right
 
+### M16: Saved Secrets in the OS Keychain
+- **Status:** ✅ Complete on Windows; macOS and Linux still to run
+- **Date:** 2026-11-06
+- **Files created:** `electron/keychain.js`, `server/tests/electron/keychain.test.ts`, `server/tests/security/logins-locked.test.ts`, `server/tests/routes/servers-locked.test.ts`, `client/tests/components/secret-store.test.tsx`
+- **Files modified:** `electron/main.js`, `electron/package.json`, `server/src/security/encryption.ts`, `server/src/config/store.ts`, `server/src/routes/servers.ts`, `server/src/ssh/connect-failure.ts`, `shared/types.ts`, `client/src/lib/api.ts`, `client/src/components/Login/LoginScreen.tsx`, `client/src/components/ControlCenter/GlobalSettingsSection.tsx`, `server/vitest.config.ts`, `.env.example`, `SECURITY.md`, `CLAUDE.md`
+- **Docs:** `docs/phases/phase-16.md`, `docs/DECISIONS.md` (ADR-029)
+- **Verification:** packaged Windows build on the real keychain, with a copy of real data: upgrade, restart, another profile, restore
+
 ## How to Use This File
 
 ### After completing a task:

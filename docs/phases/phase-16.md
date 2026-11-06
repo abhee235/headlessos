@@ -94,11 +94,11 @@ plain `enc-key` was kept. The docs say so.
 
 | ID | Task | Status |
 |----|------|--------|
-| M16.1 | Locked is not lost: no new secret, and stored values are kept | ⬜ |
-| M16.2 | The desktop app keeps the install secret in the OS keychain | ⬜ |
-| M16.3 | macOS explains the prompt before it appears | ⬜ |
-| M16.4 | Locked logins say so, and Settings shows where the secret is held | ⬜ |
-| M16.5 | `SECURITY.md`, the docs and the changelog | ⬜ |
+| M16.1 | Locked is not lost: no new secret, and stored values are kept | ✅ |
+| M16.2 | The desktop app keeps the install secret in the OS keychain | ✅ |
+| M16.3 | macOS explains the prompt before it appears | ✅ |
+| M16.4 | Locked logins say so, and Settings shows where the secret is held | ✅ |
+| M16.5 | `SECURITY.md`, the docs and the changelog | ✅ |
 
 ## Checks
 
@@ -111,3 +111,22 @@ plain `enc-key` was kept. The docs say so.
   locked, and a plain `enc-key` put back restores everything.
 - **macOS, by the owner:** the dialog, the prompt, Always Allow, and Deny.
 - **Linux:** a desktop with a secret store, and one without.
+
+## As built
+
+**Packaged Windows build** on the real OS keychain, with a copy of `servers.json` and `enc-key` from
+the owner's backup, in a test home that was deleted afterwards. No real server was contacted.
+
+1. **Upgrade:** `enc-key` moved to `enc-key.keychain` and was removed. The new file doesn't contain
+   the secret, `servers.json` didn't change by a byte, and the SSH key server opened (`keyLost` false).
+2. **Restart:** a saved password signed in with the field left blank.
+3. **The folder with another app profile,** which is what a stolen copy looks like: logins locked,
+   with the card. All three servers listed, a typed password still signed in, and a new saved one
+   was refused with the list unchanged. `servers.json` was byte-identical, and no new secret was made.
+4. **Restore:** a plain `enc-key` put back won. It moved into the keychain, and everything opened.
+
+The secret never reached the log. The log's filter masked the first wording of the status line
+(`install secret: ...`), so it now reads `saved logins: keychain`.
+
+**Not run:** macOS (the dialog, the prompt, Always Allow and Deny), and Linux. The behaviour on a Mac
+is what this phase is for, so it needs the owner's test before release.

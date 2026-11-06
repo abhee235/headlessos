@@ -1,4 +1,5 @@
 // M15.14, M15.16: what a failed connection means, in words the owner can act on
+// M16.4: locked logins, which must never read as lost ones
 // @see docs/phases/phase-15.md
 //
 // The raw error goes to the log. The window gets a plain title and hint, the exact error to
@@ -15,6 +16,19 @@ export const KEY_LOST: ConnectFailure = {
   hint: 'Go back, remove this server and add it again with the key.',
   help: 'ssh-key-problems',
 };
+
+/** M16.4: the secret that opens saved logins is out of reach for now. Nothing is lost. */
+export function loginsLockedFailure(
+  platform: string = process.platform,
+  production: boolean = process.env.NODE_ENV === 'production',
+): ConnectFailure {
+  const hint = !production
+    ? "The dev server can't reach the keychain. Add HEADLESSOS_INSTALL_SECRET to your .env."
+    : platform === 'darwin'
+      ? 'Quit HeadlessOS and open it again, then click Always Allow when macOS asks.'
+      : 'Quit HeadlessOS and open it again. You can still type a password to sign in.';
+  return { title: 'Your saved logins are locked', hint, help: 'saved-logins-are-locked' };
+}
 
 /** M15.16: a key server with no key left to offer */
 export function isKeyLost(server: Pick<ServerConfig, 'authMethod' | 'privateKeyPath'>): boolean {
