@@ -1,6 +1,7 @@
 // M6.11: Login Screen — Windows 11-style server selection + credential entry
 // EX8.5: LumenOS v3 sign-in — blurred wallpaper, 96px avatar ring, 52px raised
 // pill password field with the 40px round submit inside it; shake + danger hint.
+// M15.14, M15.16, M15.17: problems appear on a ProblemCard, with the way to the docs and the log
 // @see docs/phases/phase-ex8.md
 // @see docs/phases/phase-6.md
 
@@ -9,7 +10,10 @@ import { useAppStore } from '../../store/app-store';
 import { Wallpaper } from '../Desktop/Wallpaper';
 import { ServerAvatar } from './ServerAvatar';
 import { AddServerForm } from './AddServerForm';
-import { Server, Plus, ArrowLeft, ArrowRight, Eye, EyeOff, KeyRound, AlertCircle } from 'lucide-react';
+import { ProblemCard } from './ProblemCard';
+import { connectFailureOf, fetchServerNotice } from '../../lib/api';
+import type { ConnectFailure } from 'headlessos-shared';
+import { Server, Plus, ArrowLeft, ArrowRight, Eye, EyeOff, KeyRound } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
 import { Button } from '@/components/ui/button';
 
@@ -23,12 +27,10 @@ interface LoginScreenProps {
 export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
   const {
     servers,
-    loginError,
     fetchServers,
     connectServer,
     setActiveServer,
     goToDesktop,
-    setLoginError,
     addServer,
     loadingServers,
     serversError,
@@ -40,6 +42,8 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
   const [showPassword, setShowPassword] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [shakeError, setShakeError] = useState(false);
+  const [failure, setFailure] = useState<ConnectFailure | null>(null);
+  const [damagedList, setDamagedList] = useState<string | null>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
 
   const selectedServer = servers.find(s => s.id === selectedServerId);
@@ -56,6 +60,17 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
     const id = setInterval(() => { void fetchServers(); }, 3000);
     return () => clearInterval(id);
   }, [listFailed, fetchServers]);
+
+  // M15.17: an empty list may be a damaged one, which isn't the same as a new install
+  const listEmpty = servers.length === 0 && !loadingServers && !serversError;
+  useEffect(() => {
+    if (!listEmpty) return;
+    let live = true;
+    fetchServerNotice()
+      .then(({ damagedList: file }) => { if (live) setDamagedList(file); })
+      .catch(() => { /* the plain empty state still reads true */ });
+    return () => { live = false; };
+  }, [listEmpty]);
 
   // Focus password field when entering credentials view
   useEffect(() => {
@@ -77,7 +92,7 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
 
     setSelectedServerId(serverId);
     setPassword('');
-    setLoginError(null);
+    setFailure(null);
     setView('credentials');
   };
 
@@ -85,7 +100,7 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
     if (!selectedServerId || connecting) return;
 
     setConnecting(true);
-    setLoginError(null);
+    setFailure(null);
 
     try {
       setActiveServer(selectedServerId);
@@ -101,7 +116,7 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
         credentials.passphrase = password;
       }
 
-      const failure = await connectServer(selectedServerId, Object.keys(credentials).length > 0 ? credentials : undefined);
+      const result = await connectServer(selectedServerId, Object.keys(credentials).length > 0 ? credentials : undefined);
 
       // Check if connection succeeded
       const updatedServers = useAppStore.getState().servers;
@@ -110,12 +125,11 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
       if (srv?.state?.status === 'connected') {
         goToDesktop();
       } else {
-        setLoginError(failure ?? 'Connection failed. Check server credentials.');
+        setFailure(result ?? connectFailureOf(new Error('Connection failed')));
         triggerShake();
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Connection failed';
-      setLoginError(message);
+      setFailure(connectFailureOf(err));
       triggerShake();
     } finally {
       setConnecting(false);
@@ -129,7 +143,7 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
 
   const handleBack = () => {
     setView('select');
-    setLoginError(null);
+    setFailure(null);
     setPassword('');
   };
 
@@ -193,7 +207,7 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
               {/* Add Server button */}
               <button
                 className="flex flex-col items-center gap-2 group cursor-pointer"
-                onClick={() => { setView('add-server'); setLoginError(null); }}
+                onClick={() => { setView('add-server'); setFailure(null); }}
               >
                 <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-dashed border-edge-2 bg-mat-thin backdrop-blur-xl transition-all duration-200 group-hover:scale-105 group-hover:bg-mat">
                   <Plus className="h-7 w-7 text-label-2 transition-colors group-hover:text-foreground" strokeWidth={1.75} />
@@ -214,8 +228,19 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
               </div>
             )}
 
+            {/* M15.17: a damaged list is kept, and says so */}
+            {listEmpty && damagedList && (
+              <ProblemCard
+                failure={{
+                  title: "Your saved servers couldn't be read",
+                  hint: `The damaged file is kept as ${damagedList} in the .headlessos folder. Add your servers again.`,
+                  help: 'saved-servers-are-missing',
+                }}
+              />
+            )}
+
             {/* Empty state: only after a load that worked */}
-            {servers.length === 0 && !loadingServers && !serversError && (
+            {listEmpty && !damagedList && (
               <p className="glass-heavy rounded-full px-4 py-2 text-[13px] text-label-2">
                 No servers configured yet. Click "Add Server" to get started.
               </p>
@@ -226,7 +251,7 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
         {/* ── Credentials View ── */}
         {view === 'credentials' && selectedServer && (
           <div
-            className={`flex flex-col items-center gap-6 animate-fadeIn ${shakeError ? 'animate-shake' : ''}`}
+            className={`flex flex-col items-center gap-6 animate-fadeIn short:max-h-full short:gap-3 short:overflow-y-auto short:px-8 short:py-2 ${shakeError ? 'animate-shake' : ''}`}
             onKeyDown={handleKeyDown}
           >
             {/* Back button */}
@@ -239,7 +264,7 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
             </button>
 
             {/* Server avatar (large) */}
-            <div className="flex h-24 w-24 items-center justify-center rounded-full border-2 border-edge-2 bg-[linear-gradient(160deg,var(--lumen-accent-hi),var(--lumen-accent))] shadow-[0_18px_40px_-14px_rgba(0,0,0,.55)]">
+            <div data-testid="login-avatar" className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full border-2 border-edge-2 bg-[linear-gradient(160deg,var(--lumen-accent-hi),var(--lumen-accent))] shadow-[0_18px_40px_-14px_rgba(0,0,0,.55)] short:h-16 short:w-16">
               <Server className="h-10 w-10 text-white" strokeWidth={1.75} />
             </div>
 
@@ -292,9 +317,9 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
             {/* SSH Key auth — passphrase field (optional) */}
             {selectedServer.authMethod === 'privateKey' && (
               <div className="w-[320px] space-y-3">
-                <div className="glass-heavy flex items-center justify-center gap-2 rounded-full px-4 py-2 text-xs font-semibold text-success">
+                <div className={`glass-heavy flex items-center justify-center gap-2 rounded-full px-4 py-2 text-xs font-semibold ${selectedServer.keyLost ? 'text-danger' : 'text-success'}`}>
                   <KeyRound className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  SSH key configured
+                  {selectedServer.keyLost ? "Saved key can't be read" : 'SSH key configured'}
                 </div>
                 <div className="relative">
                   <input
@@ -319,13 +344,8 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
               </div>
             )}
 
-            {/* Error message */}
-            {loginError && (
-              <div className="glass-heavy flex max-w-[360px] items-center gap-2 rounded-full px-4 py-2 text-[13px] font-medium text-danger">
-                <AlertCircle className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-                <span>{loginError}</span>
-              </div>
-            )}
+            {/* M15.14: what went wrong, and the way to the docs and the log */}
+            {failure && <ProblemCard failure={failure} />}
 
             {/* SSH agent auth has no field, so it gets a standalone lit pill */}
             {selectedServer.authMethod !== 'password' && selectedServer.authMethod !== 'privateKey' && (

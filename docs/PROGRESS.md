@@ -34,7 +34,7 @@
 | M12: Backend Architecture Refactor | Beta | ✅ | 7/7 tasks | [phase-12](phases/phase-12.md) |
 | M13: Release Readiness | Beta | ✅ | 4/4 tasks | [phase-13](phases/phase-13.md) |
 | M14: Public Release | Beta | ✅ | 12/12 tasks | [phase-14](phases/phase-14.md) |
-| M15: Desktop Diagnostics | Beta | 🔄 | 12/13 tasks | [phase-15](phases/phase-15.md) |
+| M15: Desktop Diagnostics | Beta | 🔄 | 19/20 tasks | [phase-15](phases/phase-15.md) |
 | **EX1: Dynamic UI Engine** | **Experimental** | **✅** | **15/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
 | **EX2: UI Generation Agent** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
 | **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **✅** | **26/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
@@ -68,7 +68,14 @@
 | M15.11 | A wrong password is tried once | ✅ | Unit test on ssh2's real message |
 | M15.12 | SSH keys are encrypted, and a failed decrypt keeps the server list | ✅ | ConfigStore against a temp folder: encryption, migration, failed decrypt, broken file. Routes strip all three |
 | M15.13 | Output is redacted before the parsing fallback | ✅ | Pipeline test with a capturing provider |
-| M15.14 | First launch on a Mac, with a screenshot | ✅ | Docs only. The screenshot comes from opening the draft 0.2.1 DMG on macOS 26.5.2 |
+| M15.14 | A failed sign-in explains itself | ✅ | Packaged run: the card, Copy, and its fit at 800 × 540 |
+| M15.15 | Help in Control Center | ✅ | Packaged run: the menu and its items; links not clicked |
+| M15.16 | A saved secret that's gone says so | ✅ | Packaged run against a stand-in that logs each attempt |
+| M15.17 | A damaged server list says so | ✅ | Packaged run with a corrupted file |
+| M15.18 | Saved secrets survive a change of computer name | ✅ | Tests with a changing hostname; a file from the 0.2.1 draft moved over in a packaged run |
+| M15.19 | Release notes name the real files | ✅ | Template corrected; checked at the next release |
+| M15.20 | The built app keeps its glass | ✅ | Draft and fixed build measured side by side; test fails on the old stylesheet |
+| M15.21 | First launch on a Mac, with a screenshot | ✅ | Docs only. The screenshot comes from opening the draft 0.2.1 DMG on macOS 26.5.2 |
 
 ## M14: Public Release
 
@@ -657,7 +664,8 @@ Example:
 
 | Date | Change |
 |------|--------|
-| 2026-11-06 | **M15.14 ✅** The README shows Mac users how to get past the first-launch block, with a screenshot from a real run. It also drops right-click → Open, which macOS 15 removed. |
+| 2026-11-06 | **M15.21 ✅** The README shows Mac users how to get past the first-launch block, with a screenshot from a real run. It also drops right-click → Open, which macOS 15 removed. |
+| 2026-11-06 | **M15.14–M15.20 ✅** From the owner's first run of the release build. A failed sign-in now explains itself on a card with the exact error, How to fix this and Open log, and Control Center has a Help button. The installed app had no blur on windows, because the build's Lightning CSS kept only `-webkit-backdrop-filter`: a build fault on every platform, not a platform difference. Saved secrets no longer depend on the computer's name (ADR-028), and lost keys and a damaged server list now say so. The packaged run found the card didn't fit the smallest window. |
 | 2026-11-06 | **M15.9–M15.13 ✅** Writing the docs against the code found real faults: widget refresh could run a change with no approval (the new tests ran the commands against the old route), sign-in hid every connection error, a wrong password was tried four times, SSH keys sat in plain text, a failed decrypt lost the server list, and the parsing fallback skipped redaction. All fixed with tests. SSH host keys are still not checked. |
 | 2026-11-06 | **M15.8 ✅** The Mac build declares why it needs the local network, and a blocked connection says where the permission is. From issue #9: Terminal is exempt from this macOS permission, and the app is not. Not run on a Mac. |
 | 2026-11-06 | **M15.1–M15.6 ✅** From GitHub issue #9: a readable error when the backend can't be reached, a dialog when it stops, `~/.headlessos/logs/headlessos.log` with secrets and names kept out, Open log in Global Settings and About, working Help links, and Linux builds. The packaged run found the computer's name in every log line and an unreadable exit code; both fixed. Not yet run: macOS, the Windows installer, and the Linux packages. |

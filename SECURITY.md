@@ -20,7 +20,7 @@ the files that hold secrets are written `0600`.
 
 | What | File | How |
 |------|------|-----|
-| Server list and SSH passwords | `servers.json` | Passwords are AES-256-GCM encrypted. The key is derived from a random per-install secret (`enc-key`) plus machine facts. SSH private keys and passphrases you add are encrypted the same way. |
+| Server list and SSH passwords | `servers.json` | Passwords are AES-256-GCM encrypted. The key is derived from a random per-install secret (`enc-key`) and your OS user ID. SSH private keys and passphrases you add are encrypted the same way. |
 | LLM API keys (OpenAI, Anthropic) | `llm.json` | Encrypted the same way. The server never sends a key back to the browser. Choosing *None* in Settings → AI deletes them. |
 | API token | `api-token` | A random token that every API and WebSocket call must carry (see below). |
 | Agent actions | `audit/actions.jsonl` | An append-only log of every action an agent asked to run, and the answer. |

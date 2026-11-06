@@ -262,8 +262,8 @@ jobs:
             |----------|------|-------|
             | macOS (Apple Silicon + Intel) | `HeadlessOS-*-universal.dmg` | Universal binary — works on both M-series and Intel Macs |
             | macOS (zip) | `HeadlessOS-*-universal-mac.zip` | For manual installation |
-            | Windows (installer) | `HeadlessOS Setup *.exe` | Recommended — installs to Program Files |
-            | Windows (portable) | `HeadlessOS *.exe` | No installation needed |
+            | Windows (installer) | `HeadlessOS.Setup.*.exe` | Recommended — installs for your user |
+            | Windows (portable) | `HeadlessOS.*.exe` | No installation needed |
             | Linux (AppImage) | `HeadlessOS-*.AppImage` | Runs on most distributions |
             | Linux (deb) | `headlessos-desktop_*.deb` | Debian and Ubuntu |
 

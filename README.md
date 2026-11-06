@@ -180,7 +180,7 @@ npm run dev
 
 The desktop app writes a log to `~/.headlessos/logs/headlessos.log`. To open it, go to
 **Global Settings → Open log** on the sign-in screen, or **Settings → About** once you're
-connected. On macOS it's also under **Help → Open Logs**.
+connected. It's also under the **Help** button in Control Center, and **Help → Open Logs** in the menu bar.
 
 It holds the backend's output and the app's errors. Passwords, API keys and tokens are masked,
 and it's never sent anywhere. It can still name your servers and file paths, so read it before

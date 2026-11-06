@@ -431,20 +431,6 @@ export function isAuthFailure(error: string): boolean {
   return /authentication/i.test(error);
 }
 
-/**
- * M15.8: the error for a failed SSH connect. macOS keeps an app off the local network until the
- * owner allows it, and Terminal is exempt, so `ssh` can work while the app gets EHOSTUNREACH.
- * A host that is really offline gives the same error, hence "may".
- */
-export function connectErrorMessage(error: string, platform: string = process.platform): string {
-  if (isAuthFailure(error)) {
-    return 'The server refused this login. Check the username and password, or the key.';
-  }
-  const message = sanitizeErrorMessage(error);
-  if (platform !== 'darwin' || !error.includes('EHOSTUNREACH')) return message;
-  return `${message}. macOS may be keeping HeadlessOS off your local network. Allow it in System Settings → Privacy & Security → Local Network, then try again.`;
-}
-
 export function sanitizeErrorMessage(error: string): string {
   if (!error || typeof error !== 'string') return 'An unknown error occurred';
 

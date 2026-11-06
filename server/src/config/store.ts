@@ -7,7 +7,7 @@ import { join } from 'path';
 import { homedir } from 'os';
 import { randomUUID } from 'crypto';
 import { BaseService } from '../services/base-service.js';
-import { encrypt, decrypt, isEncrypted } from '../security/encryption.js';
+import { encrypt, decrypt, isCurrentEncryption } from '../security/encryption.js';
 import type { ServerConfig } from 'headlessos-shared';
 
 const DEFAULT_CONFIG_DIR = join(homedir(), '.headlessos');
@@ -50,6 +50,11 @@ export class ConfigStore extends BaseService {
   /** EX9.2: sync lookup (servers load at construct) — approval cards name the server and login user */
   findServer(id: string): ServerConfig | undefined {
     return this.servers.find((s) => s.id === id);
+  }
+
+  /** M15.17: the name of a damaged server list that was kept aside, if there is one */
+  damagedListFile(): string | null {
+    return existsSync(`${this.serversFile}.broken`) ? 'servers.json.broken' : null;
   }
 
   async getServer(id: string): Promise<ServerConfig | undefined> {
@@ -110,9 +115,11 @@ export class ConfigStore extends BaseService {
     let stored: ServerConfig[];
     try {
       stored = JSON.parse(raw) as ServerConfig[];
+      if (!Array.isArray(stored)) throw new Error('not a list');
     } catch {
       // M15.12: an empty list would be saved over this file, so move it out of the way
       await rename(this.serversFile, `${this.serversFile}.broken`);
+      console.warn('[config] servers.json could not be read, and was kept as servers.json.broken');
       this.servers = [];
       return;
     }
@@ -125,9 +132,12 @@ export class ConfigStore extends BaseService {
       passphrase: readSecret(s.passphrase),
     }));
 
-    // Migrate: if any secret was stored in plaintext, re-save with encryption to upgrade the file
+    // Migrate plain text and older encryption (M15.18). A secret that can't be read must not
+    // cause a save: that would drop it, and the next start may be able to read it.
     const needsMigration = stored.some(s =>
-      SECRET_FIELDS.some(field => s[field] && !isEncrypted(s[field]!)),
+      SECRET_FIELDS.some(field =>
+        s[field] && !isCurrentEncryption(s[field]!) && readSecret(s[field]) !== undefined,
+      ),
     );
     if (needsMigration) {
       await this.save();

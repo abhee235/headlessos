@@ -1530,12 +1530,65 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-15.md` ("M15.13")
 - **Verification:** pipeline test with a capturing provider
 
-### M15.14: First launch on a Mac, with a screenshot
+### M15.14: A failed sign-in explains itself
+- **Status:** ✅ Complete
+- **Date:** 2026-11-06
+- **Files created:** `server/src/ssh/connect-failure.ts`, `client/src/components/Login/ProblemCard.tsx`, `client/src/lib/help-links.ts`, `server/tests/ssh/connect-failure.test.ts`, `server/tests/routes/servers-connect.test.ts`, `client/tests/components/problem-card.test.tsx`, `client/tests/components/login-problems.test.tsx`
+- **Files modified:** `shared/types.ts`, `server/src/routes/servers.ts`, `server/src/security/validators.ts`, `client/src/lib/api.ts`, `client/src/store/app-store.ts`, `client/src/components/Login/LoginScreen.tsx`, `client/src/styles.css`, `client/tests/store/connect-server.test.ts`, `server/tests/security/validators.test.ts`
+- **Docs:** `docs/phases/phase-15.md` ("M15.14")
+- **Verification:** packaged run, including the smallest window
+
+### M15.15: Help in Control Center
+- **Status:** ✅ Complete
+- **Date:** 2026-11-06
+- **Files created:** `client/src/components/ControlCenter/HelpMenu.tsx`, `client/tests/components/help-menu.test.tsx`
+- **Files modified:** `client/src/components/ControlCenter/ControlCenter.tsx`
+- **Docs:** `docs/phases/phase-15.md` ("M15.15")
+- **Verification:** packaged run; the links are not clicked there
+
+### M15.16: A saved secret that's gone says so
+- **Status:** ✅ Complete
+- **Date:** 2026-11-06
+- **Files modified:** `server/src/ssh/connect-failure.ts`, `server/src/routes/servers.ts`, `client/src/components/Login/LoginScreen.tsx`
+- **Docs:** `docs/phases/phase-15.md` ("M15.16")
+- **Verification:** packaged run against a stand-in that logs every login attempt
+
+### M15.17: A damaged server list says so
+- **Status:** ✅ Complete
+- **Date:** 2026-11-06
+- **Files modified:** `server/src/config/store.ts`, `server/src/routes/servers.ts`, `client/src/components/Login/LoginScreen.tsx`, `server/tests/config/config-store.test.ts`
+- **Docs:** `docs/phases/phase-15.md` ("M15.17")
+- **Verification:** packaged run with a corrupted file
+
+### M15.18: Saved secrets survive a change of computer name
+- **Status:** ✅ Complete
+- **Date:** 2026-11-06
+- **Files created:** `server/tests/security/encryption-computer-name.test.ts`
+- **Files modified:** `server/src/security/encryption.ts`, `server/src/config/store.ts`, `server/src/llm/llm-settings-store.ts`, `server/tests/security/encryption.test.ts`, `SECURITY.md`, `CLAUDE.md`
+- **Docs:** `docs/phases/phase-15.md` ("M15.18"), `docs/DECISIONS.md` (ADR-028)
+- **Verification:** tests with a changing hostname; a file from the 0.2.1 draft moved over in a packaged run
+
+### M15.19: Release notes name the real files
+- **Status:** ✅ Complete
+- **Date:** 2026-11-06
+- **Files modified:** `.github/workflows/release.yml`
+- **Docs:** `docs/phases/phase-15.md` ("M15.19")
+- **Verification:** checked against the draft's real file names
+
+### M15.20: The built app keeps its glass
+- **Status:** ✅ Complete
+- **Date:** 2026-11-06
+- **Files created:** `client/tests/lib/glass-blur.test.ts`
+- **Files modified:** `client/src/styles.css`, `client/package.json`, `package-lock.json`, `CLAUDE.md`
+- **Docs:** `docs/phases/phase-15.md` ("M15.20")
+- **Verification:** the 0.2.1 draft and the fixed build measured and compared side by side
+
+### M15.21: First launch on a Mac, with a screenshot
 - **Status:** ✅ Complete
 - **Date:** 2026-11-06
 - **Files created:** `docs/images/macos-open-anyway.png`
 - **Files modified:** `README.md`
-- **Docs:** `docs/phases/phase-15.md` ("M15.14")
+- **Docs:** `docs/phases/phase-15.md` ("M15.21")
 - **Verification:** screenshot from opening the draft 0.2.1 DMG on macOS 26.5.2; docs only, test suite run before commit
 
 ### M15.6: Version 0.2.1 and changelog

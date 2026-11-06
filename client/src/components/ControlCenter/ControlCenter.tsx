@@ -1,5 +1,6 @@
 // EX6-C.1 + C.2 + C.4 + C.5: Control Center — pre-desktop landing
 // EX8.5: LumenOS v3 — blurred wallpaper, glass segmented tabs, glass panels.
+// M15.15: Help at the top right, on every tab
 // @see docs/phases/phase-ex6.md, docs/phases/phase-ex8.md
 //
 // Three sections:
@@ -20,6 +21,7 @@ import { Wallpaper } from '../Desktop/Wallpaper';
 import { LoginScreen } from '../Login/LoginScreen';
 import { FleetDashboardView } from '../Fleet/FleetDashboardView';
 import { GlobalSettingsSection } from './GlobalSettingsSection';
+import { HelpMenu } from './HelpMenu';
 import { WakeConfirmDialog } from '../Desktop/WakeConfirmDialog';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { segmentItemClass } from '@/components/ui/segmented';
@@ -77,17 +79,21 @@ export function ControlCenter() {
           </nav>
         </div>
 
-        {/* Close (only when there's an active session to return to) */}
-        {activeServerId && (
-          <button
-            onClick={goToDesktop}
-            aria-label="Close Control Center"
-            className="glass-heavy grid h-9 w-9 place-items-center rounded-full transition-colors hover:bg-[#D2483F] hover:text-white"
-            data-testid="cc-close"
-          >
-            <X className="h-[18px] w-[18px]" strokeWidth={1.75} />
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          <HelpMenu />
+
+          {/* Close (only when there's an active session to return to) */}
+          {activeServerId && (
+            <button
+              onClick={goToDesktop}
+              aria-label="Close Control Center"
+              className="glass-heavy grid h-9 w-9 place-items-center rounded-full transition-colors hover:bg-[#D2483F] hover:text-white"
+              data-testid="cc-close"
+            >
+              <X className="h-[18px] w-[18px]" strokeWidth={1.75} />
+            </button>
+          )}
+        </div>
       </header>
 
       {/* Panels */}

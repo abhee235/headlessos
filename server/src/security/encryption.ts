@@ -1,4 +1,5 @@
 // M5.3: Credential encryption — AES-256-GCM for passwords at rest
+// M15.18: the key no longer depends on the computer's name (ADR-028)
 // @see docs/SECURITY.md § Credential Storage
 
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'crypto';
@@ -14,6 +15,9 @@ const SALT = 'headlessos-credential-salt-v1';
 
 // Prefix for encrypted values to distinguish from plaintext
 const ENCRYPTED_PREFIX = 'enc:';
+
+// M15.18: marks a value made with the current key. Older values carry no version.
+const CURRENT_PREFIX = `${ENCRYPTED_PREFIX}v2:`;
 
 // M1: a random per-install secret is mixed into the key so the encryption does
 // not depend only on guessable machine facts (hostname + uid). Stored 0600.
@@ -40,16 +44,26 @@ function getInstallSecret(): string {
 }
 
 /**
- * Current key derivation: random install secret + machine facts + salt.
+ * Current key derivation: random install secret + OS user + salt. The hostname stays out:
+ * it can change with the network, and that would make every saved secret unreadable.
  */
 function deriveKey(): Buffer {
+  const material = `${getInstallSecret()}:${userInfo().uid}:${SALT}`;
+  return scryptSync(material, SALT, KEY_LENGTH);
+}
+
+/**
+ * M1 to M15.17: the install secret with the hostname. A decrypt fallback, so values saved
+ * then still open while the old name holds; the stores re-encrypt them at startup.
+ */
+function deriveHostKey(): Buffer {
   const material = `${getInstallSecret()}:${hostname()}:${userInfo().uid}:${SALT}`;
   return scryptSync(material, SALT, KEY_LENGTH);
 }
 
 /**
  * Legacy key derivation (machine facts only). Used as a decrypt fallback so
- * credentials encrypted before M1 still open; they upgrade on next save.
+ * credentials encrypted before M1 still open.
  */
 function deriveLegacyKey(): Buffer {
   const machineId = `${hostname()}:${userInfo().uid}:${SALT}`;
@@ -58,7 +72,7 @@ function deriveLegacyKey(): Buffer {
 
 /**
  * Encrypt a plaintext string using AES-256-GCM.
- * Returns a prefixed string: "enc:<iv>:<authTag>:<ciphertext>" (all hex-encoded).
+ * Returns a prefixed string: "enc:v2:<iv>:<authTag>:<ciphertext>" (all hex-encoded).
  */
 export function encrypt(plaintext: string): string {
   if (!plaintext) return '';
@@ -71,7 +85,7 @@ export function encrypt(plaintext: string): string {
   encrypted += cipher.final('hex');
   const authTag = cipher.getAuthTag().toString('hex');
 
-  return `${ENCRYPTED_PREFIX}${iv.toString('hex')}:${authTag}:${encrypted}`;
+  return `${CURRENT_PREFIX}${iv.toString('hex')}:${authTag}:${encrypted}`;
 }
 
 /**
@@ -87,7 +101,8 @@ export function decrypt(encryptedStr: string): string {
     return encryptedStr;
   }
 
-  const payload = encryptedStr.slice(ENCRYPTED_PREFIX.length);
+  const current = isCurrentEncryption(encryptedStr);
+  const payload = encryptedStr.slice((current ? CURRENT_PREFIX : ENCRYPTED_PREFIX).length);
   const parts = payload.split(':');
   if (parts.length !== 3) {
     throw new Error('Invalid encrypted format');
@@ -105,8 +120,10 @@ export function decrypt(encryptedStr: string): string {
     return decrypted;
   };
 
+  if (current) return tryDecrypt(deriveKey());
+
   try {
-    return tryDecrypt(deriveKey());
+    return tryDecrypt(deriveHostKey());
   } catch {
     // Legacy fallback: values encrypted before the install-secret was introduced.
     return tryDecrypt(deriveLegacyKey());
@@ -118,4 +135,9 @@ export function decrypt(encryptedStr: string): string {
  */
 export function isEncrypted(value: string): boolean {
   return value.startsWith(ENCRYPTED_PREFIX);
+}
+
+/** M15.18: was this made with the current key? False for plain text and for older values. */
+export function isCurrentEncryption(value: string): boolean {
+  return value.startsWith(CURRENT_PREFIX);
 }

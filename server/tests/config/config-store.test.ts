@@ -107,6 +107,25 @@ describe('a file it cannot fully read', () => {
     expect(existsSync(`${file}.broken`)).toBe(true);
   });
 
+  it('M15.17: reports a damaged list for as long as it is kept', async () => {
+    await writeFile(file, '{ this is not json');
+    expect((await open()).damagedListFile()).toBe('servers.json.broken');
+    expect((await open()).damagedListFile()).toBe('servers.json.broken');
+  });
+
+  it('M15.17: counts anything that is not a list as damaged', async () => {
+    await writeFile(file, '{"servers": []}');
+    const store = await open();
+    expect(await store.getServers()).toEqual([]);
+    expect(store.damagedListFile()).toBe('servers.json.broken');
+  });
+
+  it('M15.17: reports nothing for a healthy list', async () => {
+    const store = await open();
+    await store.addServer(server);
+    expect(store.damagedListFile()).toBeNull();
+  });
+
   it('starts empty when there is no file yet', async () => {
     expect(await (await open()).getServers()).toEqual([]);
     expect(existsSync(`${file}.broken`)).toBe(false);

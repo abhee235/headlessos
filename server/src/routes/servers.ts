@@ -8,7 +8,7 @@ import type { FastifyInstance } from 'fastify';
 import type { ConnectionManager } from '../ssh/connection-manager.js';
 import type { ConfigStore } from '../config/store.js';
 import type { ServerConfig } from 'headlessos-shared';
-import { connectErrorMessage } from '../security/validators.js';
+import { describeConnectFailure, isKeyLost, KEY_LOST } from '../ssh/connect-failure.js';
 
 /** M15.12: credentials stay in the backend; the window never needs them back */
 function withoutSecrets<T extends ServerConfig>(server: T) {
@@ -27,9 +27,14 @@ export async function serverRoutes(
     const servers = await configStore.getServers();
     return servers.map(s => ({
       ...withoutSecrets(s),
+      ...(isKeyLost(s) ? { keyLost: true } : {}), // M15.16: says so without sending a secret
       state: connectionManager.getState(s.id),
     }));
   });
+
+  // ── GET /api/servers/notice — M15.17 ──────────────────
+
+  fastify.get('/api/servers/notice', async () => ({ damagedList: configStore.damagedListFile() }));
 
   // ── POST /api/servers — add a server ──────────────────
 
@@ -75,6 +80,12 @@ export async function serverRoutes(
     if (req.body?.privateKey) connectConfig.privateKeyPath = req.body.privateKey;
     if (req.body?.passphrase) connectConfig.passphrase = req.body.passphrase;
 
+    // M15.16: with no key there is nothing to offer, and "the server refused" would be untrue
+    if (isKeyLost(connectConfig)) {
+      reply.code(422);
+      return { error: KEY_LOST.title, failure: KEY_LOST };
+    }
+
     try {
       await connectionManager.connect(connectConfig);
       return connectionManager.getState(req.params.id);
@@ -82,7 +93,8 @@ export async function serverRoutes(
       reply.code(500);
       // Sanitize: raw ssh2 errors leak host/user/path detail to the client.
       fastify.log.error({ err }, 'SSH connect failed');
-      return { error: connectErrorMessage(err instanceof Error ? err.message : 'Connection failed') };
+      const failure = describeConnectFailure(err instanceof Error ? err.message : 'Connection failed', connectConfig);
+      return { error: failure.title, failure };
     }
   });
 

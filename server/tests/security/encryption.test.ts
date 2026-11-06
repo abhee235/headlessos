@@ -7,7 +7,7 @@ import { encrypt, decrypt, isEncrypted } from '../../src/security/encryption';
 describe('encrypt', () => {
   it('encrypts a string and returns enc:-prefixed result', () => {
     const result = encrypt('mypassword');
-    expect(result).toMatch(/^enc:[a-f0-9]+:[a-f0-9]+:[a-f0-9]+$/);
+    expect(result).toMatch(/^enc:v2:[a-f0-9]+:[a-f0-9]+:[a-f0-9]+$/);
   });
 
   it('returns different ciphertext for same plaintext (random IV)', () => {
@@ -61,7 +61,8 @@ describe('decrypt', () => {
     const encrypted = encrypt('test');
     // Tamper with the ciphertext portion
     const parts = encrypted.split(':');
-    parts[3] = 'ff'.repeat(parts[3]!.length / 2);
+    const last = parts.length - 1;
+    parts[last] = 'ff'.repeat(parts[last]!.length / 2);
     const tampered = parts.join(':');
     expect(() => decrypt(tampered)).toThrow();
   });

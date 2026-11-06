@@ -28,6 +28,18 @@ export interface ConnectionState {
   detectedTools?: string[];
 }
 
+/** M15.14: why a connection failed, in a form the owner can act on */
+export interface ConnectFailure {
+  /** One plain sentence */
+  title: string;
+  /** What to try */
+  hint?: string;
+  /** The exact error, to copy and search for */
+  detail?: string;
+  /** The section of the docs Troubleshooting page that covers it */
+  help: string;
+}
+
 // ============================================
 // App System
 // ============================================

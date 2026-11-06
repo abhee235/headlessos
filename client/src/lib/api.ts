@@ -1,7 +1,7 @@
 // M1.8: API Client
 // @see docs/phases/phase-1.md
 
-import type { ServerConfig, ConnectionState, ApiResponse } from 'headlessos-shared';
+import type { ServerConfig, ConnectionState, ConnectFailure, ApiResponse } from 'headlessos-shared';
 import type {
   SessionState,
   SessionSummary,
@@ -93,7 +93,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   }
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(body.message ?? body.error ?? `Request failed: ${res.status}`);
+    const message = body.message ?? body.error ?? `Request failed: ${res.status}`;
+    throw Object.assign(new Error(message), body.failure ? { failure: body.failure } : {});
   }
   // 204 No Content has no body
   if (res.status === 204) return undefined as T;
@@ -104,6 +105,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 export type ServerWithState = Omit<ServerConfig, 'password' | 'passphrase'> & {
   state: ConnectionState | null;
+  /** M15.16: a key server whose saved key can't be read */
+  keyLost?: boolean;
 };
 
 export async function fetchServers(): Promise<ServerWithState[]> {
@@ -139,6 +142,21 @@ export interface ConnectCredentials {
   password?: string;
   privateKey?: string;
   passphrase?: string;
+}
+
+/** M15.17: a damaged server list that was kept aside at startup */
+export async function fetchServerNotice(): Promise<{ damagedList: string | null }> {
+  return request<{ damagedList: string | null }>('/servers/notice');
+}
+
+/** M15.14: what to show for a failed connect. Only an answer from the backend carries a failure. */
+export function connectFailureOf(err: unknown): ConnectFailure {
+  const { failure, cause } = err as { failure?: ConnectFailure; cause?: unknown };
+  if (failure) return failure;
+  return {
+    title: err instanceof Error ? err.message : 'Connection failed',
+    help: cause ? 'backend-errors' : 'a-server-wont-connect',
+  };
 }
 
 export async function connectServer(id: string, credentials?: ConnectCredentials): Promise<ConnectionState> {
