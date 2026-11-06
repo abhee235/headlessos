@@ -52,6 +52,11 @@ export class ConfigStore extends BaseService {
     return this.servers.find((s) => s.id === id);
   }
 
+  /** M15.17: the name of a damaged server list that was kept aside, if there is one */
+  damagedListFile(): string | null {
+    return existsSync(`${this.serversFile}.broken`) ? 'servers.json.broken' : null;
+  }
+
   async getServer(id: string): Promise<ServerConfig | undefined> {
     return this.servers.find(s => s.id === id);
   }
@@ -110,9 +115,11 @@ export class ConfigStore extends BaseService {
     let stored: ServerConfig[];
     try {
       stored = JSON.parse(raw) as ServerConfig[];
+      if (!Array.isArray(stored)) throw new Error('not a list');
     } catch {
       // M15.12: an empty list would be saved over this file, so move it out of the way
       await rename(this.serversFile, `${this.serversFile}.broken`);
+      console.warn('[config] servers.json could not be read, and was kept as servers.json.broken');
       this.servers = [];
       return;
     }

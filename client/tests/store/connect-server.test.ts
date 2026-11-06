@@ -1,4 +1,4 @@
-// M15.10: the store hands sign-in the real reason a connection failed, and never throws,
+// M15.10, M15.14: the store hands sign-in the real reason a connection failed, and never throws,
 // because most callers start a connection without waiting for it
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -16,9 +16,20 @@ beforeEach(() => {
 });
 
 describe('connectServer', () => {
-  it('resolves to the error message when the connection fails', async () => {
-    vi.mocked(api.connectServer).mockRejectedValue(new Error('connect EHOSTUNREACH [ip]:22'));
-    await expect(useAppStore.getState().connectServer('s1')).resolves.toBe('connect EHOSTUNREACH [ip]:22');
+  it('resolves to the failure the backend sent', async () => {
+    const failure = { title: "Can't reach 192.168.1.20", detail: 'connect EHOSTUNREACH 192.168.1.20:22', help: 'no-route-to-host' };
+    vi.mocked(api.connectServer).mockRejectedValue(Object.assign(new Error(failure.title), { failure }));
+    await expect(useAppStore.getState().connectServer('s1')).resolves.toEqual(failure);
+  });
+
+  it('points to the backend section when the backend gave no answer', async () => {
+    vi.mocked(api.connectServer).mockRejectedValue(Object.assign(new Error('no backend'), { cause: new TypeError('Failed to fetch') }));
+    await expect(useAppStore.getState().connectServer('s1')).resolves.toEqual({ title: 'no backend', help: 'backend-errors' });
+  });
+
+  it('falls back to the general section for any other error', async () => {
+    vi.mocked(api.connectServer).mockRejectedValue(new Error('Server not found'));
+    await expect(useAppStore.getState().connectServer('s1')).resolves.toEqual({ title: 'Server not found', help: 'a-server-wont-connect' });
   });
 
   it('resolves to null when it connects', async () => {

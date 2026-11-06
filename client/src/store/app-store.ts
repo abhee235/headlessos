@@ -2,7 +2,7 @@
 // @see docs/phases/phase-1.md
 
 import { create } from 'zustand';
-import type { ServerConfig, ConnectionState, AppDefinition } from 'headlessos-shared';
+import type { ServerConfig, ConnectionState, ConnectFailure, AppDefinition } from 'headlessos-shared';
 import type { ServerWithState } from '../lib/api';
 import * as api from '../lib/api';
 
@@ -24,7 +24,6 @@ export type AppScreen = 'lock' | 'login' | 'desktop';
 interface AppState {
   // Screen
   screen: AppScreen;
-  loginError: string | null;
 
   // Servers
   servers: ServerWithState[];
@@ -47,14 +46,13 @@ interface AppState {
   lockScreen: () => void;
   switchUser: () => Promise<void>;
   signOut: () => Promise<void>;
-  setLoginError: (error: string | null) => void;
 
   // Actions — servers
   fetchServers: () => Promise<void>;
   addServer: (config: Omit<ServerConfig, 'id'>) => Promise<void>;
   removeServer: (id: string) => Promise<void>;
-  /** M15.10: resolves to the error message, or null on success. It doesn't throw: most callers don't wait. */
-  connectServer: (id: string, credentials?: import('../lib/api').ConnectCredentials) => Promise<string | null>;
+  /** M15.10, M15.14: resolves to the failure, or null on success. It doesn't throw: most callers don't wait. */
+  connectServer: (id: string, credentials?: import('../lib/api').ConnectCredentials) => Promise<ConnectFailure | null>;
   disconnectServer: (id: string) => Promise<void>;
   setActiveServer: (id: string | null) => void;
 
@@ -72,7 +70,6 @@ let tabCounter = 0;
 export const useAppStore = create<AppState>((set, get) => ({
   // Initial state
   screen: 'lock' as AppScreen,
-  loginError: null,
   servers: [],
   activeServerId: null,
   loadingServers: false,
@@ -88,11 +85,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   goToLogin: () => {
-    set({ screen: 'login', loginError: null });
+    set({ screen: 'login' });
   },
 
   goToDesktop: () => {
-    set({ screen: 'desktop', loginError: null });
+    set({ screen: 'desktop' });
   },
 
   lockScreen: () => {
@@ -108,7 +105,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         await api.disconnectServer(activeServerId);
       } catch { /* ignore */ }
     }
-    set({ screen: 'login', activeServerId: null, loginError: null, tabs: [], activeTabId: null });
+    set({ screen: 'login', activeServerId: null, tabs: [], activeTabId: null });
     await get().fetchServers();
   },
 
@@ -120,12 +117,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         await api.disconnectServer(activeServerId);
       } catch { /* ignore */ }
     }
-    set({ screen: 'login', activeServerId: null, loginError: null, tabs: [], activeTabId: null });
+    set({ screen: 'login', activeServerId: null, tabs: [], activeTabId: null });
     await get().fetchServers();
-  },
-
-  setLoginError: (error) => {
-    set({ loginError: error });
   },
 
   // ── Server Actions ──────────────────────────────────
@@ -185,7 +178,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       return null;
     } catch (err) {
       await get().fetchServers();
-      return err instanceof Error ? err.message : 'Connection failed';
+      return api.connectFailureOf(err);
     }
   },
 
