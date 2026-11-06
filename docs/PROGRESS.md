@@ -34,7 +34,7 @@
 | M12: Backend Architecture Refactor | Beta | ✅ | 7/7 tasks | [phase-12](phases/phase-12.md) |
 | M13: Release Readiness | Beta | ✅ | 4/4 tasks | [phase-13](phases/phase-13.md) |
 | M14: Public Release | Beta | ✅ | 12/12 tasks | [phase-14](phases/phase-14.md) |
-| M15: Desktop Diagnostics | Beta | 🔄 | 7/8 tasks | [phase-15](phases/phase-15.md) |
+| M15: Desktop Diagnostics | Beta | 🔄 | 7/13 tasks | [phase-15](phases/phase-15.md) |
 | **EX1: Dynamic UI Engine** | **Experimental** | **✅** | **15/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
 | **EX2: UI Generation Agent** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
 | **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **✅** | **26/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
@@ -63,6 +63,11 @@
 | M15.6 | Version 0.2.1 and changelog | ✅ | Every version string; only our entries in the lockfiles |
 | M15.7 | Tag v0.2.1 and check the release | ⬜ | |
 | M15.8 | macOS local network access | ✅ | Unit tests only. Needs a Mac and a device on the local network; a public server won't show it |
+| M15.9 | Refreshes and view buttons may only read | ⬜ | |
+| M15.10 | Sign-in shows the real error | ⬜ | |
+| M15.11 | A wrong password is tried once | ⬜ | |
+| M15.12 | SSH keys are encrypted, and a failed decrypt keeps the server list | ⬜ | |
+| M15.13 | Output is redacted before the parsing fallback | ⬜ | |
 
 ## M14: Public Release
 

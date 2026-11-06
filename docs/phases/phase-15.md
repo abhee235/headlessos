@@ -129,6 +129,68 @@ that a UUID shared with other programs "may behave weirdly". Our build is unsign
 Electron app's main executable comes from Electron's own binary, so this may not be enough on its
 own. Only a run on a Mac, against a device on the local network, can tell.
 
+### M15.9 — Refreshes and view buttons may only read
+
+Writing the docs against the code found an approval bypass. A widget's `dataSource.command` can
+be written by a model, nothing on the server removes it, and `useWidgetRefresh` posts it on a
+timer with no click, as often as every 5 seconds. `/dynamic-ui/refresh` only called
+`validateCommand`, and the allowlist also holds commands that change a server: `systemctl stop`,
+`docker rm`, `apt remove -y`, `ufw disable`, `docker run`. `/dynamic-ui/execute-action` already
+refused those; the refresh route was missed. Output from a server reaches the model, so a
+crafted log line could steer it. This breaks the promise that changes wait for approval.
+
+Two more gaps showed up while checking it. Both passed as low risk:
+- `find /etc -maxdepth 1 -delete`, because the `find` rule stops matching after `-maxdepth`.
+- `docker ps > /root/.bashrc`, because a redirect can follow any rule with an open end.
+
+**Fix:**
+- `isReadOnlyCommand()` in `security/validators.ts`: allowlisted, not medium or high risk, and no
+  redirect to a file (`2>&1` and `/dev/null` are fine). Both routes use it, so they can't drift.
+- The blocklist refuses `find` with `-delete`, `-ok`, `-okdir`, `-fprint`, `-fprint0`, `-fprintf`
+  or `-fls`, next to the existing `-exec` rule.
+
+### M15.10 — Sign-in shows the real error
+
+`connectServer` in `store/app-store.ts` catches the error and drops it, so `LoginScreen` always
+says "Connection failed. Check server credentials." The M15.1 and M15.8 messages never reach that
+screen, and it blames the password for every failure, which is the wrong advice for issue #9.
+
+**Fix:** the store's `connectServer` returns the error message, or `null` on success. It doesn't
+throw, because several callers don't wait for it. `LoginScreen` shows the message. A refused
+login reads "The server refused this login. Check the username and password, or the key."
+
+### M15.11 — A wrong password is tried once
+
+`connect()` skips retries when the message includes `Authentication`, but ssh2 says "All
+configured authentication methods failed", in lower case. One wrong password makes four
+attempts, which can trip fail2ban and lock the owner out. **Fix:** `isAuthFailure()` ignores case.
+
+### M15.12 — SSH keys are encrypted, and a failed decrypt keeps the server list
+
+`AddServerForm` puts the key text in `privateKeyPath`, and `ConfigStore.save()` encrypted only
+`password`, so keys and passphrases sat in `servers.json` in plain text, while `SECURITY.md` said
+keys are "referenced by path, never copied". `GET /api/servers` also sent the key text to the
+window.
+
+`ConfigStore.load()` also treated any failure as "no file yet". If one password couldn't be
+decrypted, the list came up empty and the next save overwrote `servers.json`, losing every server.
+
+**Fix:**
+- `save()` encrypts `password`, `privateKeyPath` and `passphrase`. Existing plain text is
+  encrypted at the next start, the way plain passwords already were.
+- The server routes strip all three.
+- A secret that can't be decrypted is dropped and its server stays, so the owner signs in again.
+- Only a missing file means an empty list. A file that can't be parsed moves to
+  `servers.json.broken`, so it is not overwritten.
+- `SECURITY.md` is corrected, and gains a note that SSH host keys are not checked yet.
+
+### M15.13 — Output is redacted before the parsing fallback
+
+`SECURITY.md` says redacted output goes to the model, but only agent runs were redacted.
+`pipeline.parse()` and `DynamicUIGenerator` sent output with ANSI codes stripped and nothing else.
+**Fix:** both pass it through `redactSecrets` first. Cached results keep their keys, which come
+from the raw output.
+
 ### M15.5 — Linux in the release
 
 - `release.yml` gets a `build-linux` job on `ubuntu-latest`, built like the Windows job, that
@@ -168,6 +230,11 @@ platform the owner can reach. Publishing stays manual.
 | M15.6 | Version 0.2.1 and changelog | ✅ |
 | M15.7 | Tag v0.2.1 and check the release | ⬜ |
 | M15.8 | macOS local network access | ✅ |
+| M15.9 | Refreshes and view buttons may only read | ⬜ |
+| M15.10 | Sign-in shows the real error | ⬜ |
+| M15.11 | A wrong password is tried once | ⬜ |
+| M15.12 | SSH keys are encrypted, and a failed decrypt keeps the server list | ⬜ |
+| M15.13 | Output is redacted before the parsing fallback | ⬜ |
 
 ## Checks
 
