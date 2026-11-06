@@ -2,6 +2,7 @@
   "name": "headlessos-desktop",
   "version": "0.2.0",
   "description": "HeadlessOS — Desktop App",
+  "homepage": "https://headlessos.com",
   "main": "main.js",
   "author": "HeadlessOS",
   "license": "MIT",
@@ -32,7 +33,8 @@
     "linux": {
       "icon": "icons",
       "target": ["AppImage", "deb"],
-      "category": "Development"
+      "category": "Development",
+      "maintainer": "HeadlessOS <noreply@headlessos.com>"
     },
     "files": [
       "main.js",

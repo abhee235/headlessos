@@ -2,12 +2,15 @@
 #
 # Triggers when a version tag (e.g. v1.2.3) is pushed.
 # M14.4: first runs CI (typechecks and tests); nothing is built if it fails.
-# Builds macOS (universal: arm64 + x64) and Windows (x64) binaries,
+# Builds macOS (universal: arm64 + x64), Windows (x64) and Linux (x64) binaries,
 # then creates a draft GitHub Release with all artifacts attached.
 #
 # Usage:
 #   git tag v1.2.3
 #   git push origin v1.2.3
+#
+# M15.5: Actions → Run workflow builds every platform from a branch and keeps the
+# files as run artifacts. Only a tag creates a release.
 #
 # Optional code signing (set in repo Settings → Secrets):
 #   macOS:   APPLE_CSC_LINK, APPLE_CSC_KEY_PASSWORD, APPLE_ID,
@@ -20,6 +23,7 @@ on:
   push:
     tags:
       - "v[0-9]*.[0-9]*.[0-9]*"
+  workflow_dispatch:
 
 permissions:
   contents: write # required to create a GitHub Release
@@ -157,10 +161,63 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  # ── Linux (M15.5) ──────────────────────────────────────────────────────────
+  build-linux:
+    name: Build Linux (x64)
+    needs: check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Build shared workspace
+        run: npm run build --workspace=shared
+
+      - name: Build client (React + Vite)
+        run: npm run build --workspace=client
+        # Node sizes its default heap from the runner's RAM: about 2 GB on the 7 GB macOS
+        # runner, and the client build needs more (v0.2.0 ran out of memory there)
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+
+      - name: Install electron workspace dependencies
+        working-directory: electron
+        run: npm ci
+
+      - name: Bundle server
+        working-directory: electron
+        run: npm run build:server
+
+      # Produces: AppImage + deb in electron/dist/
+      - name: Package Linux app (AppImage + deb)
+        working-directory: electron
+        run: npx electron-builder --linux --x64
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-dist
+          path: |
+            electron/dist/*.AppImage
+            electron/dist/*.deb
+          if-no-files-found: error
+          retention-days: 1
+
   # ── GitHub Release ─────────────────────────────────────────────────────────
   release:
     name: Create GitHub Release
-    needs: [build-mac, build-windows]
+    needs: [build-mac, build-windows, build-linux]
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
 
     steps:
@@ -177,6 +234,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: win-dist
+          path: release-assets/
+
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-dist
           path: release-assets/
 
       - name: List release assets
@@ -201,6 +264,8 @@ jobs:
             | macOS (zip) | `HeadlessOS-*-universal-mac.zip` | For manual installation |
             | Windows (installer) | `HeadlessOS Setup *.exe` | Recommended — installs to Program Files |
             | Windows (portable) | `HeadlessOS *.exe` | No installation needed |
+            | Linux (AppImage) | `HeadlessOS-*.AppImage` | Runs on most distributions |
+            | Linux (deb) | `headlessos-desktop_*.deb` | Debian and Ubuntu |
 
             > **macOS note:** The app is not signed, so macOS blocks the first launch. Open it once, then go to
             > **System Settings → Privacy & Security** and click **Open Anyway**. If macOS says the app
@@ -208,3 +273,6 @@ jobs:
             >
             > **Windows note:** The installer is not signed. If SmartScreen shows "Windows protected your PC",
             > click **More info → Run anyway**.
+            >
+            > **Linux note:** Make the AppImage executable with `chmod +x`, then run it, or install the
+            > `.deb` with your package manager.

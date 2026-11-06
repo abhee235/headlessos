@@ -49,3 +49,28 @@ describe('desktop app files', () => {
     }
   });
 });
+
+// M15.5: deb packages need a maintainer, and the site's Linux card looks for these files
+describe('Linux release build', () => {
+  const pkg = JSON.parse(readFileSync(join(root, 'electron', 'package.json'), 'utf8'));
+  const workflow = readFileSync(join(root, '.github', 'workflows', 'release.yml'), 'utf8');
+
+  it('has what a deb package needs, and no personal address', () => {
+    expect(pkg.build.linux.target).toEqual(['AppImage', 'deb']);
+    expect(pkg.homepage).toBe('https://headlessos.com');
+    expect(pkg.build.linux.maintainer).toMatch(/^HeadlessOS <\S+@headlessos\.com>$/);
+  });
+
+  it('builds Linux before the release, and attaches the files', () => {
+    expect(workflow).toContain('needs: [build-mac, build-windows, build-linux]');
+    expect(workflow).toContain('electron-builder --linux --x64');
+    expect(workflow).toContain('electron/dist/*.AppImage');
+    expect(workflow).toContain('electron/dist/*.deb');
+    expect(workflow).toContain('name: linux-dist');
+  });
+
+  it('creates a release only from a tag, so a manual build cannot publish', () => {
+    expect(workflow).toContain('workflow_dispatch:');
+    expect(workflow).toContain("if: startsWith(github.ref, 'refs/tags/')");
+  });
+});
