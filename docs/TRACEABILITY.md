@@ -1424,6 +1424,13 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-14.md` ("M14.8 — as built")
 - **Verification:** both typechecks clean; no test pins the old version
 
+### M14.10: Tag v0.2.0 and check the release
+- **Status:** ✅ Complete
+- **Date:** 2026-11-06
+- **Files modified:** `.github/workflows/release.yml` (4 GB heap for the client build, first-launch notes), `CHANGELOG.md` (date)
+- **Docs:** `docs/phases/phase-14.md` ("M14.10 — as built")
+- **Verification:** the release has its four files; its portable `.exe` driven over CDP with an isolated home through Add Server and sign-in. Windows installer and macOS build not yet run
+
 ### M14.11: The desktop app reaches its own backend
 - **Status:** ✅ Complete
 - **Date:** 2026-10-27
