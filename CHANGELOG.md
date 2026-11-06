@@ -3,6 +3,24 @@
 All notable changes to HeadlessOS. Task IDs (M14, EX11, …) point to the phase specs in
 [docs/phases/](docs/phases/); [docs/PROGRESS.md](docs/PROGRESS.md) has the full log.
 
+## 0.2.1 — 2026-11-06
+
+### Added
+- **A log file** (M15.3). The desktop app writes `~/.headlessos/logs/headlessos.log`, with
+  passwords, keys and tokens masked. It stays on your computer. Open it from Global Settings,
+  Settings → About, or Help → Open Logs on macOS (M15.4).
+- **Linux builds** (M15.5): every release now has an AppImage and a `.deb`.
+
+### Changed
+- If the backend stops while the app is running, the app says so and offers Restart, Open Log
+  and Quit, instead of every window quietly failing. If it stops during startup, the app says
+  so at once instead of waiting 20 seconds (M15.2).
+- "Failed to fetch" now tells you the app can't reach its own backend and that nothing was sent
+  to your server (M15.1).
+
+### Fixed
+- Help → Documentation and Report Issue opened a GitHub page that doesn't exist (M15.4).
+
 ## 0.2.0 — 2026-10-29
 
 ### Added
