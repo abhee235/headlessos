@@ -58,6 +58,9 @@ In `electron/main.js`, using a pure `backendExitAction({ stopping, ready })` fro
 | Before it was ready | `startServer()` rejects at once with the exit code, instead of after 20 s. The existing error box gains the log's path |
 | While the app is running | A dialog with **Restart**, **Open Log** and **Quit** |
 
+A process killed on Windows reports an exit code of about 1.8e19, so anything that isn't a
+safe integer reads "was stopped" (`describeExit`).
+
 **Restart** starts a new backend and reloads the window. Reloading runs the preload again, so
 the window gets the new port and token. Restarting the backend alone avoids relaunching the
 app, which needs special handling in the portable and AppImage builds. **Open Log** shows the
@@ -82,6 +85,9 @@ state, so the path is the same on every platform.
   - Passwords, API keys and bearer tokens are masked with the same patterns as
     `agent/actions/redact.ts`. `main.js` is not bundled with the server, so
     `electron/diagnostics.js` has its own short copy, and a test feeds both the same samples.
+- **Names stay out too,** because people paste logs into public issues. The packaged run
+  showed Fastify putting the computer's name on every line, so `hostname` is removed, and the
+  home folder is shown as `~`, including the forms it takes in URLs and JSON.
 - **Size:** at 5 MB the file moves to `headlessos.1.log`, replacing the older one, so the logs
   never pass 10 MB.
 - **Permissions:** the folder is `0700`, the files `0600`.

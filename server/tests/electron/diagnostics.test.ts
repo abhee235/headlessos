@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path';
 import { redactSecrets } from '../../src/agent/actions/redact.js';
 
 const require = createRequire(import.meta.url);
-const { backendExitAction, createLog, redactLogLine } = require('../../../electron/diagnostics.js');
+const { backendExitAction, createLog, describeExit, redactLogLine } = require('../../../electron/diagnostics.js');
 
 describe('backendExitAction', () => {
   it('ignores an exit the app caused', () => {
@@ -21,6 +21,21 @@ describe('backendExitAction', () => {
 
   it('asks the owner when a running backend dies', () => {
     expect(backendExitAction({ stopping: false, ready: true })).toBe('ask');
+  });
+});
+
+describe('describeExit', () => {
+  it('gives a normal exit code', () => {
+    expect(describeExit(1)).toBe('exited with code 1');
+    expect(describeExit(0)).toBe('exited with code 0');
+  });
+
+  it('hides the huge number a killed process reports on Windows', () => {
+    expect(describeExit(18446744073709552000)).toBe('was stopped');
+  });
+
+  it('handles an exit with no code', () => {
+    expect(describeExit(null)).toBe('was stopped');
   });
 });
 
@@ -65,6 +80,17 @@ describe('desktop log', () => {
     const text = readFileSync(log.file, 'utf8');
     expect(text).toContain('[backend] first half second half\n');
     expect(text).toContain('[backend] the last words\n');
+  });
+
+  it('shows the home folder as ~, however it is written', () => {
+    const home = 'C:\\Users\\jane';
+    const log = createLog({ dir: logDir(), home, now: at });
+    log.line('backend', 'plain C:\\Users\\jane\\.headlessos\\sessions');
+    log.line('backend', '{"path":"C:\\\\Users\\\\jane\\\\file.txt"}');
+    log.line('backend', 'url file:///C:/Users/jane/app/index.html');
+    const text = readFileSync(log.file, 'utf8');
+    expect(text).not.toContain('jane');
+    expect(text).toContain('plain ~');
   });
 
   it('keeps sources apart', () => {
@@ -131,6 +157,13 @@ describe('redactLogLine', () => {
     expect(out).not.toContain('abc123def');
     expect(out).toContain('/api/wallpapers/a.jpg?size=2');
     expect(out).toContain('x=1');
+  });
+
+  it('removes the computer name from Fastify lines', () => {
+    const line = '{"level":30,"pid":34852,"hostname":"janes-laptop","reqId":"req-2"}';
+    const out = redactLogLine(line);
+    expect(out).not.toContain('janes-laptop');
+    expect(out).toContain('"reqId":"req-2"');
   });
 
   it('leaves ordinary lines alone', () => {

@@ -9,7 +9,7 @@ const { app, BrowserWindow, Menu, shell, dialog, ipcMain, utilityProcess } = req
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { backendExitAction, createLog } = require('./diagnostics');
+const { backendExitAction, createLog, describeExit } = require('./diagnostics');
 
 const IS_DEV = process.argv.includes('--dev') || process.env.NODE_ENV === 'development';
 const DEV_URL = 'http://localhost:3000';
@@ -29,7 +29,7 @@ let serverToken = null; // C3: API auth token, read from the server's stdout in 
 let stopping = false; // M15.2: the app is quitting, so a backend exit is expected
 
 // M15.3: where backend output and failures go. Without it, stdout is read and thrown away
-const log = createLog({ dir: path.join(os.homedir(), '.headlessos', 'logs') });
+const log = createLog({ dir: path.join(os.homedir(), '.headlessos', 'logs'), home: os.homedir() });
 
 /**
  * Resolve path to the bundled server.mjs (built by `npm run build:server`; M14.3: not in git).
@@ -95,7 +95,7 @@ function startServer() {
     serverProcess.on('exit', (code) => {
       clearTimeout(timeout);
       log.flush();
-      log.line('main', `the backend exited with code ${code}`);
+      log.line('main', `the backend ${describeExit(code)}`);
       if (code !== 0 && code !== null) {
         console.error(`[server] exited unexpectedly with code ${code}`);
       }
@@ -104,7 +104,7 @@ function startServer() {
       // M15.2: without this the app waits out the timeout, or every window just stops working
       const action = backendExitAction({ stopping, ready });
       if (action === 'failed-to-start') {
-        reject(new Error(`The backend exited with code ${code} before it was ready.`));
+        reject(new Error(`The backend ${describeExit(code)} before it was ready.`));
       } else if (action === 'ask') {
         askAfterBackendStopped(code);
       }
@@ -130,7 +130,7 @@ async function askAfterBackendStopped(code) {
     type: 'error',
     title: 'HeadlessOS — Backend Stopped',
     message: 'The HeadlessOS backend stopped.',
-    detail: `It exited with code ${code}, so the app can't reach your servers until it restarts. The log may say why:\n\n${log.file}`,
+    detail: `It ${describeExit(code)}, so the app can't reach your servers until it restarts. The log may say why:\n\n${log.file}`,
     buttons: ['Restart', 'Open Log', 'Quit'],
     defaultId: 0,
     cancelId: 2,

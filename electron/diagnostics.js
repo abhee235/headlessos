@@ -26,6 +26,8 @@ const RULES = [
   [/\$(?:1|5|6|y|2[aby])\$[./A-Za-z0-9$]{20,}/g, '[hash removed]'],
   // withToken() carries the API token in a query string, and Fastify logs request URLs
   [/([?&]token=)[^&\s"']+/gi, '$1[redacted]'],
+  // Fastify puts this computer's name on every line, and people paste logs into issues
+  [/"hostname":"[^"]*",?/g, ''],
   [
     new RegExp(`(["']?\\b${SECRET_KEY}["']?)(\\s*[=:]\\s*)("[^"\\n]*"|'[^'\\n]*'|\\[(?:redacted|[a-z ]+ removed)\\]|[^\\s,;}\\]]+)`, 'gi'),
     (m, key, sep, value) =>
@@ -42,19 +44,25 @@ function redactLogLine(line) {
 /**
  * The desktop app's log. Writes are synchronous so the last lines before a crash reach the
  * disk, and a failed write is ignored: a log must never take the app down.
- * @param {{ dir: string, maxBytes?: number, now?: () => Date }} options
+ * @param {{ dir: string, home?: string, maxBytes?: number, now?: () => Date }} options
+ *   home: the user's home folder, shown as ~ because it usually holds their name
  */
-function createLog({ dir, maxBytes = LOG_MAX_BYTES, now = () => new Date() }) {
+function createLog({ dir, home, maxBytes = LOG_MAX_BYTES, now = () => new Date() }) {
   const file = path.join(dir, 'headlessos.log');
   const oldFile = path.join(dir, 'headlessos.1.log');
   const partial = new Map(); // source → text waiting for its newline
+  // As written, in a URL or log text with / and, on Windows, escaped inside JSON
+  const homes = home
+    ? [...new Set([home.replaceAll('\\', '\\\\'), home.replaceAll('\\', '/'), home])]
+    : [];
   let size = null;
 
   function line(source, text) {
     // HEADLESSOS_TOKEN is the API token, printed for main.js to read
     if (!text.trim() || text.includes('HEADLESSOS_TOKEN:')) return;
     try {
-      const entry = `${now().toISOString()} [${source}] ${redactLogLine(text)}\n`;
+      const clean = homes.reduce((out, h) => out.replaceAll(h, '~'), redactLogLine(text));
+      const entry = `${now().toISOString()} [${source}] ${clean}\n`;
       fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
       if (size === null) size = fs.existsSync(file) ? fs.statSync(file).size : 0;
       if (size > 0 && size + entry.length > maxBytes) {
@@ -84,6 +92,11 @@ function createLog({ dir, maxBytes = LOG_MAX_BYTES, now = () => new Date() }) {
   return { file, line, write, flush };
 }
 
+/** Words for how the backend ended. A process killed on Windows reports a huge number. */
+function describeExit(code) {
+  return Number.isSafeInteger(code) ? `exited with code ${code}` : 'was stopped';
+}
+
 /**
  * What to do when the backend process exits.
  * @param {{ stopping: boolean, ready: boolean }} state
@@ -94,4 +107,4 @@ function backendExitAction({ stopping, ready }) {
   return ready ? 'ask' : 'failed-to-start';
 }
 
-module.exports = { backendExitAction, createLog, redactLogLine };
+module.exports = { backendExitAction, createLog, describeExit, redactLogLine };
