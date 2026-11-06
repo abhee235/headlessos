@@ -133,10 +133,24 @@ Download the desktop app from this repository's **Releases** page:
 | Linux | No build yet: run from source, or `npm run build:dist:linux` |
 
 The builds may be unsigned, so the first launch shows a warning:
-- **macOS:** right-click the app → **Open**, or **System Settings → Privacy & Security** → **Open Anyway**.
+- **macOS:** follow [First launch on a Mac](#first-launch-on-a-mac).
 - **Windows:** in SmartScreen choose **More info** → **Run anyway**.
 
 Then add a server (host, user, password or key) and connect. To use an AI, open **Settings → AI** and choose OpenAI, Claude or a local Ollama model. Keys are stored encrypted on your computer ([SECURITY.md](SECURITY.md)).
+
+### First launch on a Mac
+
+The app isn't signed with an Apple developer certificate, so macOS blocks it the first time you open it. You allow it once:
+
+1. Drag **HeadlessOS** to **Applications** and open it. macOS says it can't open the app. Click **Done**, not **Move to Trash**.
+2. Open **System Settings → Privacy & Security** and scroll down to **Security**.
+3. Next to "HeadlessOS was blocked to protect your Mac", click **Open Anyway**, then confirm with your password or Touch ID.
+
+![System Settings → Privacy & Security, with "HeadlessOS" was blocked to protect your Mac and an Open Anyway button](docs/images/macos-open-anyway.png)
+
+macOS remembers this for the copy you installed, so you won't be asked again. A new version is a new download, so it needs the same step once.
+
+If macOS says the app "is damaged", run `xattr -cr /Applications/HeadlessOS.app` in Terminal and open it again.
 
 ## Run From Source
 

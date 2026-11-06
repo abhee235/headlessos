@@ -1582,6 +1582,13 @@ None (all changes to existing files).
 - **Files modified:** `client/src/styles.css`, `client/package.json`, `package-lock.json`, `CLAUDE.md`
 - **Docs:** `docs/phases/phase-15.md` ("M15.20")
 - **Verification:** the 0.2.1 draft and the fixed build measured and compared side by side
+### M15.21: First launch on a Mac, with a screenshot
+- **Status:** ✅ Complete
+- **Date:** 2026-11-06
+- **Files created:** `docs/images/macos-open-anyway.png`
+- **Files modified:** `README.md`
+- **Docs:** `docs/phases/phase-15.md` ("M15.21")
+- **Verification:** screenshot from opening the draft 0.2.1 DMG on macOS 26.5.2; docs only, test suite run before commit
 
 ### M15.6: Version 0.2.1 and changelog
 - **Status:** ✅ Complete

@@ -294,6 +294,18 @@ sign-in screen still blurred.
 
 **Fix:** remove the three prefixed lines, so Lightning CSS keeps `backdrop-filter`. No per-platform
 theme is needed. A test runs the stylesheet through Lightning CSS and checks all three rules.
+### M15.21 — First launch on a Mac, with a screenshot
+
+The README offered right-click → Open, which macOS 15 removed, and didn't show what the block
+looks like. Opening the draft 0.2.1 DMG on a Mac (macOS 26.5.2, Apple Silicon) gave the real
+screen, and the way past it.
+
+- `README.md` gets a "First launch on a Mac" section: the steps, the screenshot, and the
+  "is damaged" fallback that the release notes already give.
+- `docs/images/macos-open-anyway.png` is that screenshot. The FileVault row below the block is
+  painted out, because this repository is public and that row describes the owner's laptop.
+- The approval belongs to the installed copy. Each new version is a new download, so users do it
+  again once per version until the build is signed and notarized.
 
 ### M15.5 — Linux in the release
 
@@ -346,6 +358,7 @@ platform the owner can reach. Publishing stays manual.
 | M15.18 | Saved secrets survive a change of computer name | ✅ |
 | M15.19 | Release notes name the real files | ✅ |
 | M15.20 | The built app keeps its glass | ✅ |
+| M15.21 | First launch on a Mac, with a screenshot | ✅ |
 
 ## Checks
 
