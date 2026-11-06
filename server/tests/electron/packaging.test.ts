@@ -74,3 +74,11 @@ describe('Linux release build', () => {
     expect(workflow).toContain("if: startsWith(github.ref, 'refs/tags/')");
   });
 });
+
+// M15.8: Terminal is exempt from macOS local network privacy, and the app is not
+describe('macOS build', () => {
+  it('says why it needs the local network', () => {
+    const pkg = JSON.parse(readFileSync(join(root, 'electron', 'package.json'), 'utf8'));
+    expect(pkg.build.mac.extendInfo.NSLocalNetworkUsageDescription).toMatch(/SSH/);
+  });
+});

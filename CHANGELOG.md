@@ -19,6 +19,9 @@ All notable changes to HeadlessOS. Task IDs (M14, EX11, …) point to the phase 
   to your server (M15.1).
 
 ### Fixed
+- On a Mac, a connection to a device on your local network could fail while `ssh` from Terminal worked,
+  because macOS keeps apps off the local network until you allow them. The app now says why it needs
+  access, and the error says where to allow it (M15.8).
 - Help → Documentation and Report Issue opened a GitHub page that doesn't exist (M15.4).
 
 ## 0.2.0 — 2026-10-29

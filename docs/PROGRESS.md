@@ -34,7 +34,7 @@
 | M12: Backend Architecture Refactor | Beta | ✅ | 7/7 tasks | [phase-12](phases/phase-12.md) |
 | M13: Release Readiness | Beta | ✅ | 4/4 tasks | [phase-13](phases/phase-13.md) |
 | M14: Public Release | Beta | ✅ | 12/12 tasks | [phase-14](phases/phase-14.md) |
-| M15: Desktop Diagnostics | Beta | 🔄 | 6/7 tasks | [phase-15](phases/phase-15.md) |
+| M15: Desktop Diagnostics | Beta | 🔄 | 7/8 tasks | [phase-15](phases/phase-15.md) |
 | **EX1: Dynamic UI Engine** | **Experimental** | **✅** | **15/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
 | **EX2: UI Generation Agent** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
 | **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **✅** | **26/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
@@ -62,6 +62,7 @@
 | M15.5 | Linux in the release | ✅ | AppImage and deb built in WSL with the right metadata; not started (WSL lacks libnss3, libasound). The job first runs at the tag |
 | M15.6 | Version 0.2.1 and changelog | ✅ | Every version string; only our entries in the lockfiles |
 | M15.7 | Tag v0.2.1 and check the release | ⬜ | |
+| M15.8 | macOS local network access | ✅ | Unit tests only. Needs a Mac and a device on the local network; a public server won't show it |
 
 ## M14: Public Release
 
@@ -650,6 +651,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-11-06 | **M15.8 ✅** The Mac build declares why it needs the local network, and a blocked connection says where the permission is. From issue #9: Terminal is exempt from this macOS permission, and the app is not. Not run on a Mac. |
 | 2026-11-06 | **M15.1–M15.6 ✅** From GitHub issue #9: a readable error when the backend can't be reached, a dialog when it stops, `~/.headlessos/logs/headlessos.log` with secrets and names kept out, Open log in Global Settings and About, working Help links, and Linux builds. The packaged run found the computer's name in every log line and an unreadable exit code; both fixed. Not yet run: macOS, the Windows installer, and the Linux packages. |
 | 2026-11-06 | **M14.10 ✅** v0.2.0 is published, with macOS and Windows files (the first build ran out of memory on the macOS runner, so the client build now gets 4 GB). The release's portable `.exe` was driven end to end against a local SSH stand-in. The published 0.1.0 reproduces GitHub issue #9 ("Failed to fetch"), which is the M14.11 fault. Not yet checked: the Windows installer and the macOS build. |
 | 2026-10-28 | **EX8.30 ✅** File Explorer's Home, Desktop, Documents and Downloads pointed into `/home/testuser` (the dev container's user), so they failed for everyone else. Home now comes from the server (the folder the SSH login lands in, via a new `GET /files/home`), and the other three show only when they exist there. |

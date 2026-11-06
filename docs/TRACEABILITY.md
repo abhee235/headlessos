@@ -1484,6 +1484,13 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-15.md` ("M15.5")
 - **Verification:** AppImage and deb built in WSL; not started; the job first runs at the tag
 
+### M15.8: macOS local network access
+- **Status:** ✅ Complete
+- **Date:** 2026-11-06
+- **Files modified:** `electron/package.json` (`mac.extendInfo`), `server/src/security/validators.ts` (`connectErrorMessage`), `server/src/routes/servers.ts`, `server/tests/electron/packaging.test.ts`, `server/tests/security/validators.test.ts`
+- **Docs:** `docs/phases/phase-15.md` ("M15.8")
+- **Verification:** unit tests; not run on a Mac
+
 ### M15.6: Version 0.2.1 and changelog
 - **Status:** ✅ Complete
 - **Date:** 2026-11-06

@@ -108,6 +108,27 @@ state, so the path is the same on every platform.
   and Report Issue (`https://github.com/abhee235/headlessos/issues`).
 - The README gets a "Logs" section. The website's docs follow after the release.
 
+### M15.8 — macOS local network access
+
+Issue #9's reporter connects from a Mac to a Raspberry Pi on their local network, and SSH from
+Terminal works. Since macOS 15, an app needs the owner's permission to reach a device on the
+local network. Apple's TN3179 says command-line tools run from Terminal are exempt, and that a
+helper process counts as its app, so the backend's SSH connection is covered and a Terminal test
+says nothing about it. 0.2.0 reaches its backend, so this is the next thing that can stop that
+reporter. It can't be seen on Windows, or on a Mac connecting to a public server.
+
+- `electron/package.json` adds `mac.extendInfo.NSLocalNetworkUsageDescription`, which Apple asks
+  apps that use the local network to declare, so the prompt says why.
+- When a connection fails with `EHOSTUNREACH` on macOS, the error adds where the permission
+  lives: System Settings → Privacy & Security → Local Network. The wording says "may", because
+  Apple names no error code for this and a Pi that is really offline gives the same one
+  (forum reports show `EHOSTUNREACH`).
+
+**Open risk.** TN3179 tracks permission by code signature and main executable UUID, and warns
+that a UUID shared with other programs "may behave weirdly". Our build is unsigned, and an
+Electron app's main executable comes from Electron's own binary, so this may not be enough on its
+own. Only a run on a Mac, against a device on the local network, can tell.
+
 ### M15.5 — Linux in the release
 
 - `release.yml` gets a `build-linux` job on `ubuntu-latest`, built like the Windows job, that
@@ -146,6 +167,7 @@ platform the owner can reach. Publishing stays manual.
 | M15.5 | Linux in the release | ✅ |
 | M15.6 | Version 0.2.1 and changelog | ✅ |
 | M15.7 | Tag v0.2.1 and check the release | ⬜ |
+| M15.8 | macOS local network access | ✅ |
 
 ## Checks
 
@@ -186,5 +208,5 @@ in the asar and `server.mjs` in resources. **The packages have not been started:
 install lacks libnss3 and libasound, so the first run on a Linux desktop is still to come. The
 workflow job itself first runs at the tag.
 
-**Not tested:** anything on macOS, including the Help menu's Open Logs and the 0.2.0 fix for
-issue #9. The Windows installer has not been run either.
+**Not tested:** anything on macOS, including the Help menu's Open Logs, the local network
+prompt (M15.8) and the 0.2.0 fix for issue #9. The Windows installer has not been run either.

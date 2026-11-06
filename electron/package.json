@@ -23,6 +23,9 @@
     },
     "mac": {
       "category": "public.app-category.developer-tools",
+      "extendInfo": {
+        "NSLocalNetworkUsageDescription": "HeadlessOS connects over SSH to servers on your local network."
+      },
       "icon": "icons/icon.icns",
       "target": ["dmg", "zip"]
     },
