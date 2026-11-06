@@ -1299,8 +1299,14 @@ describe('connectErrorMessage', () => {
   });
 
   it('adds nothing to other errors on macOS', () => {
-    expect(connectErrorMessage('All configured authentication methods failed', 'darwin'))
-      .toBe('All configured authentication methods failed');
+    expect(connectErrorMessage('Timed out while waiting for handshake', 'darwin'))
+      .toBe('Timed out while waiting for handshake');
+  });
+
+  // M15.10: sign-in now shows this, and ssh2's wording says nothing useful to the owner
+  it('says plainly when the server refused the login', () => {
+    expect(connectErrorMessage('All configured authentication methods failed', 'linux'))
+      .toBe('The server refused this login. Check the username and password, or the key.');
   });
 });
 

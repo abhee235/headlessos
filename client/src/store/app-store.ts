@@ -53,7 +53,8 @@ interface AppState {
   fetchServers: () => Promise<void>;
   addServer: (config: Omit<ServerConfig, 'id'>) => Promise<void>;
   removeServer: (id: string) => Promise<void>;
-  connectServer: (id: string, credentials?: import('../lib/api').ConnectCredentials) => Promise<void>;
+  /** M15.10: resolves to the error message, or null on success. It doesn't throw: most callers don't wait. */
+  connectServer: (id: string, credentials?: import('../lib/api').ConnectCredentials) => Promise<string | null>;
   disconnectServer: (id: string) => Promise<void>;
   setActiveServer: (id: string | null) => void;
 
@@ -181,8 +182,10 @@ export const useAppStore = create<AppState>((set, get) => ({
           srv.id === id ? { ...srv, state } : srv,
         ),
       }));
-    } catch {
+      return null;
+    } catch (err) {
       await get().fetchServers();
+      return err instanceof Error ? err.message : 'Connection failed';
     }
   },
 

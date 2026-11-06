@@ -101,7 +101,7 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
         credentials.passphrase = password;
       }
 
-      await connectServer(selectedServerId, Object.keys(credentials).length > 0 ? credentials : undefined);
+      const failure = await connectServer(selectedServerId, Object.keys(credentials).length > 0 ? credentials : undefined);
 
       // Check if connection succeeded
       const updatedServers = useAppStore.getState().servers;
@@ -110,7 +110,7 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
       if (srv?.state?.status === 'connected') {
         goToDesktop();
       } else {
-        setLoginError('Connection failed. Check server credentials.');
+        setLoginError(failure ?? 'Connection failed. Check server credentials.');
         triggerShake();
       }
     } catch (err) {
