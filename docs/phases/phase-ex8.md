@@ -700,21 +700,24 @@ error. Server 2563 passed (+5), client 694 passed (+6), both typechecks clean.
 Owner's review: since EX8.12 a maximized window stops 98 px above the dock, so a full-screen app
 loses that height and the wallpaper shows in a strip below it.
 
-A maximized window now fills the screen below the menu bar, whichever side the dock is on, and the
-dock slides off that edge. A window that isn't maximized, and a snapped one, works as before.
+A maximized window now fills the screen below the menu bar, and the dock slides off its edge. With
+the dock on the right it stops 10 px short of that edge, because a window's scrollbar runs down the
+last 6 px of it: the handle gets the strip to itself, and neither gets in the other's way. A window
+that isn't maximized, and a snapped one, works as before.
 
 **When:** any window in the active session is maximized and not minimized. Another session's
 windows don't count, because they aren't on screen.
 
 **The handle:** while the dock is away, a thin pill stays at the middle of that edge, 64 × 4 px,
 like a phone's home bar, so the dock can still be found. Its hover area runs along the dock's span
-and is 10 px deep. It doesn't cover the whole edge, because a scrollbar runs down the right edge.
+and is 10 px deep.
 
 **Bringing the dock back:**
 - Hovering the handle for 150 ms. The delay stops a pointer passing the edge, say to a status bar,
   from raising the dock. Nothing happens while a mouse button is held, as in a text selection.
 - Clicking the handle, at once. This is also the way on a touch screen.
-- Tabbing to the dock, or to the handle.
+- Tabbing to the dock, or to the handle. Only a Tab press counts: Escape on a dock menu also puts
+  focus back on a tile, and that shouldn't keep the dock up for someone using a mouse.
 - **Show launcher** in the menu bar, beside the status glyphs, which reads **Hide launcher** while the dock
   is up. The handle is easy to miss the first time, and this can't be. It's there only while a
   maximized window has the dock's space, so it adds nothing to a normal desktop. It has a text
@@ -737,6 +740,13 @@ raises it with its usual 14 px gap, and it survives the gap to the dock. It stay
 and for a right-click menu, and goes once they close. On the right it does the same along that edge.
 That run found a bug the unit tests missed: clicking Show launcher with focus on the handle started the
 hide timer, so the dock left by itself. Focus moving to the button no longer counts as leaving.
+
+The same run with the dock on the right found two more, from a scrollable window (Settings). The
+handle lay over the scrollbar, so reaching for it raised the dock. And the dock stayed up after a
+dock menu closed, until the next click. A dock menu is a React child of the dock, drawn elsewhere on
+screen, so moving onto it reached the dock as an enter, which cancelled the hide, and nothing left
+when the menu closed. At the bottom the same fault was hidden, because the menu sits over the dock,
+so moving away did count as leaving. An enter now counts only from inside the dock on screen.
 
 ## Deviations from the handoff text (prototype wins where they differ)
 

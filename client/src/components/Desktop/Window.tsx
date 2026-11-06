@@ -4,7 +4,7 @@
 // @see docs/phases/phase-6.md, docs/phases/phase-ex8.md
 
 import { useRef, useCallback, type ReactNode, type MouseEvent as ReactMouseEvent } from 'react';
-import { useDesktopStore, TOP_RESERVE, type WindowState, type SnapZone } from '../../store/window-store';
+import { useDesktopStore, useMaximizedRight, TOP_RESERVE, type WindowState, type SnapZone } from '../../store/window-store';
 import {
   Minus,
   X,
@@ -159,11 +159,13 @@ export function WindowFrame({ win, children }: WindowFrameProps) {
     else maximizeWindow(win.id);
   };
 
+  const maximizedRight = useMaximizedRight();
+
   if (win.minimized) return null;
 
   // EX8.31: maximized means the whole screen below the menu bar; the dock makes way
   const style = win.maximized
-    ? { top: TOP_RESERVE, left: 0, right: 0, bottom: 0, zIndex: win.zIndex }
+    ? { top: TOP_RESERVE, left: 0, right: maximizedRight, bottom: 0, zIndex: win.zIndex }
     : {
         top: win.y,
         left: win.x,

@@ -3,7 +3,7 @@
 
 import { useEffect } from 'react';
 import { useAppStore } from '../../store/app-store';
-import { useDesktopStore, TOP_RESERVE, useDockInsets, type SnapZone } from '../../store/window-store';
+import { useDesktopStore, useMaximizedRight, TOP_RESERVE, useDockInsets, type SnapZone } from '../../store/window-store';
 import { initWindowSessionSync } from '../../store/window-session-sync';
 import { initAppSessionBridge } from '../../store/app-session-bridge';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
@@ -54,6 +54,7 @@ function DisplayFilter() {
 
 function SnapPreview({ zone }: { zone: SnapZone }) {
   const { bottom: taskbarH, right } = useDockInsets();
+  const maximizedRight = useMaximizedRight();
   if (!zone) return null;
 
   const top = TOP_RESERVE;
@@ -62,7 +63,7 @@ function SnapPreview({ zone }: { zone: SnapZone }) {
   const style: React.CSSProperties = (() => {
     switch (zone) {
       case 'maximize': // EX8.31: the dock makes way
-        return { top, left: 0, right: 0, bottom: 0 };
+        return { top, left: 0, right: maximizedRight, bottom: 0 };
       case 'left':
         return { top, left: 0, width: halfW, bottom: taskbarH };
       case 'right':

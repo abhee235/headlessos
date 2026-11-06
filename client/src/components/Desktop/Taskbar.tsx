@@ -274,7 +274,7 @@ export function Taskbar() {
 
   // EX8.31: a maximized window takes the dock's space
   const makingWay = useDockMakingWay();
-  const { hidden, show, showSoon, hideSoon, hideOnBlur } = useDockAutoHide(makingWay, startMenuOpen || homeHubOpen);
+  const { hidden, show, showOnEnter, showOnTab, showSoon, hideSoon, hideOnBlur } = useDockAutoHide(makingWay, startMenuOpen || homeHubOpen);
 
   return (
     <DockSideContext.Provider value={dockPosition}>
@@ -294,9 +294,9 @@ export function Taskbar() {
             aria-label="Dock"
             data-dock
             data-away={hidden}
-            onMouseEnter={show}
+            onMouseEnter={showOnEnter}
             onMouseLeave={hideSoon}
-            onFocusCapture={(e) => { if (e.target.matches(':focus-visible')) show(); }}
+            onFocusCapture={showOnTab}
             onBlurCapture={hideOnBlur}
           >
             {/* ── Utility well: Launcher · Home hub · Search (prototype order) ── */}
@@ -471,7 +471,7 @@ export function Taskbar() {
         </ContextMenuContent>
       </ContextMenu>
 
-      {/* EX8.31: the way back. It spans the dock, not the edge: a scrollbar runs down the right one. */}
+      {/* EX8.31: the way back, along the dock's span */}
       {makingWay && (
         <button
           type="button"
@@ -482,7 +482,7 @@ export function Taskbar() {
           onMouseEnter={showSoon}
           onMouseLeave={hideSoon}
           onClick={show}
-          onFocus={show}
+          onFocus={showOnTab}
           onBlur={hideOnBlur}
           className={cn(
             'group absolute z-[9999] grid place-items-center',

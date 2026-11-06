@@ -84,11 +84,22 @@ export const DOCK_RESERVE = 98;
  */
 export const TOP_RESERVE = 29;
 
+/**
+ * EX8.31: how deep the dock's handle is. With the dock on the right, a maximized window stops this
+ * far short of the edge, because its scrollbar would otherwise sit under the handle.
+ */
+export const DOCK_HANDLE_DEPTH = 10;
+
 /** EX8.12: space windows keep clear for the dock at its current placement */
 export interface DockInsets { bottom: number; right: number }
 
 export function dockInsets(position: DockPosition = usePreferencesStore.getState().dockPosition): DockInsets {
   return position === 'right' ? { bottom: 0, right: DOCK_RESERVE } : { bottom: DOCK_RESERVE, right: 0 };
+}
+
+/** EX8.31: what a maximized window leaves at the right edge */
+export function useMaximizedRight(): number {
+  return usePreferencesStore((s) => s.dockPosition) === 'right' ? DOCK_HANDLE_DEPTH : 0;
 }
 
 /** Reactive dockInsets() for components (the snap preview) */

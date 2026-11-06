@@ -25,6 +25,7 @@ export function useDockAutoHide(makingWay: boolean, panelOpen: boolean) {
   const revealed = useDesktopStore((s) => s.dockRevealed);
   const setRevealed = useDesktopStore((s) => s.setDockRevealed);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const tabbing = useRef(false);
 
   const cancel = useCallback(() => clearTimeout(timer.current), []);
 
@@ -32,6 +33,17 @@ export function useDockAutoHide(makingWay: boolean, panelOpen: boolean) {
     cancel();
     setRevealed(true);
   }, [cancel, setRevealed]);
+
+  // A dock menu is a React child of the dock, drawn elsewhere on screen, so moving onto it reaches
+  // the dock as an enter. Counting that would cancel the hide, and nothing leaves when it closes.
+  const showOnEnter = useCallback((event: { currentTarget: Element; target: EventTarget }) => {
+    if (event.currentTarget.contains(event.target as Node)) show();
+  }, [show]);
+
+  // Escape on a dock menu puts focus back on a tile as well, so only a Tab press counts
+  const showOnTab = useCallback(() => {
+    if (tabbing.current) show();
+  }, [show]);
 
   const showSoon = useCallback((event: { buttons: number }) => {
     cancel();
@@ -67,6 +79,12 @@ export function useDockAutoHide(makingWay: boolean, panelOpen: boolean) {
     return () => document.removeEventListener('pointerdown', onPress);
   }, [makingWay, revealed, cancel, setRevealed]);
 
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => { tabbing.current = event.key === 'Tab'; };
+    document.addEventListener('keydown', onKey, true);
+    return () => document.removeEventListener('keydown', onKey, true);
+  }, []);
+
   // The next maximized window starts with the dock out of the way
   useEffect(() => {
     if (!makingWay) {
@@ -77,5 +95,5 @@ export function useDockAutoHide(makingWay: boolean, panelOpen: boolean) {
 
   useEffect(() => cancel, [cancel]);
 
-  return { hidden: makingWay && !revealed && !panelOpen, show, showSoon, hideSoon, hideOnBlur };
+  return { hidden: makingWay && !revealed && !panelOpen, show, showOnEnter, showOnTab, showSoon, hideSoon, hideOnBlur };
 }

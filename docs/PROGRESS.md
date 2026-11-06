@@ -664,6 +664,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-11-06 | **EX8.31 revised** With the dock on the right, the handle lay over the window's scrollbar, and a closing dock menu left the dock up: the menu is a React child of the dock, so moving onto it counted as entering the dock. A maximized window now stops 10 px short of the right edge, and an enter counts only from inside the dock on screen. |
 | 2026-11-06 | **EX8.31 ✅** A maximized window now takes the full height. The dock slides away, and a thin handle at the edge or Show launcher in the menu bar brings it back, floating over the app. Real pointer events in a packaged build found a bug the unit tests missed: the dock left by itself after Show launcher if focus had been on the handle. |
 | 2026-11-06 | **M15.14–M15.20 ✅** From the owner's first run of the release build. A failed sign-in now explains itself on a card with the exact error, How to fix this and Open log, and Control Center has a Help button. The installed app had no blur on windows, because the build's Lightning CSS kept only `-webkit-backdrop-filter`: a build fault on every platform, not a platform difference. Saved secrets no longer depend on the computer's name (ADR-028), and lost keys and a damaged server list now say so. The packaged run found the card didn't fit the smallest window. |
 | 2026-11-06 | **M15.21 ✅** The README shows Mac users how to get past the first-launch block, with a screenshot from a real run. It also drops right-click → Open, which macOS 15 removed. |

@@ -155,6 +155,36 @@ describe('bringing it back', () => {
   });
 });
 
+describe('keyboard focus', () => {
+  const tile = () => screen.getByRole('button', { name: 'Terminal' });
+
+  beforeEach(() => {
+    openMaximized();
+    renderDock();
+  });
+
+  it('brings the dock up when you Tab to it', () => {
+    fireEvent.keyDown(document.body, { key: 'Tab' });
+    fireEvent.focusIn(tile());
+    expect(isAway()).toBe(false);
+  });
+
+  it('brings it up when you Tab to the handle', () => {
+    fireEvent.keyDown(document.body, { key: 'Tab' });
+    fireEvent.focus(handle()!);
+    expect(isAway()).toBe(false);
+  });
+
+  it('ignores focus coming back from a dock menu closed with Escape', () => {
+    fireEvent.click(handle()!);
+    fireEvent.mouseLeave(dock());
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    fireEvent.focusIn(tile());
+    wait(500);
+    expect(isAway()).toBe(true);
+  });
+});
+
 describe('while it is in use', () => {
   beforeEach(() => {
     openMaximized();
@@ -187,6 +217,31 @@ describe('while it is in use', () => {
     menu.remove();
     wait(500);
     expect(isAway()).toBe(true);
+  });
+});
+
+describe('a real dock menu', () => {
+  const tile = () => screen.getByRole('button', { name: 'Terminal' });
+
+  it('lets the dock go after it closes with the pointer on it', () => {
+    openMaximized();
+    renderDock();
+    fireEvent.click(handle()!);
+
+    // Radix hides the page from role queries while a menu is open, so keep the element
+    const bar = dock();
+    fireEvent.mouseEnter(bar);
+    fireEvent.contextMenu(tile());
+    const menu = screen.getByRole('menu');
+    fireEvent.mouseLeave(bar);
+    fireEvent.mouseEnter(menu); // React sends this to the dock too: the menu is its child
+    wait(2000);
+    expect(bar.dataset.away).toBe('false');
+
+    fireEvent.keyDown(menu, { key: 'Escape' });
+    wait(1000);
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(bar.dataset.away).toBe('true');
   });
 });
 
