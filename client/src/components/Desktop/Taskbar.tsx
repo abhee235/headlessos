@@ -475,7 +475,7 @@ export function Taskbar() {
       {makingWay && (
         <button
           type="button"
-          aria-label="Show dock"
+          aria-label="Show launcher"
           data-dock
           data-side={dockPosition}
           data-testid="dock-handle"

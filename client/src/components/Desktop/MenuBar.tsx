@@ -3,7 +3,7 @@
 // notifications, theme) opens Quick Settings, the date + time open the
 // notification centre, and a dot between them marks unread notifications.
 // Sizes are measured from the Claude Design screen at DPR 1.5 (see phase-ex8.md).
-// EX8.31: Show dock appears here while a maximized window has the dock's space.
+// EX8.31: Show launcher appears here while a maximized window has the dock's space.
 
 import { useCallback, useEffect, useState } from 'react';
 import { Bell, BellOff, Moon, PanelBottom, PanelRight, Sun, Wifi, WifiOff } from 'lucide-react';
@@ -74,7 +74,7 @@ export function MenuBar() {
               )}
             >
               <DockIcon strokeWidth={2} />
-              {dockRevealed ? 'Hide dock' : 'Show dock'}
+              {dockRevealed ? 'Hide launcher' : 'Show launcher'}
             </button>
           )}
 

@@ -52,7 +52,7 @@ describe('the menu bar button', () => {
   it('says what it does while the dock is away', () => {
     openWindow(true);
     renderBoth();
-    expect(button()).toHaveTextContent('Show dock');
+    expect(button()).toHaveTextContent('Show launcher');
   });
 
   it('brings the dock up, and takes it down again', () => {
@@ -62,12 +62,12 @@ describe('the menu bar button', () => {
     fireEvent.pointerDown(button()!);
     fireEvent.click(button()!);
     expect(isAway()).toBe(false);
-    expect(button()).toHaveTextContent('Hide dock');
+    expect(button()).toHaveTextContent('Hide launcher');
 
     fireEvent.pointerDown(button()!);
     fireEvent.click(button()!);
     expect(isAway()).toBe(true);
-    expect(button()).toHaveTextContent('Show dock');
+    expect(button()).toHaveTextContent('Show launcher');
   });
 
   it('keeps the dock up when focus moves here from the dock', () => {
