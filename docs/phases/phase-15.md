@@ -327,6 +327,9 @@ and a dated `CHANGELOG.md` entry.
 Push `v0.2.1`, then check that all six files are there and that the app starts on each
 platform the owner can reach. Publishing stays manual.
 
+The README, the release notes and the repository's website field now link to headlessos.com, so
+someone landing on GitHub can reach the docs and the blog.
+
 ## Not in this phase
 
 - A log viewer window: the file opens in the system's own tools.
@@ -344,7 +347,7 @@ platform the owner can reach. Publishing stays manual.
 | M15.4 | Opening the log, and working Help links | ✅ |
 | M15.5 | Linux in the release | ✅ |
 | M15.6 | Version 0.2.1 and changelog | ✅ |
-| M15.7 | Tag v0.2.1 and check the release | ⬜ |
+| M15.7 | Tag v0.2.1 and check the release | ✅ |
 | M15.8 | macOS local network access | ✅ |
 | M15.9 | Refreshes and view buttons may only read | ✅ |
 | M15.10 | Sign-in shows the real error | ✅ |
@@ -427,5 +430,13 @@ the rebuilt draft moves them again, and from then on older builds can't read the
 **Not clicked in a packaged app:** How to fix this and the Help menu's links, which open the owner's
 browser, and whose pages aren't live until the docs are deployed. Their addresses are checked.
 
-**Not tested:** anything on macOS, including the Help menu's Open Logs, the local network
-prompt (M15.8) and the 0.2.0 fix for issue #9. The Windows installer has not been run either.
+**Published** on 2026-11-06 from `e963a4a`, with all six files. On the downloaded Windows portable
+build: glass, the sign-in card, one attempt on a wrong password, an encrypted key that signs in, a
+clean log, and the dock in both positions, including a real scrollbar drag with it on the right.
+
+**macOS:** the owner ran the release build on macOS 26.5.2 (Apple Silicon) and reports it works.
+The first-launch block and Open Anyway are confirmed (M15.21). The local network prompt (M15.8) and
+the 0.2.0 fix for issue #9 aren't recorded in detail, and issue #9 stays open until the reporter
+confirms.
+
+**Not recorded as run:** the Windows installer, and the Linux packages, which have not been started.

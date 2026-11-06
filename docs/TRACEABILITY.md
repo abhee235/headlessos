@@ -1590,6 +1590,13 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-15.md` ("M15.21")
 - **Verification:** screenshot from opening the draft 0.2.1 DMG on macOS 26.5.2; docs only, test suite run before commit
 
+### M15.7: Tag v0.2.1 and check the release
+- **Status:** ✅ Complete
+- **Date:** 2026-11-06
+- **Files modified:** `README.md`, `.github/workflows/release.yml`
+- **Docs:** `docs/phases/phase-15.md` ("M15.7")
+- **Verification:** the published release has six files, reachable without signing in; the downloaded Windows portable build was tested, and the owner ran it on a Mac
+
 ### M15.6: Version 0.2.1 and changelog
 - **Status:** ✅ Complete
 - **Date:** 2026-11-06

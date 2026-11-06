@@ -34,7 +34,7 @@
 | M12: Backend Architecture Refactor | Beta | ✅ | 7/7 tasks | [phase-12](phases/phase-12.md) |
 | M13: Release Readiness | Beta | ✅ | 4/4 tasks | [phase-13](phases/phase-13.md) |
 | M14: Public Release | Beta | ✅ | 12/12 tasks | [phase-14](phases/phase-14.md) |
-| M15: Desktop Diagnostics | Beta | 🔄 | 20/21 tasks | [phase-15](phases/phase-15.md) |
+| M15: Desktop Diagnostics | Beta | ✅ | 21/21 tasks | [phase-15](phases/phase-15.md) |
 | **EX1: Dynamic UI Engine** | **Experimental** | **✅** | **15/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
 | **EX2: UI Generation Agent** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
 | **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **✅** | **26/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
@@ -61,7 +61,7 @@
 | M15.4 | Opening the log, and working Help links | ✅ | Global Settings and Settings → About on Windows; the macOS Help menu not run |
 | M15.5 | Linux in the release | ✅ | AppImage and deb built in WSL with the right metadata; not started (WSL lacks libnss3, libasound). The job first runs at the tag |
 | M15.6 | Version 0.2.1 and changelog | ✅ | Every version string; only our entries in the lockfiles |
-| M15.7 | Tag v0.2.1 and check the release | ⬜ | |
+| M15.7 | Tag v0.2.1 and check the release | ✅ | Published from `e963a4a` with all six files. Windows portable tested after download; the owner ran it on a Mac |
 | M15.8 | macOS local network access | ✅ | Unit tests only. Needs a Mac and a device on the local network; a public server won't show it |
 | M15.9 | Refreshes and view buttons may only read | ✅ | Through the real route: 9 commands that used to run are refused, reads still run |
 | M15.10 | Sign-in shows the real error | ✅ | Store test; packaged run with the next build |
@@ -664,6 +664,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-11-06 | **M15.7 ✅** v0.2.1 is published. The README, the release notes and the repository's website field link to headlessos.com. |
 | 2026-11-06 | **EX8.31 revised** With the dock on the right, the handle lay over the window's scrollbar, and a closing dock menu left the dock up: the menu is a React child of the dock, so moving onto it counted as entering the dock. A maximized window now stops 10 px short of the right edge, and an enter counts only from inside the dock on screen. |
 | 2026-11-06 | **EX8.31 ✅** A maximized window now takes the full height. The dock slides away, and a thin handle at the edge or Show launcher in the menu bar brings it back, floating over the app. Real pointer events in a packaged build found a bug the unit tests missed: the dock left by itself after Show launcher if focus had been on the handle. |
 | 2026-11-06 | **M15.14–M15.20 ✅** From the owner's first run of the release build. A failed sign-in now explains itself on a card with the exact error, How to fix this and Open log, and Control Center has a Help button. The installed app had no blur on windows, because the build's Lightning CSS kept only `-webkit-backdrop-filter`: a build fault on every platform, not a platform difference. Saved secrets no longer depend on the computer's name (ADR-028), and lost keys and a damaged server list now say so. The packaged run found the card didn't fit the smallest window. |

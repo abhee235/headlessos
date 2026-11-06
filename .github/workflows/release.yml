@@ -256,6 +256,8 @@ jobs:
           body: |
             ## HeadlessOS ${{ github.ref_name }}
 
+            [Website](https://headlessos.com) · [Documentation](https://headlessos.com/docs/introduction) · [Blog](https://headlessos.com/blog)
+
             ### Download
 
             | Platform | File | Notes |

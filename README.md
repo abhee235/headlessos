@@ -2,6 +2,8 @@
 
 > A local application that turns headless Linux servers into a Windows-like desktop, without installing anything on the server.
 
+**[Website](https://headlessos.com)** · **[Download](https://headlessos.com/download)** · **[Documentation](https://headlessos.com/docs/introduction)** · **[Blog](https://headlessos.com/blog)** · **[Changelog](CHANGELOG.md)**
+
 ## What Is This?
 
 HeadlessOS is a **localhost app** (in the browser or as an Electron desktop app). It connects to your VPS and Linux servers over SSH, runs commands, and parses their output: with deterministic parsers first, and an LLM when no parser fits. It renders the results as a familiar desktop: file explorer, task manager, Docker and services panels, a terminal, and more.
