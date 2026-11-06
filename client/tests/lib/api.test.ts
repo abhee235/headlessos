@@ -9,6 +9,7 @@ import {
   renameFile,
   fetchFiles,
   readFile,
+  backendUnreachableMessage,
 } from '../../src/lib/api';
 
 // Mock global fetch
@@ -162,5 +163,40 @@ describe('readFile', () => {
       '/api/servers/server-1/files/read?path=%2Fhome%2Fuser%2Freadme.md',
     );
     expect(result).toEqual(data);
+  });
+});
+
+// M15.1: fetch rejects when no response came back, which the browser words as "Failed to fetch"
+describe('when the backend cannot be reached', () => {
+  it('explains the failure instead of showing the browser error', async () => {
+    mockFetch.mockRejectedValue(new TypeError('Failed to fetch'));
+    const failure = createDirectory('server-1', '/root/x');
+    await expect(failure).rejects.toThrow(backendUnreachableMessage());
+    await expect(failure).rejects.not.toThrow('Failed to fetch');
+  });
+
+  it('keeps the browser error as the cause', async () => {
+    const cause = new TypeError('Failed to fetch');
+    mockFetch.mockRejectedValue(cause);
+    await expect(createDirectory('server-1', '/root/x')).rejects.toMatchObject({ cause });
+  });
+
+  it('leaves an aborted request alone', async () => {
+    const abort = new DOMException('The operation was aborted', 'AbortError');
+    mockFetch.mockRejectedValue(abort);
+    await expect(createDirectory('server-1', '/root/x')).rejects.toBe(abort);
+  });
+
+  it('leaves an HTTP error from the backend alone', async () => {
+    mockFetch.mockResolvedValue(mockResponse({ error: 'Disk full' }, false, 500));
+    await expect(createDirectory('server-1', '/root/x')).rejects.toThrow('Disk full');
+  });
+
+  it('points the desktop app at the log, and a browser at npm run dev', () => {
+    expect(backendUnreachableMessage(true)).toContain('open the log from Global Settings');
+    expect(backendUnreachableMessage(false)).toContain('npm run dev');
+    for (const desktop of [true, false]) {
+      expect(backendUnreachableMessage(desktop)).toContain('nothing was sent to your server');
+    }
   });
 });
