@@ -33,7 +33,7 @@
 | M11: Fleet, Agent & Platform | Week 15-16 | ✅ | 8/8 tasks | — |
 | M12: Backend Architecture Refactor | Beta | ✅ | 7/7 tasks | [phase-12](phases/phase-12.md) |
 | M13: Release Readiness | Beta | ✅ | 4/4 tasks | [phase-13](phases/phase-13.md) |
-| M14: Public Release | Beta | 🔄 | 11/12 tasks | [phase-14](phases/phase-14.md) |
+| M14: Public Release | Beta | ✅ | 12/12 tasks | [phase-14](phases/phase-14.md) |
 | **EX1: Dynamic UI Engine** | **Experimental** | **✅** | **15/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
 | **EX2: UI Generation Agent** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
 | **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **✅** | **26/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
@@ -63,7 +63,7 @@
 | M14.7 | Packaged Windows build starts | ✅ | `win-unpacked` built with the new server bundle and client; the packaged server starts on a free port and answers (health, models incl. Claude, the isolated server list). The NSIS step fails only on this machine (symlink privilege); CI's Windows runner builds it. Window and installer checked on the release assets (M14.10) |
 | M14.8 | Version 0.2.0 and `CHANGELOG.md` | ✅ | 0.2.0 in every package.json and both lockfiles, and in the three places the app shows its version; CHANGELOG.md with 0.2.0 (Added, Security, Changed, Fixed) and a 0.1.0 summary checked against the tag |
 | M14.9 | Make the repository public | ✅ | Public since 2026-10-27 |
-| M14.10 | Tag v0.2.0 and check the release | ⬜ | |
+| M14.10 | Tag v0.2.0 and check the release | ✅ | Tagged 2026-10-29 (moved once: the macOS build needed a 4 GB heap), published 2026-11-06 with macOS and Windows files; no Linux job yet. The release's portable `.exe` was driven end to end. The Windows installer and the macOS build are left to the owner's own test |
 | M14.11 | The desktop app reaches its own backend | ✅ | The sandboxed preload threw on `require('./package.json')`, so the window had no server port or token (v0.1.0 too). The version now comes over IPC; a test keeps the preload to modules a sandbox can load. Packaged app driven end to end on Windows |
 | M14.12 | The desktop app ships its system wallpapers | ✅ | electron-builder copies `server/assets` to `resources/assets`; the wallpaper route looks next to the server file, in the source tree, and in `../server/assets`. Packaged app: 16 wallpapers, lock screen and desktop show one |
 
@@ -635,6 +635,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-11-06 | **M14.10 ✅** v0.2.0 is published, with macOS and Windows files (the first build ran out of memory on the macOS runner, so the client build now gets 4 GB). The release's portable `.exe` was driven end to end against a local SSH stand-in. The published 0.1.0 reproduces GitHub issue #9 ("Failed to fetch"), which is the M14.11 fault. Not yet checked: the Windows installer and the macOS build. |
 | 2026-10-28 | **EX8.30 ✅** File Explorer's Home, Desktop, Documents and Downloads pointed into `/home/testuser` (the dev container's user), so they failed for everyone else. Home now comes from the server (the folder the SSH login lands in, via a new `GET /files/home`), and the other three show only when they exist there. |
 | 2026-10-28 | **EX8.29 ✅** The Control Center's Fleet tab now looks like the Home hub: each server is a card with a status LED and three dials (CPU, memory, disk) that turn amber at 75% and red at 90%, under one summary card for the whole fleet. CPU is new to the fleet data (from `/proc/stat` between refreshes). The old icon chips and flat bars are gone, and an offline server's Connect button now works from the keyboard. |
 | 2026-10-27 | **M14.12 ✅** The desktop app had no wallpapers (its server looked for them in the source tree, and the build never copied them). It now ships `server/assets` and finds them in every layout. |

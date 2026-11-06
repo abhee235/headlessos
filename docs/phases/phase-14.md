@@ -87,7 +87,7 @@ joined the server bundle.
 8. **Publish (M14.9) — owner's decision.** Make the repository public, then turn on
    private vulnerability reporting (SECURITY.md points reporters there).
 9. **Release (M14.10) — owner's decision.** Push tag `v0.2.0`. The release workflow builds
-   macOS, Windows and Linux. Check that the release has its assets and that the Windows
+   macOS and Windows. Check that the release has its assets and that the Windows
    installer starts. Signing: unsigned unless the owner adds certificates.
 
 ## What does not change
@@ -108,7 +108,7 @@ must pass unchanged, except where a test asserts zod 3's own error wording.
 | M14.7 | Packaged Windows build starts | ✅ |
 | M14.8 | Version 0.2.0 and `CHANGELOG.md` | ✅ |
 | M14.9 | Make the repository public | ✅ |
-| M14.10 | Tag v0.2.0 and check the release | ⬜ |
+| M14.10 | Tag v0.2.0 and check the release | ✅ |
 | M14.11 | The desktop app reaches its own backend: the sandboxed preload no longer `require`s `package.json` | ✅ |
 | M14.12 | The desktop app ships its system wallpapers | ✅ |
 
@@ -315,6 +315,28 @@ targeting the deprecated Node 20 Actions runtime; both workflows now use v5.
     log since 2026-04-26 (M12, the October security audit, EX7–EX11, M13, M14).
   - 0.1.0 is summarised; checked against the `v0.1.0` tree (Observatory, both agents,
     Dynamic UI, sessions and Docker were in it).
+
+## M14.10 — Tag v0.2.0 and check the release (as built)
+
+- **Tag.** `v0.2.0` was pushed on 2026-10-29. The first run failed: the macOS client build ran
+  out of memory, because Node's default heap is about 2 GB on the 7 GB runner. Both build jobs
+  now give the client build 4 GB (`NODE_OPTIONS`), and the tag moved to that commit (`551c331`)
+  before any release existed.
+- **Release.** The second run passed and made a draft with a universal macOS DMG and zip, and a
+  Windows installer and portable `.exe`. The release notes say what to do on the first launch of
+  an unsigned build. The owner published it on 2026-11-06, and the site's download page now
+  offers 0.2.0.
+- **Linux is not built.** `release.yml` has no Linux job, so the site's Linux card points to the
+  source. The electron-builder targets and `build:dist:linux` exist; the job is left for 0.2.1.
+
+**Check (done):** all four published files download. `HeadlessOS.0.2.0.exe`, the release file
+itself, was driven over CDP with an isolated home: the bridge had its port and token, Add Server
+saved a server, and signing in to a local `ssh2` stand-in reached the desktop. On the same steps
+the published 0.1.0 `.exe` shows "Failed to fetch" and the stand-in gets no connection (GitHub
+issue #9; the cause is M14.11).
+
+**Not checked before publishing:** the Windows installer and the macOS build. The owner chose to
+publish first and tests those on real machines. M14.11's fix has only been driven on Windows.
 
 ## M14.11 — The desktop app reaches its own backend
 
