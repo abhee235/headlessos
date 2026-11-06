@@ -8,6 +8,7 @@ import { BaseService } from '../services/base-service.js';
 import type { LLMProvider, ParseResult } from '../llm/provider.js';
 import type { OutputCache } from '../cache/output-cache.js';
 import type { LLMUsageTracker } from '../llm/usage-tracker.js';
+import { redactSecrets } from '../agent/actions/redact.js';
 
 export interface DeterministicParser<T = unknown> {
   name: string;
@@ -99,7 +100,8 @@ export class ParsingPipeline extends BaseService {
     }
 
     const llmResult: ParseResult<T> = await this.llmProvider.parseText({
-      rawOutput: cleaned,
+      // M15.13: server output can hold secrets, and this goes to the model provider
+      rawOutput: redactSecrets(cleaned).text,
       command,
       schema,
     });
