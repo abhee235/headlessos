@@ -3,12 +3,6 @@
 All notable changes to HeadlessOS. Task IDs (M14, EX11, …) point to the phase specs in
 [docs/phases/](docs/phases/); [docs/PROGRESS.md](docs/PROGRESS.md) has the full log.
 
-## Unreleased
-
-### Changed
-- A maximized window now takes the full height. The dock slides away, and comes back when you hover
-  the handle at the screen's edge, click it, or click **Show launcher** in the top bar (EX8.31).
-
 ## 0.2.1 — 2026-11-06
 
 ### Added
@@ -31,6 +25,8 @@ All notable changes to HeadlessOS. Task IDs (M14, EX11, …) point to the phase 
   removed first, as agent runs already did (M15.13).
 
 ### Changed
+- A maximized window now takes the full height. The dock slides away, and comes back when you hover
+  the handle at the screen's edge, click it, or click **Show launcher** in the top bar (EX8.31).
 - If the backend stops while the app is running, the app says so and offers Restart, Open Log
   and Quit, instead of every window quietly failing. If it stops during startup, the app says
   so at once instead of waiting 20 seconds (M15.2).
