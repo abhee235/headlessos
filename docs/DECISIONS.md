@@ -1354,6 +1354,36 @@ the conversation changed. The agents do change their history on purpose:
 
 ---
 
+## ADR-028: Saved Secrets Don't Depend on the Computer's Name
+
+**Status:** Accepted
+**Date:** 2026-11-06
+
+**Context:**
+Saved passwords, SSH keys and AI keys are encrypted with a key derived from `enc-key`, the
+hostname and the OS user ID. `os.hostname()` isn't stable: on a Mac it can follow the network, and
+anyone can rename a computer. When it changes, every saved secret becomes unreadable.
+
+**Options Considered:**
+1. **Keep the hostname** — no work, and saved secrets can vanish on a network change.
+2. **Drop the hostname, keep `enc-key` and the user ID** — one small format change.
+3. **Move the secret to the OS keychain (Electron `safeStorage`)** — the strongest option, but the
+   backend runs outside Electron in dev, and it needs a migration and a Linux fallback.
+
+**Decision:** Option 2, with a `v2` marker on new values so older ones can be found and moved.
+
+**Rationale:**
+`enc-key` holds 256 random bits and is what protects the secrets. A hostname is easy to guess and
+adds no real strength, so removing it costs almost nothing and removes a way to lose data.
+
+**Consequences:**
+- (+) A rename or a network change no longer costs anyone their saved secrets.
+- (-) A full copy of `~/.headlessos`, including `enc-key`, opens on another computer under a user
+  with the same ID, without guessing a hostname. It was already within easy reach, and the docs
+  never claimed otherwise. The keychain (option 3) remains the real fix for this.
+
+---
+
 ## Template for New ADRs
 
 ```markdown

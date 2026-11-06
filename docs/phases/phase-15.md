@@ -191,6 +191,92 @@ decrypted, the list came up empty and the next save overwrote `servers.json`, lo
 **Fix:** both pass it through `redactSecrets` first. Cached results keep their keys, which come
 from the raw output.
 
+### M15.14 — A failed sign-in explains itself
+
+M15.10 put the real error on the sign-in screen, but the real error is raw: `connect ECONNREFUSED
+[ip]:2222`. It doesn't say what to do, nothing on the screen leads to the log or the docs, and
+`[ip]` hides an address the same screen shows two lines higher.
+
+**Fix:** a card replaces the red pill. `describeConnectFailure()` in `ssh/connect-failure.ts`
+turns the raw error into a `ConnectFailure`, the route returns it, and `ProblemCard` shows it:
+
+- `title`: one plain sentence.
+- `hint`: what to try. Optional.
+- `detail`: the exact error, with a Copy button, so it can be searched for. The address the owner
+  typed is put back; everything else stays sanitized. A failure with no raw error has none.
+- `help`: the section of the docs Troubleshooting page. **How to fix this** opens it in the
+  default browser.
+- **Open log** appears in the desktop app only, as M15.4 does elsewhere.
+
+| Raw error | Title | Section |
+| --- | --- | --- |
+| `ECONNREFUSED` | Nothing is answering at host:port | `connection-refused` |
+| `Timed out`, `ETIMEDOUT` | host:port didn't answer | `connection-timed-out` |
+| `ENOTFOUND`, `EAI_AGAIN` | Can't find host | `host-not-found` |
+| `EHOSTUNREACH`, `ENETUNREACH` on macOS | Can't reach host, with the M15.8 hint | `local-network-access-on-macos` |
+| `EHOSTUNREACH`, `ENETUNREACH` elsewhere | Can't reach host | `no-route-to-host` |
+| authentication failed | The server refused this login | `login-rejected` |
+| `no passphrase given` | This key needs its passphrase | `ssh-key-problems` |
+| `Bad passphrase` | That passphrase is wrong | `ssh-key-problems` |
+| `Cannot parse privateKey` | This SSH key can't be read | `ssh-key-problems` |
+| anything else | Couldn't connect to this server | `a-server-wont-connect` |
+| no response from the backend (client side) | the M15.1 message | `backend-errors` |
+
+`connectErrorMessage()` goes. The store's `connectServer` returns a `ConnectFailure` or `null`.
+`loginError` leaves the store: only `LoginScreen` used it, and it now keeps the failure itself.
+
+### M15.15 — Help in Control Center
+
+The log is three clicks away in Global Settings, and the docs are only in the Help menu, which
+Windows and Linux don't show. Someone stuck before signing in has neither.
+
+**Fix:** a Help button at the top right of Control Center, on every tab, with Documentation,
+Troubleshooting, Report an issue and, in the desktop app, Open log.
+
+### M15.16 — A saved secret that's gone says so
+
+The packaged run of M15.12 showed the gap. Once a saved key can't be decrypted, the sign-in screen
+still says "SSH key configured", the app connects with nothing to offer, and the owner reads "The
+server refused this login" about a server that never saw a key. An empty password field on a
+server with no saved password reads the same way.
+
+**Fix:**
+- `GET /api/servers` adds `keyLost: true` to a key server with no key. The window still gets no
+  secret. The sign-in screen shows "Saved key can't be read" in place of "SSH key configured".
+- Signing in to such a server connects to nothing and returns "This server's saved key can't be
+  read", with what to do: go back, remove the server, add it again.
+- A refused login with no password saved and none typed reads "No password was sent".
+
+### M15.17 — A damaged server list says so
+
+M15.12 moves an unreadable `servers.json` to `servers.json.broken`, but the screen then says "No
+servers configured yet", as if nothing had happened, and nothing is logged. A file that is valid
+JSON but not a list still stops the backend from starting.
+
+**Fix:** `ConfigStore` remembers that it set a file aside and logs it. `GET /api/servers/notice`
+reports it, and the empty sign-in screen shows a `ProblemCard` naming the kept file in place of
+"No servers configured yet". Anything that isn't a list counts as damaged.
+
+### M15.18 — Saved secrets survive a change of computer name
+
+The encryption key mixes in `os.hostname()`. On a Mac that name can follow the network, so
+changing networks could make every saved password, key and AI key unreadable. M15.12 keeps the
+servers, but the secrets are dropped at the next save. The random `enc-key` is what protects the
+secrets; the hostname adds nothing an attacker can't read. See ADR-028.
+
+**Fix:**
+- New values are `enc:v2:<iv>:<tag>:<ciphertext>`, with a key from `enc-key` and the OS user ID.
+- Older values still open, with the two older keys.
+- `ConfigStore` and `loadLLMSettings` re-encrypt older values they can read, at startup, so the
+  move happens while the old name still works.
+- A secret that can't be read doesn't trigger a save, so a start on the wrong name loses nothing.
+
+### M15.19 — Release notes name the real files
+
+The notes in `release.yml` list `HeadlessOS Setup *.exe` and `HeadlessOS *.exe`, but GitHub
+replaces spaces with dots, and say the installer goes to Program Files. It installs per user: the
+build has no `nsis` setting, so it uses electron-builder's default. **Fix:** correct the template.
+
 ### M15.5 — Linux in the release
 
 - `release.yml` gets a `build-linux` job on `ubuntu-latest`, built like the Windows job, that
@@ -235,6 +321,12 @@ platform the owner can reach. Publishing stays manual.
 | M15.11 | A wrong password is tried once | ✅ |
 | M15.12 | SSH keys are encrypted, and a failed decrypt keeps the server list | ✅ |
 | M15.13 | Output is redacted before the parsing fallback | ✅ |
+| M15.14 | A failed sign-in explains itself | ⬜ |
+| M15.15 | Help in Control Center | ⬜ |
+| M15.16 | A saved secret that's gone says so | ⬜ |
+| M15.17 | A damaged server list says so | ⬜ |
+| M15.18 | Saved secrets survive a change of computer name | ⬜ |
+| M15.19 | Release notes name the real files | ⬜ |
 
 ## Checks
 
