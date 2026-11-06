@@ -8,7 +8,7 @@ import type { FastifyInstance } from 'fastify';
 import type { ConnectionManager } from '../ssh/connection-manager.js';
 import type { ConfigStore } from '../config/store.js';
 import type { ServerConfig } from 'headlessos-shared';
-import { sanitizeErrorMessage } from '../security/validators.js';
+import { connectErrorMessage } from '../security/validators.js';
 
 export async function serverRoutes(
   fastify: FastifyInstance,
@@ -79,7 +79,7 @@ export async function serverRoutes(
       reply.code(500);
       // Sanitize: raw ssh2 errors leak host/user/path detail to the client.
       fastify.log.error({ err }, 'SSH connect failed');
-      return { error: sanitizeErrorMessage(err instanceof Error ? err.message : 'Connection failed') };
+      return { error: connectErrorMessage(err instanceof Error ? err.message : 'Connection failed') };
     }
   });
 

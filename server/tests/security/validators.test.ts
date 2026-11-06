@@ -19,6 +19,7 @@ import {
   isBlockedCommand,
   SecurityError,
   sanitizeErrorMessage,
+  connectErrorMessage,
   ALLOWED_COMMANDS,
   BLOCKED_COMMANDS,
   validateIpAddress,
@@ -1273,5 +1274,30 @@ describe('validateDateParam', () => {
 
   it('rejects too-long values', () => {
     expect(validateDateParam('a'.repeat(51))).toBe(false);
+  });
+});
+
+// M15.8: Terminal is exempt from macOS local network privacy, so ssh can work while the app can't
+describe('connectErrorMessage', () => {
+  const blocked = 'connect EHOSTUNREACH 192.168.1.20:22';
+
+  it('says where the permission is when macOS may be blocking the connection', () => {
+    const message = connectErrorMessage(blocked, 'darwin');
+    expect(message).toContain('System Settings → Privacy & Security → Local Network');
+    expect(message).toContain('may be');
+  });
+
+  it('still hides the address', () => {
+    expect(connectErrorMessage(blocked, 'darwin')).not.toContain('192.168.1.20');
+  });
+
+  it('adds nothing on other platforms', () => {
+    expect(connectErrorMessage(blocked, 'win32')).toBe('connect EHOSTUNREACH [ip]:22');
+    expect(connectErrorMessage(blocked, 'linux')).toBe('connect EHOSTUNREACH [ip]:22');
+  });
+
+  it('adds nothing to other errors on macOS', () => {
+    expect(connectErrorMessage('All configured authentication methods failed', 'darwin'))
+      .toBe('All configured authentication methods failed');
   });
 });

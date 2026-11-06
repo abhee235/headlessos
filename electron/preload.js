@@ -32,6 +32,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
    */
   authToken: ipcRenderer.sendSync('get-auth-token'),
 
+  /** M15.4: show the app's log file in Finder or Explorer */
+  openLogs: () => ipcRenderer.invoke('open-logs'),
+
   /** Listen for messages from the main process */
   onMessage: (channel, callback) => {
     const validChannels = ['open-settings'];

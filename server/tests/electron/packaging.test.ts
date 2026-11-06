@@ -35,3 +35,50 @@ describe('system wallpaper folder', () => {
     expect(pkg.build.extraResources).toEqual(expect.arrayContaining([{ from: '../server/assets', to: 'assets' }]));
   });
 });
+
+// M15.2: a file main.js loads but electron-builder leaves out stops the app from starting
+describe('desktop app files', () => {
+  const pkg = JSON.parse(readFileSync(join(root, 'electron', 'package.json'), 'utf8'));
+  const main = readFileSync(join(root, 'electron', 'main.js'), 'utf8');
+
+  it('packages every local file main.js requires', () => {
+    const local = [...main.matchAll(/require\(\s*['"]\.\/([^'"]+)['"]\s*\)/g)].map((m) => m[1]);
+    expect(local).toContain('diagnostics');
+    for (const file of local) {
+      expect(pkg.build.files, file).toContain(file.endsWith('.js') ? file : `${file}.js`);
+    }
+  });
+});
+
+// M15.5: deb packages need a maintainer, and the site's Linux card looks for these files
+describe('Linux release build', () => {
+  const pkg = JSON.parse(readFileSync(join(root, 'electron', 'package.json'), 'utf8'));
+  const workflow = readFileSync(join(root, '.github', 'workflows', 'release.yml'), 'utf8');
+
+  it('has what a deb package needs, and no personal address', () => {
+    expect(pkg.build.linux.target).toEqual(['AppImage', 'deb']);
+    expect(pkg.homepage).toBe('https://headlessos.com');
+    expect(pkg.build.linux.maintainer).toMatch(/^HeadlessOS <\S+@headlessos\.com>$/);
+  });
+
+  it('builds Linux before the release, and attaches the files', () => {
+    expect(workflow).toContain('needs: [build-mac, build-windows, build-linux]');
+    expect(workflow).toContain('electron-builder --linux --x64');
+    expect(workflow).toContain('electron/dist/*.AppImage');
+    expect(workflow).toContain('electron/dist/*.deb');
+    expect(workflow).toContain('name: linux-dist');
+  });
+
+  it('creates a release only from a tag, so a manual build cannot publish', () => {
+    expect(workflow).toContain('workflow_dispatch:');
+    expect(workflow).toContain("if: startsWith(github.ref, 'refs/tags/')");
+  });
+});
+
+// M15.8: Terminal is exempt from macOS local network privacy, and the app is not
+describe('macOS build', () => {
+  it('says why it needs the local network', () => {
+    const pkg = JSON.parse(readFileSync(join(root, 'electron', 'package.json'), 'utf8'));
+    expect(pkg.build.mac.extendInfo.NSLocalNetworkUsageDescription).toMatch(/SSH/);
+  });
+});

@@ -1,7 +1,8 @@
 {
   "name": "headlessos-desktop",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "HeadlessOS — Desktop App",
+  "homepage": "https://headlessos.com",
   "main": "main.js",
   "author": "HeadlessOS",
   "license": "MIT",
@@ -22,6 +23,9 @@
     },
     "mac": {
       "category": "public.app-category.developer-tools",
+      "extendInfo": {
+        "NSLocalNetworkUsageDescription": "HeadlessOS connects over SSH to servers on your local network."
+      },
       "icon": "icons/icon.icns",
       "target": ["dmg", "zip"]
     },
@@ -32,11 +36,13 @@
     "linux": {
       "icon": "icons",
       "target": ["AppImage", "deb"],
-      "category": "Development"
+      "category": "Development",
+      "maintainer": "HeadlessOS <noreply@headlessos.com>"
     },
     "files": [
       "main.js",
       "preload.js",
+      "diagnostics.js",
       "icons/**"
     ],
     "extraResources": [

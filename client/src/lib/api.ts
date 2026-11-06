@@ -61,6 +61,18 @@ export function resolveServerUrl(path: string): string {
   return path;
 }
 
+/** M15.4: shows the desktop app's log in the file manager. A browser has no log file. */
+export function desktopOpenLogs(): (() => Promise<void>) | undefined {
+  return (window as unknown as { electronAPI?: { openLogs?: () => Promise<void> } }).electronAPI?.openLogs;
+}
+
+/** M15.1: what to show when the backend gives no response at all */
+export function backendUnreachableMessage(desktop: boolean = isElectronProd): string {
+  return desktop
+    ? "HeadlessOS can't reach its own backend, so nothing was sent to your server. Restart the app. If it keeps happening, open the log from Global Settings."
+    : "HeadlessOS can't reach its backend, so nothing was sent to your server. Check that the server from npm run dev is running.";
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   // Only set Content-Type when there's a body — Fastify rejects empty
   // bodies if Content-Type: application/json is declared.
@@ -68,10 +80,17 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   if (options?.body !== undefined && options.body !== null) {
     headers['Content-Type'] = 'application/json';
   }
-  const res = await fetch(`${BASE}${path}`, {
-    ...options,
-    headers: { ...headers, ...(options?.headers as Record<string, string> | undefined) },
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      ...options,
+      headers: { ...headers, ...(options?.headers as Record<string, string> | undefined) },
+    });
+  } catch (err) {
+    // M15.1: fetch rejects only when no response came back. An abort is the caller's own doing.
+    if ((err as { name?: string }).name === 'AbortError') throw err;
+    throw Object.assign(new Error(backendUnreachableMessage()), { cause: err });
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(body.message ?? body.error ?? `Request failed: ${res.status}`);

@@ -8,12 +8,13 @@
 // always global. This section exposes the global defaults; per-session
 // overrides are surfaced inside each session's in-desktop Settings app.
 
-import { ExternalLink, Palette, Image as ImageIcon, Bell, Calendar, Upload } from 'lucide-react';
+import { ExternalLink, Palette, Image as ImageIcon, Bell, Calendar, Upload, FileText } from 'lucide-react';
 import { useState } from 'react';
 import { usePreferencesStore } from '../../store/preferences-store';
 import { LUMEN_ACCENTS } from '../../lib/lumen-theme';
 import { useAppStore } from '../../store/app-store';
 import { importSessionViaPicker } from '../../lib/session-io';
+import { desktopOpenLogs } from '../../lib/api';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {
@@ -37,6 +38,7 @@ export function GlobalSettingsSection() {
 
   const goToDesktop = useAppStore((s) => s.goToDesktop);
   const activeServerId = useAppStore((s) => s.activeServerId);
+  const openLogs = desktopOpenLogs();
 
   // EX6-D.4: import status
   const [importStatus, setImportStatus] = useState<{ kind: 'idle' | 'ok' | 'error'; message?: string }>({ kind: 'idle' });
@@ -198,6 +200,22 @@ export function GlobalSettingsSection() {
           </div>
         )}
       </section>
+
+      {/* M15.4: the one place to reach the log with no server connected */}
+      {openLogs && (
+        <section className="lumen-section flex items-center gap-4 rounded-[20px] px-6 py-5">
+          <FileText className="h-5 w-5 shrink-0 text-label-2" strokeWidth={1.75} />
+          <div className="flex-1">
+            <div className="text-[15px]">Log file</div>
+            <div className="text-[13px] text-label-2">
+              What the app recorded, for when something goes wrong. It stays on this computer.
+            </div>
+          </div>
+          <Button variant="secondary" size="sm" onClick={() => void openLogs()} data-testid="cc-open-log">
+            Open log
+          </Button>
+        </section>
+      )}
     </div>
   );
 }

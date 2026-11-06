@@ -9,6 +9,7 @@ const { app, BrowserWindow, Menu, shell, dialog, ipcMain, utilityProcess } = req
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const { backendExitAction, createLog, describeExit } = require('./diagnostics');
 
 const IS_DEV = process.argv.includes('--dev') || process.env.NODE_ENV === 'development';
 const DEV_URL = 'http://localhost:3000';
@@ -25,6 +26,10 @@ let mainWindow = null;
 let serverProcess = null;
 let serverPort = IS_DEV ? 3001 : null; // dev mode: developer runs server separately
 let serverToken = null; // C3: API auth token, read from the server's stdout in prod
+let stopping = false; // M15.2: the app is quitting, so a backend exit is expected
+
+// M15.3: where backend output and failures go. Without it, stdout is read and thrown away
+const log = createLog({ dir: path.join(os.homedir(), '.headlessos', 'logs'), home: os.homedir() });
 
 /**
  * Resolve path to the bundled server.mjs (built by `npm run build:server`; M14.3: not in git).
@@ -50,7 +55,9 @@ function startServer() {
     }
 
     const serverPath = getServerPath();
+    let ready = false;
 
+    log.line('main', 'starting the backend');
     serverProcess = utilityProcess.fork(serverPath, [], {
       env: {
         ...process.env,
@@ -66,6 +73,7 @@ function startServer() {
 
     serverProcess.stdout.on('data', (data) => {
       const text = data.toString();
+      log.write('backend', text);
       const tokenMatch = text.match(/HEADLESSOS_TOKEN:([a-f0-9]+)/);
       if (tokenMatch) {
         serverToken = tokenMatch[1];
@@ -73,26 +81,83 @@ function startServer() {
       const match = text.match(/HEADLESSOS_PORT:(\d+)/);
       if (match) {
         clearTimeout(timeout);
+        ready = true;
         serverPort = parseInt(match[1], 10);
         resolve(serverPort);
       }
     });
 
     serverProcess.stderr.on('data', (data) => {
+      log.write('backend', data.toString());
       console.error('[server stderr]', data.toString().trim());
     });
 
     serverProcess.on('exit', (code) => {
       clearTimeout(timeout);
+      log.flush();
+      log.line('main', `the backend ${describeExit(code)}`);
       if (code !== 0 && code !== null) {
         console.error(`[server] exited unexpectedly with code ${code}`);
       }
       serverProcess = null;
+
+      // M15.2: without this the app waits out the timeout, or every window just stops working
+      const action = backendExitAction({ stopping, ready });
+      if (action === 'failed-to-start') {
+        reject(new Error(`The backend ${describeExit(code)} before it was ready.`));
+      } else if (action === 'ask') {
+        askAfterBackendStopped(code);
+      }
     });
   });
 }
 
+function showStartError(err) {
+  log.line('main', `could not start the backend: ${err.message}`);
+  dialog.showErrorBox(
+    'HeadlessOS — Server Error',
+    `The backend server could not start:\n\n${err.message}\n\nThe log may say why:\n${log.file}\n\nThe application will now quit.`,
+  );
+  app.quit();
+}
+
+/**
+ * M15.2: the backend died while the app was running. Restarting it needs only a window
+ * reload: that runs the preload again, which reads the new port and token.
+ */
+async function askAfterBackendStopped(code) {
+  const options = {
+    type: 'error',
+    title: 'HeadlessOS — Backend Stopped',
+    message: 'The HeadlessOS backend stopped.',
+    detail: `It ${describeExit(code)}, so the app can't reach your servers until it restarts. The log may say why:\n\n${log.file}`,
+    buttons: ['Restart', 'Open Log', 'Quit'],
+    defaultId: 0,
+    cancelId: 2,
+  };
+  let response;
+  do {
+    ({ response } = await (mainWindow
+      ? dialog.showMessageBox(mainWindow, options)
+      : dialog.showMessageBox(options)));
+    if (response === 1) shell.showItemInFolder(log.file);
+  } while (response === 1);
+  if (response === 2) {
+    app.quit();
+    return;
+  }
+
+  try {
+    log.line('main', 'restarting the backend');
+    await startServer();
+    if (mainWindow) mainWindow.reload();
+  } catch (err) {
+    showStartError(err);
+  }
+}
+
 function stopServer() {
+  stopping = true;
   if (serverProcess) {
     serverProcess.kill();
     serverProcess = null;
@@ -127,6 +192,9 @@ ipcMain.on('get-auth-token', (event) => {
     event.returnValue = '';
   }
 });
+
+// M15.4: the window has no menu bar on Windows and Linux, so Settings asks for the log here
+ipcMain.handle('open-logs', () => shell.showItemInFolder(log.file));
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -164,9 +232,22 @@ function createWindow() {
     mainWindow.focus();
   });
 
+  // M15.3: what the window itself reports. preload-error is the M14.11 fault: without its
+  // preload the window has no backend port, and nothing else says why.
+  mainWindow.webContents.on('preload-error', (_event, _preloadPath, error) => {
+    log.line('window', `the preload failed: ${error.message}`);
+  });
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    log.line('window', `the renderer stopped: ${details.reason} (${details.exitCode})`);
+  });
+  mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    if (level >= 3) log.line('window', `${message} (${sourceId.split('/').pop()}:${line})`);
+  });
+
   // Show a readable error instead of a silent black screen if the file fails to load
   mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
     console.error(`[renderer] did-fail-load: ${errorCode} ${errorDescription} url=${validatedURL}`);
+    log.line('window', `did-fail-load: ${errorCode} ${errorDescription}`);
     dialog.showErrorBox(
       'HeadlessOS — Failed to Load',
       `The app UI could not be loaded.\n\nURL: ${validatedURL}\nError: ${errorDescription} (${errorCode})\n\nPlease reinstall the application.`,
@@ -249,13 +330,15 @@ function createMenu() {
     {
       label: 'Help',
       submenu: [
+        { label: 'Open Logs', click: () => shell.showItemInFolder(log.file) },
+        { type: 'separator' },
         {
           label: 'Documentation',
-          click: () => shell.openExternal('https://github.com/headlessos/headlessos'),
+          click: () => shell.openExternal('https://headlessos.com/docs/introduction'),
         },
         {
           label: 'Report Issue',
-          click: () => shell.openExternal('https://github.com/headlessos/headlessos/issues'),
+          click: () => shell.openExternal('https://github.com/abhee235/headlessos/issues'),
         },
       ],
     },
@@ -268,6 +351,7 @@ function createMenu() {
 // ── App Lifecycle ───────────────────────────────────────
 
 app.whenReady().then(async () => {
+  log.line('main', `HeadlessOS ${app.getVersion()} on ${process.platform} ${process.arch}, Electron ${process.versions.electron}`);
   createMenu();
 
   // Start the backend server and wait for it to signal its port.
@@ -275,11 +359,7 @@ app.whenReady().then(async () => {
   try {
     await startServer();
   } catch (err) {
-    dialog.showErrorBox(
-      'HeadlessOS — Server Error',
-      `The backend server could not start:\n\n${err.message}\n\nThe application will now quit.`,
-    );
-    app.quit();
+    showStartError(err);
     return;
   }
 

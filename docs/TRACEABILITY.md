@@ -1447,6 +1447,57 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-14.md` ("M14.12")
 - **Verification:** packaged app lists 16 system wallpapers and shows one on the lock screen and desktop
 
+### M15.1: A readable error when the backend can't be reached
+- **Status:** ✅ Complete
+- **Date:** 2026-11-06
+- **Files modified:** `client/src/lib/api.ts` (`request`, `backendUnreachableMessage`), `client/tests/lib/api.test.ts`
+- **Docs:** `docs/phases/phase-15.md` ("M15.1")
+- **Verification:** packaged app with the backend killed shows the new text in Add Server
+
+### M15.2: The app notices when the backend stops
+- **Status:** ✅ Complete
+- **Date:** 2026-11-06
+- **Files created:** `electron/diagnostics.js` (`backendExitAction`, `describeExit`), `server/tests/electron/diagnostics.test.ts`
+- **Files modified:** `electron/main.js`, `electron/package.json` (`files`), `server/tests/electron/packaging.test.ts`
+- **Docs:** `docs/phases/phase-15.md` ("M15.2")
+- **Verification:** backend killed in the packaged app: dialog and Restart with a new port; missing `server.mjs` fails in about 1 s
+
+### M15.3: A log file with secrets kept out
+- **Status:** ✅ Complete
+- **Date:** 2026-11-06
+- **Files modified:** `electron/diagnostics.js` (`createLog`, `redactLogLine`), `electron/main.js`, `server/tests/electron/diagnostics.test.ts`, `SECURITY.md`, `CLAUDE.md`
+- **Docs:** `docs/phases/phase-15.md` ("M15.3")
+- **Verification:** after a real sign-in, searched the log for the token, password, computer name and home path: none found
+
+### M15.4: Opening the log, and working Help links
+- **Status:** ✅ Complete
+- **Date:** 2026-11-06
+- **Files created:** `client/tests/components/open-log.test.tsx`
+- **Files modified:** `electron/main.js`, `electron/preload.js`, `client/src/lib/api.ts` (`desktopOpenLogs`), `client/src/components/ControlCenter/GlobalSettingsSection.tsx`, `client/src/components/Desktop/SettingsView.tsx`, `README.md`, `server/tests/electron/preload.test.ts`
+- **Docs:** `docs/phases/phase-15.md` ("M15.4")
+- **Verification:** Open log shows the folder from Global Settings and the backend-stopped dialog; the macOS Help menu is not run
+
+### M15.5: Linux in the release
+- **Status:** ✅ Complete
+- **Date:** 2026-11-06
+- **Files modified:** `.github/workflows/release.yml` (`build-linux`, `workflow_dispatch`, tag guard on the release), `electron/package.json` (`homepage`, `linux.maintainer`), `server/tests/electron/packaging.test.ts`
+- **Docs:** `docs/phases/phase-15.md` ("M15.5")
+- **Verification:** AppImage and deb built in WSL; not started; the job first runs at the tag
+
+### M15.8: macOS local network access
+- **Status:** ✅ Complete
+- **Date:** 2026-11-06
+- **Files modified:** `electron/package.json` (`mac.extendInfo`), `server/src/security/validators.ts` (`connectErrorMessage`), `server/src/routes/servers.ts`, `server/tests/electron/packaging.test.ts`, `server/tests/security/validators.test.ts`
+- **Docs:** `docs/phases/phase-15.md` ("M15.8")
+- **Verification:** unit tests; not run on a Mac
+
+### M15.6: Version 0.2.1 and changelog
+- **Status:** ✅ Complete
+- **Date:** 2026-11-06
+- **Files modified:** `package.json`, `client/package.json`, `server/package.json`, `shared/package.json`, `electron/package.json`, both lockfiles, `server/src/index.ts`, `client/src/components/Desktop/Desktop.tsx`, `client/src/components/Desktop/SettingsView.tsx`, `CHANGELOG.md`
+- **Docs:** `docs/phases/phase-15.md` ("M15.6")
+- **Verification:** the packaged app reports 0.2.1
+
 ## How to Use This File
 
 ### After completing a task:

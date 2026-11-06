@@ -58,6 +58,7 @@ import { toast } from 'sonner';
 import {
   fetchLLMConfig, updateLLMConfig, fetchLLMModels, fetchOllamaModels,
   type LLMConfig, type LLMModelInfo, type ModelLimits, type OllamaModel,
+  desktopOpenLogs,
 } from '../../lib/api';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -1417,6 +1418,8 @@ function AIPage() {
 // ─── About Page ─────────────────────────────────────────────────────────────
 
 function AboutPage() {
+  const openLogs = desktopOpenLogs();
+
   return (
     <div className="space-y-5">
       {/* Logo + Version */}
@@ -1427,7 +1430,7 @@ function AboutPage() {
           </div>
           <div className="flex min-w-0 flex-col gap-0.5">
             <h2 className="text-[17px] font-semibold text-foreground">HeadlessOS</h2>
-            <p className="text-[14px] text-label-2">Version 0.2.0 (Alpha)</p>
+            <p className="text-[14px] text-label-2">Version 0.2.1 (Alpha)</p>
           </div>
         </div>
       </Section>
@@ -1450,6 +1453,16 @@ function AboutPage() {
           <ChevronRight className="h-4 w-4 text-label-3" strokeWidth={1.75} />
         </Row>
       </RowSection>
+
+      {openLogs && (
+        <RowSection>
+          <Row label="Log file" className="min-h-[52px]">
+            <Button variant="secondary" size="sm" onClick={() => void openLogs()} data-testid="about-open-log">
+              Open log
+            </Button>
+          </Row>
+        </RowSection>
+      )}
 
       <p className="px-1 text-[13px] text-label-3">
         A localhost web app that connects to Linux VPS servers via SSH. Nothing is installed on the server.
