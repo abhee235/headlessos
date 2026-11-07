@@ -41,6 +41,12 @@ describe('Launcher', () => {
     expect(action.querySelector<HTMLElement>('[style*="linear-gradient"]')).not.toBeNull();
   });
 
+  it('lines the quick actions up with the outer edges of the app grid', () => {
+    render(<StartMenu />);
+    const row = screen.getByRole('button', { name: 'Personalize' }).parentElement!;
+    expect(row).toHaveClass('min-[680px]:justify-between', 'min-[680px]:px-[calc(10%-43px)]');
+  });
+
   it('keeps quick actions on glass when the dock is set to Glass', () => {
     act(() => usePreferencesStore.setState({ dockIconStyle: 'glass' }));
     render(<StartMenu />);

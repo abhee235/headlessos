@@ -325,8 +325,8 @@ export function StartMenu() {
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden px-6 pt-3 pb-3">
         {!searching ? (
           <>
-            {/* Quick actions */}
-            <div className="grid grid-cols-3 justify-items-center gap-2 min-[680px]:grid-cols-6">
+            {/* Quick actions: an app tile's edge is 10% - 25px in, and these 80px cells hold a 44px tile */}
+            <div className="grid grid-cols-3 justify-items-center gap-2 min-[680px]:flex min-[680px]:justify-between min-[680px]:px-[calc(10%-43px)]">
               <QuickAction tileId="terminal" icon={SquareTerminal} label="Terminal" disabled={!isConnected} onClick={() => handleOpenApp('terminal', 'Terminal')} />
               <QuickAction tileId="files" icon={FolderOpen} label="Files" disabled={!isConnected} onClick={() => handleOpenApp('files', 'File Explorer')} />
               <QuickAction tileId="personalize" icon={Palette} label="Personalize" onClick={() => handleOpenApp('settings', 'Personalize', { initialPage: 'wallpaper' })} />

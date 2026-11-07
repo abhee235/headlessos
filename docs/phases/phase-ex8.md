@@ -800,6 +800,8 @@ the panel's top sat over the menu bar.
 - The six quick actions are 80 px cells: a 44 px colour tile with the name under it, like the app
   grid, not 96 px glass squares. Terminal and Files use their dock tiles. Personalize, Desktop, Switch
   and Lock aren't apps, so they get their own tiles in `DOCK_TILES`. On Glass they stay on glass.
+  The row's first and last tiles line up with the app grid's outer edges. Its six columns can't match
+  the grid's five, so the tiles between them don't sit above the apps.
 - Recent shows 3 apps in 40 px rows, so the Recent and Server cards end level.
 - The header and cards are tighter, and the footer is 56 px. The 5-column grid doesn't change.
 - The panel keeps 40 px clear above it: the 28 px menu bar and a 12 px gap.
