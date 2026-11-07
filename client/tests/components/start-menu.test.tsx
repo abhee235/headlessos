@@ -68,6 +68,24 @@ describe('Launcher', () => {
     expect(screen.getByRole('button', { name: 'Docker' })).toHaveClass('aspect-square', 'max-w-[112px]');
   });
 
+  it('keeps its height while searching, and lets go when the search is cleared', () => {
+    const height = vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(735);
+    render(<StartMenu />);
+    const launcher = screen.getByRole('dialog', { name: 'Launcher' });
+    const search = screen.getByRole('textbox', { name: 'Search apps' });
+
+    fireEvent.change(search, { target: { value: 'd' } });
+    expect(launcher.style.height).toBe('735px');
+
+    height.mockReturnValue(300);
+    fireEvent.change(search, { target: { value: 'do' } });
+    expect(launcher.style.height).toBe('735px');
+
+    fireEvent.change(search, { target: { value: '' } });
+    expect(launcher.style.height).toBe('');
+    height.mockRestore();
+  });
+
   it('shows a scrollbar when the window is too short, and hides nothing', () => {
     render(<StartMenu />);
     const launcher = screen.getByRole('dialog', { name: 'Launcher' });

@@ -803,6 +803,9 @@ the panel's top sat over the menu bar.
 - The panel keeps 40 px clear above it: the 28 px menu bar and a 12 px gap.
 - A window too short for the panel scrolls it, with the app's normal scrollbar. The old panel hid its
   scrollbar, so nothing showed there was more below.
+- Searching keeps the panel at the height it had. It takes its height from its content, so results
+  would shrink it and move the search box. The height is read when the first letter is typed rather
+  than set as a fixed number, because My Apps, the font and a short window all change it.
 
 ## Deviations from the handoff text (prototype wins where they differ)
 

@@ -665,7 +665,7 @@ Example:
 
 | Date | Change |
 |------|--------|
-| 2026-11-07 | **EX8.33 ✅** About HeadlessOS and Settings → About show the app's real logo, and so does the wallpaper watermark. The launcher's apps sit on the same colour tiles as the dock, following the Dock Icons setting. Its six big squares are now slim pills, each app sits on a square cell so hover isn't a wide bar, and a window too short for the panel gets a visible scrollbar. |
+| 2026-11-07 | **EX8.33 ✅** About HeadlessOS and Settings → About show the app's real logo, and so does the wallpaper watermark. The launcher's apps sit on the same colour tiles as the dock, following the Dock Icons setting. Its six big squares are now slim pills, each app sits on a square cell so hover isn't a wide bar, a window too short for the panel gets a visible scrollbar, and searching no longer changes its height. |
 | 2026-11-07 | **EX8.32 ✅** On a Mac the interface uses San Francisco, in the app and in a browser on localhost. Windows and Linux keep today's font list unchanged, because only a Mac is marked to read a different one. |
 | 2026-11-07 | **M16.8 ✅** v0.3.0 is published. The draft updated over the earlier build on a Mac, Always Allow held across a restart, and `cognito-web` signed in with its saved key. Linux is still to run. |
 | 2026-11-07 | **M16.7 ✅** Version 0.3.0 with its changelog. The README and release notes now say what to click when macOS asks for the Keychain, and the README no longer says Linux has no build. |

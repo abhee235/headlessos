@@ -134,6 +134,8 @@ export function StartMenu() {
   const openSavedApp = useSavedAppStore(s => s.openApp);
   const [searchQuery, setSearchQuery] = useState('');
   const [focusedIndex, setFocusedIndex] = useState(-1);
+  // The panel's height when a search starts, so results don't resize it
+  const [heldHeight, setHeldHeight] = useState<number>();
   const searchRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -267,6 +269,7 @@ export function StartMenu() {
     <div
       ref={menuRef}
       className="glass-heavy absolute bottom-[100px] left-1/2 z-[10000] flex max-h-[calc(100%-140px)] w-[780px] max-w-[calc(100vw-28px)] -translate-x-1/2 flex-col overflow-hidden rounded-[30px] animate-panelIn"
+      style={searching ? { height: heldHeight } : undefined}
       onClick={(e) => e.stopPropagation()}
       onKeyDown={handleKeyDown}
       role="dialog"
@@ -297,7 +300,11 @@ export function StartMenu() {
             placeholder="Search apps"
             className="min-w-0 flex-1 bg-transparent text-[15px] text-foreground outline-none placeholder:text-label-3"
             value={searchQuery}
-            onChange={(e) => { setSearchQuery(e.target.value); setFocusedIndex(-1); }}
+            onChange={(e) => {
+              if (!searching) setHeldHeight(menuRef.current?.offsetHeight);
+              setSearchQuery(e.target.value);
+              setFocusedIndex(-1);
+            }}
             aria-label="Search apps"
           />
           <span className="flex shrink-0 gap-px rounded-[6px] bg-fill px-2 py-[3px] text-[11px] font-semibold text-label-2">
