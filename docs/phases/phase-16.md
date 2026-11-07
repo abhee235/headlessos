@@ -99,6 +99,18 @@ other app, so the name has to be one they recognise.
   logins would lock. No release has the keychain yet, so nobody is affected. A Mac that ran an
   earlier M16 build needs a plain `enc-key` put back once.
 
+### A scratch profile holds everything (M16.9)
+
+Pinning `userData` in M16.6 also overrode `--user-data-dir`, the flag phase 14 uses to keep a test run
+away from real data, and only partly. Measured on Windows, `Local State` followed the flag while the
+window's data went to the pinned folder, so a scratch profile split in two.
+
+`main.js` now pins the folder only when the flag isn't given. Skipping the pin also skips
+`app.getPath('appData')`, which throws on a scratch `USERPROFILE` with no `AppData\Roaming`. There the
+app stopped at its first lines behind an error dialog, and a test run could only hang. Real accounts
+always have that folder, and a new install isn't affected: `setPath` accepts a folder that doesn't
+exist yet, and Electron creates it.
+
 ### Version 0.3.0 (M16.7)
 
 0.3.0, because this adds a feature people will notice: a Mac asks for a password, once after each
@@ -106,6 +118,11 @@ update, until the build is signed. The version goes in every `package.json`, `se
 the About page, `Desktop.tsx` and both lockfiles' own entries, and `CHANGELOG.md` gets a dated entry.
 The README and the release notes say what to click when macOS asks, because neither did. The README
 also stops saying Linux has no build: 0.2.1 shipped one.
+
+### Version 0.3.1 (M16.10)
+
+0.3.1 ships what came after the 0.3.0 tag: EX8.32, EX8.33 and M16.9. None of it changes stored data,
+so a patch version fits. The version goes where M16.7 lists, and only our own entries in the lockfiles.
 
 ### Backups after this phase
 
@@ -126,6 +143,9 @@ plain `enc-key` was kept. The docs say so.
 | M16.6 | The app is named HeadlessOS, and its data stays put | ✅ |
 | M16.7 | Version 0.3.0, the changelog and the Mac notes | ✅ |
 | M16.8 | Tag v0.3.0 and check the release | ✅ |
+| M16.9 | `--user-data-dir` holds all of the app's data again | ✅ |
+| M16.10 | Version 0.3.1 and the changelog | ⬜ |
+| M16.11 | Tag v0.3.1 and check the release | ⬜ |
 
 ## Checks
 

@@ -100,4 +100,12 @@ describe('app name', () => {
     expect(pin).toBeGreaterThan(-1);
     expect(pin).toBeLessThan(main.indexOf('app.whenReady'));
   });
+
+  // M16.9: without this, Local State follows the flag and the window's data doesn't
+  it('leaves --user-data-dir alone, so a scratch profile holds everything', () => {
+    const main = readFileSync(join(electron, 'main.js'), 'utf8');
+    const flag = main.indexOf("if (!app.commandLine.hasSwitch('user-data-dir'))");
+    expect(flag).toBeGreaterThan(-1);
+    expect(flag).toBeLessThan(main.indexOf("app.setPath('userData'"));
+  });
 });

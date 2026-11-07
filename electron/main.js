@@ -14,7 +14,10 @@ const { keychainNotice, markKeychainExplained, openInstallSecret, shouldExplainK
 
 // M16.6: the name comes from productName, and Electron names the Keychain item after it. The window's
 // data (theme, preferences, sessions) stays where every release has kept it, or an update resets it.
-app.setPath('userData', path.join(app.getPath('appData'), 'headlessos-desktop'));
+// M16.9: --user-data-dir still wins, or a scratch profile splits: the key there, the window's data here.
+if (!app.commandLine.hasSwitch('user-data-dir')) {
+  app.setPath('userData', path.join(app.getPath('appData'), 'headlessos-desktop'));
+}
 
 const IS_DEV = process.argv.includes('--dev') || process.env.NODE_ENV === 'development';
 const DEV_URL = 'http://localhost:3000';
