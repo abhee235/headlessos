@@ -94,6 +94,7 @@ this document; its token layer was merged into `client/src/styles.css`.
 | EX8.30 | File Explorer favourites point at the signed-in user's home (bug found while capturing the website): no more `/home/testuser` | ✅ |
 | EX8.31 | The dock makes way for a maximized window (owner's review): the window takes the full height, the dock slides away, and a handle at the edge or Show launcher in the menu bar brings it back | ✅ |
 | EX8.32 | San Francisco on a Mac (owner's review): a Mac is marked on `<html>` and uses the system font; Windows and Linux keep today's list unchanged | ✅ |
+| EX8.33 | The real logo in About, and the launcher (user review): dock tiles in the app grid, compact height | ✅ |
 
 ## Additions beyond the handoff
 
@@ -769,6 +770,35 @@ Manrope stands out beside every other app.
 - `HomeHub` named Manrope itself, and toasts used the `font-sans` class, which `@theme inline` writes
   out as the Manrope list. Both now read `--font-sans`, which gives Windows the same list as before.
 - The terminal and code stay on Geist Mono. Manrope stays bundled, for Windows and Linux.
+
+## EX8.33 — The real logo in About, and a launcher that leaves the desktop showing
+
+From the owner's review: About HeadlessOS didn't show the app's logo, and the launcher filled nearly
+the whole window, which the Windows Start menu doesn't do.
+
+**Logo.** Three places drew something else: the About dialog (a Server glyph on an accent tile),
+Settings → About (a Monitor glyph), and `HeadlessOSLogo` itself (an H monogram on another gradient,
+used by the wallpaper watermark).
+
+- `client/public/icons/app-logo.png` is a byte-for-byte copy of `electron/icons/icon.png`, because the
+  client can't load files from `electron/`. A test compares the two, so they can't drift apart.
+- `HeadlessOSLogo` draws that file, and all three places use it.
+- The About dialog was 84 px too short, which cut its description off, so it is now 368 px tall.
+
+**Launcher tiles.** The app grid drew every app on the same neutral glass plate, so it didn't match
+the dock. It now uses the dock's own tile through `TileFace` in `dock-tiles.tsx`, which both components
+share, at the dock's 50 px. It follows the same Dock Icons setting, so Glass still means glass.
+
+**Launcher height.** Measured at 1470×923 with no recent apps, it was 773 px, 84% of the window. Four recent
+apps took it to its height limit. At 1280×720, 169 px were cut off with no scrollbar to show it, and
+the panel's top sat over the menu bar.
+
+- The six quick actions are 40 px pills with the icon beside the label, not 96 px squares.
+- Recent shows 3 apps in 40 px rows, so the Recent and Server cards end level.
+- Spacing is tighter throughout, and the footer is 56 px. Icons and the 5-column grid don't change.
+- The panel keeps 40 px clear above it: the 28 px menu bar and a 12 px gap.
+- In a window under 815 px tall the Recent and Server cards drop out instead of being cut off. The
+  server is still in the header chip and the footer. "My Apps" can still make the panel scroll.
 
 ## Deviations from the handoff text (prototype wins where they differ)
 

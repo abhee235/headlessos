@@ -1604,6 +1604,14 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-15.md` ("M15.6")
 - **Verification:** the packaged app reports 0.2.1
 
+### EX8.33: The real logo in About, and the launcher
+- **Status:** ✅ Complete
+- **Date:** 2026-11-07
+- **Files created:** `client/public/icons/app-logo.png`, `client/tests/components/app-logo.test.tsx`, `client/tests/components/start-menu.test.tsx`
+- **Files modified:** `client/src/assets/logo.tsx`, `client/src/components/Desktop/Desktop.tsx`, `client/src/components/Desktop/SettingsView.tsx`, `client/src/components/Desktop/StartMenu.tsx`, `client/src/components/Desktop/Taskbar.tsx`, `client/src/components/Desktop/dock-tiles.tsx`, `client/tests/components/Desktop.test.tsx`, `docs/UI_DESIGN.md`
+- **Docs:** `docs/phases/phase-ex8.md` ("EX8.33")
+- **Verification:** panel height and cut-off content measured in Chrome at six window sizes, both About screens checked by eye, logo bytes compared with the installed app's icon
+
 ### EX8.32: San Francisco on a Mac
 - **Status:** ✅ Complete
 - **Date:** 2026-11-07

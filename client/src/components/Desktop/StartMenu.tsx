@@ -3,6 +3,9 @@
 // date + greeting header with a server chip, recessed search, quick actions,
 // app grid, Recent + Server cards, and a footer with Settings / Lock /
 // Switch user / Sign out.
+// EX8.33: compact — quick-action pills, 3 recent apps, and the cards drop out in
+// a short window, so the panel leaves the desktop showing. The app grid uses the
+// dock's tiles and follows the same Dock Icons setting.
 // @see docs/phases/phase-6.md, docs/phases/phase-ex8.md
 
 import { useDesktopStore } from '../../store/window-store';
@@ -28,6 +31,7 @@ import type { LucideIcon } from 'lucide-react';
 import { getLucideIcon } from '../DynamicUI/widgets/icon-helper';
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { AppIcon } from '@/components/ui/FileIcon';
+import { colourTile, TileFace } from './dock-tiles';
 import { formatShortcut } from '@/lib/format-shortcut';
 import { cn } from '@/lib/utils';
 
@@ -85,13 +89,13 @@ const APP_COLS = 5;
 function QuickAction({ icon: Icon, label, onClick, disabled }: { icon: LucideIcon; label: string; onClick: () => void; disabled?: boolean }) {
   return (
     <button
-      className="lumen-card flex h-[96px] min-w-0 flex-col items-center justify-center gap-[7px] rounded-[18px] text-foreground transition-colors hover:bg-dock-hover disabled:pointer-events-none disabled:opacity-40"
+      className="lumen-card flex h-10 min-w-0 items-center justify-center gap-2 rounded-[20px] px-2 text-foreground transition-colors hover:bg-dock-hover disabled:pointer-events-none disabled:opacity-40"
       onClick={onClick}
       disabled={disabled}
       title={label}
     >
-      <Icon className="h-6 w-6 shrink-0" strokeWidth={1.75} />
-      <span className="max-w-full truncate px-1 text-xs font-medium">{label}</span>
+      <Icon className="h-[17px] w-[17px] shrink-0" strokeWidth={1.75} />
+      <span className="min-w-0 truncate text-[13px] font-medium">{label}</span>
     </button>
   );
 }
@@ -123,6 +127,7 @@ export function StartMenu() {
     signOut,
   } = useAppStore();
   const recentApps = usePreferencesStore(s => s.recentApps);
+  const dockIconStyle = usePreferencesStore(s => s.dockIconStyle);
   const savedApps = useSavedAppStore(s => s.apps);
   const fetchSavedApps = useSavedAppStore(s => s.fetchApps);
   const savedAppsFetched = useSavedAppStore(s => s.fetched);
@@ -261,14 +266,14 @@ export function StartMenu() {
   return (
     <div
       ref={menuRef}
-      className="glass-heavy absolute bottom-[100px] left-1/2 z-[10000] flex max-h-[calc(100%-116px)] w-[780px] max-w-[calc(100vw-28px)] -translate-x-1/2 flex-col overflow-hidden rounded-[30px] animate-panelIn"
+      className="glass-heavy absolute bottom-[100px] left-1/2 z-[10000] flex max-h-[calc(100%-140px)] w-[780px] max-w-[calc(100vw-28px)] -translate-x-1/2 flex-col overflow-hidden rounded-[30px] animate-panelIn"
       onClick={(e) => e.stopPropagation()}
       onKeyDown={handleKeyDown}
       role="dialog"
       aria-label="Launcher"
     >
       {/* ── Header: date + greeting, server chip ── */}
-      <div className="flex shrink-0 items-end justify-between gap-3 px-6 pt-[22px] pb-3.5">
+      <div className="flex shrink-0 items-end justify-between gap-3 px-6 pt-[18px] pb-3">
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="text-sm text-label-2">{dateStr}</span>
           <span className="truncate text-2xl leading-[30px] font-medium tracking-[-0.01em]">{getGreeting()}</span>
@@ -302,11 +307,11 @@ export function StartMenu() {
       </div>
 
       {/* ── Body ── */}
-      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overflow-x-hidden px-6 pt-4 pb-[18px] [scrollbar-width:none]">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden px-6 pt-3.5 pb-3.5 [scrollbar-width:none]">
         {!searching ? (
           <>
             {/* Quick actions */}
-            <div className="grid grid-cols-3 gap-4 min-[680px]:grid-cols-6">
+            <div className="grid grid-cols-3 gap-2 min-[680px]:grid-cols-6">
               <QuickAction icon={SquareTerminal} label="Terminal" disabled={!isConnected} onClick={() => handleOpenApp('terminal', 'Terminal')} />
               <QuickAction icon={FolderOpen} label="Files" disabled={!isConnected} onClick={() => handleOpenApp('files', 'File Explorer')} />
               <QuickAction icon={Palette} label="Personalize" onClick={() => handleOpenApp('settings', 'Personalize', { initialPage: 'wallpaper' })} />
@@ -316,27 +321,27 @@ export function StartMenu() {
             </div>
 
             {/* App grid */}
-            <div className="flex flex-col gap-2.5">
+            <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between px-1">
                 <span className="text-[15px] font-semibold">Apps</span>
                 <span className="text-xs text-label-2">{ALL_APPS.length} apps</span>
               </div>
-              <div className="grid grid-cols-5 gap-x-1 gap-y-1.5">
+              <div className="grid grid-cols-5 gap-x-1 gap-y-1">
                 {visibleApps.map((app, idx) => (
                   <button
                     key={app.id}
                     className={cn(
-                      'group flex min-w-0 flex-col items-center gap-2 rounded-[16px] px-0.5 pt-2.5 pb-2 text-foreground transition-colors',
+                      'group flex min-w-0 flex-col items-center gap-1.5 rounded-[16px] px-0.5 pt-2 pb-1.5 text-foreground transition-colors',
                       appDisabled(app.id) ? 'cursor-not-allowed opacity-40' : 'hover:bg-fill',
                       idx === focusedIndex && 'bg-accent-soft ring-1 ring-accent-glow',
                     )}
                     onClick={() => handleOpenApp(app.id, app.label)}
                     disabled={appDisabled(app.id)}
                   >
-                    <span className="lumen-plate relative h-[52px] w-[52px] rounded-[17px] transition-transform duration-150 group-hover:scale-105">
-                      <span className="absolute left-[9px] top-[9px] flex h-8 w-8 items-center justify-center drop-shadow-[0_2px_3px_rgba(0,0,0,.3)]">
+                    <span className="relative block h-[50px] w-[50px] transition-transform duration-150 group-hover:scale-105">
+                      <TileFace tile={dockIconStyle === 'color' ? colourTile(app.id) : null}>
                         <AppIcon appId={app.id} size={32} />
-                      </span>
+                      </TileFace>
                     </span>
                     <span className="max-w-full truncate text-xs">{app.label}</span>
                   </button>
@@ -371,20 +376,20 @@ export function StartMenu() {
               </div>
             )}
 
-            {/* Recent + Server cards */}
-            <div className="grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3.5">
-              <div className="lumen-card flex min-w-0 flex-col gap-0.5 rounded-[22px] px-2.5 pt-3.5 pb-2">
-                <span className="px-2 pb-1.5 text-[15px] font-semibold">Recent</span>
+            {/* Recent + Server cards: a short window drops them rather than cutting them off */}
+            <div data-testid="launcher-cards" className="grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3.5 [@media(max-height:814px)]:hidden">
+              <div className="lumen-card flex min-w-0 flex-col gap-0.5 rounded-[22px] px-2.5 pt-3 pb-2">
+                <span className="px-2 pb-1 text-[15px] font-semibold">Recent</span>
                 {recentApps.length === 0 ? (
                   <p className="px-2 py-4 text-[13px] text-label-2">Open an app to see it here</p>
                 ) : (
-                  recentApps.slice(0, 4).map((entry) => {
+                  recentApps.slice(0, 3).map((entry) => {
                     const label = APP_LABEL_MAP[entry.appId] ?? entry.appId;
                     return (
                       <button
                         key={entry.appId}
                         className={cn(
-                          'flex min-h-12 min-w-0 items-center gap-3 rounded-[12px] px-2 text-left transition-colors',
+                          'flex min-h-10 min-w-0 items-center gap-3 rounded-[12px] px-2 text-left transition-colors',
                           isConnected ? 'hover:bg-fill' : 'cursor-not-allowed opacity-40',
                         )}
                         disabled={!isConnected}
@@ -401,7 +406,7 @@ export function StartMenu() {
                 )}
               </div>
 
-              <div className="lumen-card flex min-w-0 flex-col gap-3.5 rounded-[22px] p-4">
+              <div className="lumen-card flex min-w-0 flex-col gap-2.5 rounded-[22px] p-3.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[15px] font-semibold">Server</span>
                   <span className={cn('h-2 w-2 rounded-full', statusDot)} />
@@ -506,7 +511,7 @@ export function StartMenu() {
       </div>
 
       {/* ── Footer ── */}
-      <div className="flex h-16 shrink-0 items-center gap-3 border-t border-border pl-6 pr-4">
+      <div className="flex h-14 shrink-0 items-center gap-3 border-t border-border pl-6 pr-4">
         <span className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-full border-2 border-white/25 bg-[linear-gradient(160deg,var(--lumen-accent-hi),var(--lumen-accent))] text-[13px] font-bold text-white">
           {(activeServer?.username ?? 'H').slice(0, 1).toUpperCase()}
         </span>

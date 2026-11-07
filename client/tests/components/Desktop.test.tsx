@@ -113,6 +113,15 @@ describe('Desktop — double click opens window', () => {
     );
   });
 
+  it('shows the app logo in About HeadlessOS', async () => {
+    const { container } = render(<Desktop />);
+
+    fireEvent.contextMenu(container.firstElementChild!);
+    fireEvent.click(await screen.findByText('About HeadlessOS'));
+
+    expect(await screen.findByAltText('HeadlessOS')).toHaveAttribute('src', 'icons/app-logo.png');
+  });
+
   it('does not open window on double click when disconnected', () => {
     mockServers = [{ id: 'server-1', state: { status: 'disconnected' } }];
 

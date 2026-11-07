@@ -1,11 +1,13 @@
 // EX8.16: Colour dock tiles — each app gets its own tile colour with a glyph
 // that contrasts with it (macOS-style), instead of every app on the same glass
 // plate. `dockIconStyle: 'glass'` keeps the EX8.4 plates.
+// EX8.33: TileFace is shared with the launcher, so an app looks the same in both.
 // @see docs/phases/phase-ex8.md
 
 import type { CSSProperties, ReactNode } from 'react';
 import { Globe } from 'lucide-react';
 import { AppIcon } from '@/components/ui/FileIcon';
+import { cn } from '@/lib/utils';
 
 type Glyph =
   | { kind: 'icon'; size: number; white?: boolean }   // the app's own icon (optionally as a white silhouette)
@@ -58,4 +60,26 @@ export function colourTile(appId: string): { plate: ReactNode; glyph: ReactNode 
     );
   }
   return { plate, glyph };
+}
+
+/** A tile's plate and glyph, filling a positioned 50px parent. Without a colour tile, `children` sits on glass. */
+export function TileFace({ tile, noPlate = false, children }: {
+  tile: ReturnType<typeof colourTile>;
+  noPlate?: boolean;
+  children?: ReactNode;
+}) {
+  return (
+    <>
+      {tile ? tile.plate : !noPlate && <span className="lumen-plate absolute inset-0 rounded-[16px]" />}
+      <span
+        className={cn(
+          'absolute inset-0 grid place-items-center [&>*]:block',
+          // Colour tiles carry their own contrast; keep only a hint of lift on the glyph
+          tile ? 'drop-shadow-[0_1px_1px_rgba(0,0,0,.18)]' : 'drop-shadow-[0_2px_3px_rgba(0,0,0,.3)]',
+        )}
+      >
+        {tile ? tile.glyph : children}
+      </span>
+    </>
+  );
 }

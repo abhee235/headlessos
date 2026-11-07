@@ -15,7 +15,6 @@ import {
   Check,
   Plus,
   Trash2,
-  Monitor,
   TerminalSquare,
   Settings2,
   Bell,
@@ -43,6 +42,7 @@ import {
   type ImageWallpaper,
 } from './wallpapers';
 import { WallpaperPreview } from './Wallpaper';
+import { HeadlessOSLogo } from '../../assets/logo';
 import { cn } from '../../lib/utils';
 import { ConfirmDialog } from '../ui/confirm-dialog';
 import { PaneSidebar, PaneSidebarItem } from '../ui/pane-sidebar';
@@ -1425,9 +1425,7 @@ function AboutPage() {
       {/* Logo + Version */}
       <Section>
         <div className="flex items-center gap-4">
-          <div className="lumen-lit grid h-14 w-14 shrink-0 place-items-center rounded-[18px]">
-            <Monitor className="h-7 w-7" strokeWidth={1.75} />
-          </div>
+          <HeadlessOSLogo size={56} className="shrink-0" />
           <div className="flex min-w-0 flex-col gap-0.5">
             <h2 className="text-[17px] font-semibold text-foreground">HeadlessOS</h2>
             <p className="text-[14px] text-label-2">Version 0.3.0 (Alpha)</p>
