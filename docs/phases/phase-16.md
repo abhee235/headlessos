@@ -194,6 +194,29 @@ the new version, the owner clicked Always Allow, and a restart opened in a secon
 A server signed in with its saved key and no connect failures. Servers and preferences carried
 over. The owner reports the Mac tests working; the log can't confirm Deny, so that rests on the report.
 
+**0.3.1 over the published 0.3.0, on Windows.** The release's own portable download ran in an empty
+test home, then a packaged 0.3.1 build ran over that home. A local stand-in took the place of a real
+server, and the test home was deleted afterwards.
+
+1. **New install:** no plain `enc-key` was written, and `headlessos-desktop` was the only data folder,
+   with the key in its `Local State`.
+2. **Update:** a saved password signed in with the field left blank, the window's storage carried
+   over, and `servers.json` didn't change by a byte.
+3. **The same home with another profile,** through `--user-data-dir`: logins locked, with the card. A
+   typed password signed in and a new saved one was refused. The profile's data stayed in its own
+   folder and the pinned folder didn't change, which is M16.9.
+4. **Back on the normal profile:** the saved password signed in, with nothing lost.
+5. **A home with no `AppData\Roaming`, with the flag:** the app starts. With the pin alone, the call
+   it makes throws there.
+
+The computed font list matches 0.3.0 exactly, as EX8.32 requires. At 1470x923, 1280x720 and 1024x640
+the launcher's quick actions line up with the app grid on both sides, it keeps at least 40 px clear
+above, it shows a 6 px scrollbar when it doesn't fit, and searching holds its height to within a
+pixel. The logo loads from the packaged `file://` page in both About views.
+
+`appData` follows `USERPROFILE` on Windows, so a scratch home alone keeps a run away from real data,
+provided it has `AppData\Roaming`.
+
 **Not run:** Linux, and Gatekeeper on the 0.3.0 file, because `gh` downloads carry no quarantine flag.
 
 v0.3.0 was published on 2026-11-07 from the DMG that was tested, and all six files are there.
