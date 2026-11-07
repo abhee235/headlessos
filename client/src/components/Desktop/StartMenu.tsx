@@ -3,9 +3,9 @@
 // date + greeting header with a server chip, recessed search, quick actions,
 // app grid, Recent + Server cards, and a footer with Settings / Lock /
 // Switch user / Sign out.
-// EX8.33: compact — quick-action pills, 3 recent apps, and the cards drop out in
-// a short window, so the panel leaves the desktop showing. The app grid uses the
-// dock's tiles and follows the same Dock Icons setting.
+// EX8.33: quick-action pills and 3 recent apps, so the panel leaves the desktop
+// showing, and a scrollbar when a window is too short for it. The app grid uses
+// the dock's tiles on square cells and follows the same Dock Icons setting.
 // @see docs/phases/phase-6.md, docs/phases/phase-ex8.md
 
 import { useDesktopStore } from '../../store/window-store';
@@ -89,7 +89,7 @@ const APP_COLS = 5;
 function QuickAction({ icon: Icon, label, onClick, disabled }: { icon: LucideIcon; label: string; onClick: () => void; disabled?: boolean }) {
   return (
     <button
-      className="lumen-card flex h-10 min-w-0 items-center justify-center gap-2 rounded-[20px] px-2 text-foreground transition-colors hover:bg-dock-hover disabled:pointer-events-none disabled:opacity-40"
+      className="lumen-card flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-[20px] px-1 text-foreground transition-colors hover:bg-dock-hover disabled:pointer-events-none disabled:opacity-40"
       onClick={onClick}
       disabled={disabled}
       title={label}
@@ -307,7 +307,7 @@ export function StartMenu() {
       </div>
 
       {/* ── Body ── */}
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden px-6 pt-3.5 pb-3.5 [scrollbar-width:none]">
+      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overflow-x-hidden px-6 pt-3.5 pb-3.5">
         {!searching ? (
           <>
             {/* Quick actions */}
@@ -326,12 +326,12 @@ export function StartMenu() {
                 <span className="text-[15px] font-semibold">Apps</span>
                 <span className="text-xs text-label-2">{ALL_APPS.length} apps</span>
               </div>
-              <div className="grid grid-cols-5 gap-x-1 gap-y-1">
+              <div className="grid grid-cols-5 justify-items-center gap-y-2">
                 {visibleApps.map((app, idx) => (
                   <button
                     key={app.id}
                     className={cn(
-                      'group flex min-w-0 flex-col items-center gap-1.5 rounded-[16px] px-0.5 pt-2 pb-1.5 text-foreground transition-colors',
+                      'group flex aspect-square w-full max-w-[112px] min-w-0 flex-col items-center justify-center gap-2 rounded-[18px] px-1 text-foreground transition-colors',
                       appDisabled(app.id) ? 'cursor-not-allowed opacity-40' : 'hover:bg-fill',
                       idx === focusedIndex && 'bg-accent-soft ring-1 ring-accent-glow',
                     )}
@@ -376,8 +376,8 @@ export function StartMenu() {
               </div>
             )}
 
-            {/* Recent + Server cards: a short window drops them rather than cutting them off */}
-            <div data-testid="launcher-cards" className="grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3.5 [@media(max-height:814px)]:hidden">
+            {/* Recent + Server cards */}
+            <div className="grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3.5">
               <div className="lumen-card flex min-w-0 flex-col gap-0.5 rounded-[22px] px-2.5 pt-3 pb-2">
                 <span className="px-2 pb-1 text-[15px] font-semibold">Recent</span>
                 {recentApps.length === 0 ? (

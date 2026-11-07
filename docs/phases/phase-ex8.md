@@ -789,16 +789,20 @@ used by the wallpaper watermark).
 the dock. It now uses the dock's own tile through `TileFace` in `dock-tiles.tsx`, which both components
 share, at the dock's 50 px. It follows the same Dock Icons setting, so Glass still means glass.
 
+Each app is a square cell of up to 112 px, centred in its column. The owner's review: a cell that
+filled its column gave a wide hover bar, and tighter rows looked too compact. 112 px also fits
+"LLM Observatory" on one line.
+
 **Launcher height.** Measured at 1470×923 with no recent apps, it was 773 px, 84% of the window. Four recent
 apps took it to its height limit. At 1280×720, 169 px were cut off with no scrollbar to show it, and
 the panel's top sat over the menu bar.
 
 - The six quick actions are 40 px pills with the icon beside the label, not 96 px squares.
 - Recent shows 3 apps in 40 px rows, so the Recent and Server cards end level.
-- Spacing is tighter throughout, and the footer is 56 px. Icons and the 5-column grid don't change.
+- The header and cards are tighter, and the footer is 56 px. The 5-column grid doesn't change.
 - The panel keeps 40 px clear above it: the 28 px menu bar and a 12 px gap.
-- In a window under 815 px tall the Recent and Server cards drop out instead of being cut off. The
-  server is still in the header chip and the footer. "My Apps" can still make the panel scroll.
+- A window too short for the panel scrolls it, with the app's normal scrollbar. The old panel hid its
+  scrollbar, so nothing showed there was more below.
 
 ## Deviations from the handoff text (prototype wins where they differ)
 

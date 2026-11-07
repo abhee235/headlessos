@@ -63,8 +63,16 @@ describe('Launcher', () => {
     expect(screen.getByRole('button', { name: 'Docker' }).querySelector('.lumen-plate')).not.toBeNull();
   });
 
-  it('drops the Recent and Server cards in a short window', () => {
+  it('keeps each app on a square cell, so its hover isn\'t a wide bar', () => {
     render(<StartMenu />);
-    expect(screen.getByTestId('launcher-cards').className).toContain('[@media(max-height:814px)]:hidden');
+    expect(screen.getByRole('button', { name: 'Docker' })).toHaveClass('aspect-square', 'max-w-[112px]');
+  });
+
+  it('shows a scrollbar when the window is too short, and hides nothing', () => {
+    render(<StartMenu />);
+    const launcher = screen.getByRole('dialog', { name: 'Launcher' });
+    expect(launcher.innerHTML).not.toContain('scrollbar-width:none');
+    expect(screen.getByText('Recent')).toBeInTheDocument();
+    expect(screen.getByText('Server')).toBeInTheDocument();
   });
 });
