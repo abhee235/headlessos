@@ -35,7 +35,7 @@
 | M13: Release Readiness | Beta | ✅ | 4/4 tasks | [phase-13](phases/phase-13.md) |
 | M14: Public Release | Beta | ✅ | 12/12 tasks | [phase-14](phases/phase-14.md) |
 | M15: Desktop Diagnostics | Beta | ✅ | 21/21 tasks | [phase-15](phases/phase-15.md) |
-| M16: Saved Secrets in the OS Keychain | Beta | 🔄 | 7/8 tasks, tag to come | [phase-16](phases/phase-16.md) |
+| M16: Saved Secrets in the OS Keychain | Beta | ✅ | 8/8 tasks, v0.3.0 published; Linux not run | [phase-16](phases/phase-16.md) |
 | **EX1: Dynamic UI Engine** | **Experimental** | **✅** | **15/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
 | **EX2: UI Generation Agent** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
 | **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **✅** | **26/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
@@ -665,6 +665,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-11-07 | **M16.8 ✅** v0.3.0 is published. The draft updated over the earlier build on a Mac, Always Allow held across a restart, and `cognito-web` signed in with its saved key. Linux is still to run. |
 | 2026-11-07 | **M16.7 ✅** Version 0.3.0 with its changelog. The README and release notes now say what to click when macOS asks for the Keychain, and the README no longer says Linux has no build. |
 | 2026-11-07 | **M16.6 ✅** The first Mac run showed the Keychain item as `headlessos-desktop Safe Storage`, not the name `SECURITY.md` gives. The app is now named HeadlessOS, and its window data stays in the old folder so an update keeps preferences. Upgrade, restart and restore all passed on the owner's Mac; Deny and a saved-login sign-in are still to run. |
 | 2026-11-06 | **M16.1–M16.5 ✅** The key to saved logins moves into the OS keychain on every platform, and only that one value moves, so a plain `enc-key` still restores everything. On a real Windows keychain, a copy of the folder with another profile stays locked with nothing lost. macOS is what it's for, and needs the owner's test. Windows and Linux can't stop a program running as the user, and `SECURITY.md` says so. |

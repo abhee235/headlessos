@@ -125,7 +125,7 @@ plain `enc-key` was kept. The docs say so.
 | M16.5 | `SECURITY.md`, the docs and the changelog | ✅ |
 | M16.6 | The app is named HeadlessOS, and its data stays put | ✅ |
 | M16.7 | Version 0.3.0, the changelog and the Mac notes | ✅ |
-| M16.8 | Tag v0.3.0 and check the release | ⬜ |
+| M16.8 | Tag v0.3.0 and check the release | ✅ |
 
 ## Checks
 
@@ -169,5 +169,11 @@ after a verified backup:
 The second launch changes the item's account from `HeadlessOS` to `HeadlessOS Key`, once. Logins kept
 opening, and other Electron apps on the same Mac show the same `Key` account.
 
-**Not run:** on macOS, a sign-in with a saved login, Deny, and another program asking for the item,
-which is the attack this phase is for. Also Linux, the fixed name on Windows, and a universal build.
+**The 0.3.0 draft,** the universal DMG, over that build on the same Mac: the notice appeared again for
+the new version, the owner clicked Always Allow, and a restart opened in a second with no prompt.
+`cognito-web` signed in with its saved key and no connect failures. Servers and preferences carried
+over. The owner reports the Mac tests working; the log can't confirm Deny, so that rests on the report.
+
+**Not run:** Linux, and Gatekeeper on the 0.3.0 file, because `gh` downloads carry no quarantine flag.
+
+v0.3.0 was published on 2026-11-07 from the DMG that was tested, and all six files are there.
