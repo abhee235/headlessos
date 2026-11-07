@@ -12,6 +12,7 @@ import { config as dotenvConfig } from 'dotenv';
 dotenvConfig({ path: resolve(import.meta.dirname, "../../.env") });
 
 import Fastify from "fastify";
+import { errorKind, logOptions } from "./security/log-serializers.js";
 import cors from "@fastify/cors";
 import websocket from "@fastify/websocket";
 import multipart from "@fastify/multipart";
@@ -344,7 +345,7 @@ async function main(): Promise<void> {
   console.log("💾 Output cache + LLM usage tracking enabled");
 
   // -- Fastify --
-  const app = Fastify({ logger: true });
+  const app = Fastify(logOptions);
 
   // ── Anti-DNS-rebinding: Host-header allowlist ───────────
   // The server binds 127.0.0.1, but that alone does not stop DNS rebinding: an
@@ -454,7 +455,7 @@ async function main(): Promise<void> {
       // Reconnection failed — let the route handler deal with it
       console.warn(
         `⚠️  Auto-reconnect failed for ${serverId}:`,
-        (err as Error).message,
+        errorKind(err),
       );
     }
   });

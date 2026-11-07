@@ -88,9 +88,10 @@ export class ParsingPipeline extends BaseService {
           parsedBy: 'deterministic',
           latencyMs: Date.now() - start,
         };
-      } catch (detErr) {
+      } catch {
         // Deterministic parser failed — fall through to LLM
-        console.warn(`[Pipeline] Deterministic parser "${parser.name}" failed for "${command}":`, (detErr as Error).message);
+        // M16.12: no command or message here. Either can hold a path, a name or a password.
+        console.warn(`[Pipeline] Deterministic parser "${parser.name}" failed, so trying the model`);
       }
     }
 

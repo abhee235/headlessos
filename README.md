@@ -186,9 +186,9 @@ The desktop app writes a log to `~/.headlessos/logs/headlessos.log`. To open it,
 **Global Settings → Open log** on the sign-in screen, or **Settings → About** once you're
 connected. It's also under the **Help** button in Control Center, and **Help → Open Logs** in the menu bar.
 
-It holds the backend's output and the app's errors. Passwords, API keys and tokens are masked,
-and it's never sent anywhere. It can still name your servers and file paths, so read it before
-you paste it into an issue.
+It holds failures and the app's own events, not what you open. Passwords, API keys, tokens, server
+addresses and logins are kept out, and it's never sent anywhere. An error can still name a file or
+a server, so read it before you paste it into an issue.
 
 Run from source, the same output goes to the terminal running `npm run dev`.
 

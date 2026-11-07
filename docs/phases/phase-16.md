@@ -124,6 +124,49 @@ also stops saying Linux has no build: 0.2.1 shipped one.
 0.3.1 ships what came after the 0.3.0 tag: EX8.32, EX8.33 and M16.9. None of it changes stored data,
 so a patch version fits. The version goes where M16.7 lists, and only our own entries in the lockfiles.
 
+### The log records failures, not activity (M16.12–M16.14)
+
+The owner asked what the log holds. A real log had no password, key or token, and the install secret
+and API token weren't in it. A test that planted marked values through every path confirmed that:
+the masking holds. It also showed what does get in. 34 of 52 lines were a record of each request,
+naming the server, file paths, containers, services and query values, and a failed connection wrote
+the server's address.
+
+None of that is a secret, but it is a record of what someone did on their servers, in a file people
+paste into public issues. A filter is the wrong answer: it only finds what it has a pattern for. So
+the server stops writing it, and the filter becomes the second line of defence.
+
+- **M16.12: the server writes less.** `security/log-serializers.ts` gives Fastify a `LogController`
+  that writes failures only, and a failure names the route's pattern (`/api/servers/:id/files`), never
+  the real path or query. `disableRequestLogging` isn't used: it is deprecated, and it stops failures
+  being logged too. Fastify's own error lines put the URL or the raw message in the line's text, where
+  a serializer can't reach, so those methods are replaced as well. The desktop app also sets
+  `DOTENV_CONFIG_QUIET`, because dotenv's banner printed a folder path and an advert.
+  An error logs only its name, code, status, a cleaned message and its stack, because an error's own
+  properties can hold an address or a user. SSH failures log `errorKind()`, the code and level
+  (`ECONNREFUSED client-socket`), never the message. Commands aren't logged: the parser pipeline names
+  the parser, and the policy names the program, because `mysql -pSecret` has no label to match.
+- **M16.13: the filter catches what's left.** It now masks every query value, IPv4 and IPv6 addresses
+  apart from loopback, `user@host`, `--password value`, and long hex or base64 values, which is how a
+  secret with no label looks. A private key printed across lines is dropped whole, because the filter
+  sees one line at a time and a key's body has no label. A key that never ends stops being dropped
+  after 100 lines, so it can't silence the log. These rules are only for the log: agent output needs
+  addresses and hashes, so `redact.ts` doesn't have them. The window's own errors lose their query.
+- **M16.14: older logs go.** The first start of this version deletes both log files and writes
+  `logs/format`. Filtering them instead could only remove what a pattern finds, and a log has little
+  value once the problem it recorded is over. Bump `LOG_FORMAT` if the rules get stricter again.
+
+**The log isn't encrypted.** The owner asked about encrypting it, and it stays readable, for three
+reasons. Its job is to be opened and read, and pasted into an issue. A key has to live on the
+computer, so on Windows and Linux a program running as the user could read the log anyway, as
+`SECURITY.md` says about saved logins. And a file with nothing sensitive in it needs no lock. Writing
+a new cipher was never an option: nobody should use one that hasn't been reviewed for years. Saved
+logins are encrypted because they must hold secrets. The log doesn't have to.
+
+**Not changed.** `audit/actions.jsonl` keeps full commands, because that is its job: a record of what
+an agent ran. Traces keep model calls and tool results for the trace viewer, for 30 days, and tool
+output is masked before it gets there. Both stay on the computer.
+
 ### Backups after this phase
 
 On Windows the key that opens `enc-key.keychain` lives in the app's user data folder, not in
@@ -146,6 +189,9 @@ plain `enc-key` was kept. The docs say so.
 | M16.9 | `--user-data-dir` holds all of the app's data again | ✅ |
 | M16.10 | Version 0.3.1 and the changelog | ✅ |
 | M16.11 | Tag v0.3.1 and check the release | ⬜ |
+| M16.12 | The server logs failures, and no requests, commands or addresses | ✅ |
+| M16.13 | The log's filter catches what's left, including a key across lines | ✅ |
+| M16.14 | Older logs are removed once | ✅ |
 
 ## Checks
 
@@ -216,6 +262,27 @@ pixel. The logo loads from the packaged `file://` page in both About views.
 
 `appData` follows `USERPROFILE` on Windows, so a scratch home alone keeps a run away from real data,
 provided it has `AppData\Roaming`.
+
+**The log, on a packaged Windows build,** in a test home, with a local stand-in for a server. The same
+test ran before and after: marked passwords, a private key, a server name, a login, file paths, a
+container, a service, a query value and a window error, through adding servers, a refused connection,
+a wrong password, a bad key and reads that fail.
+
+| In the log | Before | After |
+| --- | --- | --- |
+| Lines per request | 34 of 52 | 0 |
+| Passwords, the key, the API token | 0 | 0 |
+| File paths, containers, services, query values | 6 | 0 |
+| Server addresses and `user@address` | 5 | 0 |
+| Server ids | 8 | 0 |
+| Paths in a window error | 1 | 0 |
+
+The first launch removed the older log, and the next kept the current one. What's left still answers
+what went wrong: `ECONNREFUSED client-socket` for a refused connection, `client-authentication` for a
+wrong password, and the route of each failed request. A real log from the owner's PC, read for
+patterns and not printed, had no secret in it, and neither the install secret nor the API token.
+
+**Not run:** macOS and Linux. The code is the same on all three, and no part of this is per platform.
 
 **Not run:** Linux, and Gatekeeper on the 0.3.0 file, because `gh` downloads carry no quarantine flag.
 

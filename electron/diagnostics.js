@@ -1,5 +1,7 @@
 // M15.2, M15.3: Desktop diagnostics: what to do when the backend exits, and the log file
-// @see docs/phases/phase-15.md
+// M16.13, M16.14: the filter is the second line of defence. The first is that the server doesn't
+// write requests, commands or addresses at all (server/src/security/log-serializers.ts).
+// @see docs/phases/phase-15.md, docs/phases/phase-16.md
 //
 // Plain Node with no Electron imports, so the tests can load it.
 
@@ -7,6 +9,14 @@ const fs = require('fs');
 const path = require('path');
 
 const LOG_MAX_BYTES = 5 * 1024 * 1024;
+
+// M16.14: bump when the log gets stricter, so lines written under the old rules don't stay behind
+const LOG_FORMAT = '2';
+
+// M16.13: the most lines a private key can run to, so a key that never ends can't silence the log
+const KEY_LINES = 100;
+const KEY_START = /-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----/;
+const KEY_END = /-----END [A-Z0-9 ]*PRIVATE KEY-----/;
 
 // The same patterns as server/src/agent/actions/redact.ts: main.js is not bundled with the
 // server, so it can't import them. diagnostics.test.ts feeds both the same samples.
@@ -24,10 +34,22 @@ const RULES = [
   [/\bglpat-[A-Za-z0-9_-]{20,}/g, '[gitlab token removed]'],
   [/\bxox[abprs]-[A-Za-z0-9-]{10,}/g, '[slack token removed]'],
   [/\$(?:1|5|6|y|2[aby])\$[./A-Za-z0-9$]{20,}/g, '[hash removed]'],
-  // withToken() carries the API token in a query string, and Fastify logs request URLs
-  [/([?&]token=)[^&\s"']+/gi, '$1[redacted]'],
+  // withToken() carries the API token in a query string. Other values name files on a server.
+  [/([?&][A-Za-z0-9_.-]+=)[^&\s"']+/g, '$1[redacted]'],
   // Fastify puts this computer's name on every line, and people paste logs into issues
   [/"hostname":"[^"]*",?/g, ''],
+  // M16.13: these next rules are only for the log. They aren't passwords, but people paste logs
+  // into public issues, and a stray secret can arrive with no label on it.
+  [/\b[\w.+-]+@[\w-]+(?:\.[\w-]+)*/g, '[user]@[host]'],
+  [
+    /\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b/g,
+    (ip) => (ip === '127.0.0.1' || ip === '0.0.0.0' ? ip : '[address]'),
+  ],
+  [/(?<![\w:])(?:[0-9a-f]{1,4}:){1,7}:(?:[0-9a-f]{1,4}(?::[0-9a-f]{1,4}){0,6})?(?![\w:])/gi, '[address]'],
+  [/(?<![\w:])[0-9a-f]{1,4}(?::[0-9a-f]{1,4}){7}(?![\w:])/gi, '[address]'],
+  [/(--?(?:password|passwd|pass|passphrase|token|secret|api-key)\s+)\S+/gi, '$1[redacted]'],
+  [/\b[a-f0-9]{32,}\b/gi, '[hex removed]'],
+  [/[A-Za-z0-9+/]{40,}={0,2}/g, (m) => (/\d/.test(m) && /[A-Z]/.test(m) && /[a-z]/.test(m) ? '[data removed]' : m)],
   [
     new RegExp(`(["']?\\b${SECRET_KEY}["']?)(\\s*[=:]\\s*)("[^"\\n]*"|'[^'\\n]*'|\\[(?:redacted|[a-z ]+ removed)\\]|[^\\s,;}\\]]+)`, 'gi'),
     (m, key, sep, value) =>
@@ -35,6 +57,19 @@ const RULES = [
       /^["']?(old)?pwd["']?$/i.test(key) || NOT_A_SECRET.test(value) ? m : `${key}${sep}[redacted]`,
   ],
 ];
+
+/** Delete logs written under older rules, once. A failure is ignored, as with any log write. */
+function dropOlderLogs(dir, files) {
+  const mark = path.join(dir, 'format');
+  try {
+    if (fs.existsSync(mark) && fs.readFileSync(mark, 'utf8').trim() === LOG_FORMAT) return;
+    fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+    for (const file of files) fs.rmSync(file, { force: true });
+    fs.writeFileSync(mark, LOG_FORMAT, { mode: 0o600 });
+  } catch {
+    /* the next launch tries again */
+  }
+}
 
 /** Remove secrets from one line of log text */
 function redactLogLine(line) {
@@ -51,6 +86,8 @@ function createLog({ dir, home, maxBytes = LOG_MAX_BYTES, now = () => new Date()
   const file = path.join(dir, 'headlessos.log');
   const oldFile = path.join(dir, 'headlessos.1.log');
   const partial = new Map(); // source → text waiting for its newline
+  const keyLines = new Map(); // source → lines still to drop from a private key
+  dropOlderLogs(dir, [file, oldFile]);
   // As written, in a URL or log text with / and, on Windows, escaped inside JSON
   const homes = home
     ? [...new Set([home.replaceAll('\\', '\\\\'), home.replaceAll('\\', '/'), home])]
@@ -60,6 +97,13 @@ function createLog({ dir, home, maxBytes = LOG_MAX_BYTES, now = () => new Date()
   function line(source, text) {
     // HEADLESSOS_TOKEN is the API token, printed for main.js to read
     if (!text.trim() || text.includes('HEADLESSOS_TOKEN:')) return;
+    // A key printed across lines: the filter sees one line at a time, and the body has no label
+    const left = keyLines.get(source) ?? 0;
+    if (left > 0) {
+      keyLines.set(source, KEY_END.test(text) ? 0 : left - 1);
+      return;
+    }
+    if (KEY_START.test(text) && !KEY_END.test(text)) keyLines.set(source, KEY_LINES);
     try {
       const clean = homes.reduce((out, h) => out.replaceAll(h, '~'), redactLogLine(text));
       const entry = `${now().toISOString()} [${source}] ${clean}\n`;
