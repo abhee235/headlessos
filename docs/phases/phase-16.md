@@ -191,7 +191,7 @@ opening, and other Electron apps on the same Mac show the same `Key` account.
 
 **The 0.3.0 draft,** the universal DMG, over that build on the same Mac: the notice appeared again for
 the new version, the owner clicked Always Allow, and a restart opened in a second with no prompt.
-`cognito-web` signed in with its saved key and no connect failures. Servers and preferences carried
+A server signed in with its saved key and no connect failures. Servers and preferences carried
 over. The owner reports the Mac tests working; the log can't confirm Deny, so that rests on the report.
 
 **Not run:** Linux, and Gatekeeper on the 0.3.0 file, because `gh` downloads carry no quarantine flag.
