@@ -1,4 +1,5 @@
 // M1.6 + M5.3: Server Config Management with credential encryption
+// M16.1: a stored secret that can't be opened is kept, not dropped
 // @see docs/phases/phase-1.md, docs/SECURITY.md
 
 import { readFile, rename, writeFile, mkdir, chmod } from 'fs/promises';
@@ -15,7 +16,9 @@ const DEFAULT_CONFIG_DIR = join(homedir(), '.headlessos');
 /** M15.12: what must never sit on disk in plain text */
 const SECRET_FIELDS = ['password', 'privateKeyPath', 'passphrase'] as const;
 
-/** A secret that can't be decrypted is lost, but its server isn't: the owner signs in again */
+type SecretField = (typeof SECRET_FIELDS)[number];
+
+/** A secret that can't be decrypted now stays out of memory; the owner can still sign in by hand */
 function readSecret(value: string | undefined): string | undefined {
   if (!value) return undefined;
   try {
@@ -27,6 +30,8 @@ function readSecret(value: string | undefined): string | undefined {
 
 export class ConfigStore extends BaseService {
   private servers: ServerConfig[] = [];
+  /** M16.1: stored values that couldn't be opened, written back as they were */
+  private unreadable = new Map<string, Partial<Record<SecretField, string>>>();
   private readonly configDir: string;
   private readonly serversFile: string;
 
@@ -67,7 +72,12 @@ export class ConfigStore extends BaseService {
       id: randomUUID(),
     };
     this.servers.push(server);
-    await this.save();
+    try {
+      await this.save();
+    } catch (err) {
+      this.servers.pop(); // M16.1: a new secret can't be saved while logins are locked
+      throw err;
+    }
     return server;
   }
 
@@ -75,8 +85,14 @@ export class ConfigStore extends BaseService {
     const index = this.servers.findIndex(s => s.id === id);
     if (index === -1) throw new Error(`Server "${id}" not found`);
 
-    this.servers[index] = { ...this.servers[index]!, ...updates, id };
-    await this.save();
+    const before = this.servers[index]!;
+    this.servers[index] = { ...before, ...updates, id };
+    try {
+      await this.save();
+    } catch (err) {
+      this.servers[index] = before; // M16.1: as in addServer
+      throw err;
+    }
     return this.servers[index]!;
   }
 
@@ -85,6 +101,7 @@ export class ConfigStore extends BaseService {
     if (index === -1) throw new Error(`Server "${id}" not found`);
 
     this.servers.splice(index, 1);
+    this.unreadable.delete(id);
     await this.save();
   }
 
@@ -132,8 +149,18 @@ export class ConfigStore extends BaseService {
       passphrase: readSecret(s.passphrase),
     }));
 
-    // Migrate plain text and older encryption (M15.18). A secret that can't be read must not
-    // cause a save: that would drop it, and the next start may be able to read it.
+    // M16.1: whatever didn't open stays on disk for when it can
+    this.unreadable.clear();
+    stored.forEach((s, i) => {
+      const kept: Partial<Record<SecretField, string>> = {};
+      for (const field of SECRET_FIELDS) {
+        if (s[field] && this.servers[i]![field] === undefined) kept[field] = s[field];
+      }
+      if (Object.keys(kept).length > 0) this.unreadable.set(s.id, kept);
+    });
+
+    // Migrate plain text and older encryption (M15.18). A secret that can't be read gives no
+    // reason to save.
     const needsMigration = stored.some(s =>
       SECRET_FIELDS.some(field =>
         s[field] && !isCurrentEncryption(s[field]!) && readSecret(s[field]) !== undefined,
@@ -146,11 +173,15 @@ export class ConfigStore extends BaseService {
 
   private async save(): Promise<void> {
     // M5.3, M15.12: encrypt credentials before writing to disk
+    const seal = (s: ServerConfig, field: SecretField) => {
+      const value = s[field];
+      return value ? encrypt(value) : this.unreadable.get(s.id)?.[field];
+    };
     const encrypted = this.servers.map(s => ({
       ...s,
-      password: s.password ? encrypt(s.password) : undefined,
-      privateKeyPath: s.privateKeyPath ? encrypt(s.privateKeyPath) : undefined,
-      passphrase: s.passphrase ? encrypt(s.passphrase) : undefined,
+      password: seal(s, 'password'),
+      privateKeyPath: seal(s, 'privateKeyPath'),
+      passphrase: seal(s, 'passphrase'),
     }));
     await writeFile(this.serversFile, JSON.stringify(encrypted, null, 2), {
       encoding: 'utf-8',

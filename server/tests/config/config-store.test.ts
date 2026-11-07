@@ -96,6 +96,31 @@ describe('a file it cannot fully read', () => {
     expect((await onDisk()).map((s) => s.name)).toEqual(['pi', 'second']);
   });
 
+  it('M16.1: writes an unreadable secret back as it was, so it can still open later', async () => {
+    const first = await open();
+    await first.addServer({ ...server, privateKeyPath: undefined, passphrase: undefined });
+    const [saved] = await onDisk();
+    const unreadable = `${saved!.password!.slice(0, -4)}0000`;
+    await writeFile(file, JSON.stringify([{ ...saved, password: unreadable }]));
+
+    const second = await open();
+    await second.addServer({ ...server, name: 'second' });
+
+    expect((await onDisk())[0]!.password).toBe(unreadable);
+  });
+
+  it('M16.1: lets a new password replace an unreadable one', async () => {
+    const first = await open();
+    const { id } = await first.addServer({ ...server, privateKeyPath: undefined, passphrase: undefined });
+    const [saved] = await onDisk();
+    await writeFile(file, JSON.stringify([{ ...saved, password: `${saved!.password!.slice(0, -4)}0000` }]));
+
+    const second = await open();
+    await second.updateServer(id, { password: 'a new password' });
+
+    expect((await (await open()).getServer(id))?.password).toBe('a new password');
+  });
+
   it('moves a broken file aside instead of saving over it', async () => {
     await writeFile(file, '{ not json');
 

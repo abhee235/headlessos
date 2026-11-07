@@ -1,5 +1,6 @@
 // M5.3: Credential encryption — AES-256-GCM for passwords at rest
 // M15.18: the key no longer depends on the computer's name (ADR-028)
+// M16.1: the desktop app hands the secret over from the OS keychain (ADR-029)
 // @see docs/SECURITY.md § Credential Storage
 
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'crypto';
@@ -22,16 +23,36 @@ const CURRENT_PREFIX = `${ENCRYPTED_PREFIX}v2:`;
 // M1: a random per-install secret is mixed into the key so the encryption does
 // not depend only on guessable machine facts (hostname + uid). Stored 0600.
 const KEY_FILE = join(homedir(), '.headlessos', 'enc-key');
+// M16.2: where electron/keychain.js keeps it instead. Only the main process can open this.
+const KEYCHAIN_FILE = join(homedir(), '.headlessos', 'enc-key.keychain');
 let _secretCache: string | null = null;
+
+/** M16.1: the secret exists, but this process wasn't given it */
+export class LoginsLockedError extends Error {
+  constructor() {
+    super("Your saved logins are locked, so new ones can't be saved yet.");
+    this.name = 'LoginsLockedError';
+  }
+}
 
 function getInstallSecret(): string {
   if (_secretCache) return _secretCache;
+
+  const handed = process.env.HEADLESSOS_INSTALL_SECRET;
+  delete process.env.HEADLESSOS_INSTALL_SECRET; // nothing this process starts should inherit it
+  if (handed && handed.length >= 32) { _secretCache = handed; return handed; }
+
   try {
     if (existsSync(KEY_FILE)) {
       const s = readFileSync(KEY_FILE, 'utf8').trim();
       if (s.length >= 32) { _secretCache = s; return s; }
     }
   } catch { /* regenerate below */ }
+
+  // A new secret here would orphan every saved login, and the app would then store it over the
+  // real one. Locked can be undone; that couldn't.
+  if (existsSync(KEYCHAIN_FILE)) throw new LoginsLockedError();
+
   const secret = randomBytes(32).toString('hex');
   try {
     const dir = join(homedir(), '.headlessos');
@@ -41,6 +62,23 @@ function getInstallSecret(): string {
   } catch { /* fall back to in-memory secret for this process */ }
   _secretCache = secret;
   return secret;
+}
+
+/** M16.1: can saved logins be opened in this process? */
+export function loginsLocked(): boolean {
+  try {
+    getInstallSecret();
+    return false;
+  } catch (err) {
+    if (err instanceof LoginsLockedError) return true;
+    throw err;
+  }
+}
+
+/** M16.4: where the install secret is held */
+export function secretStore(): 'keychain' | 'file' | 'locked' {
+  if (loginsLocked()) return 'locked';
+  return existsSync(KEYCHAIN_FILE) ? 'keychain' : 'file';
 }
 
 /**

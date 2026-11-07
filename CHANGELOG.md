@@ -3,6 +3,24 @@
 All notable changes to HeadlessOS. Task IDs (M14, EX11, …) point to the phase specs in
 [docs/phases/](docs/phases/); [docs/PROGRESS.md](docs/PROGRESS.md) has the full log.
 
+## Unreleased
+
+### Security
+- **The key to your saved logins is in the OS keychain.** It was a plain file beside the logins, so
+  a copy of the folder, or a program you were tricked into installing, could read them. A copy of
+  the folder no longer opens on its own, on any platform with a keychain. On a Mac, other apps are
+  kept out too: macOS asks, naming the app. Windows and Linux can't stop a program running as you
+  (M16.2).
+
+### Changed
+- On a Mac, HeadlessOS says why before macOS asks for your Keychain password. Because the app isn't
+  signed yet, this can happen once after each update (M16.3).
+- If saved logins can't be opened, the sign-in screen says they're locked and what to do. Global
+  Settings shows where the key is held (M16.4).
+
+### Fixed
+- A saved login that couldn't be opened was dropped at the next save. It's now kept (M16.1).
+
 ## 0.2.1 — 2026-11-06
 
 ### Added

@@ -1,7 +1,7 @@
 // M1.8: API Client
 // @see docs/phases/phase-1.md
 
-import type { ServerConfig, ConnectionState, ConnectFailure, ApiResponse } from 'headlessos-shared';
+import type { ServerConfig, ConnectionState, ConnectFailure, SecretStore, ApiResponse } from 'headlessos-shared';
 import type {
   SessionState,
   SessionSummary,
@@ -144,9 +144,17 @@ export interface ConnectCredentials {
   passphrase?: string;
 }
 
-/** M15.17: a damaged server list that was kept aside at startup */
-export async function fetchServerNotice(): Promise<{ damagedList: string | null }> {
-  return request<{ damagedList: string | null }>('/servers/notice');
+/** M15.17, M16.4: what the sign-in screen and Settings should know about saved data */
+export interface ServerNotice {
+  /** A damaged server list that was kept aside at startup */
+  damagedList: string | null;
+  /** Set while saved logins can't be opened */
+  locked: ConnectFailure | null;
+  secretStore: SecretStore;
+}
+
+export async function fetchServerNotice(): Promise<ServerNotice> {
+  return request<ServerNotice>('/servers/notice');
 }
 
 /** M15.14: what to show for a failed connect. Only an answer from the backend carries a failure. */

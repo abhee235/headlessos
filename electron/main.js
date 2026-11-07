@@ -5,11 +5,16 @@
 // In dev mode, connects to localhost:3000 (Vite dev server).
 // In production, loads the built client from ../client/dist/.
 
-const { app, BrowserWindow, Menu, shell, dialog, ipcMain, utilityProcess } = require('electron');
+const { app, BrowserWindow, Menu, safeStorage, shell, dialog, ipcMain, utilityProcess } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { backendExitAction, createLog, describeExit } = require('./diagnostics');
+const { keychainNotice, markKeychainExplained, openInstallSecret, shouldExplainKeychain } = require('./keychain');
+
+// M16.6: the name comes from productName, and Electron names the Keychain item after it. The window's
+// data (theme, preferences, sessions) stays where every release has kept it, or an update resets it.
+app.setPath('userData', path.join(app.getPath('appData'), 'headlessos-desktop'));
 
 const IS_DEV = process.argv.includes('--dev') || process.env.NODE_ENV === 'development';
 const DEV_URL = 'http://localhost:3000';
@@ -44,6 +49,27 @@ function getServerPath() {
 }
 
 /**
+ * M16.2: only this process can use the OS keychain, so it opens the install secret for the
+ * backend. M16.3: on a Mac it says why a password prompt may follow, once per version.
+ */
+function openSecretForBackend() {
+  const dir = path.join(os.homedir(), '.headlessos');
+  const version = app.getVersion();
+  try {
+    if (shouldExplainKeychain({ dir, version })) {
+      dialog.showMessageBoxSync(keychainNotice(app.getName()));
+      markKeychainExplained({ dir, version });
+    }
+    const opened = openInstallSecret({ dir, safeStorage, note: (text) => log.line('main', text) });
+    log.line('main', `saved logins: ${opened.store}`);
+    return opened.secret;
+  } catch (err) {
+    log.line('main', `saved logins: ${err.message}`);
+    return null; // the backend then reports locked, or uses the plain file
+  }
+}
+
+/**
  * Spawn the bundled Fastify backend with PORT=0 so the OS picks a free port.
  * Resolves with the actual port once the server writes HEADLESSOS_PORT:<n> to stdout.
  */
@@ -57,12 +83,15 @@ function startServer() {
     const serverPath = getServerPath();
     let ready = false;
 
+    const installSecret = openSecretForBackend();
+
     log.line('main', 'starting the backend');
     serverProcess = utilityProcess.fork(serverPath, [], {
       env: {
         ...process.env,
         PORT: '0',           // OS assigns a free port — no conflicts
         NODE_ENV: 'production',
+        ...(installSecret ? { HEADLESSOS_INSTALL_SECRET: installSecret } : {}),
       },
       stdio: 'pipe',
     });

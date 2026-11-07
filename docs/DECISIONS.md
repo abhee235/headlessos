@@ -1384,6 +1384,42 @@ adds no real strength, so removing it costs almost nothing and removes a way to 
 
 ---
 
+## ADR-029: The OS Keychain Holds the Install Secret, Not Each Secret
+
+**Status:** Accepted
+**Date:** 2026-11-06
+
+**Context:**
+`enc-key` sits in plain text beside the secrets it opens, so a copy of `~/.headlessos` opens anywhere,
+and a program a user is tricked into installing can read both. ADR-028 named the OS keychain as the
+real fix. Electron's `safeStorage` is only available in the main
+process, and the backend is a utility process, or a plain Node process under `npm run dev`.
+
+**Options Considered:**
+1. **Move each secret into the keychain** — every value migrates, and a failure part-way leaves some
+   in each place.
+2. **Protect only the install secret** — one value moves, and every `enc:v2:` value stays as it is.
+3. **A native keychain module in the backend** — works under dev too, but adds a native dependency
+   to build for every platform.
+
+**Decision:** Option 2, with `safeStorage` in the main process.
+
+**Rationale:**
+One value moving is a change that can be proved and undone: a plain `enc-key` put back wins, so a
+backup from before this still restores. Options 1 and 3 add risk without protecting anything more.
+
+**Consequences:**
+- (+) A copy of the folder alone no longer opens.
+- (+) No saved secret is rewritten.
+- (+) On macOS the Keychain also stops other programs running as the user. It asks, naming them.
+- (-) On Windows and Linux, a program running as the user can still ask the OS to decrypt. Only a
+  master password would close that, and it's a later decision.
+- (-) An unsigned Mac build is asked for the Keychain again after each update, so the app explains
+  the prompt first. Signing the build removes this.
+- (-) A dev server on the same computer as the desktop app needs the secret in its private `.env`.
+
+---
+
 ## Template for New ADRs
 
 ```markdown
