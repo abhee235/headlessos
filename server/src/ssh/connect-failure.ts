@@ -2,8 +2,9 @@
 // M16.4: locked logins, which must never read as lost ones
 // @see docs/phases/phase-15.md
 //
-// The raw error goes to the log. The window gets a plain title and hint, the exact error to
-// search for, and the section of the Troubleshooting page that covers it.
+// The log gets only the kind of error (M16.12), because the raw one names the address and the user.
+// The window gets a plain title and hint, the exact error to search for, and the section of the
+// Troubleshooting page that covers it.
 
 import type { ConnectFailure, ServerConfig } from 'headlessos-shared';
 import { isAuthFailure, sanitizeErrorMessage } from '../security/validators.js';
