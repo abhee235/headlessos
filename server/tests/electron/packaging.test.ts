@@ -82,3 +82,22 @@ describe('macOS build', () => {
     expect(pkg.build.mac.extendInfo.NSLocalNetworkUsageDescription).toMatch(/SSH/);
   });
 });
+
+// M16.6: Electron names the Keychain item after the app, and that name also picks the data folder
+describe('app name', () => {
+  const electron = join(root, 'electron');
+  const pkg = JSON.parse(readFileSync(join(electron, 'package.json'), 'utf8'));
+
+  it('is HeadlessOS, so the Keychain item is the one SECURITY.md names', () => {
+    expect(pkg.productName).toBe('HeadlessOS');
+    const security = readFileSync(join(root, 'SECURITY.md'), 'utf8');
+    expect(security).toContain(`"${pkg.productName} Safe Storage"`);
+  });
+
+  it('keeps the data folder every release has used, so an update keeps preferences', () => {
+    const main = readFileSync(join(electron, 'main.js'), 'utf8');
+    const pin = main.indexOf("app.setPath('userData', path.join(app.getPath('appData'), 'headlessos-desktop'))");
+    expect(pin).toBeGreaterThan(-1);
+    expect(pin).toBeLessThan(main.indexOf('app.whenReady'));
+  });
+});

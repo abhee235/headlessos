@@ -83,6 +83,22 @@ desktop app. Only someone running both on one computer is affected. They add
 keychain file, and nothing changes for them. The app's own data folder isn't split: 11 changes for
 one person's setup isn't worth it.
 
+### The app's name (M16.6)
+
+Electron names the Keychain item after the app. `electron/package.json` had `productName` only under
+`build`, which names the bundle, so inside the app the name was `headlessos-desktop`. The first Mac
+run showed it: the item was `headlessos-desktop Safe Storage` and the notice said the same, while
+`SECURITY.md` tells people to look for `HeadlessOS Safe Storage`. The notice asks people to deny any
+other app, so the name has to be one they recognise.
+
+- `productName` goes at the top level of `electron/package.json`. `name` stays: it names the Linux
+  package.
+- That name also picks the folder for the window's data: theme, preferences and sessions.
+  `main.js` pins `userData` to `headlessos-desktop` so an update keeps them.
+- It has to ship with M16. Later, a new name would mean a different Keychain item, and every Mac's
+  logins would lock. No release has the keychain yet, so nobody is affected. A Mac that ran an
+  earlier M16 build needs a plain `enc-key` put back once.
+
 ### Backups after this phase
 
 On Windows the key that opens `enc-key.keychain` lives in the app's user data folder, not in
@@ -99,6 +115,7 @@ plain `enc-key` was kept. The docs say so.
 | M16.3 | macOS explains the prompt before it appears | ✅ |
 | M16.4 | Locked logins say so, and Settings shows where the secret is held | ✅ |
 | M16.5 | `SECURITY.md`, the docs and the changelog | ✅ |
+| M16.6 | The app is named HeadlessOS, and its data stays put | ✅ |
 
 ## Checks
 
@@ -128,5 +145,19 @@ the owner's backup, in a test home that was deleted afterwards. No real server w
 The secret never reached the log. The log's filter masked the first wording of the status line
 (`install secret: ...`), so it now reads `saved logins: keychain`.
 
-**Not run:** macOS (the dialog, the prompt, Always Allow and Deny), and Linux. The behaviour on a Mac
-is what this phase is for, so it needs the owner's test before release.
+**macOS 26.5.2 on Apple Silicon,** with a local unsigned arm64 build on the owner's real folder,
+after a verified backup:
+
+1. **Upgrade:** the notice appeared, `enc-key` moved to `enc-key.keychain` and was removed, and
+   `servers.json` stayed byte-identical. The key is in neither the new file nor the log.
+2. **Restart:** three restarts in a row read `saved logins: keychain`, with nothing locked.
+3. **The name:** the first run made `headlessos-desktop Safe Storage`, which is M16.6. After the fix
+   the item is `HeadlessOS Safe Storage`, no new data folder appears, and saved preferences load.
+4. **Restore:** the fix can't open a secret stored under the old name, so a plain `enc-key` from the
+   backup was put back. It won and moved into the new item.
+
+The second launch changes the item's account from `HeadlessOS` to `HeadlessOS Key`, once. Logins kept
+opening, and other Electron apps on the same Mac show the same `Key` account.
+
+**Not run:** on macOS, a sign-in with a saved login, Deny, and another program asking for the item,
+which is the attack this phase is for. Also Linux, the fixed name on Windows, and a universal build.

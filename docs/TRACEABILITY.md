@@ -1620,6 +1620,13 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-16.md`, `docs/DECISIONS.md` (ADR-029)
 - **Verification:** packaged Windows build on the real keychain, with a copy of real data: upgrade, restart, another profile, restore
 
+### M16.6: The app is named HeadlessOS, and its data stays put
+- **Status:** ✅ Complete
+- **Date:** 2026-11-07
+- **Files modified:** `electron/package.json`, `electron/main.js`, `server/tests/electron/packaging.test.ts`
+- **Docs:** `docs/phases/phase-16.md` ("The app's name (M16.6)")
+- **Verification:** packaging tests fail without the fix; local packaged Mac build on real data: upgrade, restart, restore
+
 ## How to Use This File
 
 ### After completing a task:

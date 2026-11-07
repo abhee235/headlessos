@@ -12,6 +12,10 @@ const os = require('os');
 const { backendExitAction, createLog, describeExit } = require('./diagnostics');
 const { keychainNotice, markKeychainExplained, openInstallSecret, shouldExplainKeychain } = require('./keychain');
 
+// M16.6: the name comes from productName, and Electron names the Keychain item after it. The window's
+// data (theme, preferences, sessions) stays where every release has kept it, or an update resets it.
+app.setPath('userData', path.join(app.getPath('appData'), 'headlessos-desktop'));
+
 const IS_DEV = process.argv.includes('--dev') || process.env.NODE_ENV === 'development';
 const DEV_URL = 'http://localhost:3000';
 // In packaged app, client/dist lands in Resources/ via extraResources.
