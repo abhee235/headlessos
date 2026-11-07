@@ -1620,6 +1620,13 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-16.md`, `docs/DECISIONS.md` (ADR-029)
 - **Verification:** packaged Windows build on the real keychain, with a copy of real data: upgrade, restart, another profile, restore
 
+### M16.7: Version 0.3.0, the changelog and the Mac notes
+- **Status:** ✅ Complete
+- **Date:** 2026-11-07
+- **Files modified:** every `package.json`, both lockfiles, `server/src/index.ts`, `client/src/components/Desktop/Desktop.tsx`, `client/src/components/Desktop/SettingsView.tsx`, `CHANGELOG.md`, `README.md`, `.github/workflows/release.yml`
+- **Docs:** `docs/phases/phase-16.md` ("Version 0.3.0 (M16.7)")
+- **Verification:** test suites and typecheck before commit
+
 ### M16.6: The app is named HeadlessOS, and its data stays put
 - **Status:** ✅ Complete
 - **Date:** 2026-11-07

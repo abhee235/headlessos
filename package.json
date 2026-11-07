@@ -31,5 +31,5 @@
   "overrides": {
     "dompurify": "^3.4.17"
   },
-  "version": "0.2.1"
+  "version": "0.3.0"
 }

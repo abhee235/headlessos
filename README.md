@@ -132,7 +132,7 @@ Download the desktop app from this repository's **Releases** page:
 |----------|------|
 | macOS (Apple Silicon and Intel) | `HeadlessOS-*-universal.dmg` |
 | Windows | `HeadlessOS Setup *.exe` (installer) or `HeadlessOS *.exe` (portable) |
-| Linux | No build yet: run from source, or `npm run build:dist:linux` |
+| Linux | `HeadlessOS-*.AppImage`, or `headlessos-desktop_*.deb` for Debian and Ubuntu |
 
 The builds may be unsigned, so the first launch shows a warning:
 - **macOS:** follow [First launch on a Mac](#first-launch-on-a-mac).
@@ -153,6 +153,8 @@ The app isn't signed with an Apple developer certificate, so macOS blocks it the
 macOS remembers this for the copy you installed, so you won't be asked again. A new version is a new download, so it needs the same step once.
 
 If macOS says the app "is damaged", run `xattr -cr /Applications/HeadlessOS.app` in Terminal and open it again.
+
+HeadlessOS keeps the key to your saved logins in the macOS Keychain, so other apps can't read it. When macOS asks, enter your Mac password and click **Always Allow**. Because the app isn't signed, this can happen once after each update. If any other app ever asks for "HeadlessOS Safe Storage", click **Deny**.
 
 ## Run From Source
 

@@ -99,6 +99,14 @@ other app, so the name has to be one they recognise.
   logins would lock. No release has the keychain yet, so nobody is affected. A Mac that ran an
   earlier M16 build needs a plain `enc-key` put back once.
 
+### Version 0.3.0 (M16.7)
+
+0.3.0, because this adds a feature people will notice: a Mac asks for a password, once after each
+update, until the build is signed. The version goes in every `package.json`, `server/src/index.ts`,
+the About page, `Desktop.tsx` and both lockfiles' own entries, and `CHANGELOG.md` gets a dated entry.
+The README and the release notes say what to click when macOS asks, because neither did. The README
+also stops saying Linux has no build: 0.2.1 shipped one.
+
 ### Backups after this phase
 
 On Windows the key that opens `enc-key.keychain` lives in the app's user data folder, not in
@@ -116,6 +124,8 @@ plain `enc-key` was kept. The docs say so.
 | M16.4 | Locked logins say so, and Settings shows where the secret is held | ✅ |
 | M16.5 | `SECURITY.md`, the docs and the changelog | ✅ |
 | M16.6 | The app is named HeadlessOS, and its data stays put | ✅ |
+| M16.7 | Version 0.3.0, the changelog and the Mac notes | ✅ |
+| M16.8 | Tag v0.3.0 and check the release | ⬜ |
 
 ## Checks
 
