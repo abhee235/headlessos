@@ -38,6 +38,11 @@ describe('interface font', () => {
     expect(mac).toContain('Manrope Variable');
   });
 
+  it('draws a Mac at native weight, and leaves the smoothing rule everyone else has', () => {
+    expect(built).toMatch(/\[data-platform=["']?mac["']?\] body\{-webkit-font-smoothing:auto/);
+    expect(built).toMatch(/(?:^|})body\{[^}]*-webkit-font-smoothing:antialiased/);
+  });
+
   it('is set in one place, so no screen stays on Manrope on a Mac', () => {
     expect(src('components/HomeHub/HomeHub.tsx')).not.toContain('Manrope');
     // @theme inline writes the Manrope list into the font-sans class, so it can't follow a Mac

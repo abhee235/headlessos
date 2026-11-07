@@ -762,6 +762,9 @@ Manrope stands out beside every other app.
   in Chromium `-apple-system` finds nothing (measured: it rendered Manrope), and the name that does
   work, `BlinkMacSystemFont`, is turned into `system-ui`, which on Windows would be Segoe UI. The
   owner requires Windows to stay as it is, so this must not depend on how Chromium treats a name.
+- The body rule sets `-webkit-font-smoothing: antialiased`, which thins text on a Mac, and native apps
+  don't use it. San Francisco alone still looked thin in the Home hub, where text is also scaled to
+  about 0.77, so a Mac gets `auto`. The property only works on macOS, and the rule is scoped to a Mac.
 - SF isn't bundled. Apple's licence keeps it to Apple platforms, so the app only asks macOS for it.
 - `HomeHub` named Manrope itself, and toasts used the `font-sans` class, which `@theme inline` writes
   out as the Manrope list. Both now read `--font-sans`, which gives Windows the same list as before.

@@ -356,6 +356,12 @@
   --font-sans: system-ui, -apple-system, 'Manrope Variable', 'Manrope', sans-serif;
 }
 
+/* The body rule below thins text on a Mac, and native apps don't. Stems were visibly lighter. */
+:root[data-platform="mac"] body {
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+}
+
 body {
   font-family: var(--font-sans);
   background-color: var(--background);
