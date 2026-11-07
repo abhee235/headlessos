@@ -31,11 +31,20 @@ beforeEach(() => {
 });
 
 describe('Launcher', () => {
-  it('draws quick actions as slim pills, not squares', () => {
+  it('draws quick actions as colour tiles with their names, smaller than the apps', () => {
+    act(() => usePreferencesStore.setState({ dockIconStyle: 'color' }));
     render(<StartMenu />);
     const action = screen.getByRole('button', { name: 'Personalize' });
-    expect(action).toHaveClass('h-10');
-    expect(action).not.toHaveClass('flex-col');
+    expect(action).toHaveClass('aspect-square', 'max-w-[80px]');
+    expect(action).toHaveTextContent('Personalize');
+    expect(action.querySelector('.lumen-plate')).toBeNull();
+    expect(action.querySelector<HTMLElement>('[style*="linear-gradient"]')).not.toBeNull();
+  });
+
+  it('keeps quick actions on glass when the dock is set to Glass', () => {
+    act(() => usePreferencesStore.setState({ dockIconStyle: 'glass' }));
+    render(<StartMenu />);
+    expect(screen.getByRole('button', { name: 'Personalize' }).querySelector('.lumen-plate')).not.toBeNull();
   });
 
   it('keeps what a quick action does', () => {

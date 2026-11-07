@@ -5,7 +5,7 @@
 // @see docs/phases/phase-ex8.md
 
 import type { CSSProperties, ReactNode } from 'react';
-import { Globe } from 'lucide-react';
+import { ArrowLeftRight, Globe, Lock, Monitor, Palette } from 'lucide-react';
 import { AppIcon } from '@/components/ui/FileIcon';
 import { cn } from '@/lib/utils';
 
@@ -33,6 +33,11 @@ export const DOCK_TILES: Record<string, TileSpec> = {
   'ui-agent': { bg: WHITE, glyph: { kind: 'icon', size: 36 } },
   'dynamic-ui': { bg: WHITE, glyph: { kind: 'icon', size: 36 } },
   observatory: { bg: WHITE, glyph: { kind: 'icon', size: 36 } },
+  // EX8.33: the launcher's quick actions that aren't apps
+  personalize: { bg: 'linear-gradient(180deg,#F472B6,#C026D3)', glyph: { kind: 'lucide', node: <Palette strokeWidth={1.9} className="size-[28px] text-white" /> } },
+  desktop: { bg: 'linear-gradient(180deg,#2DD4BF,#0D9488)', glyph: { kind: 'lucide', node: <Monitor strokeWidth={1.9} className="size-[28px] text-white" /> } },
+  switch: { bg: 'linear-gradient(180deg,#FBBF24,#EA7A0C)', glyph: { kind: 'lucide', node: <ArrowLeftRight strokeWidth={1.9} className="size-[28px] text-white" /> } },
+  lock: { bg: 'linear-gradient(180deg,#818CF8,#4F46E5)', glyph: { kind: 'lucide', node: <Lock strokeWidth={1.9} className="size-[28px] text-white" /> } },
 };
 
 /** Tile chrome shared by the colour tiles: top highlight, hairline, soft drop */

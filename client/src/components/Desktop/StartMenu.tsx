@@ -3,9 +3,9 @@
 // date + greeting header with a server chip, recessed search, quick actions,
 // app grid, Recent + Server cards, and a footer with Settings / Lock /
 // Switch user / Sign out.
-// EX8.33: quick-action pills and 3 recent apps, so the panel leaves the desktop
-// showing, and a scrollbar when a window is too short for it. The app grid uses
-// the dock's tiles on square cells and follows the same Dock Icons setting.
+// EX8.33: smaller quick actions and 3 recent apps, so the panel leaves the desktop
+// showing, and a scrollbar when a window is too short for it. Quick actions and
+// the app grid use the dock's tiles on square cells and follow its Dock Icons setting.
 // @see docs/phases/phase-6.md, docs/phases/phase-ex8.md
 
 import { useDesktopStore } from '../../store/window-store';
@@ -86,16 +86,24 @@ const APP_COLS = 5;
 
 // ─── Small pieces ────────────────────────────────────────────────────────────
 
-function QuickAction({ icon: Icon, label, onClick, disabled }: { icon: LucideIcon; label: string; onClick: () => void; disabled?: boolean }) {
+function QuickAction({ tileId, icon: Icon, label, onClick, disabled }: { tileId: string; icon: LucideIcon; label: string; onClick: () => void; disabled?: boolean }) {
+  const dockIconStyle = usePreferencesStore(s => s.dockIconStyle);
   return (
     <button
-      className="lumen-card flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-[20px] px-1 text-foreground transition-colors hover:bg-dock-hover disabled:pointer-events-none disabled:opacity-40"
+      className="group flex aspect-square w-full max-w-[80px] min-w-0 flex-col items-center justify-center gap-1 rounded-[16px] px-1 text-foreground transition-colors hover:bg-fill disabled:pointer-events-none disabled:opacity-40"
       onClick={onClick}
       disabled={disabled}
       title={label}
     >
-      <Icon className="h-[17px] w-[17px] shrink-0" strokeWidth={1.75} />
-      <span className="min-w-0 truncate text-[13px] font-medium">{label}</span>
+      <span className="relative block size-[44px] transition-transform duration-150 group-hover:scale-105">
+        {/* The 50px tile drawn smaller, so its glyph and corners keep their proportions */}
+        <span className="absolute left-0 top-0 block size-[50px] origin-top-left scale-[.88]">
+          <TileFace tile={dockIconStyle === 'color' ? colourTile(tileId) : null}>
+            <Icon className="h-7 w-7" strokeWidth={1.75} />
+          </TileFace>
+        </span>
+      </span>
+      <span className="max-w-full truncate text-xs">{label}</span>
     </button>
   );
 }
@@ -276,7 +284,7 @@ export function StartMenu() {
       aria-label="Launcher"
     >
       {/* ── Header: date + greeting, server chip ── */}
-      <div className="flex shrink-0 items-end justify-between gap-3 px-6 pt-[18px] pb-3">
+      <div className="flex shrink-0 items-end justify-between gap-3 px-6 pt-4 pb-2.5">
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="text-sm text-label-2">{dateStr}</span>
           <span className="truncate text-2xl leading-[30px] font-medium tracking-[-0.01em]">{getGreeting()}</span>
@@ -314,17 +322,17 @@ export function StartMenu() {
       </div>
 
       {/* ── Body ── */}
-      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overflow-x-hidden px-6 pt-3.5 pb-3.5">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden px-6 pt-3 pb-3">
         {!searching ? (
           <>
             {/* Quick actions */}
-            <div className="grid grid-cols-3 gap-2 min-[680px]:grid-cols-6">
-              <QuickAction icon={SquareTerminal} label="Terminal" disabled={!isConnected} onClick={() => handleOpenApp('terminal', 'Terminal')} />
-              <QuickAction icon={FolderOpen} label="Files" disabled={!isConnected} onClick={() => handleOpenApp('files', 'File Explorer')} />
-              <QuickAction icon={Palette} label="Personalize" onClick={() => handleOpenApp('settings', 'Personalize', { initialPage: 'wallpaper' })} />
-              <QuickAction icon={Monitor} label="Desktop" onClick={() => { toggleShowDesktop(); closeStartMenu(); }} />
-              <QuickAction icon={ArrowLeftRight} label="Switch" onClick={() => { closeStartMenu(); switchUser(); }} />
-              <QuickAction icon={Lock} label="Lock" onClick={() => { closeStartMenu(); lockScreen(); }} />
+            <div className="grid grid-cols-3 justify-items-center gap-2 min-[680px]:grid-cols-6">
+              <QuickAction tileId="terminal" icon={SquareTerminal} label="Terminal" disabled={!isConnected} onClick={() => handleOpenApp('terminal', 'Terminal')} />
+              <QuickAction tileId="files" icon={FolderOpen} label="Files" disabled={!isConnected} onClick={() => handleOpenApp('files', 'File Explorer')} />
+              <QuickAction tileId="personalize" icon={Palette} label="Personalize" onClick={() => handleOpenApp('settings', 'Personalize', { initialPage: 'wallpaper' })} />
+              <QuickAction tileId="desktop" icon={Monitor} label="Desktop" onClick={() => { toggleShowDesktop(); closeStartMenu(); }} />
+              <QuickAction tileId="switch" icon={ArrowLeftRight} label="Switch" onClick={() => { closeStartMenu(); switchUser(); }} />
+              <QuickAction tileId="lock" icon={Lock} label="Lock" onClick={() => { closeStartMenu(); lockScreen(); }} />
             </div>
 
             {/* App grid */}

@@ -206,6 +206,7 @@ Task Manager               → xl   → No            → Yes
 | Menu item | 17px at 80% opacity (normalised by `ui/menu-styles`) |
 | Dock tile | 32px icon on a 50px `.lumen-plate` |
 | Launcher tile | The dock's tile, at 50px |
+| Launcher quick action | The dock's tile, at 44px |
 | Desktop icon | 44px (32 / 44 / 52 for small / medium / large) |
 
 ---

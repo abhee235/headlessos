@@ -797,7 +797,9 @@ filled its column gave a wide hover bar, and tighter rows looked too compact. 11
 apps took it to its height limit. At 1280×720, 169 px were cut off with no scrollbar to show it, and
 the panel's top sat over the menu bar.
 
-- The six quick actions are 40 px pills with the icon beside the label, not 96 px squares.
+- The six quick actions are 80 px cells: a 44 px colour tile with the name under it, like the app
+  grid, not 96 px glass squares. Terminal and Files use their dock tiles. Personalize, Desktop, Switch
+  and Lock aren't apps, so they get their own tiles in `DOCK_TILES`. On Glass they stay on glass.
 - Recent shows 3 apps in 40 px rows, so the Recent and Server cards end level.
 - The header and cards are tighter, and the footer is 56 px. The 5-column grid doesn't change.
 - The panel keeps 40 px clear above it: the 28 px menu bar and a 12 px gap.
