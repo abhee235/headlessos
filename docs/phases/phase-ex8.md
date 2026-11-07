@@ -93,6 +93,7 @@ this document; its token layer was merged into `client/src/styles.css`.
 | EX8.29 | Fleet overview in the Home hub's language (user review): dial gauges for CPU, memory and disk, a status LED, no icon chips or flat bars | ✅ |
 | EX8.30 | File Explorer favourites point at the signed-in user's home (bug found while capturing the website): no more `/home/testuser` | ✅ |
 | EX8.31 | The dock makes way for a maximized window (owner's review): the window takes the full height, the dock slides away, and a handle at the edge or Show launcher in the menu bar brings it back | ✅ |
+| EX8.32 | San Francisco on a Mac (owner's review): a Mac is marked on `<html>` and uses the system font; Windows and Linux keep today's list unchanged | ✅ |
 
 ## Additions beyond the handoff
 
@@ -747,6 +748,24 @@ dock menu closed, until the next click. A dock menu is a React child of the dock
 screen, so moving onto it reached the dock as an enter, which cancelled the hide, and nothing left
 when the menu closed. At the bottom the same fault was hidden, because the menu sits over the dock,
 so moving away did count as leaving. An enter now counts only from inside the dock on screen.
+
+## EX8.32 — San Francisco on a Mac
+
+The interface is modelled on macOS, and Manrope was chosen as the closest font to San Francisco,
+because SF isn't available on Windows, where the app was built. On a Mac the real font is there, and
+Manrope stands out beside every other app.
+
+- `lib/platform.ts` marks a Mac with `data-platform="mac"` on `<html>`, and `styles.css` gives that
+  attribute its own `--font-sans`, starting with `system-ui`. That covers the desktop app and a
+  browser on localhost.
+- The list everyone else reads in `@theme` doesn't change by a character. Reordering it isn't safe:
+  in Chromium `-apple-system` finds nothing (measured: it rendered Manrope), and the name that does
+  work, `BlinkMacSystemFont`, is turned into `system-ui`, which on Windows would be Segoe UI. The
+  owner requires Windows to stay as it is, so this must not depend on how Chromium treats a name.
+- SF isn't bundled. Apple's licence keeps it to Apple platforms, so the app only asks macOS for it.
+- `HomeHub` named Manrope itself, and toasts used the `font-sans` class, which `@theme inline` writes
+  out as the Manrope list. Both now read `--font-sans`, which gives Windows the same list as before.
+- The terminal and code stay on Geist Mono. Manrope stays bundled, for Windows and Linux.
 
 ## Deviations from the handoff text (prototype wins where they differ)
 

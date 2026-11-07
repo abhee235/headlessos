@@ -5,6 +5,9 @@ import { StrictMode, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
 import { DynamicUIPlayground } from './components/DynamicUI';
+import { markPlatform } from './lib/platform';
+
+markPlatform();
 
 function PlaygroundApp() {
   const [open, setOpen] = useState(true);

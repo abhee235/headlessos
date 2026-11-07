@@ -665,6 +665,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-11-07 | **EX8.32 ✅** On a Mac the interface uses San Francisco, in the app and in a browser on localhost. Windows and Linux keep today's font list unchanged, because only a Mac is marked to read a different one. |
 | 2026-11-07 | **M16.8 ✅** v0.3.0 is published. The draft updated over the earlier build on a Mac, Always Allow held across a restart, and `cognito-web` signed in with its saved key. Linux is still to run. |
 | 2026-11-07 | **M16.7 ✅** Version 0.3.0 with its changelog. The README and release notes now say what to click when macOS asks for the Keychain, and the README no longer says Linux has no build. |
 | 2026-11-07 | **M16.6 ✅** The first Mac run showed the Keychain item as `headlessos-desktop Safe Storage`, not the name `SECURITY.md` gives. The app is now named HeadlessOS, and its window data stays in the old folder so an update keeps preferences. Upgrade, restart and restore all passed on the owner's Mac; Deny and a saved-login sign-in are still to run. |

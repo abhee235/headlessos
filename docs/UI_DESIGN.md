@@ -260,8 +260,9 @@ opacity/transform, so put entrance animations on the glass element itself.
 
 ## 7. Text Sizing Convention
 
-Manrope for UI (bundled via `@fontsource-variable/manrope`), Geist Mono (`font-mono`)
-for code, paths, PIDs, IPs and the terminal.
+San Francisco on a Mac (the system font, never bundled), and Manrope on Windows and Linux (bundled
+via `@fontsource-variable/manrope`). Both come from `--font-sans`, so never name a font in a
+component. Geist Mono (`font-mono`) is for code, paths, PIDs, IPs and the terminal.
 
 | Context | Size |
 |---------|------|

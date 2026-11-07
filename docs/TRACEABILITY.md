@@ -1604,6 +1604,14 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-15.md` ("M15.6")
 - **Verification:** the packaged app reports 0.2.1
 
+### EX8.32: San Francisco on a Mac
+- **Status:** ✅ Complete
+- **Date:** 2026-11-07
+- **Files created:** `client/src/lib/platform.ts`, `client/tests/lib/font-stack.test.ts`
+- **Files modified:** `client/src/styles.css`, `client/src/main.tsx`, `client/src/playground-entry.tsx`, `client/src/components/HomeHub/HomeHub.tsx`, `client/src/components/ui/sonner.tsx`, `docs/UI_DESIGN.md`
+- **Docs:** `docs/phases/phase-ex8.md` ("EX8.32")
+- **Verification:** font test on the built stylesheet; rendered font measured in a browser on a Mac
+
 ### EX8.31: The dock makes way for a maximized window
 - **Status:** ✅ Complete
 - **Date:** 2026-11-06

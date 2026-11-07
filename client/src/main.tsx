@@ -4,7 +4,10 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App.js';
+import { markPlatform } from './lib/platform.js';
 import './styles.css';
+
+markPlatform();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
