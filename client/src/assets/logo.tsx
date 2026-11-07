@@ -1,50 +1,9 @@
-// M6.3: HeadlessOS Logo SVG — crisp monogram for branding
-// @see docs/phases/phase-6.md
+// M6.3: HeadlessOS logo and wordmark
+// EX8.33: the logo is the app's real icon (public/icons/app-logo.png, a copy of electron/icons/icon.png)
+// @see docs/phases/phase-6.md, docs/phases/phase-ex8.md
 
 export function HeadlessOSLogo({ size = 40, className = '' }: { size?: number; className?: string }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 100 100"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
-    >
-      {/* Outer rounded square */}
-      <rect x="4" y="4" width="92" height="92" rx="20" fill="url(#logo-grad)" />
-      <rect x="4" y="4" width="92" height="92" rx="20" fill="url(#logo-shine)" />
-      <rect x="4" y="4" width="92" height="92" rx="20" stroke="white" strokeOpacity="0.15" strokeWidth="1.5" />
-
-      {/* H monogram */}
-      <path
-        d="M30 28v44M70 28v44M30 50h40"
-        stroke="white"
-        strokeWidth="7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-
-      {/* Subtle inner glow */}
-      <rect x="4" y="4" width="92" height="92" rx="20" fill="url(#logo-inner-glow)" />
-
-      <defs>
-        <linearGradient id="logo-grad" x1="4" y1="4" x2="96" y2="96" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#3b82f6" />
-          <stop offset="0.5" stopColor="#6366f1" />
-          <stop offset="1" stopColor="#8b5cf6" />
-        </linearGradient>
-        <linearGradient id="logo-shine" x1="50" y1="4" x2="50" y2="60" gradientUnits="userSpaceOnUse">
-          <stop stopColor="white" stopOpacity="0.12" />
-          <stop offset="1" stopColor="white" stopOpacity="0" />
-        </linearGradient>
-        <radialGradient id="logo-inner-glow" cx="50" cy="50" r="46" gradientUnits="userSpaceOnUse">
-          <stop stopColor="white" stopOpacity="0.05" />
-          <stop offset="1" stopColor="white" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-    </svg>
-  );
+  return <img src="icons/app-logo.png" alt="HeadlessOS" width={size} height={size} draggable={false} className={className} />;
 }
 
 export function HeadlessOSWordmark({ width = 200, className = '' }: { width?: number; className?: string }) {

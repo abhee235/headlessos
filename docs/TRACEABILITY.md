@@ -1604,6 +1604,22 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-15.md` ("M15.6")
 - **Verification:** the packaged app reports 0.2.1
 
+### EX8.33: The real logo in About, and the launcher
+- **Status:** ✅ Complete
+- **Date:** 2026-11-07
+- **Files created:** `client/public/icons/app-logo.png`, `client/tests/components/app-logo.test.tsx`, `client/tests/components/start-menu.test.tsx`
+- **Files modified:** `client/src/assets/logo.tsx`, `client/src/components/Desktop/Desktop.tsx`, `client/src/components/Desktop/SettingsView.tsx`, `client/src/components/Desktop/StartMenu.tsx`, `client/src/components/Desktop/Taskbar.tsx`, `client/src/components/Desktop/dock-tiles.tsx`, `client/tests/components/Desktop.test.tsx`, `docs/UI_DESIGN.md`
+- **Docs:** `docs/phases/phase-ex8.md` ("EX8.33")
+- **Verification:** panel height and cut-off content measured in Chrome at six window sizes, both About screens checked by eye, logo bytes compared with the installed app's icon
+
+### EX8.32: San Francisco on a Mac
+- **Status:** ✅ Complete
+- **Date:** 2026-11-07
+- **Files created:** `client/src/lib/platform.ts`, `client/tests/lib/font-stack.test.ts`
+- **Files modified:** `client/src/styles.css`, `client/src/main.tsx`, `client/src/playground-entry.tsx`, `client/src/components/HomeHub/HomeHub.tsx`, `client/src/components/ui/sonner.tsx`, `docs/UI_DESIGN.md`
+- **Docs:** `docs/phases/phase-ex8.md` ("EX8.32")
+- **Verification:** font test on the built stylesheet; rendered font measured in a browser on a Mac
+
 ### EX8.31: The dock makes way for a maximized window
 - **Status:** ✅ Complete
 - **Date:** 2026-11-06
@@ -1613,7 +1629,7 @@ None (all changes to existing files).
 - **Verification:** packaged Windows build with real pointer events, dock at the bottom and on the right
 
 ### M16: Saved Secrets in the OS Keychain
-- **Status:** ✅ Complete on Windows; macOS and Linux still to run
+- **Status:** ✅ Complete on Windows and macOS, published in v0.3.0; Linux still to run
 - **Date:** 2026-11-06
 - **Files created:** `electron/keychain.js`, `server/tests/electron/keychain.test.ts`, `server/tests/security/logins-locked.test.ts`, `server/tests/routes/servers-locked.test.ts`, `client/tests/components/secret-store.test.tsx`
 - **Files modified:** `electron/main.js`, `electron/package.json`, `server/src/security/encryption.ts`, `server/src/config/store.ts`, `server/src/routes/servers.ts`, `server/src/ssh/connect-failure.ts`, `shared/types.ts`, `client/src/lib/api.ts`, `client/src/components/Login/LoginScreen.tsx`, `client/src/components/ControlCenter/GlobalSettingsSection.tsx`, `server/vitest.config.ts`, `.env.example`, `SECURITY.md`, `CLAUDE.md`

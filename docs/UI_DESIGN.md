@@ -205,7 +205,8 @@ Task Manager               → xl   → No            → Yes
 | Sidebar item | 18px Lucide |
 | Menu item | 17px at 80% opacity (normalised by `ui/menu-styles`) |
 | Dock tile | 32px icon on a 50px `.lumen-plate` |
-| Launcher tile | 32px icon on a 52px `.lumen-plate` |
+| Launcher tile | The dock's tile, at 50px |
+| Launcher quick action | The dock's tile, at 44px |
 | Desktop icon | 44px (32 / 44 / 52 for small / medium / large) |
 
 ---
@@ -260,8 +261,9 @@ opacity/transform, so put entrance animations on the glass element itself.
 
 ## 7. Text Sizing Convention
 
-Manrope for UI (bundled via `@fontsource-variable/manrope`), Geist Mono (`font-mono`)
-for code, paths, PIDs, IPs and the terminal.
+San Francisco on a Mac (the system font, never bundled), and Manrope on Windows and Linux (bundled
+via `@fontsource-variable/manrope`). Both come from `--font-sans`, so never name a font in a
+component. Geist Mono (`font-mono`) is for code, paths, PIDs, IPs and the terminal.
 
 | Context | Size |
 |---------|------|

@@ -31,7 +31,7 @@ function Toaster({ ...props }: ToasterProps) {
       toastOptions={{
         classNames: {
           toast:
-            "group toast glass-heavy !w-[360px] !gap-3.5 !rounded-[28px] !py-3.5 !pr-3.5 !pl-4 !font-sans !text-foreground",
+            "group toast glass-heavy !w-[360px] !gap-3.5 !rounded-[28px] !py-3.5 !pr-3.5 !pl-4 ![font-family:var(--font-sans)] !text-foreground",
           title: "!text-[15px] !font-semibold",
           description:
             "!text-[14px] !leading-5 !text-label-2",

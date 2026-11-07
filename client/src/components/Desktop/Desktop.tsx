@@ -41,10 +41,10 @@ import {
   LayoutGrid,
   SortAsc,
   Info,
-  Server,
   Check,
 } from 'lucide-react';
 import { Wallpaper } from './Wallpaper';
+import { HeadlessOSLogo } from '../../assets/logo';
 
 import { createDirectory, writeFile } from '../../lib/api';
 import { toast } from 'sonner';
@@ -428,13 +428,11 @@ export function Desktop() {
       icon={Info}
       size="xs"
       width={420}
-      height={280}
+      height={368}
     >
       <AppWindow.Body>
         <div className="flex flex-col items-center gap-4 py-4 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-lg shadow-primary/20">
-            <Server className="w-8 h-8 text-white" />
-          </div>
+          <HeadlessOSLogo size={64} />
           <div>
             <h3 className="text-lg font-semibold text-foreground">HeadlessOS</h3>
             <p className="text-xs text-muted-foreground mt-0.5">Version 0.3.0</p>

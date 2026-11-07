@@ -135,7 +135,7 @@ function HomeHubOverlay() {
       className="animate-[hub-in_.25s_ease-out]"
       style={{
         position: 'absolute', inset: 0, zIndex: 10050, overflow: 'hidden', display: 'grid', placeItems: 'center',
-        color: '#fff', fontFamily: "'Manrope Variable', 'Manrope', system-ui, sans-serif",
+        color: '#fff', fontFamily: 'var(--font-sans)',
         // The app's body sets tabular digits; the prototype uses proportional ones
         fontVariantNumeric: 'normal',
         background: 'radial-gradient(ellipse 50% 60% at 18% 28%, rgba(214,140,62,.42), transparent 70%), radial-gradient(ellipse 60% 50% at 85% 20%, rgba(110,130,150,.25), transparent 70%), linear-gradient(180deg, rgba(38,26,18,.55), rgba(20,14,10,.72))',

@@ -33,7 +33,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { AppIcon, RecycleBinIcon } from '@/components/ui/FileIcon';
-import { colourTile } from './dock-tiles';
+import { colourTile, TileFace } from './dock-tiles';
 import { useDockAutoHide, useDockMakingWay } from './useDockAutoHide';
 import { listTrash } from '../../lib/api';
 import { cn } from '@/lib/utils';
@@ -176,16 +176,7 @@ function DockTile({
             )}
             onClick={onClick}
           >
-            {tile ? tile.plate : !noPlate && <span className="lumen-plate absolute inset-0 rounded-[16px]" />}
-            <span
-              className={cn(
-                'absolute inset-0 grid place-items-center [&>*]:block',
-                // Colour tiles carry their own contrast; keep only a hint of lift on the glyph
-                tile ? 'drop-shadow-[0_1px_1px_rgba(0,0,0,.18)]' : 'drop-shadow-[0_2px_3px_rgba(0,0,0,.3)]',
-              )}
-            >
-              {tile ? tile.glyph : children}
-            </span>
+            <TileFace tile={tile} noPlate={noPlate}>{children}</TileFace>
             {(focused || running) && (
               <span
                 aria-hidden

@@ -93,6 +93,8 @@ this document; its token layer was merged into `client/src/styles.css`.
 | EX8.29 | Fleet overview in the Home hub's language (user review): dial gauges for CPU, memory and disk, a status LED, no icon chips or flat bars | ✅ |
 | EX8.30 | File Explorer favourites point at the signed-in user's home (bug found while capturing the website): no more `/home/testuser` | ✅ |
 | EX8.31 | The dock makes way for a maximized window (owner's review): the window takes the full height, the dock slides away, and a handle at the edge or Show launcher in the menu bar brings it back | ✅ |
+| EX8.32 | San Francisco on a Mac (owner's review): a Mac is marked on `<html>` and uses the system font; Windows and Linux keep today's list unchanged | ✅ |
+| EX8.33 | The real logo in About, and the launcher (user review): dock tiles in the app grid, compact height | ✅ |
 
 ## Additions beyond the handoff
 
@@ -747,6 +749,67 @@ dock menu closed, until the next click. A dock menu is a React child of the dock
 screen, so moving onto it reached the dock as an enter, which cancelled the hide, and nothing left
 when the menu closed. At the bottom the same fault was hidden, because the menu sits over the dock,
 so moving away did count as leaving. An enter now counts only from inside the dock on screen.
+
+## EX8.32 — San Francisco on a Mac
+
+The interface is modelled on macOS, and Manrope was chosen as the closest font to San Francisco,
+because SF isn't available on Windows, where the app was built. On a Mac the real font is there, and
+Manrope stands out beside every other app.
+
+- `lib/platform.ts` marks a Mac with `data-platform="mac"` on `<html>`, and `styles.css` gives that
+  attribute its own `--font-sans`, starting with `system-ui`. That covers the desktop app and a
+  browser on localhost.
+- The list everyone else reads in `@theme` doesn't change by a character. Reordering it isn't safe:
+  in Chromium `-apple-system` finds nothing (measured: it rendered Manrope), and the name that does
+  work, `BlinkMacSystemFont`, is turned into `system-ui`, which on Windows would be Segoe UI. The
+  owner requires Windows to stay as it is, so this must not depend on how Chromium treats a name.
+- The body rule sets `-webkit-font-smoothing: antialiased`, which thins text on a Mac, and native apps
+  don't use it. San Francisco alone still looked thin in the Home hub, where text is also scaled to
+  about 0.77, so a Mac gets `auto`. The property only works on macOS, and the rule is scoped to a Mac.
+- SF isn't bundled. Apple's licence keeps it to Apple platforms, so the app only asks macOS for it.
+- `HomeHub` named Manrope itself, and toasts used the `font-sans` class, which `@theme inline` writes
+  out as the Manrope list. Both now read `--font-sans`, which gives Windows the same list as before.
+- The terminal and code stay on Geist Mono. Manrope stays bundled, for Windows and Linux.
+
+## EX8.33 — The real logo in About, and a launcher that leaves the desktop showing
+
+From the owner's review: About HeadlessOS didn't show the app's logo, and the launcher filled nearly
+the whole window, which the Windows Start menu doesn't do.
+
+**Logo.** Three places drew something else: the About dialog (a Server glyph on an accent tile),
+Settings → About (a Monitor glyph), and `HeadlessOSLogo` itself (an H monogram on another gradient,
+used by the wallpaper watermark).
+
+- `client/public/icons/app-logo.png` is a byte-for-byte copy of `electron/icons/icon.png`, because the
+  client can't load files from `electron/`. A test compares the two, so they can't drift apart.
+- `HeadlessOSLogo` draws that file, and all three places use it.
+- The About dialog was 84 px too short, which cut its description off, so it is now 368 px tall.
+
+**Launcher tiles.** The app grid drew every app on the same neutral glass plate, so it didn't match
+the dock. It now uses the dock's own tile through `TileFace` in `dock-tiles.tsx`, which both components
+share, at the dock's 50 px. It follows the same Dock Icons setting, so Glass still means glass.
+
+Each app is a square cell of up to 112 px, centred in its column. The owner's review: a cell that
+filled its column gave a wide hover bar, and tighter rows looked too compact. 112 px also fits
+"LLM Observatory" on one line.
+
+**Launcher height.** Measured at 1470×923 with no recent apps, it was 773 px, 84% of the window. Four recent
+apps took it to its height limit. At 1280×720, 169 px were cut off with no scrollbar to show it, and
+the panel's top sat over the menu bar.
+
+- The six quick actions are 80 px cells: a 44 px colour tile with the name under it, like the app
+  grid, not 96 px glass squares. Terminal and Files use their dock tiles. Personalize, Desktop, Switch
+  and Lock aren't apps, so they get their own tiles in `DOCK_TILES`. On Glass they stay on glass.
+  The row's first and last tiles line up with the app grid's outer edges. Its six columns can't match
+  the grid's five, so the tiles between them don't sit above the apps.
+- Recent shows 3 apps in 40 px rows, so the Recent and Server cards end level.
+- The header and cards are tighter, and the footer is 56 px. The 5-column grid doesn't change.
+- The panel keeps 40 px clear above it: the 28 px menu bar and a 12 px gap.
+- A window too short for the panel scrolls it, with the app's normal scrollbar. The old panel hid its
+  scrollbar, so nothing showed there was more below.
+- Searching keeps the panel at the height it had. It takes its height from its content, so results
+  would shrink it and move the search box. The height is read when the first letter is typed rather
+  than set as a fixed number, because My Apps, the font and a short window all change it.
 
 ## Deviations from the handoff text (prototype wins where they differ)
 

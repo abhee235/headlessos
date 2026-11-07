@@ -19,6 +19,12 @@ describe('colourTile', () => {
     expect(colourTile('container-files')).toBeNull();
   });
 
+  it('gives the launcher\'s quick actions their own colour', () => {
+    const colours = ['personalize', 'desktop', 'switch', 'lock'].map((id) => DOCK_TILES[id]?.bg);
+    for (const bg of colours) expect(bg).toMatch(/^linear-gradient/);
+    expect(new Set(colours).size).toBe(4);
+  });
+
   it('draws the terminal as a white mono prompt', () => {
     const t = colourTile('terminal')!;
     const { container } = render(<>{t.glyph}</>);

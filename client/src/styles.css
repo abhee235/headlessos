@@ -350,6 +350,18 @@
   border-color: var(--border);
 }
 
+/* EX8.32: a Mac uses San Francisco, in the app and in a browser on localhost. lib/platform.ts sets
+   the attribute, so every other computer keeps the list in @theme, unchanged. */
+:root[data-platform="mac"] {
+  --font-sans: system-ui, -apple-system, 'Manrope Variable', 'Manrope', sans-serif;
+}
+
+/* The body rule below thins text on a Mac, and native apps don't. Stems were visibly lighter. */
+:root[data-platform="mac"] body {
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+}
+
 body {
   font-family: var(--font-sans);
   background-color: var(--background);
