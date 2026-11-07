@@ -7,6 +7,7 @@ import { BaseService } from '../services/base-service.js';
 import type { CommandPolicy } from '../services/policy/command-policy.js';
 import type { ServerConfig, ConnectionState, ConnectionStatus } from 'headlessos-shared';
 import { isAuthFailure } from '../security/validators.js';
+import { errorKind } from '../security/log-serializers.js';
 
 export interface ExecResult {
   stdout: string;
@@ -149,7 +150,7 @@ export class ConnectionManager extends BaseService {
         });
 
         client.on('error', (err) => {
-          console.error(`[SSH ${config.id}] Connection error:`, err.message);
+          console.error(`[SSH ${config.id}] Connection error:`, errorKind(err));
           this.setState(config.id, 'error', err.message);
         });
 

@@ -1,6 +1,6 @@
 // M15.2, M15.3: what the desktop app does when its backend exits, and its log file
 import { describe, it, expect, afterEach } from 'vitest';
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -105,7 +105,7 @@ describe('desktop log', () => {
     const log = createLog({ dir, maxBytes: 100, now: at });
     for (let i = 0; i < 12; i++) log.line('main', `entry number ${i} with some padding here`);
     expect(readFileSync(log.file, 'utf8')).toContain('entry number 11');
-    expect(readdirSync(dir).sort()).toEqual(['headlessos.1.log', 'headlessos.log']);
+    expect(readdirSync(dir).sort()).toEqual(['format', 'headlessos.1.log', 'headlessos.log']);
     expect(statSync(log.file).size).toBeLessThanOrEqual(100);
   });
 
@@ -115,6 +115,51 @@ describe('desktop log', () => {
     const log = createLog({ dir, maxBytes: 100, now: at });
     log.line('main', 'second run');
     expect(existsSync(join(dir, 'headlessos.1.log'))).toBe(true);
+  });
+
+  // M16.14
+  it('removes logs written under older rules, once', () => {
+    const dir = logDir();
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'headlessos.log'), 'GET /api/servers/1/files?path=/home/a/contract.pdf\n');
+    writeFileSync(join(dir, 'headlessos.1.log'), 'older still\n');
+
+    const log = createLog({ dir, now: at });
+    expect(existsSync(log.file)).toBe(false);
+    expect(existsSync(join(dir, 'headlessos.1.log'))).toBe(false);
+
+    log.line('main', 'kept');
+    createLog({ dir, now: at }).line('main', 'kept too');
+    expect(readFileSync(log.file, 'utf8')).toContain('kept');
+    expect(readFileSync(log.file, 'utf8')).toContain('kept too');
+  });
+
+  // M16.13
+  it('drops a private key printed across lines', () => {
+    const dir = logDir();
+    const log = createLog({ dir, now: at });
+    log.write('backend', 'before\n-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAA\n');
+    log.write('backend', 'hunter2bodyline\n-----END OPENSSH PRIVATE KEY-----\nafter\n');
+    const text = readFileSync(log.file, 'utf8');
+    expect(text).toContain('[private key removed]');
+    expect(text).toContain('before');
+    expect(text).toContain('after');
+    expect(text).not.toContain('b3BlbnNzaC1rZXk');
+    expect(text).not.toContain('hunter2bodyline');
+    expect(text).not.toContain('END OPENSSH');
+  });
+
+  it('keeps logging when a key never ends, and for other sources meanwhile', () => {
+    const dir = logDir();
+    const log = createLog({ dir, now: at });
+    log.line('backend', '-----BEGIN RSA PRIVATE KEY-----');
+    log.line('main', 'still here');
+    for (let i = 0; i < 200; i++) log.line('backend', `body ${i}`);
+    log.line('backend', 'back to normal');
+    const text = readFileSync(log.file, 'utf8');
+    expect(text).toContain('still here');
+    expect(text).toContain('back to normal');
+    expect(text).not.toContain('body 0');
   });
 
   it('survives a log folder it cannot write to', () => {
@@ -151,12 +196,41 @@ describe('redactLogLine', () => {
     expect(redactSecrets(line).text).not.toMatch(secret);
   });
 
-  it('masks the API token in a request URL and keeps the rest of it', () => {
-    const line = '{"req":{"method":"GET","url":"/api/wallpapers/a.jpg?size=2&token=abc123def&x=1"}}';
+  it('masks every query value, because they name files, and keeps the rest of a URL', () => {
+    const line = '{"url":"/api/servers/1/files?path=/home/a/contract.pdf&token=abc123def&tail=10"}';
     const out = redactLogLine(line);
     expect(out).not.toContain('abc123def');
-    expect(out).toContain('/api/wallpapers/a.jpg?size=2');
-    expect(out).toContain('x=1');
+    expect(out).not.toContain('contract.pdf');
+    expect(out).toContain('/api/servers/1/files?path=[redacted]');
+    expect(out).toContain('tail=[redacted]');
+  });
+
+  // M16.13: these aren't in redact.ts, because agent output needs them
+  it.each([
+    ['an address', 'connect ECONNREFUSED 192.168.1.20:22', '192.168.1.20'],
+    ['an IPv6 address', 'connect ECONNREFUSED 2001:db8::8a2e:370:7334', '2001:db8'],
+    ['a full IPv6 address', 'from 2001:0db8:85a3:0000:0000:8a2e:0370:7334', '85a3'],
+    ['a login', 'ssh deploy@build.example.com failed', 'deploy@build.example.com'],
+    ['a password flag', 'mysql --password hunter2 -h db', 'hunter2'],
+    ['a long hex value', `secret-ish ${'a1b2c3d4'.repeat(8)}`, 'a1b2c3d4'],
+    ['a line of a key', 'b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMw', 'b3BlbnNzaC1rZXk'],
+  ])('masks %s', (_name, line, value) => {
+    expect(redactLogLine(line)).not.toContain(value);
+  });
+
+  it('keeps what a log needs to be useful', () => {
+    for (const line of [
+      'Server listening at http://127.0.0.1:51378',
+      'listening on 0.0.0.0',
+      'HeadlessOS 0.3.1 on win32 x64, Electron 33.4.11',
+      '2026-11-06T17:47:41.499Z [main] saved logins: keychain',
+      '    at Object.connect (file:///C:/app/resources/server.mjs:12:5)',
+      'at node:internal/process/task_queues:95:5',
+      'request id 3f2504e0-4f89-41d3-9a0c-0305e82c3301',
+      '/usr/local/lib/some/very/long/path/that/has/no/digits/or/capitals/in/it/at/all',
+    ]) {
+      expect(redactLogLine(line)).toBe(line);
+    }
   });
 
   it('removes the computer name from Fastify lines', () => {

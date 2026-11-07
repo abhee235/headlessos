@@ -65,6 +65,9 @@ describe('CommandPolicy — allowlist matching', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     expect(() => p.assertAllowed('weird-tool --magic')).not.toThrow();
     expect(warn).toHaveBeenCalledOnce();
+    // M16.12: the log gets the program's name, because the rest can hold a password
+    expect(warn.mock.calls[0][0]).toContain('weird-tool');
+    expect(warn.mock.calls[0][0]).not.toContain('--magic');
     // Same command twice → only one warning (deduped)
     expect(() => p.assertAllowed('weird-tool --magic')).not.toThrow();
     expect(warn).toHaveBeenCalledOnce();

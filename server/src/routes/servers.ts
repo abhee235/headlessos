@@ -10,6 +10,7 @@ import type { ConfigStore } from '../config/store.js';
 import type { ServerConfig } from 'headlessos-shared';
 import { describeConnectFailure, isKeyLost, KEY_LOST, loginsLockedFailure } from '../ssh/connect-failure.js';
 import { loginsLocked, secretStore } from '../security/encryption.js';
+import { errorKind } from '../security/log-serializers.js';
 
 /** M15.12: credentials stay in the backend; the window never needs them back */
 function withoutSecrets<T extends ServerConfig>(server: T) {
@@ -109,7 +110,7 @@ export async function serverRoutes(
     } catch (err) {
       reply.code(500);
       // Sanitize: raw ssh2 errors leak host/user/path detail to the client.
-      fastify.log.error({ err }, 'SSH connect failed');
+      fastify.log.error({ kind: errorKind(err) }, 'SSH connect failed');
       const failure = describeConnectFailure(err instanceof Error ? err.message : 'Connection failed', connectConfig);
       return { error: failure.title, failure };
     }

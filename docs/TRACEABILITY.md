@@ -1636,6 +1636,14 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-16.md`, `docs/DECISIONS.md` (ADR-029)
 - **Verification:** packaged Windows build on the real keychain, with a copy of real data: upgrade, restart, another profile, restore
 
+### M16.12–M16.14: The log records failures, not activity
+- **Status:** ✅ Complete
+- **Date:** 2026-11-08
+- **Files created:** `server/src/security/log-serializers.ts`, `server/tests/security/log-serializers.test.ts`
+- **Files modified:** `server/src/index.ts`, `server/src/routes/servers.ts`, `server/src/ssh/connection-manager.ts`, `server/src/parsers/pipeline.ts`, `server/src/services/policy/command-policy.ts`, `electron/diagnostics.js`, `electron/main.js`, `server/tests/electron/diagnostics.test.ts`, `server/tests/services/policy/command-policy.test.ts`, `SECURITY.md`, `README.md`, `CLAUDE.md`, `CHANGELOG.md`
+- **Docs:** `docs/phases/phase-16.md` ("The log records failures, not activity")
+- **Verification:** packaged Windows build, before and after, with marked values through every path
+
 ### M16.10: Version 0.3.1 and the changelog
 - **Status:** ✅ Complete
 - **Date:** 2026-11-07

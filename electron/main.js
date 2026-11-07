@@ -94,6 +94,7 @@ function startServer() {
         ...process.env,
         PORT: '0',           // OS assigns a free port — no conflicts
         NODE_ENV: 'production',
+        DOTENV_CONFIG_QUIET: 'true', // M16.12: its banner puts a folder path and an advert in the log
         ...(installSecret ? { HEADLESSOS_INSTALL_SECRET: installSecret } : {}),
       },
       stdio: 'pipe',
@@ -273,7 +274,7 @@ function createWindow() {
     log.line('window', `the renderer stopped: ${details.reason} (${details.exitCode})`);
   });
   mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
-    if (level >= 3) log.line('window', `${message} (${sourceId.split('/').pop()}:${line})`);
+    if (level >= 3) log.line('window', `${message} (${sourceId.split('?')[0].split('/').pop()}:${line})`);
   });
 
   // Show a readable error instead of a silent black screen if the file fails to load

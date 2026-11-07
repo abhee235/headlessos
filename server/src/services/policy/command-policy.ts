@@ -186,8 +186,9 @@ export class CommandPolicy extends BaseService {
     ) {
       this.warnedCommands.add(command);
       // eslint-disable-next-line no-console
+      // M16.12: the program's name only. The rest of a command can hold a password.
       console.warn(
-        `[CommandPolicy] audit: command not in allowlist (will be required in enforce mode): ${truncate(command)}`,
+        `[CommandPolicy] audit: command not in allowlist (will be required in enforce mode): ${command.trim().split(/\s+/)[0]}`,
       );
     }
 

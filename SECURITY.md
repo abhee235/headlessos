@@ -25,7 +25,7 @@ the files that hold secrets are written `0600`.
 | Install secret | `enc-key.keychain` | Held by the OS keychain in the desktop app (see below). Where there's no keychain, and under `npm run dev`, it's the plain file `enc-key`. |
 | API token | `api-token` | A random token that every API and WebSocket call must carry (see below). |
 | Agent actions | `audit/actions.jsonl` | An append-only log of every action an agent asked to run, and the answer. |
-| Desktop app log | `logs/headlessos.log` | Backend output and app errors, for troubleshooting. Secrets are masked before writing, and it's never sent anywhere. Written `0600`, capped at 10 MB. |
+| Desktop app log | `logs/headlessos.log` | Failures and the app's own events, for troubleshooting. It doesn't record requests, commands, server addresses or logins, secrets are masked before writing, and it's never sent anywhere. It isn't encrypted: it's meant to be read, so nothing sensitive goes in. Written `0600`, capped at 10 MB. |
 | Traces and sessions | `observatory/`, `sessions/` | Model calls, tool results and window layouts, for the trace viewer and for restoring sessions. |
 
 ### What the keychain protects
