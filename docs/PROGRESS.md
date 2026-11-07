@@ -35,7 +35,7 @@
 | M13: Release Readiness | Beta | ✅ | 4/4 tasks | [phase-13](phases/phase-13.md) |
 | M14: Public Release | Beta | ✅ | 12/12 tasks | [phase-14](phases/phase-14.md) |
 | M15: Desktop Diagnostics | Beta | ✅ | 21/21 tasks | [phase-15](phases/phase-15.md) |
-| M16: Saved Secrets in the OS Keychain | Beta | ✅ | 8/8 tasks, v0.3.0 published; Linux not run | [phase-16](phases/phase-16.md) |
+| M16: Saved Secrets in the OS Keychain | Beta | 🔄 | 10/11 tasks, v0.3.0 published, v0.3.1 to tag; Linux not run | [phase-16](phases/phase-16.md) |
 | **EX1: Dynamic UI Engine** | **Experimental** | **✅** | **15/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
 | **EX2: UI Generation Agent** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
 | **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **✅** | **26/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
@@ -665,6 +665,8 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-11-07 | **M16.10 ✅** Version 0.3.1 with its changelog, for EX8.32, EX8.33 and M16.9. |
+| 2026-11-07 | **M16.9 ✅** `--user-data-dir` holds all of the app's data again. Since M16.6 it moved only `Local State`, so a scratch profile split in two, and a scratch `USERPROFILE` without `AppData\Roaming` stopped the app at startup. |
 | 2026-11-07 | **EX8.33 ✅** About HeadlessOS and Settings → About show the app's real logo, and so does the wallpaper watermark. The launcher's apps sit on the same colour tiles as the dock, following the Dock Icons setting. Its six big glass squares are now smaller colour tiles with their names, each app sits on a square cell so hover isn't a wide bar, a window too short for the panel gets a visible scrollbar, and searching no longer changes its height. |
 | 2026-11-07 | **EX8.32 ✅** On a Mac the interface uses San Francisco, in the app and in a browser on localhost. Windows and Linux keep today's font list unchanged, because only a Mac is marked to read a different one. |
 | 2026-11-07 | **M16.8 ✅** v0.3.0 is published. The draft updated over the earlier build on a Mac, Always Allow held across a restart, and a server signed in with its saved key. Linux is still to run. |

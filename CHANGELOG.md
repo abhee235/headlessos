@@ -3,6 +3,21 @@
 All notable changes to HeadlessOS. Task IDs (M14, EX11, …) point to the phase specs in
 [docs/phases/](docs/phases/); [docs/PROGRESS.md](docs/PROGRESS.md) has the full log.
 
+## 0.3.1 — 2026-11-07
+
+### Changed
+- **The launcher leaves your desktop showing.** It's shorter, and it keeps clear of the top bar. Its
+  apps sit on the same colour tiles as the dock and follow the Dock Icons setting, and the quick
+  actions are smaller tiles with their names. In a short window it shows a scrollbar, and searching
+  no longer changes its height (EX8.33).
+- On a Mac, HeadlessOS uses San Francisco, like the rest of the system. Windows and Linux keep
+  Manrope (EX8.32).
+- About HeadlessOS, Settings → About and the wallpaper show the app's real logo (EX8.33).
+
+### Fixed
+- The About HeadlessOS window cut off its description (EX8.33).
+- `--user-data-dir` moved only part of the app's data, because 0.3.0 pinned the data folder (M16.9).
+
 ## 0.3.0 — 2026-11-07
 
 ### Security

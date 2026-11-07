@@ -1636,6 +1636,20 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-16.md`, `docs/DECISIONS.md` (ADR-029)
 - **Verification:** packaged Windows build on the real keychain, with a copy of real data: upgrade, restart, another profile, restore
 
+### M16.10: Version 0.3.1 and the changelog
+- **Status:** ✅ Complete
+- **Date:** 2026-11-07
+- **Files modified:** every `package.json`, both lockfiles, `server/src/index.ts`, `client/src/components/Desktop/Desktop.tsx`, `client/src/components/Desktop/SettingsView.tsx`, `CHANGELOG.md`
+- **Docs:** `docs/phases/phase-16.md` ("Version 0.3.1 (M16.10)")
+- **Verification:** test suites and typecheck before commit
+
+### M16.9: `--user-data-dir` holds all of the app's data again
+- **Status:** ✅ Complete
+- **Date:** 2026-11-07
+- **Files modified:** `electron/main.js`, `server/tests/electron/packaging.test.ts`
+- **Docs:** `docs/phases/phase-16.md` ("A scratch profile holds everything (M16.9)")
+- **Verification:** packaging test; packaged Windows build with the flag and without it
+
 ### M16.7: Version 0.3.0, the changelog and the Mac notes
 - **Status:** ✅ Complete
 - **Date:** 2026-11-07

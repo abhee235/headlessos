@@ -144,7 +144,7 @@ plain `enc-key` was kept. The docs say so.
 | M16.7 | Version 0.3.0, the changelog and the Mac notes | ✅ |
 | M16.8 | Tag v0.3.0 and check the release | ✅ |
 | M16.9 | `--user-data-dir` holds all of the app's data again | ✅ |
-| M16.10 | Version 0.3.1 and the changelog | ⬜ |
+| M16.10 | Version 0.3.1 and the changelog | ✅ |
 | M16.11 | Tag v0.3.1 and check the release | ⬜ |
 
 ## Checks
