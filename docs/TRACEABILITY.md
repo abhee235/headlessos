@@ -1636,6 +1636,13 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-16.md`, `docs/DECISIONS.md` (ADR-029)
 - **Verification:** packaged Windows build on the real keychain, with a copy of real data: upgrade, restart, another profile, restore
 
+### M16.15: Version 0.3.2 in place of 0.3.1
+- **Status:** ✅ Complete
+- **Date:** 2026-11-08
+- **Files modified:** every `package.json`, both lockfiles, `server/src/index.ts`, `client/src/components/Desktop/Desktop.tsx`, `client/src/components/Desktop/SettingsView.tsx`, `CHANGELOG.md`
+- **Docs:** `docs/phases/phase-16.md` ("Version 0.3.2 in place of 0.3.1 (M16.15)")
+- **Verification:** test suites and typecheck before commit
+
 ### M16.12–M16.14: The log records failures, not activity
 - **Status:** ✅ Complete
 - **Date:** 2026-11-08

@@ -124,6 +124,15 @@ also stops saying Linux has no build: 0.2.1 shipped one.
 0.3.1 ships what came after the 0.3.0 tag: EX8.32, EX8.33 and M16.9. None of it changes stored data,
 so a patch version fits. The version goes where M16.7 lists, and only our own entries in the lockfiles.
 
+### Version 0.3.2 in place of 0.3.1 (M16.15)
+
+v0.3.1 was tagged and built, and its Windows checks passed, but it wasn't published. The log fix
+(M16.12–M16.14) came next, and each update can make a Mac ask for the Keychain password again,
+because the app isn't signed. Two releases a day apart would ask twice, and the first would still
+write the old log. So 0.3.2 ships both, and the 0.3.1 draft is deleted. Nothing in either changes
+stored data, so a patch version still fits. The changelog folds 0.3.1's entries into 0.3.2, since
+nobody could download 0.3.1.
+
 ### The log records failures, not activity (M16.12–M16.14)
 
 The owner asked what the log holds. A real log had no password, key or token, and the install secret
@@ -188,10 +197,12 @@ plain `enc-key` was kept. The docs say so.
 | M16.8 | Tag v0.3.0 and check the release | ✅ |
 | M16.9 | `--user-data-dir` holds all of the app's data again | ✅ |
 | M16.10 | Version 0.3.1 and the changelog | ✅ |
-| M16.11 | Tag v0.3.1 and check the release | ⬜ |
+| M16.11 | Tag v0.3.1 and check the release | ⏭️ |
 | M16.12 | The server logs failures, and no requests, commands or addresses | ✅ |
 | M16.13 | The log's filter catches what's left, including a key across lines | ✅ |
 | M16.14 | Older logs are removed once | ✅ |
+| M16.15 | Version 0.3.2 in place of 0.3.1 | ✅ |
+| M16.16 | Tag v0.3.2 and check the release | ⬜ |
 
 ## Checks
 

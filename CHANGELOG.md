@@ -3,15 +3,15 @@
 All notable changes to HeadlessOS. Task IDs (M14, EX11, …) point to the phase specs in
 [docs/phases/](docs/phases/); [docs/PROGRESS.md](docs/PROGRESS.md) has the full log.
 
-## Unreleased
+## 0.3.2 — 2026-11-08
+
+0.3.1 wasn't published, so its changes are here too.
 
 ### Security
 - **The log records problems, not what you do.** It used to write a line for every request, naming
   the files, containers and services you opened, and a failed connection wrote the server's address.
   It now records failures only, with no requests, commands, addresses or logins. Logs from older
   versions are removed the first time this version starts (M16.12–M16.14).
-
-## 0.3.1 — 2026-11-07
 
 ### Changed
 - **The launcher leaves your desktop showing.** It's shorter, and it keeps clear of the top bar. Its

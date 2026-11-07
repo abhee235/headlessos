@@ -35,7 +35,7 @@
 | M13: Release Readiness | Beta | ✅ | 4/4 tasks | [phase-13](phases/phase-13.md) |
 | M14: Public Release | Beta | ✅ | 12/12 tasks | [phase-14](phases/phase-14.md) |
 | M15: Desktop Diagnostics | Beta | ✅ | 21/21 tasks | [phase-15](phases/phase-15.md) |
-| M16: Saved Secrets in the OS Keychain | Beta | 🔄 | 13/14 tasks, v0.3.0 published, v0.3.1 to tag; Linux not run | [phase-16](phases/phase-16.md) |
+| M16: Saved Secrets in the OS Keychain | Beta | 🔄 | 14/16 tasks (M16.11 skipped), v0.3.0 published, v0.3.2 to check; Linux not run | [phase-16](phases/phase-16.md) |
 | **EX1: Dynamic UI Engine** | **Experimental** | **✅** | **15/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
 | **EX2: UI Generation Agent** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
 | **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **✅** | **26/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
@@ -665,6 +665,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-11-08 | **M16.15 ✅** Version 0.3.2 in place of 0.3.1, which was never published (M16.11 ⏭️). Each update can make a Mac ask for the Keychain again, so 0.3.1 and the log fix ship together. |
 | 2026-11-08 | **M16.12–M16.14 ✅** The log records failures, not activity. No request lines, commands or addresses, and a failure names the route's pattern. The filter also masks addresses, logins, every query value and unlabelled secrets, and drops a key printed across lines. Logs from older versions are removed once. It stays readable, not encrypted: `phase-16.md` says why. |
 | 2026-11-07 | **M16.10 ✅** Version 0.3.1 with its changelog, for EX8.32, EX8.33 and M16.9. |
 | 2026-11-07 | **M16.9 ✅** `--user-data-dir` holds all of the app's data again. Since M16.6 it moved only `Local State`, so a scratch profile split in two, and a scratch `USERPROFILE` without `AppData\Roaming` stopped the app at startup. |

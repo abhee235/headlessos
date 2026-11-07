@@ -435,7 +435,7 @@ export function Desktop() {
           <HeadlessOSLogo size={64} />
           <div>
             <h3 className="text-lg font-semibold text-foreground">HeadlessOS</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Version 0.3.1</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Version 0.3.2</p>
           </div>
           <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
             A localhost web app that connects to Linux servers via SSH, runs commands,
