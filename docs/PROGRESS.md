@@ -665,6 +665,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-11-09 | **M16.17 ✅** The README opens with the launch video, made with Remotion in `headlessos-web/video`. GitHub plays a README video only from its own uploads, so the README links one, and the pull request that adds it makes the upload public. |
 | 2026-11-08 | **M16.15 ✅** Version 0.3.2 in place of 0.3.1, which was never published (M16.11 ⏭️). Each update can make a Mac ask for the Keychain again, so 0.3.1 and the log fix ship together. |
 | 2026-11-08 | **M16.12–M16.14 ✅** The log records failures, not activity. No request lines, commands or addresses, and a failure names the route's pattern. The filter also masks addresses, logins, every query value and unlabelled secrets, and drops a key printed across lines. Logs from older versions are removed once. It stays readable, not encrypted: `phase-16.md` says why. |
 | 2026-11-07 | **M16.10 ✅** Version 0.3.1 with its changelog, for EX8.32, EX8.33 and M16.9. |

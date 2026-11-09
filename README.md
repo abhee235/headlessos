@@ -4,6 +4,8 @@
 
 **[Website](https://headlessos.com)** · **[Download](https://headlessos.com/download)** · **[Documentation](https://headlessos.com/docs/introduction)** · **[Blog](https://headlessos.com/blog)** · **[Changelog](CHANGELOG.md)**
 
+https://github.com/user-attachments/assets/077ada69-0733-4d6d-b1a4-3dabbfe6571b
+
 ## What Is This?
 
 HeadlessOS is a **localhost app** (in the browser or as an Electron desktop app). It connects to your VPS and Linux servers over SSH, runs commands, and parses their output: with deterministic parsers first, and an LLM when no parser fits. It renders the results as a familiar desktop: file explorer, task manager, Docker and services panels, a terminal, and more.

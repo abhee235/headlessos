@@ -1636,6 +1636,13 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-16.md`, `docs/DECISIONS.md` (ADR-029)
 - **Verification:** packaged Windows build on the real keychain, with a copy of real data: upgrade, restart, another profile, restore
 
+### M16.17: The README opens with the launch video
+- **Status:** ✅ Complete
+- **Date:** 2026-11-09
+- **Files modified:** `README.md`
+- **Docs:** `docs/phases/phase-16.md` ("The README opens with the launch video (M16.17)")
+- **Verification:** the video plays at the top of the README on github.com while signed out
+
 ### M16.15: Version 0.3.2 in place of 0.3.1
 - **Status:** ✅ Complete
 - **Date:** 2026-11-08

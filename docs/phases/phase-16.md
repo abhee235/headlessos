@@ -133,6 +133,20 @@ write the old log. So 0.3.2 ships both, and the 0.3.1 draft is deleted. Nothing 
 stored data, so a patch version still fits. The changelog folds 0.3.1's entries into 0.3.2, since
 nobody could download 0.3.1.
 
+### The README opens with the launch video (M16.17)
+
+The README starts with a 57-second launch video: a wall of terminal output, then the desktop, the
+apps, how it connects, the AI agent and where to get it. It is made with Remotion in the website repo,
+in `headlessos-web/video`, from the website's demo-server screenshots and the app's own wallpapers, so
+it shows no real server.
+
+GitHub plays a video in a README only when the file was uploaded to GitHub, up to 10 MB on a free
+account. A file in the repo, or on another site, shows as a link. So the README holds the link to an
+upload of the 1080p cut (7.5 MB). An upload is private to its uploader until public content uses it,
+so the pull request that adds the link shows the video too. A new version means rendering it again
+(`npm run render`, then `npm run render:readme` in `headlessos-web/video`), uploading the new file and
+swapping the link.
+
 ### The log records failures, not activity (M16.12–M16.14)
 
 The owner asked what the log holds. A real log had no password, key or token, and the install secret
@@ -203,6 +217,7 @@ plain `enc-key` was kept. The docs say so.
 | M16.14 | Older logs are removed once | ✅ |
 | M16.15 | Version 0.3.2 in place of 0.3.1 | ✅ |
 | M16.16 | Tag v0.3.2 and check the release | ⬜ |
+| M16.17 | The README opens with the launch video | ✅ |
 
 ## Checks
 
