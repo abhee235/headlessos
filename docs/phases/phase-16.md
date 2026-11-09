@@ -249,7 +249,7 @@ plain `enc-key` was kept. The docs say so.
 | M16.13 | The log's filter catches what's left, including a key across lines | ✅ |
 | M16.14 | Older logs are removed once | ✅ |
 | M16.15 | Version 0.3.2 in place of 0.3.1 | ✅ |
-| M16.16 | Tag v0.3.2 and check the release | ⬜ |
+| M16.16 | Tag v0.3.2 and check the release | ✅ |
 | M16.17 | The README opens with the launch video | ✅ |
 | M16.18 | The README reads as the project's front page | ✅ |
 
@@ -347,3 +347,9 @@ patterns and not printed, had no secret in it, and neither the install secret no
 **Not run:** Linux, and Gatekeeper on the 0.3.0 file, because `gh` downloads carry no quarantine flag.
 
 v0.3.0 was published on 2026-11-07 from the DMG that was tested, and all six files are there.
+
+**The 0.3.2 draft on the owner's Mac (M16.16).** The checklist: the universal DMG downloaded in a
+browser and installed over 0.3.0, Gatekeeper's Open Anyway, the Keychain note and prompt after the
+update, saved logins and settings carried over, the new log, San Francisco, the launcher and the logo.
+The dev SSH container was offered as the server. The owner reported the testing done, and v0.3.2 was
+published on 2026-11-10 with all six files.

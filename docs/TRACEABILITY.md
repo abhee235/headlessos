@@ -1636,6 +1636,13 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-16.md`, `docs/DECISIONS.md` (ADR-029)
 - **Verification:** packaged Windows build on the real keychain, with a copy of real data: upgrade, restart, another profile, restore
 
+### M16.16: Tag v0.3.2 and check the release
+- **Status:** ✅ Complete
+- **Date:** 2026-11-10
+- **Files modified:** none (the release on GitHub)
+- **Docs:** `docs/phases/phase-16.md` ("As built")
+- **Verification:** the owner's test of the draft's universal DMG on a Mac; published with all six files
+
 ### M16.18: The README reads as the project's front page
 - **Status:** ✅ Complete
 - **Date:** 2026-11-09
