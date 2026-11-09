@@ -54,7 +54,7 @@ Each app runs the commands you'd type and shows the answer as an interface. Wind
   </tr>
   <tr>
     <td><img src="docs/images/docker.webp" alt="The Docker app listing eleven containers with their image, state, status and ports"></td>
-    <td><img src="docs/images/task-manager.webp" alt="Task Manager listing processes with their user, CPU and memory, above CPU, memory and network totals"></td>
+    <td><img src="docs/images/task-manager.webp" alt="Task Manager on its Performance page: processor load over time for every core, with memory, disk, network and process counts"></td>
   </tr>
   <tr>
     <td><b>Docker.</b> Containers, images, ports and logs. Start, stop and restart without remembering a flag.</td>
@@ -62,10 +62,10 @@ Each app runs the commands you'd type and shows the answer as an interface. Wind
   </tr>
   <tr>
     <td><img src="docs/images/server-admin.webp" alt="Server Admin on the Network page, listing listening ports with the process behind each"></td>
-    <td><img src="docs/images/terminal.webp" alt="A terminal on web-01 running htop"></td>
+    <td><img src="docs/images/terminal.webp" alt="A terminal running htop"></td>
   </tr>
   <tr>
-    <td><b>Server Admin.</b> Network, firewall, services, packages, cron, logs and storage, as forms and tables instead of man pages.</td>
+    <td><b>Server Admin.</b> Network, firewall, security, web server, packages, cron jobs, logs and storage, as forms and tables instead of man pages.</td>
     <td><b>Terminal.</b> When you want the shell, it's one click away: a real terminal with a persistent session, tabs and your own theme.</td>
   </tr>
 </table>
