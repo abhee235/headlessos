@@ -1636,6 +1636,14 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-16.md`, `docs/DECISIONS.md` (ADR-029)
 - **Verification:** packaged Windows build on the real keychain, with a copy of real data: upgrade, restart, another profile, restore
 
+### M16.18: The README reads as the project's front page
+- **Status:** ✅ Complete
+- **Date:** 2026-11-09
+- **Files created:** `docs/images/logo.svg`, `docs/images/docker.webp`, `docs/images/task-manager.webp`, `docs/images/server-admin.webp`, `docs/images/terminal.webp`
+- **Files modified:** `README.md`, `CONTRIBUTING.md`, `docs/images/dashboard.webp`, `docs/images/file-explorer.webp`
+- **Docs:** `docs/phases/phase-16.md` ("The README reads as the project's front page (M16.18)")
+- **Verification:** rendered on github.com while signed out (video, screenshots, FAQ), and every link checked
+
 ### M16.17: The README opens with the launch video
 - **Status:** ✅ Complete
 - **Date:** 2026-11-09

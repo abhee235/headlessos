@@ -20,6 +20,73 @@ npm run dev                        # server on :3001, app on http://localhost:30
   at `127.0.0.1:2222` (user `testuser`, password `testpass`).
 - **No LLM key?** Parsing still works with the deterministic parsers. `LLM_PROVIDER=fake`
   runs the agents end to end against scripted replies.
+- **The desktop app:** `npm run build:dist:win` (or `:mac`, `:linux`).
+
+## How the code is organized
+
+HeadlessOS is a localhost app. A Fastify server signs in to Linux servers over SSH, runs
+commands and parses their output: with deterministic parsers first, and an LLM only when no
+parser fits. A React client renders the result as a desktop. Electron wraps both into the
+desktop app. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) has the full picture.
+
+| Layer | Technology | Why |
+|-------|-----------|-----|
+| Backend | Node.js + Fastify + TypeScript | Fast, native WebSocket, great TS support |
+| SSH | ssh2 (npm) | Pure JS, multi-channel, SFTP, PTY support |
+| LLM | OpenAI SDK, Anthropic SDK (Claude) or Ollama (local), one provider interface | Structured output validated with Zod |
+| Frontend | React + Vite + TypeScript + TailwindCSS | Fast dev, modern UI |
+| Terminal | xterm.js + addons | Industry standard (used by VS Code) |
+| Schema | Zod | Runtime + compile-time type safety, LLM schema generation |
+| Desktop app | Electron | The same app as a native window, with the server bundled |
+
+```
+headlessos/
+├── docs/                    # All project documentation (documentation-first)
+│   ├── phases/              # Per-phase specs: phase-0…16 (milestones), phase-ex1…ex11 (experimental)
+│   ├── PROGRESS.md          # Task tracker, status, changelog
+│   ├── TRACEABILITY.md      # Task → files → tests audit trail
+│   ├── DECISIONS.md         # Architecture Decision Records (ADRs)
+│   └── …                    # ARCHITECTURE, API_SPEC, SECURITY, TESTING, LLM_STRATEGY, …
+├── server/                  # Backend (Node.js + Fastify)
+│   └── src/
+│       ├── index.ts         # Entry point: wires every component and route
+│       ├── ssh/             # SSH connections, SFTP, terminal sessions
+│       ├── parsers/         # Deterministic parsers + LLM parsing pipeline
+│       ├── llm/             # Provider interface, OpenAI, Anthropic and Ollama providers, model limits
+│       ├── agent/           # AI Agent and UI Agent: action catalog, approvals, context management
+│       ├── dynamic-ui/      # Generated views, templates
+│       ├── observatory/     # Traces of model and tool calls
+│       ├── services/        # Domain services, command policy
+│       ├── routes/          # REST + WebSocket endpoints
+│       └── security/, config/, …
+├── client/                  # Frontend (React + Vite)
+│   └── src/                 # components/, store/, hooks/, lib/
+├── shared/                  # Types and Zod schemas shared by server and client (shared/schemas/)
+├── electron/                # Electron desktop app
+├── dev/                     # Local test server (Docker, SSH on port 2222)
+├── AGENTS.md                # Rules for AI coding assistants
+├── SECURITY.md              # Security policy: reporting, what is stored and sent where
+├── CONTRIBUTING.md          # This page
+└── package.json             # npm workspaces root
+```
+
+### Where the docs are
+
+| Document | Purpose | Read when |
+|----------|---------|-----------|
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, components, data flow | Understanding the system |
+| [IMPLEMENTATION_INDEX.md](docs/IMPLEMENTATION_INDEX.md) | Phase overview, task ID system | Finding what to build next |
+| [phases/](docs/phases/) | Detailed per-phase task specs | Building features |
+| [PROGRESS.md](docs/PROGRESS.md) | Task tracker, current status | Checking what to work on next |
+| [TRACEABILITY.md](docs/TRACEABILITY.md) | Task → files → tests audit trail | Tracking what was built |
+| [DECISIONS.md](docs/DECISIONS.md) | Why decisions were made (ADRs) | Understanding past choices |
+| [APP_REGISTRY.md](docs/APP_REGISTRY.md) | How apps work, adding new apps | Adding a new app module |
+| [API_SPEC.md](docs/API_SPEC.md) | REST + WebSocket API reference | Writing frontend/backend code |
+| [LLM_STRATEGY.md](docs/LLM_STRATEGY.md) | LLM integration, parser migration | Working on parsing |
+| [docs/SECURITY.md](docs/SECURITY.md) | Threat model, command safety | Any code that executes commands |
+| [TESTING.md](docs/TESTING.md) | Test strategy, how to write tests | Writing or running tests |
+| [CONTEXT.md](docs/CONTEXT.md) | Quick briefing for AI assistants | Starting a new AI session |
+| [AGENTS.md](AGENTS.md) | Rules for AI coding assistants | An AI assistant is helping |
 
 ## How work is planned
 

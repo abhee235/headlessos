@@ -1,146 +1,120 @@
+<div align="center">
+
+<img src="docs/images/logo.svg" width="80" height="80" alt="">
+
 # HeadlessOS
 
-> A local application that turns headless Linux servers into a Windows-like desktop, without installing anything on the server.
+**Give every server a desktop.**
 
-**[Website](https://headlessos.com)** · **[Download](https://headlessos.com/download)** · **[Documentation](https://headlessos.com/docs/introduction)** · **[Blog](https://headlessos.com/blog)** · **[Changelog](CHANGELOG.md)**
+Open any Linux server you can SSH into and use it like your own computer.<br>
+Nothing is installed on the server.
+
+[![Latest release](https://img.shields.io/github/v/release/abhee235/headlessos?label=release)](https://github.com/abhee235/headlessos/releases/latest)
+[![MIT license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Runs on Windows, macOS and Linux](https://img.shields.io/badge/runs_on-Windows_%7C_macOS_%7C_Linux-lightgrey)](https://headlessos.com/download)
+
+**[Download](https://headlessos.com/download)** · **[Website](https://headlessos.com)** · **[Documentation](https://headlessos.com/docs/introduction)** · **[Blog](https://headlessos.com/blog)** · **[Changelog](CHANGELOG.md)**
+
+</div>
 
 https://github.com/user-attachments/assets/077ada69-0733-4d6d-b1a4-3dabbfe6571b
 
-## What Is This?
+HeadlessOS is a free desktop app for Windows, macOS and Linux. Point it at a VPS, a cloud server, a home lab or a Raspberry Pi, and the server opens as a desktop: drag files, restart containers, watch the CPU and read logs in real windows. It signs in over SSH and runs the same commands you would, so there's nothing to install on the server and nothing left behind.
 
-HeadlessOS is a **localhost app** (in the browser or as an Electron desktop app). It connects to your VPS and Linux servers over SSH, runs commands, and parses their output: with deterministic parsers first, and an LLM when no parser fits. It renders the results as a familiar desktop: file explorer, task manager, Docker and services panels, a terminal, and more.
+## Why HeadlessOS
 
-**Zero footprint on the server.** The server doesn't know it's being managed through a GUI. It only receives and answers SSH commands like normal.
+Is the disk full? Which container restarted? What's eating the CPU? On a server, each answer is another command to remember:
 
-![The Dashboard: CPU, memory, uptime, disks and network of a server, read over SSH](docs/images/dashboard.webp)
-
-## The Problem
-
-You have a VPS. You SSH into it. You can never remember:
-- `docker ps --format '{{json .}}'`
-- `systemctl list-units --type=service --state=running --no-pager`
-- `df -h | awk '{print $1, $5}'`
-- `journalctl -u nginx --since "1 hour ago"`
-
-You want a **visual interface**, like Windows Explorer for files, Task Manager for processes and a Docker Desktop-like panel. But you don't want to install a 500MB GUI on a $5/month VPS.
-
-## The Solution
-
-```
-┌─────────────────────────────────────────────────┐
-│              Your Local Machine                  │
-│                                                  │
-│  ┌────────────────────────────────────────────┐  │
-│  │          HeadlessOS (localhost:3000)        │  │
-│  │                                            │  │
-│  │  ┌──────────┐ ┌─────────┐ ┌────────────┐  │  │
-│  │  │  File    │ │ Docker  │ │  Process   │  │  │
-│  │  │ Explorer │ │Dashboard│ │  Manager   │  │  │
-│  │  └──────────┘ └─────────┘ └────────────┘  │  │
-│  │  ┌──────────────────────────────────────┐  │  │
-│  │  │        Interactive Terminal           │  │  │
-│  │  └──────────────────────────────────────┘  │  │
-│  └────────────────┬───────────────────────────┘  │
-│                   │ SSH (ssh2 library)            │
-└───────────────────┼──────────────────────────────┘
-                    │
-            ┌───────▼───────┐
-            │  Your VPS     │
-            │  (unchanged)  │
-            │  Just SSH     │
-            └───────────────┘
+```bash
+df -h | grep -v tmpfs
+docker ps --format 'table {{.Names}}\t{{.Status}}'
+ps aux --sort=-%cpu | head
+sudo journalctl -u nginx --since -1h | grep err
 ```
 
-## What's In It
+You want what you have on your own computer: Explorer for files, Task Manager for processes, Docker Desktop for containers. But you don't want to install a 500 MB GUI on a $5 VPS. HeadlessOS gives you that desktop without touching the server. It asks for you and keeps the answers on screen.
 
-- **Desktop apps:** Dashboard, Files, Terminal, Docker, Services, Task Manager, Server Admin and Settings, in movable windows.
-- **Sessions:** one session per server; switch between them and pick up where you left off.
-- **AI Agent:** investigates a question about the server ("why is memory high?") and answers with evidence.
-- **UI Agent:** builds a custom view from a plain-language request, live as it gathers data.
-- **LLM Observatory:** every model and tool call of a run, with tokens, latency and cost.
-- **Safe by design:**
-  - Agents never run commands a model wrote. They pick typed actions from a fixed catalog, and the server builds and runs the command.
-  - Anything that changes a server waits for your approval and is written to an audit log.
-  - Secrets are removed from server output before a model sees it.
+- **Nothing on the server.** Web panels like Cockpit or Webmin are installed on each server and served from it. HeadlessOS signs in with the key, agent or password you already use, on the port you already have open, and uses the tools the server already has. No agent, no new port, no account.
+- **No commands to memorize.** 31 built-in parsers read `df`, `ps`, `docker` and friends instantly. An AI model steps in only for output they don't recognize, and only if you add one.
+- **Private by default.** The app runs on your computer and listens on localhost only. Saved passwords and keys are encrypted on your disk. No cloud, no telemetry.
+- **Free and open source.** MIT licensed, with nothing to sign up for.
+
+## What's inside
+
+Each app runs the commands you'd type and shows the answer as an interface. Windows move, resize and snap, and remember where you put them.
 
 <table>
   <tr>
-    <td><img src="docs/images/file-explorer.webp" alt="File Explorer browsing the server's root folder over SFTP"></td>
-    <td><img src="docs/images/settings-ai.webp" alt="Settings → AI: None, OpenAI, Anthropic (Claude) or a local Ollama model"></td>
+    <td width="50%"><img src="docs/images/dashboard.webp" alt="The Dashboard for web-01: processor, memory, uptime, disk usage and live network traffic"></td>
+    <td width="50%"><img src="docs/images/file-explorer.webp" alt="File Explorer with a docker-compose.yml open in the code editor"></td>
   </tr>
   <tr>
-    <td align="center">Files over SFTP</td>
-    <td align="center">Choose the AI: OpenAI, Claude or a local model</td>
+    <td><b>Dashboard.</b> Processor, memory, disks, network and uptime on one live screen.</td>
+    <td><b>Files.</b> Browse, upload, rename and edit over SFTP, with a real code editor and a recycle bin you can restore from.</td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/docker.webp" alt="The Docker app listing eleven containers with their image, state, status and ports"></td>
+    <td><img src="docs/images/task-manager.webp" alt="Task Manager listing processes with their user, CPU and memory, above CPU, memory and network totals"></td>
+  </tr>
+  <tr>
+    <td><b>Docker.</b> Containers, images, ports and logs. Start, stop and restart without remembering a flag.</td>
+    <td><b>Task Manager.</b> Live CPU, memory, disk and network, plus every process, who owns it and what it costs.</td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/server-admin.webp" alt="Server Admin on the Network page, listing listening ports with the process behind each"></td>
+    <td><img src="docs/images/terminal.webp" alt="A terminal on web-01 running htop"></td>
+  </tr>
+  <tr>
+    <td><b>Server Admin.</b> Network, firewall, services, packages, cron, logs and storage, as forms and tables instead of man pages.</td>
+    <td><b>Terminal.</b> When you want the shell, it's one click away: a real terminal with a persistent session, tabs and your own theme.</td>
   </tr>
 </table>
 
-## Key Principles
+**Every server gets its own desktop.** Sign in to several at once and switch in a click. Each one keeps its windows, wallpaper and layout, and comes back as you left it.
 
-1. **Zero server install.** The server runs no additional software. All intelligence is local.
-2. **Deterministic first, LLM as fallback.** Regex parsers and JSON-output flags come first; an LLM parses only what no parser handles.
-3. **Terminal is always available.** The UI is a convenience layer. You can always drop to a real terminal.
-4. **Your choice of model.** OpenAI, Claude (Anthropic), or a model running on your own machine through [Ollama](https://ollama.com), behind one provider interface. Without any of them, parsing stays deterministic.
+## Ask your server what's wrong
 
-## Tech Stack
+Ask "why is the disk full?" and get a view, not a wall of text.
 
-| Layer | Technology | Why |
-|-------|-----------|-----|
-| Backend | Node.js + Fastify + TypeScript | Fast, native WebSocket, great TS support |
-| SSH | ssh2 (npm) | Pure JS, multi-channel, SFTP, PTY support |
-| LLM | OpenAI SDK, Anthropic SDK (Claude) or Ollama (local), one provider interface | Structured output validated with Zod |
-| Frontend | React + Vite + TypeScript + TailwindCSS | Fast dev, modern UI |
-| Terminal | xterm.js + addons | Industry standard (used by VS Code) |
-| Schema | Zod | Runtime + compile-time type safety, LLM schema generation |
-| Desktop app | Electron | The same app as a native window, with the server bundled |
+- The **AI Agent** investigates a question and answers with what it looked at.
+- The **UI Agent** builds a custom view from a plain-language request, live as it gathers data.
+- The **LLM Observatory** shows every model and tool call of a run, with tokens, latency and cost.
 
-## Project Structure
+Use OpenAI, Claude, or an [Ollama](https://ollama.com) model that never leaves your machine. The AI is optional: everything else works without a key.
 
-```
-headlessos/
-├── docs/                    # 📖 All project documentation (DDD)
-│   ├── phases/              # Per-phase specs: phase-0…14 (milestones), phase-ex1…ex11 (experimental)
-│   ├── PROGRESS.md          # Task tracker, status, changelog
-│   ├── TRACEABILITY.md      # Task → files → tests audit trail
-│   ├── DECISIONS.md         # Architecture Decision Records (ADRs)
-│   └── …                    # ARCHITECTURE, API_SPEC, SECURITY, TESTING, LLM_STRATEGY, …
-├── server/                  # Backend (Node.js + Fastify)
-│   └── src/
-│       ├── index.ts         # Entry point: wires every component and route
-│       ├── ssh/             # SSH connections, SFTP, terminal sessions
-│       ├── parsers/         # Deterministic parsers + LLM parsing pipeline
-│       ├── llm/             # Provider interface, OpenAI, Anthropic and Ollama providers, model limits
-│       ├── agent/           # AI Agent and UI Agent: action catalog, approvals, context management
-│       ├── dynamic-ui/      # Generated views, templates
-│       ├── observatory/     # Traces of model and tool calls
-│       ├── services/        # Domain services, command policy
-│       ├── routes/          # REST + WebSocket endpoints
-│       └── security/, config/, …
-├── client/                  # Frontend (React + Vite)
-│   └── src/                 # components/, store/, hooks/, lib/
-├── shared/                  # Types and Zod schemas shared by server and client (shared/schemas/)
-├── electron/                # Electron desktop app
-├── dev/                     # Local test server (Docker, SSH on port 2222)
-├── AGENTS.md                # Rules for AI coding assistants
-├── SECURITY.md              # Security policy: reporting, what is stored and sent where
-├── CONTRIBUTING.md          # Setup, workflow, commit format, checks
-└── package.json             # npm workspaces root
-```
+## Safe to point at a real server
 
-## Install
+- **It stays on your computer.** The app listens on localhost only, behind a per-install token. No cloud, no telemetry.
+- **Your secrets stay encrypted.** Saved passwords, SSH keys and AI keys are encrypted on your disk.
+- **The agents can't improvise.** They choose from a fixed catalog of checked actions, and HeadlessOS builds and runs the command. They never run a shell command a model wrote.
+- **Nothing changes without your yes.** Changes wait for your approval and go to an audit log. Files are backed up before they're edited, and put back if a check fails.
+- **Models don't see your secrets.** Passwords and keys are stripped from command output before a model sees it.
 
-Download the desktop app from this repository's **Releases** page:
+[SECURITY.md](SECURITY.md) lists what is stored and what is sent where, and [docs/SECURITY.md](docs/SECURITY.md) has the threat model.
 
-| Platform | File |
-|----------|------|
-| macOS (Apple Silicon and Intel) | `HeadlessOS-*-universal.dmg` |
-| Windows | `HeadlessOS Setup *.exe` (installer) or `HeadlessOS *.exe` (portable) |
-| Linux | `HeadlessOS-*.AppImage`, or `headlessos-desktop_*.deb` for Debian and Ubuntu |
+## How it works
 
-The builds may be unsigned, so the first launch shows a warning:
-- **macOS:** follow [First launch on a Mac](#first-launch-on-a-mac).
+HeadlessOS isn't an operating system. It's a GUI for your Linux server that runs on your computer.
+
+1. **It runs on your side,** as a desktop app for Windows, macOS or Linux, or in your browser on localhost. The windows, the parsing and the AI all live there.
+2. **It signs in like you do,** over SSH. It runs the same commands you would and turns the answers into windows.
+3. **Your server stays exactly as it was.** It keeps its own OS, packages and config, and nothing is left behind when you close the app.
+
+## Download
+
+Get the app from the [download page](https://headlessos.com/download) or from [Releases](https://github.com/abhee235/headlessos/releases/latest):
+
+| System | File |
+|--------|------|
+| Windows 10 or 11, 64-bit | `HeadlessOS.Setup.<version>.exe` (installer) or `HeadlessOS.<version>.exe` (portable) |
+| macOS 11 or later, Apple silicon and Intel | `HeadlessOS-<version>-universal.dmg` |
+| Linux, 64-bit | `HeadlessOS-<version>.AppImage`, or `headlessos-desktop_<version>_amd64.deb` for Debian and Ubuntu |
+
+Then add a server (host, user, and a key, agent or password) and connect. Your first server opens in about a minute. To use an AI, open **Settings → AI** and choose OpenAI, Claude or a local Ollama model. Keys are stored encrypted on your computer ([SECURITY.md](SECURITY.md)).
+
+The app isn't code-signed yet, so the first launch shows a warning:
 - **Windows:** in SmartScreen choose **More info** → **Run anyway**.
-
-Then add a server (host, user, password or key) and connect. To use an AI, open **Settings → AI** and choose OpenAI, Claude or a local Ollama model. Keys are stored encrypted on your computer ([SECURITY.md](SECURITY.md)).
+- **macOS:** follow [First launch on a Mac](#first-launch-on-a-mac).
 
 ### First launch on a Mac
 
@@ -158,69 +132,74 @@ If macOS says the app "is damaged", run `xattr -cr /Applications/HeadlessOS.app`
 
 HeadlessOS keeps the key to your saved logins in the macOS Keychain, so other apps can't read it. When macOS asks, enter your Mac password and click **Always Allow**. Because the app isn't signed, this can happen once after each update. If any other app ever asks for "HeadlessOS Safe Storage", click **Deny**.
 
-## Run From Source
+## Run it from source
+
+Prefer the browser? You need Node.js 20 or later and npm 9 or later.
 
 ```bash
-# Prerequisites: Node.js 20+, npm 9+
-
+git clone https://github.com/abhee235/headlessos.git
+cd headlessos
 npm install
-
-# Optional: an OpenAI key. You can also add one later in Settings → AI,
-# or choose Claude or a local Ollama model there instead.
-cp .env.example .env         # .env lives at the repo root
-
-# Start the server (:3001) and the web UI (:3000)
-npm run dev
-# then open http://localhost:3000
+npm run dev        # then open http://localhost:3000
 ```
 
-**A server to try it on:** `cd dev && docker compose up -d` starts a local Ubuntu container with SSH on `127.0.0.1:2222` (user `testuser`, password `testpass`).
+- **A server to try it on:** `cd dev && docker compose up -d` starts a local Ubuntu container with SSH on `127.0.0.1:2222` (user `testuser`, password `testpass`).
+- **An AI key is optional.** Add one later in **Settings → AI**, or put an OpenAI key in `.env` (`cp .env.example .env`, at the repo root).
+- **No key and no model?** Start with `LLM_PROVIDER=fake` to run the UI Agent end to end on scripted answers.
 
-**No key and no model?** Start with `LLM_PROVIDER=fake` to run the UI Agent end to end on scripted answers.
+## FAQ
 
-**Tests:** `npm test` runs the server and client suites. Type-check with `npx tsc --noEmit -p server` and `-p client` after `npm run build --workspace=shared` once.
+<details>
+<summary><b>Is HeadlessOS an operating system?</b></summary>
 
-**Desktop app:** `npm run build:dist:win` (or `:mac`, `:linux`).
+No. The name is a nod to headless servers: machines with no screen that you manage through a terminal. HeadlessOS is an app that runs on your computer and gives those servers a desktop-style interface over SSH. Your server keeps its own operating system, and nothing on it is replaced.
+</details>
 
-## Logs
+<details>
+<summary><b>Does it install anything on my server?</b></summary>
 
-The desktop app writes a log to `~/.headlessos/logs/headlessos.log`. To open it, go to
-**Global Settings → Open log** on the sign-in screen, or **Settings → About** once you're
-connected. It's also under the **Help** button in Control Center, and **Help → Open Logs** in the menu bar.
+No. It connects over standard SSH and runs the same tools you would: `ls`, `df`, `ps`, `docker`, `systemctl` and so on. If a tool isn't there (say, Docker), the matching app tells you instead of installing it. No package, service or port is ever added. HeadlessOS only changes what you ask it to, and deleted files go to a recycle bin you can restore from.
+</details>
 
-It holds failures and the app's own events, not what you open. Passwords, API keys, tokens, server
-addresses and logins are kept out, and it's never sent anywhere. An error can still name a file or
-a server, so read it before you paste it into an issue.
+<details>
+<summary><b>Which servers does it work with?</b></summary>
+
+Any Linux machine you can reach over SSH: a cloud VPS, a home-lab box, a Raspberry Pi, a VM. Sign in with a key, your SSH agent, or a password.
+</details>
+
+<details>
+<summary><b>Do I need an AI or OpenAI key?</b></summary>
+
+No. Dashboards, files, Docker, processes, the terminal and admin tools all work without one. Add a key in **Settings → AI** to turn on the agents and to read output the parsers don't know. It works with OpenAI, Claude, or a local Ollama model that never leaves your machine.
+</details>
+
+<details>
+<summary><b>How is it different from Cockpit, Webmin or Portainer?</b></summary>
+
+Those are installed on the server and served from it, so they need a package, a service and an open port on every machine. HeadlessOS runs on your computer instead, works across all your servers at once, and leaves each of them untouched. The blog has [a longer comparison](https://headlessos.com/blog/cockpit-vs-webmin-vs-headlessos).
+</details>
+
+<details>
+<summary><b>Is it really free?</b></summary>
+
+Yes. HeadlessOS is MIT licensed and the whole thing is on GitHub. No account, no paid tier, no telemetry.
+</details>
+
+## Logs and bug reports
+
+Found a bug? [Open an issue](https://github.com/abhee235/headlessos/issues). To report a vulnerability, see [SECURITY.md](SECURITY.md) instead.
+
+The desktop app writes a log to `~/.headlessos/logs/headlessos.log`. To open it, go to **Global Settings → Open log** on the sign-in screen, or **Settings → About** once you're connected. It's also under the **Help** button in Control Center, and **Help → Open Logs** in the menu bar.
+
+It holds failures and the app's own events, not what you open. Passwords, API keys, tokens, server addresses and logins are kept out, and it's never sent anywhere. An error can still name a file or a server, so read it before you paste it into an issue.
 
 Run from source, the same output goes to the terminal running `npm run dev`.
 
-## Documentation Index
+## Contributing
 
-| Document | Purpose | Read When |
-|----------|---------|-----------|
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, components, data flow | Understanding the system |
-| [IMPLEMENTATION_INDEX.md](docs/IMPLEMENTATION_INDEX.md) | Phase overview, task ID system | Finding what to build next |
-| [phases/](docs/phases/) | Detailed per-phase task specs | Building features |
-| [TRACEABILITY.md](docs/TRACEABILITY.md) | Task → files → tests audit trail | Tracking what was built |
-| [APP_REGISTRY.md](docs/APP_REGISTRY.md) | How apps work, adding new apps | Adding a new app module |
-| [API_SPEC.md](docs/API_SPEC.md) | REST + WebSocket API reference | Writing frontend/backend code |
-| [LLM_STRATEGY.md](docs/LLM_STRATEGY.md) | LLM integration, parser migration | Working on parsing |
-| [SECURITY.md](SECURITY.md) | Security policy: reporting, storage, what is sent where | Before reporting a vulnerability |
-| [docs/SECURITY.md](docs/SECURITY.md) | Threat model, command safety | Any code that executes commands |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Setup, workflow, commit format, checks | Before opening a pull request |
-| [TESTING.md](docs/TESTING.md) | Test strategy, how to write tests | Writing or running tests |
-| [PROGRESS.md](docs/PROGRESS.md) | Task tracker, current status | Checking what to work on next |
-| [DECISIONS.md](docs/DECISIONS.md) | Why decisions were made (ADRs) | Understanding past choices |
-| [CONTEXT.md](docs/CONTEXT.md) | Quick briefing for AI assistants | Starting a new AI session |
-| [AGENTS.md](AGENTS.md) | Rules for AI coding assistants | AI assistant is helping |
+HeadlessOS is built documentation-first: every change starts as a task in a phase doc, and lands with its tests. [CONTRIBUTING.md](CONTRIBUTING.md) covers setup, how the code is organized, where the docs are, and what a pull request needs. AI coding assistants follow [AGENTS.md](AGENTS.md).
 
-## Development Approach
-
-**Document-Driven Development (DDD):**
-1. Every feature is documented BEFORE it's built
-2. Documentation is the source of truth — code follows docs
-3. When docs and code disagree, docs are updated first, then code is aligned
-4. AI coding assistants read [CONTEXT.md](docs/CONTEXT.md) and [AGENTS.md](AGENTS.md) before starting work
+If HeadlessOS saves you a few commands, starring the repo helps other people find it.
 
 ## License
 

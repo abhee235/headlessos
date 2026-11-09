@@ -147,6 +147,39 @@ so the pull request that adds the link shows the video too. A new version means 
 (`npm run render`, then `npm run render:readme` in `headlessos-web/video`), uploading the new file and
 swapping the link.
 
+### The README reads as the project's front page (M16.18)
+
+The owner asked why the README led with the architecture, and for one that sells the project the way
+popular open-source READMEs do, while still saying how to install and run it. Sixteen READMEs of
+comparable projects (Wave, Coolify, Mole, 1Panel, Uptime Kuma, Bruno, LocalSend, Cockpit and others)
+open the same way: a logo, one plain line, a few useful badges, links, and the product on screen. Then
+come outcomes before features, the shortest install, and trust stated plainly. None of them carries an
+architecture diagram, a tech-stack table, a project tree or a docs index; those live in CONTRIBUTING,
+HACKING or a docs site.
+
+The README now follows the website's order, in the website's words:
+- **The promise and the proof:** the logo, "Give every server a desktop.", three badges (release,
+  licence, platforms), the links and the launch video. Then why: the commands you no longer type, the
+  tools people already know (Explorer, Task Manager, Docker Desktop, and Cockpit or Webmin as panels
+  that live on the server), and four reasons (nothing on the server, no commands to memorize, private
+  by default, free).
+- **The apps:** six screenshots with a line each, then sessions.
+- **The AI agents**, then **safe to point at a real server** (every guardrail in one place), then
+  **how it works** in three steps.
+- **Download:** the real file names (the Windows ones have dots, not spaces) and the system
+  requirements. The unsigned-build steps and the Mac first launch are unchanged.
+- **Run it from source**, six of the website's questions as a folded FAQ (its safety question is now
+  the section above), **logs and bug reports**, and contributing.
+
+The tech stack, the project tree and the documentation index moved to `CONTRIBUTING.md` ("How the
+code is organized"), where contributors look. Its documentation-first steps were already there. The
+README shows no download or star badges while those counts are small.
+
+The screenshots now come from the website's demo-server set, scaled to 1440×900 (60–125 KB each).
+`dashboard.webp` and `file-explorer.webp` replace the M14.6 captures of the dev container, and
+`docker`, `task-manager`, `server-admin` and `terminal` are new. No real server shows. The logo is the
+website's `logo-mark.svg`.
+
 ### The log records failures, not activity (M16.12–M16.14)
 
 The owner asked what the log holds. A real log had no password, key or token, and the install secret
@@ -218,6 +251,7 @@ plain `enc-key` was kept. The docs say so.
 | M16.15 | Version 0.3.2 in place of 0.3.1 | ✅ |
 | M16.16 | Tag v0.3.2 and check the release | ⬜ |
 | M16.17 | The README opens with the launch video | ✅ |
+| M16.18 | The README reads as the project's front page | ✅ |
 
 ## Checks
 
