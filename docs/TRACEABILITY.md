@@ -1628,6 +1628,22 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-ex8.md` ("EX8.31")
 - **Verification:** packaged Windows build with real pointer events, dock at the bottom and on the right
 
+### M17.7: The app explains the Local Network prompt before macOS shows it
+- **Status:** ✅ Complete; the dialog is seen on a Mac in M17.5
+- **Date:** 2026-11-25
+- **Files created:** `electron/local-network.js`, `client/src/lib/local-network.ts`, `server/tests/electron/local-network.test.ts`, `client/tests/lib/local-network.test.ts`
+- **Files modified:** `electron/main.js` (`explain-local-network`), `electron/preload.js`, `electron/package.json` (`files`), `client/src/components/Login/LoginScreen.tsx`, `client/tests/components/login-problems.test.tsx`
+- **Docs:** `docs/phases/phase-17.md` ("M17.7")
+- **Verification:** client and main-process tests
+
+### M17.8: A blocked connection on a Mac opens the setting
+- **Status:** ✅ Complete; where System Settings lands is checked in M17.5
+- **Date:** 2026-11-25
+- **Files modified:** `electron/main.js` (`open-local-network-settings`), `electron/preload.js`, `client/src/components/Login/ProblemCard.tsx`, `client/src/components/ui/disconnected-state.tsx`, `client/tests/components/problem-card.test.tsx`
+- **Files created:** `client/tests/components/disconnected-state.test.tsx`
+- **Docs:** `docs/phases/phase-17.md` ("M17.8")
+- **Verification:** client and main-process tests
+
 ### M17.1: Checksums and provenance on every release
 - **Status:** ✅ Complete
 - **Date:** 2026-11-25

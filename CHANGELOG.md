@@ -13,6 +13,11 @@ All notable changes to HeadlessOS. Task IDs (M14, EX11, …) point to the phase 
   (M17.3).
 - Each release has a `SHA256SUMS` file, and GitHub attests that the release workflow built its files
   (M17.1).
+- **On a Mac, the app says the Local Network question is coming.** The first time in each version that
+  you sign in to a server on your local network, it explains that macOS will ask, and to click Allow
+  (M17.7).
+- If macOS keeps HeadlessOS off your local network, the sign-in card and the Server disconnected panel
+  have an **Open Privacy & Security** button (M17.8).
 
 ### Fixed
 - **On a Mac, HeadlessOS has an identity of its own.** Its programs were Electron's own, shared with

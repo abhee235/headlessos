@@ -1,8 +1,9 @@
-import { WifiOff, RotateCw } from 'lucide-react';
+import { WifiOff, RotateCw, Settings } from 'lucide-react';
 import { Button } from './button';
 import { useState } from 'react';
 import * as api from '../../lib/api';
 import { useAppStore } from '../../store/app-store';
+import { LOCAL_NETWORK_HELP, desktopOpenLocalNetworkSettings } from '../../lib/local-network';
 
 interface DisconnectedStateProps {
   serverId: string;
@@ -20,16 +21,21 @@ interface DisconnectedStateProps {
 export function DisconnectedState({ serverId, onReconnected, message }: DisconnectedStateProps) {
   const [reconnecting, setReconnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // M17.8: on a Mac, a reconnect kept off the local network opens the setting
+  const [blocked, setBlocked] = useState(false);
+  const openSettings = blocked ? desktopOpenLocalNetworkSettings() : undefined;
   const signOut = useAppStore((s) => s.signOut);
 
   const handleReconnect = async () => {
     setReconnecting(true);
     setError(null);
+    setBlocked(false);
     try {
       await api.connectServer(serverId);
       onReconnected?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Reconnection failed');
+      setBlocked(api.connectFailureOf(err).help === LOCAL_NETWORK_HELP);
     } finally {
       setReconnecting(false);
     }
@@ -55,6 +61,12 @@ export function DisconnectedState({ serverId, onReconnected, message }: Disconne
             <RotateCw className={`h-4 w-4 ${reconnecting ? 'animate-spin' : ''}`} />
             {reconnecting ? 'Reconnecting…' : 'Reconnect'}
           </Button>
+          {openSettings && (
+            <Button variant="secondary" onClick={() => void openSettings()} className="gap-2" data-testid="disconnected-open-settings">
+              <Settings className="h-4 w-4" />
+              Open Privacy &amp; Security
+            </Button>
+          )}
         </div>
 
         <button

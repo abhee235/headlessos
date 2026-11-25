@@ -35,6 +35,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   /** M15.4: show the app's log file in Finder or Explorer */
   openLogs: () => ipcRenderer.invoke('open-logs'),
 
+  // M17.7, M17.8: only a Mac asks before the local network, so only a Mac has these
+  ...(process.platform === 'darwin'
+    ? {
+        /** Says what macOS will ask, once per version. Resolves when the owner has read it. */
+        explainLocalNetwork: () => ipcRenderer.invoke('explain-local-network'),
+        /** Opens System Settings at Privacy & Security, Local Network */
+        openLocalNetworkSettings: () => ipcRenderer.invoke('open-local-network-settings'),
+      }
+    : {}),
+
   /** Listen for messages from the main process */
   onMessage: (channel, callback) => {
     const validChannels = ['open-settings'];

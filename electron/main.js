@@ -11,6 +11,7 @@ const fs = require('fs');
 const os = require('os');
 const { backendExitAction, createLog, describeExit } = require('./diagnostics');
 const { keychainNotice, markKeychainExplained, openInstallSecret, shouldExplainKeychain } = require('./keychain');
+const { LOCAL_NETWORK_SETTINGS, localNetworkNotice, markLocalNetworkExplained, shouldExplainLocalNetwork } = require('./local-network');
 
 // M16.6: the name comes from productName, and Electron names the Keychain item after it. The window's
 // data (theme, preferences, sessions) stays where every release has kept it, or an update resets it.
@@ -228,6 +229,22 @@ ipcMain.on('get-auth-token', (event) => {
 
 // M15.4: the window has no menu bar on Windows and Linux, so Settings asks for the log here
 ipcMain.handle('open-logs', () => shell.showItemInFolder(log.file));
+
+// M17.7: before the first sign-in to a local address in each version, a Mac is told what macOS will ask
+ipcMain.handle('explain-local-network', async () => {
+  const dir = path.join(os.homedir(), '.headlessos');
+  const version = app.getVersion();
+  if (!shouldExplainLocalNetwork({ dir, version })) return false;
+  const notice = localNetworkNotice(app.getName());
+  await (mainWindow ? dialog.showMessageBox(mainWindow, notice) : dialog.showMessageBox(notice));
+  markLocalNetworkExplained({ dir, version });
+  return true;
+});
+
+// M17.8: the renderer asks for the setting by name; the address is fixed in local-network.js
+ipcMain.handle('open-local-network-settings', () =>
+  process.platform === 'darwin' ? shell.openExternal(LOCAL_NETWORK_SETTINGS) : undefined,
+);
 
 function createWindow() {
   mainWindow = new BrowserWindow({

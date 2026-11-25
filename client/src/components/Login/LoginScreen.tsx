@@ -12,6 +12,7 @@ import { ServerAvatar } from './ServerAvatar';
 import { AddServerForm } from './AddServerForm';
 import { ProblemCard } from './ProblemCard';
 import { connectFailureOf, fetchServerNotice, type ServerNotice } from '../../lib/api';
+import { desktopExplainLocalNetwork, isLocalNetworkHost } from '../../lib/local-network';
 import type { ConnectFailure } from 'headlessos-shared';
 import { Server, Plus, ArrowLeft, ArrowRight, Eye, EyeOff, KeyRound } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
@@ -105,6 +106,12 @@ export function LoginScreen({ embedded = false }: LoginScreenProps = {}) {
     setFailure(null);
 
     try {
+      // M17.7: macOS asks before HeadlessOS reaches a local address, so the Mac app says so first
+      const explain = desktopExplainLocalNetwork();
+      if (explain && selectedServer && isLocalNetworkHost(selectedServer.host)) {
+        await explain().catch(() => undefined);
+      }
+
       setActiveServer(selectedServerId);
 
       // Build credentials from the form based on auth method

@@ -59,3 +59,35 @@ describe('ProblemCard', () => {
     expect(screen.queryByTestId('problem-open-log')).toBeNull();
   });
 });
+
+// M17.8: on a Mac, a connection kept off the local network opens the setting
+describe('ProblemCard for a connection kept off the local network', () => {
+  const blocked = {
+    title: "Can't reach 192.168.0.213",
+    hint: 'macOS may be keeping HeadlessOS off your local network. Allow it in System Settings → Privacy & Security → Local Network.',
+    detail: 'connect EHOSTUNREACH 192.168.0.213:22',
+    help: 'local-network-access-on-macos',
+  };
+  type MacBridge = { electronAPI?: { openLocalNetworkSettings?: () => Promise<void> } };
+
+  it('opens Privacy & Security in the Mac app', () => {
+    const openLocalNetworkSettings = vi.fn().mockResolvedValue(undefined);
+    (window as unknown as MacBridge).electronAPI = { openLocalNetworkSettings };
+    render(<ProblemCard failure={blocked} />);
+    const button = screen.getByTestId('problem-open-settings');
+    expect(button).toHaveTextContent('Open Privacy & Security');
+    fireEvent.click(button);
+    expect(openLocalNetworkSettings).toHaveBeenCalledOnce();
+  });
+
+  it('offers it for no other failure', () => {
+    (window as unknown as MacBridge).electronAPI = { openLocalNetworkSettings: vi.fn() };
+    render(<ProblemCard failure={failure} />);
+    expect(screen.queryByTestId('problem-open-settings')).toBeNull();
+  });
+
+  it('offers it nowhere but the Mac app', () => {
+    render(<ProblemCard failure={blocked} />);
+    expect(screen.queryByTestId('problem-open-settings')).toBeNull();
+  });
+});

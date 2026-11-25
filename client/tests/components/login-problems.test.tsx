@@ -1,5 +1,5 @@
 // M15.14, M15.16, M15.17: what the sign-in screen shows when something is wrong
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 const api = vi.hoisted(() => ({
@@ -98,5 +98,52 @@ describe('M15.17: the empty server list', () => {
 
     expect(await screen.findByText(/No servers configured yet/)).toBeInTheDocument();
     expect(screen.queryByTestId('problem-card')).toBeNull();
+  });
+});
+
+// M17.7: on a Mac, the app says what macOS will ask before the first sign-in to a local address
+describe('signing in to a server on the local network', () => {
+  type MacBridge = { electronAPI?: { explainLocalNetwork?: () => Promise<boolean> } };
+  const piServer = { ...passwordServer, id: 'pi', host: '192.168.0.213', port: 22 };
+  const vpsServer = { ...passwordServer, id: 'vps', host: 'vps.example.com', port: 22 };
+
+  afterEach(() => {
+    delete (window as unknown as MacBridge).electronAPI;
+  });
+
+  it('explains the prompt before it connects', async () => {
+    const order: string[] = [];
+    const explainLocalNetwork = vi.fn(async () => { order.push('explain'); return true; });
+    (window as unknown as MacBridge).electronAPI = { explainLocalNetwork };
+    await openServer(piServer);
+    api.connectServer.mockImplementation(async () => { order.push('connect'); throw Object.assign(new Error(refused.title), { failure: refused }); });
+
+    fireEvent.click(screen.getByLabelText('Sign in'));
+
+    await screen.findByTestId('problem-card');
+    expect(order).toEqual(['explain', 'connect']);
+  });
+
+  it('says nothing for a server on the internet', async () => {
+    const explainLocalNetwork = vi.fn().mockResolvedValue(true);
+    (window as unknown as MacBridge).electronAPI = { explainLocalNetwork };
+    await openServer(vpsServer);
+    api.connectServer.mockRejectedValue(Object.assign(new Error(refused.title), { failure: refused }));
+
+    fireEvent.click(screen.getByLabelText('Sign in'));
+
+    await screen.findByTestId('problem-card');
+    expect(explainLocalNetwork).not.toHaveBeenCalled();
+  });
+
+  it('still connects if the note fails', async () => {
+    (window as unknown as MacBridge).electronAPI = { explainLocalNetwork: vi.fn().mockRejectedValue(new Error('no window')) };
+    await openServer(piServer);
+    api.connectServer.mockRejectedValue(Object.assign(new Error(refused.title), { failure: refused }));
+
+    fireEvent.click(screen.getByLabelText('Sign in'));
+
+    await screen.findByTestId('problem-card');
+    expect(api.connectServer).toHaveBeenCalledOnce();
   });
 });

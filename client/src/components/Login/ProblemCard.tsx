@@ -1,16 +1,19 @@
 // M15.14: a problem the owner can act on. What happened, what to try, the exact error to
 // search for, and the way to the docs and the log.
+// M17.8: on a Mac, a connection kept off the local network opens the setting.
 // @see docs/phases/phase-15.md
 
 import { useState } from 'react';
-import { AlertCircle, Check, Copy, ExternalLink, FileText } from 'lucide-react';
+import { AlertCircle, Check, Copy, ExternalLink, FileText, Settings } from 'lucide-react';
 import type { ConnectFailure } from 'headlessos-shared';
 import { Button } from '@/components/ui/button';
 import { desktopOpenLogs } from '../../lib/api';
 import { troubleshootingSection } from '../../lib/help-links';
+import { LOCAL_NETWORK_HELP, desktopOpenLocalNetworkSettings } from '../../lib/local-network';
 
 export function ProblemCard({ failure }: { failure: ConnectFailure }) {
   const openLogs = desktopOpenLogs();
+  const openSettings = failure.help === LOCAL_NETWORK_HELP ? desktopOpenLocalNetworkSettings() : undefined;
   const [copied, setCopied] = useState(false);
 
   const copyDetail = async () => {
@@ -47,7 +50,13 @@ export function ProblemCard({ failure }: { failure: ConnectFailure }) {
         </div>
       )}
 
-      <div className="mt-3 flex items-center gap-2">
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {openSettings && (
+          <Button size="sm" variant="secondary" onClick={() => void openSettings()} data-testid="problem-open-settings">
+            <Settings strokeWidth={1.75} />
+            Open Privacy &amp; Security
+          </Button>
+        )}
         <Button asChild size="sm" variant="secondary">
           <a href={troubleshootingSection(failure.help)} target="_blank" rel="noreferrer" data-testid="problem-help">
             How to fix this

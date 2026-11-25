@@ -46,6 +46,7 @@
       "preload.js",
       "diagnostics.js",
       "keychain.js",
+      "local-network.js",
       "icons/**"
     ],
     "extraResources": [
