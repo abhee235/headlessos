@@ -1,6 +1,6 @@
 // M14.12: the desktop app finds its system wallpapers in every layout the server runs from
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { findSystemDir } from '../../src/routes/wallpapers.js';
@@ -77,9 +77,57 @@ describe('Linux release build', () => {
 
 // M15.8: Terminal is exempt from macOS local network privacy, and the app is not
 describe('macOS build', () => {
+  const pkg = JSON.parse(readFileSync(join(root, 'electron', 'package.json'), 'utf8'));
+
   it('says why it needs the local network', () => {
-    const pkg = JSON.parse(readFileSync(join(root, 'electron', 'package.json'), 'utf8'));
     expect(pkg.build.mac.extendInfo.NSLocalNetworkUsageDescription).toMatch(/SSH/);
+  });
+
+  // M17.2: TN3179 tracks an app by its signature and main executable UUID (ADR-030)
+  it('gives the app its own UUIDs and signature after packing, and doesn\'t ship the hook', () => {
+    expect(pkg.build.afterPack).toBe('./scripts/mac-identity.js');
+    expect(existsSync(join(root, 'electron', 'scripts', 'mac-identity.js'))).toBe(true);
+    expect(pkg.build.files.some((f: string) => f.startsWith('scripts'))).toBe(false);
+  });
+
+  it('is checked on the macOS runner before anything is uploaded', () => {
+    const workflow = readFileSync(join(root, '.github', 'workflows', 'release.yml'), 'utf8');
+    const check = workflow.indexOf("name: Check the macOS app's signature and UUIDs");
+    expect(check).toBeGreaterThan(workflow.indexOf('npx electron-builder --mac --universal'));
+    expect(check).toBeLessThan(workflow.indexOf('name: Upload macOS artifacts'));
+    const step = workflow.slice(check, workflow.indexOf('name: Upload macOS artifacts'));
+    expect(step).toContain('codesign --verify --deep --strict');
+    expect(step).toContain("grep -qx 'Identifier=com.headlessos.app'");
+    expect(step).toContain("grep -qx 'Signature=adhoc'");
+    expect(step).toContain('node_modules/electron/dist/Electron.app/Contents/MacOS/Electron');
+    expect(step).toContain('[ "$ours" != "$stock" ]');
+    expect(step).toContain('ELECTRON_RUN_AS_NODE=1');
+  });
+});
+
+// M17.1: the install scripts check every download against SHA256SUMS
+describe('release checksums and provenance', () => {
+  const workflow = readFileSync(join(root, '.github', 'workflows', 'release.yml'), 'utf8');
+  const release = workflow.slice(workflow.indexOf('  release:'));
+
+  it('names the files as GitHub will before hashing them', () => {
+    const rename = release.indexOf('mv -- "$f" "${f// /.}"');
+    expect(rename).toBeGreaterThan(-1);
+    expect(rename).toBeLessThan(release.indexOf('sha256sum'));
+  });
+
+  it('hashes every kind of file the builds upload, and attaches SHA256SUMS', () => {
+    expect(release).toContain('sha256sum -- *.dmg *.zip *.exe *.AppImage *.deb > ../SHA256SUMS');
+    expect(release).toContain('files: release-assets/*');
+    expect(release.indexOf('sha256sum')).toBeLessThan(release.indexOf('name: Create draft GitHub Release'));
+  });
+
+  it('attests provenance with an action pinned to a commit, with the permissions it needs', () => {
+    expect(release).toMatch(/uses: actions\/attest-build-provenance@[0-9a-f]{40} # v\d/);
+    expect(release).toContain('subject-path: release-assets/*');
+    expect(release).toContain('id-token: write');
+    expect(release).toContain('attestations: write');
+    expect(release).toContain('contents: write');
   });
 });
 

@@ -94,6 +94,25 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
+      # M17.2: the app's own identity (electron/scripts/mac-identity.js), checked before any upload.
+      # Its UUID must differ from Electron's own binary, and the changed executable must still start.
+      - name: Check the macOS app's signature and UUIDs
+        working-directory: electron
+        env:
+          APPLE_SIGNED: ${{ secrets.APPLE_CSC_LINK != '' }}
+        run: |
+          app="dist/mac-universal/HeadlessOS.app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          info=$(codesign -dv "$app" 2>&1)
+          echo "$info"
+          echo "$info" | grep -qx 'Identifier=com.headlessos.app'
+          if [ "$APPLE_SIGNED" != "true" ]; then echo "$info" | grep -qx 'Signature=adhoc'; fi
+          ours=$(dwarfdump --uuid --arch=arm64 "$app/Contents/MacOS/HeadlessOS" | awk '{ print $2 }')
+          stock=$(dwarfdump --uuid --arch=arm64 node_modules/electron/dist/Electron.app/Contents/MacOS/Electron | awk '{ print $2 }')
+          echo "arm64 UUID: HeadlessOS $ours, Electron $stock"
+          [ -n "$ours" ] && [ -n "$stock" ] && [ "$ours" != "$stock" ]
+          ELECTRON_RUN_AS_NODE=1 "$app/Contents/MacOS/HeadlessOS" -e 'console.log("starts, Electron " + process.versions.electron)'
+
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -219,6 +238,11 @@ jobs:
     needs: [build-mac, build-windows, build-linux]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
+    # M17.1: id-token and attestations let the job attest where the files came from
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
 
     steps:
       - name: Checkout
@@ -242,8 +266,28 @@ jobs:
           name: linux-dist
           path: release-assets/
 
-      - name: List release assets
-        run: ls -lh release-assets/
+      # M17.1: GitHub turns a space in a file name into a dot, so the files get those names first
+      # and SHA256SUMS matches what people download. The install scripts check against it.
+      - name: Name the files as GitHub will
+        run: |
+          cd release-assets
+          for f in *' '*; do
+            [ -e "$f" ] || continue
+            mv -- "$f" "${f// /.}"
+          done
+          ls -lh
+
+      - name: SHA256SUMS
+        run: |
+          cd release-assets
+          sha256sum -- *.dmg *.zip *.exe *.AppImage *.deb > ../SHA256SUMS
+          mv ../SHA256SUMS SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Provenance, that this workflow built these files
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: release-assets/*
 
       # Creates a DRAFT release — review and publish manually in GitHub UI.
       # generate_release_notes auto-writes a changelog from merged PRs / commits.
@@ -258,6 +302,23 @@ jobs:
 
             [Website](https://headlessos.com) · [Documentation](https://headlessos.com/docs/introduction) · [Blog](https://headlessos.com/blog)
 
+            ### Install with one command
+
+            On a Mac, in Terminal:
+
+            ```
+            curl -fsSL https://raw.githubusercontent.com/abhee235/headlessos/main/install.sh | sh
+            ```
+
+            On Windows, in PowerShell:
+
+            ```
+            irm https://raw.githubusercontent.com/abhee235/headlessos/main/install.ps1 | iex
+            ```
+
+            Each checks the download against this release's `SHA256SUMS`, installs for your account only, and
+            skips the first-launch warnings below. Run it again to update.
+
             ### Download
 
             | Platform | File | Notes |
@@ -269,12 +330,13 @@ jobs:
             | Linux (AppImage) | `HeadlessOS-*.AppImage` | Runs on most distributions |
             | Linux (deb) | `headlessos-desktop_*.deb` | Debian and Ubuntu |
 
-            > **macOS note:** The app is not signed, so macOS blocks the first launch. Open it once, then go to
-            > **System Settings → Privacy & Security** and click **Open Anyway**. If macOS says the app
-            > "is damaged", run `xattr -cr /Applications/HeadlessOS.app` in Terminal and open it again.
-            > When macOS asks for your password so HeadlessOS can open its Keychain item, enter it and click
-            > **Always Allow**. This can happen once after each update. If any other app asks for
-            > "HeadlessOS Safe Storage", click **Deny**.
+            > **macOS note:** The app isn't signed by Apple, so macOS blocks the first launch of a download. Open
+            > it once, then go to **System Settings → Privacy & Security** and click **Open Anyway**. If macOS
+            > says the app "is damaged", run `xattr -cr /Applications/HeadlessOS.app` in Terminal and open it
+            > again. When macOS asks for your password so HeadlessOS can open its Keychain item, enter it and
+            > click **Always Allow**. If any other app asks for "HeadlessOS Safe Storage", click **Deny**.
+            > When you connect to a device on your local network, allow HeadlessOS to find devices on it.
+            > macOS can ask for the Keychain and the local network again after each update.
             >
             > **Windows note:** The installer is not signed. If SmartScreen shows "Windows protected your PC",
             > click **More info → Run anyway**.
