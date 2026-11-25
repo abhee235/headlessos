@@ -1420,6 +1420,49 @@ backup from before this still restores. Options 1 and 3 add risk without protect
 
 ---
 
+## ADR-030: The Mac App Signs Itself Ad Hoc, With Its Own UUIDs, and Installs With One Command
+
+**Status:** Accepted
+**Date:** 2026-11-25
+
+**Context:**
+Issue #9: 0.3.2 can't reach a device on the reporter's local network, though the Local Network switch
+is on. Apple's TN3179 says local network privacy tracks a program by its code signature and its main
+executable's UUID. Our Mac build is unsigned, and its main executable is Electron's own binary, whose
+UUID every app on the same Electron version shares. The owner asked whether a one-command install, as
+Claude Code and Kuchu have, would avoid needing a signature.
+
+**Options Considered:**
+1. **A one-command install alone** — it skips Gatekeeper and SmartScreen, because `curl` and
+   `Invoke-WebRequest` don't mark files as downloaded, but the Local Network check doesn't depend on
+   that mark.
+2. **A Developer ID from Apple, with notarization** — what TN3179 recommends, and it removes every
+   macOS prompt we explain today, but it costs $99 a year.
+3. **Our own identity at build time** — rewrite the executables' UUIDs, then sign the whole bundle
+   ad hoc under its own identifier. It's free, but Apple doesn't vouch for it, and only a Mac can
+   show whether it's enough.
+
+**Decision:** Option 3 now, with option 1 beside it for the first-launch warnings. Option 2 if a Mac
+shows option 3 isn't enough.
+
+**Rationale:**
+Option 3 removes both faults TN3179 names, the shared UUID and a signature that isn't the app's own,
+at no cost, and it changes nothing a later Developer ID would need. Option 1 is worth having for the
+warnings, but it doesn't touch issue #9.
+
+**Consequences:**
+- (+) The bundle's seal is valid, so macOS should stop calling a downloaded copy "damaged".
+- (+) No other app shares HeadlessOS's UUIDs.
+- (+) Installing takes one command and no first-launch steps on macOS and Windows.
+- (-) An ad hoc identity changes with each version, so macOS can ask about the local network, and the
+  Keychain, again after each update.
+- (-) Changing an executable Apple didn't build is ours to keep working: the release build checks
+  that the app still starts.
+- (-) Users pipe a script into a shell. The scripts are short, check every file against
+  `SHA256SUMS`, and need no administrator rights.
+
+---
+
 ## Template for New ADRs
 
 ```markdown
