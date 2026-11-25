@@ -30,6 +30,19 @@ The log attached to the issue fits this. Each connect fails with `EHOSTUNREACH`,
 `- Local (…)` to the message only when `connect()` fails at once, so the Mac refused it before any
 packet left. A restart didn't help.
 
+**It doesn't happen on every Mac.** On the owner's Mac (macOS 26.5.2), 0.3.2 connected over the local
+network to the dev SSH container on the owner's Windows PC with no trouble. So the build can be
+granted the permission, and something about the reporter's Mac makes macOS refuse it. The likely
+differences:
+
+- **macOS 27:** the reporter is on 27.2.1. Apple's forums report a new Local Network entry for each
+  build of an unsigned app on macOS 27, so the switch that is on may belong to an older HeadlessOS.
+- **Another app with the same UUID:** an app on Electron 33.4.11 that was denied the local network
+  could pass that decision to HeadlessOS (TN3178).
+- **A firewall or VPN app** that blocks one app and not Terminal. The reply to the issue asks.
+
+M17.2 is aimed at the first two.
+
 ## Design
 
 ### M17.1 — Checksums and provenance on every release
@@ -92,6 +105,35 @@ administrator rights, and the script refuses to replace a copy that is running.
 Other systems are pointed to the installation page. A release without `SHA256SUMS`, which is every
 release before this phase, is refused, so the commands work from the first release that has them.
 
+### M17.7 — The app explains the Local Network prompt before macOS shows it
+
+As M16.3 does for the Keychain, the desktop app says what is about to happen. On a Mac, the first time
+in each version that the owner signs in to a server whose address is on a local network, the main
+process shows a dialog before the connection starts. It says that macOS will ask to let HeadlessOS find
+devices on the local network, to click **Allow**, and to connect again if the first try fails while
+macOS asks.
+
+- **What counts as local**, in `client/src/lib/local-network.ts`: a private IPv4 address (`10.`,
+  `172.16`–`172.31`, `192.168.`), a link-local one (`169.254.`), an IPv6 unique-local or link-local
+  address, and names ending in `.local`, `.lan`, `.home`, `.home.arpa` or `.internal`, or with no dot
+  at all. It's a guess at what macOS will ask about, so it only decides whether to explain. Loopback
+  is never local: macOS doesn't ask about it.
+- **Once per version:** the version it was shown for is kept in `~/.headlessos/local-network-notice`,
+  like `keychain-notice`, because an unsigned build can be asked about again after each update.
+- **Not in a browser, and not on Windows or Linux:** the preload bridge offers it only on macOS.
+
+### M17.8 — A blocked connection opens the setting
+
+When a connection fails with `EHOSTUNREACH` on a Mac (the `local-network-access-on-macos` failure from
+M15.8), the sign-in card and the **Server disconnected** panel get an **Open Privacy & Security**
+button. The main process opens System Settings at
+`x-apple.systempreferences:com.apple.preference.security?Privacy_LocalNetwork`. The renderer can only
+ask for this one address, never pass one.
+
+Apple doesn't document that address, and calls such schemes unsupported. The button is named for
+Privacy & Security, which is still right if macOS doesn't know the Local Network part and opens one
+level up, and the hint names Local Network. The owner's Mac test (M17.5) checks where it lands.
+
 ### M17.4 — The docs
 
 - The README's Download section and the website's installation page lead with the one command, and
@@ -110,6 +152,8 @@ current one.
 
 Only a run on a Mac against a device on the local network can show whether M17.2 fixes issue #9.
 TN3179's advice is a signature from an Apple-issued identity, and an ad hoc signature is not that.
+Eclectic Light's reading of the same rules is that tracking "may not be reliable" with ad hoc signed
+code, while a Developer ID certificate "should work fine".
 An ad hoc identity also changes with every version, so macOS can ask about the local network again
 after each update. That's the same as the Keychain prompt today. If M17.2 isn't enough, the next
 step is a Developer ID from the Apple Developer Program, which costs $99 a year: the owner's
@@ -127,8 +171,12 @@ decision.
 - **`--force-run` was dropped.** It would start the app from the installer, and `Start-Process -Wait`
   in Windows PowerShell waits for a process's children too, so the script would hang until the app
   closed.
-- **Not run yet:** the release build's macOS checks (they run on the next build), and the installer
-  under `/S` on a real account (M17.6).
+- **M17.7 and M17.8** are tested in the client (the note comes before the connection, only for a
+  local address, and a failed note doesn't stop it; the button only for that failure, only in the Mac
+  app) and in the main process (once per version, Mac only, one fixed address, the note marked read
+  only after it closes).
+- **Not run yet:** the release build's macOS checks (they run on the next build), the installer under
+  `/S` on a real account (M17.6), and the M17.7 dialog and M17.8 button on a Mac (M17.5).
 
 ## Tasks
 
@@ -140,6 +188,8 @@ decision.
 | M17.4 | The README, the website, the release notes and the changelog | ✅ |
 | M17.5 | The owner's Mac reaches a device on the local network with the new build | ⬜ |
 | M17.6 | Version 0.3.3, tag it and check the release | ⬜ |
+| M17.7 | The app explains the Local Network prompt before macOS shows it | ✅ |
+| M17.8 | A blocked connection on a Mac opens the setting | ✅ |
 
 ## Checks
 
@@ -149,6 +199,7 @@ decision.
   on Linux and in Git Bash only to show it stops there.
 - **The release build** runs the Mac checks above on the macOS runner.
 - **The owner's Mac (M17.5):** install the build on macOS 26 and connect to a device on the local
-  network (the dev SSH container on the owner's PC will do). Expect the Local Network prompt, and a
-  connection after **Allow**.
+  network (the dev SSH container on the owner's PC will do). Expect the M17.7 note, then the Local
+  Network prompt, and a connection after **Allow**. Then turn HeadlessOS off under Local Network,
+  connect again, and press M17.8's button: note whether it opens Local Network or Privacy & Security.
 - **After the release (M17.6):** each command on a clean account, then again over an installed copy.
