@@ -102,6 +102,24 @@ HeadlessOS isn't an operating system. It's a GUI for your Linux server that runs
 
 ## Download
 
+### One command
+
+On a Mac, in Terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/abhee235/headlessos/main/install.sh | sh
+```
+
+On Windows, in PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/abhee235/headlessos/main/install.ps1 | iex
+```
+
+It downloads the latest release, checks it against the release's SHA-256 sums (and GitHub's attestation, if the GitHub CLI is signed in), installs it for your account and opens it. It needs no administrator rights. Files fetched this way aren't marked as downloaded from the internet, so there are no first-launch steps. Run the same command again to update. You can read [install.sh](install.sh) and [install.ps1](install.ps1) before you run them.
+
+### From the download page
+
 Get the app from the [download page](https://headlessos.com/download) or from [Releases](https://github.com/abhee235/headlessos/releases/latest):
 
 | System | File |
@@ -112,13 +130,13 @@ Get the app from the [download page](https://headlessos.com/download) or from [R
 
 Then add a server (host, user, and a key, agent or password) and connect. Your first server opens in about a minute. To use an AI, open **Settings → AI** and choose OpenAI, Claude or a local Ollama model. Keys are stored encrypted on your computer ([SECURITY.md](SECURITY.md)).
 
-The app isn't code-signed yet, so the first launch shows a warning:
+The app isn't signed by Microsoft or Apple yet, so a copy downloaded in a browser shows a warning the first time:
 - **Windows:** in SmartScreen choose **More info** → **Run anyway**.
 - **macOS:** follow [First launch on a Mac](#first-launch-on-a-mac).
 
 ### First launch on a Mac
 
-The app isn't signed with an Apple developer certificate, so macOS blocks it the first time you open it. You allow it once:
+The app isn't signed with an Apple developer certificate, so macOS blocks a downloaded copy the first time you open it. You allow it once:
 
 1. Drag **HeadlessOS** to **Applications** and open it. macOS says it can't open the app. Click **Done**, not **Move to Trash**.
 2. Open **System Settings → Privacy & Security** and scroll down to **Security**.
@@ -130,7 +148,9 @@ macOS remembers this for the copy you installed, so you won't be asked again. A 
 
 If macOS says the app "is damaged", run `xattr -cr /Applications/HeadlessOS.app` in Terminal and open it again.
 
-HeadlessOS keeps the key to your saved logins in the macOS Keychain, so other apps can't read it. When macOS asks, enter your Mac password and click **Always Allow**. Because the app isn't signed, this can happen once after each update. If any other app ever asks for "HeadlessOS Safe Storage", click **Deny**.
+HeadlessOS keeps the key to your saved logins in the macOS Keychain, so other apps can't read it. When macOS asks, enter your Mac password and click **Always Allow**. Because the app isn't signed by Apple, this can happen once after each update. If any other app ever asks for "HeadlessOS Safe Storage", click **Deny**.
+
+To reach a device on your local network, such as a Raspberry Pi, click **Allow** when macOS asks to let HeadlessOS find devices on your local network. macOS can ask again after an update. If HeadlessOS is switched on under **System Settings → Privacy & Security → Local Network** and still can't connect, see [Local network access on macOS](https://headlessos.com/docs/troubleshooting#local-network-access-on-macos).
 
 ## Run it from source
 

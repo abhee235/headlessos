@@ -1628,6 +1628,35 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-ex8.md` ("EX8.31")
 - **Verification:** packaged Windows build with real pointer events, dock at the bottom and on the right
 
+### M17.1: Checksums and provenance on every release
+- **Status:** ✅ Complete
+- **Date:** 2026-11-25
+- **Files modified:** `.github/workflows/release.yml` (release job: GitHub's file names, `SHA256SUMS`, `actions/attest-build-provenance`, permissions), `server/tests/electron/packaging.test.ts`
+- **Docs:** `docs/phases/phase-17.md` ("M17.1")
+- **Verification:** workflow tests; the job first runs at the next tag
+
+### M17.2: The Mac app gets its own UUIDs and an ad hoc signature
+- **Status:** ✅ Complete; the Mac test is M17.5
+- **Date:** 2026-11-25
+- **Files created:** `electron/scripts/macho-uuid.js`, `electron/scripts/mac-identity.js`, `server/tests/electron/macho-uuid.test.ts`, `server/tests/electron/mac-identity.test.ts`
+- **Files modified:** `electron/package.json` (`build.afterPack`), `.github/workflows/release.yml` (macOS checks), `server/tests/electron/packaging.test.ts`
+- **Docs:** `docs/phases/phase-17.md` ("M17.2"), `docs/DECISIONS.md` (ADR-030)
+- **Verification:** thin, universal, 64-bit universal and big-endian Mach-O tests; the hook against a fake bundle; the runner's checks first run at the next build
+
+### M17.3: One command to install, on macOS and Windows
+- **Status:** ✅ Complete
+- **Date:** 2026-11-25
+- **Files created:** `install.sh`, `install.ps1`, `server/tests/install/install-scripts.test.ts`
+- **Docs:** `docs/phases/phase-17.md` ("M17.3")
+- **Verification:** guard tests (the macOS script stops in Git Bash; the PowerShell script parses); copies with the install step removed found v0.3.2 through GitHub's redirect and refused it for having no `SHA256SUMS`; both read either `sha256sum` line style. The GitHub API's 60-an-hour limit was hit while testing, so neither script uses the API
+
+### M17.4: The README, the website, the release notes and the changelog
+- **Status:** ✅ Complete; goes live with the release that has `SHA256SUMS`
+- **Date:** 2026-11-25
+- **Files modified:** `README.md`, `CHANGELOG.md`, `.github/workflows/release.yml` (release notes); in `headlessos-web`: `src/content/docs/docs/installation.md`, `src/content/docs/docs/troubleshooting.md`
+- **Docs:** `docs/phases/phase-17.md` ("M17.4")
+- **Verification:** docs only
+
 ### M16: Saved Secrets in the OS Keychain
 - **Status:** ✅ Complete on Windows and macOS, published in v0.3.0; Linux still to run
 - **Date:** 2026-11-06

@@ -3,6 +3,24 @@
 All notable changes to HeadlessOS. Task IDs (M14, EX11, …) point to the phase specs in
 [docs/phases/](docs/phases/); [docs/PROGRESS.md](docs/PROGRESS.md) has the full log.
 
+## Unreleased
+
+### Added
+- **Install with one command.** `curl -fsSL https://raw.githubusercontent.com/abhee235/headlessos/main/install.sh | sh`
+  on a Mac, or `irm https://raw.githubusercontent.com/abhee235/headlessos/main/install.ps1 | iex` in
+  PowerShell on Windows. It checks the download against the release's SHA-256 sums, installs for your
+  account with no administrator rights, and skips the first-launch warnings. Run it again to update
+  (M17.3).
+- Each release has a `SHA256SUMS` file, and GitHub attests that the release workflow built its files
+  (M17.1).
+
+### Fixed
+- **On a Mac, HeadlessOS has an identity of its own.** Its programs were Electron's own, shared with
+  every app built on the same version, and the app had no signature of its own. macOS tracks Local
+  Network permission by both, so a device on your network could stay out of reach with the switch on.
+  The app now has its own UUIDs and is signed ad hoc under its own name, which should also stop macOS
+  calling a downloaded copy "damaged" (M17.2, issue #9).
+
 ## 0.3.2 — 2026-11-08
 
 0.3.1 wasn't published, so its changes are here too.
