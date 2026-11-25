@@ -4,7 +4,7 @@ import { isLocalNetworkHost } from '../../src/lib/local-network';
 
 describe('isLocalNetworkHost', () => {
   it.each([
-    '192.168.0.213', '10.0.0.5', '172.16.4.1', '172.31.255.254', '169.254.10.20',
+    '192.168.1.20', '10.0.0.5', '172.16.4.1', '172.31.255.254', '169.254.10.20',
     'fd12:3456:789a::1', 'fe80::1', '[fe80::1]',
     'raspberrypi.local', 'raspberrypi.local.', 'nas.lan', 'pi.home', 'server.home.arpa', 'box.internal', 'raspberrypi', 'Pi.LOCAL',
   ])('counts %s as local', (host) => {

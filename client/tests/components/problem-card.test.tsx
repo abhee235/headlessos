@@ -63,9 +63,9 @@ describe('ProblemCard', () => {
 // M17.8: on a Mac, a connection kept off the local network opens the setting
 describe('ProblemCard for a connection kept off the local network', () => {
   const blocked = {
-    title: "Can't reach 192.168.0.213",
+    title: "Can't reach 192.168.1.20",
     hint: 'macOS may be keeping HeadlessOS off your local network. Allow it in System Settings → Privacy & Security → Local Network.',
-    detail: 'connect EHOSTUNREACH 192.168.0.213:22',
+    detail: 'connect EHOSTUNREACH 192.168.1.20:22',
     help: 'local-network-access-on-macos',
   };
   type MacBridge = { electronAPI?: { openLocalNetworkSettings?: () => Promise<void> } };

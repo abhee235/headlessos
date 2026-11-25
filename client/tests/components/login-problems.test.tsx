@@ -104,7 +104,7 @@ describe('M15.17: the empty server list', () => {
 // M17.7: on a Mac, the app says what macOS will ask before the first sign-in to a local address
 describe('signing in to a server on the local network', () => {
   type MacBridge = { electronAPI?: { explainLocalNetwork?: () => Promise<boolean> } };
-  const piServer = { ...passwordServer, id: 'pi', host: '192.168.0.213', port: 22 };
+  const piServer = { ...passwordServer, id: 'pi', host: '192.168.1.20', port: 22 };
   const vpsServer = { ...passwordServer, id: 'vps', host: 'vps.example.com', port: 22 };
 
   afterEach(() => {

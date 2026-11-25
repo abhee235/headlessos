@@ -12,7 +12,7 @@ import { DisconnectedState } from '../../src/components/ui/disconnected-state';
 
 type MacBridge = { electronAPI?: { openLocalNetworkSettings?: () => Promise<void> } };
 
-const blocked = { title: "Can't reach 192.168.0.213", detail: 'connect EHOSTUNREACH 192.168.0.213:22', help: 'local-network-access-on-macos' };
+const blocked = { title: "Can't reach 192.168.1.20", detail: 'connect EHOSTUNREACH 192.168.1.20:22', help: 'local-network-access-on-macos' };
 const refused = { title: 'Nothing is answering at 10.0.0.5:22', detail: 'connect ECONNREFUSED 10.0.0.5:22', help: 'connection-refused' };
 
 // In braces: a hook that returns a function has it run as cleanup, and this one throws
