@@ -175,8 +175,12 @@ decision.
   local address, and a failed note doesn't stop it; the button only for that failure, only in the Mac
   app) and in the main process (once per version, Mac only, one fixed address, the note marked read
   only after it closes).
-- **Not run yet:** the release build's macOS checks (they run on the next build), the installer under
-  `/S` on a real account (M17.6), and the M17.7 dialog and M17.8 button on a Mac (M17.5).
+- **The release build's macOS checks passed** on a manual run of the branch (2026-11-25). The app is
+  `com.headlessos.app`, `Signature=adhoc`, and verifies with `--deep --strict`. The hook gave the main
+  program and its four helpers new UUIDs for both slices, the arm64 UUID differs from stock Electron's,
+  and the app starts.
+- **Not run yet:** the installer under `/S` on a real account (M17.6), and the M17.7 dialog and M17.8
+  button on a Mac (M17.5).
 
 ## Tasks
 
