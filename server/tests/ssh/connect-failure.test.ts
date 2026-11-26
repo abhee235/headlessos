@@ -1,4 +1,5 @@
 // M15.14, M15.16: a failed connection reads as something the owner can act on
+// M17.9: the typed address goes back only where the error names the server
 import { describe, it, expect } from 'vitest';
 import { describeConnectFailure, isKeyLost } from '../../src/ssh/connect-failure.js';
 
@@ -18,6 +19,28 @@ describe('describeConnectFailure', () => {
   it('shows the address the owner typed, not the one a name resolved to', () => {
     expect(describeConnectFailure('connect ECONNREFUSED 10.0.0.9:22', named).detail)
       .toBe('connect ECONNREFUSED pi.local:22');
+  });
+
+  // M17.9: Node adds " - Local (…)" when connect() fails at once, and that address is this
+  // computer's. Issue #9's card showed the Pi's address there, and so did the owner's Mac.
+  describe('M17.9: an error that names this computer too', () => {
+    const blocked = 'connect EHOSTUNREACH 192.168.1.20:22 - Local (192.168.1.50:51002)';
+
+    it('puts the typed address back only where the error names the server', () => {
+      expect(describeConnectFailure(blocked, server, 'darwin').detail)
+        .toBe('connect EHOSTUNREACH 192.168.1.20:22 - Local ([ip]:51002)');
+    });
+
+    it('never calls the server local, or shows this computer\'s address', () => {
+      const { detail } = describeConnectFailure(blocked, server, 'darwin');
+      expect(detail).not.toContain('Local (192.168.1.20');
+      expect(detail).not.toContain('192.168.1.50');
+    });
+
+    it('does the same when the owner typed a name', () => {
+      expect(describeConnectFailure('connect EHOSTUNREACH 10.0.0.9:22 - Local (10.0.0.4:51002)', named, 'darwin').detail)
+        .toBe('connect EHOSTUNREACH pi.local:22 - Local ([ip]:51002)');
+    });
   });
 
   it.each([

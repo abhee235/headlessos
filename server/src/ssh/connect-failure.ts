@@ -1,5 +1,6 @@
 // M15.14, M15.16: what a failed connection means, in words the owner can act on
 // M16.4: locked logins, which must never read as lost ones
+// M17.9: the typed address goes back only where the error names the server
 // @see docs/phases/phase-15.md
 //
 // The log gets only the kind of error (M16.12), because the raw one names the address and the user.
@@ -36,6 +37,17 @@ export function isKeyLost(server: Pick<ServerConfig, 'authMethod' | 'privateKeyP
   return server.authMethod === 'privateKey' && !server.privateKeyPath;
 }
 
+/**
+ * M17.9: puts the typed host back only where the error names the server. When connect() fails at
+ * once, Node adds " - Local (<address>:<port>)", and that address is this computer's, so it stays
+ * hidden. Putting the host there too made the card call the server local.
+ */
+function withTypedHost(sanitized: string, host: string): string {
+  const local = sanitized.indexOf(' - Local (');
+  if (local === -1) return sanitized.replaceAll('[ip]', host);
+  return sanitized.slice(0, local).replaceAll('[ip]', host) + sanitized.slice(local);
+}
+
 export function describeConnectFailure(
   error: string,
   server: Target,
@@ -44,7 +56,7 @@ export function describeConnectFailure(
   const { host, port } = server;
   const address = `${host}:${port}`;
   // The owner typed this address and the screen shows it, so it isn't worth hiding here
-  const detail = sanitizeErrorMessage(error).replaceAll('[ip]', host);
+  const detail = withTypedHost(sanitizeErrorMessage(error), host);
 
   if (/no passphrase given/i.test(error)) {
     return { title: 'This key needs its passphrase', hint: 'Type it above and try again.', detail, help: 'ssh-key-problems' };

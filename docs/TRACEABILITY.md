@@ -1644,6 +1644,20 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-17.md` ("M17.8")
 - **Verification:** client and main-process tests
 
+### M17.5: The owner's Mac reaches a device on the local network with the new build
+- **Status:** ✅ Complete
+- **Date:** 2026-11-26
+- **Files modified:** `docs/phases/phase-17.md`, `docs/PROGRESS.md`
+- **Docs:** `docs/phases/phase-17.md` ("As built")
+- **Verification:** Actions run 45667947147 on macOS 26.5.2 against the dev SSH container on the owner's PC
+
+### M17.9: The card names only the server, not this computer's address
+- **Status:** ✅ Complete
+- **Date:** 2026-11-26
+- **Files modified:** `server/src/ssh/connect-failure.ts`, `server/tests/ssh/connect-failure.test.ts`, `CHANGELOG.md`
+- **Docs:** `docs/phases/phase-17.md` ("M17.9")
+- **Verification:** regression test with issue #9's message, failing before the fix
+
 ### M17.1: Checksums and provenance on every release
 - **Status:** ✅ Complete
 - **Date:** 2026-11-25

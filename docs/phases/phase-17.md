@@ -134,6 +134,17 @@ Apple doesn't document that address, and calls such schemes unsupported. The but
 Privacy & Security, which is still right if macOS doesn't know the Local Network part and opens one
 level up, and the hint names Local Network. The owner's Mac test (M17.5) checks where it lands.
 
+### M17.9 — The card names only the server
+
+The M17.5 run found it, and issue #9's card shows the same thing. When `connect()` fails at once,
+Node adds ` - Local (<address>:<port>)`, and that address is this computer's. `describeConnectFailure`
+hides every address as `[ip]`, then put the typed host back into every `[ip]`, so the card read
+`connect EHOSTUNREACH 192.168.29.69:2222 - Local (192.168.29.69:54172)`: the server, called local.
+
+The typed host now goes back only before ` - Local (`, which is where the error names the server. The
+computer's own address stays `[ip]`. The ` - Local (…)` part stays: it's what shows the Mac refused
+the connection before any packet left.
+
 ### M17.4 — The docs
 
 - The README's Download section and the website's installation page lead with the one command, and
@@ -179,8 +190,18 @@ decision.
   `com.headlessos.app`, `Signature=adhoc`, and verifies with `--deep --strict`. The hook gave the main
   program and its four helpers new UUIDs for both slices, the arm64 UUID differs from stock Electron's,
   and the app starts.
-- **Not run yet:** the installer under `/S` on a real account (M17.6), and the M17.7 dialog and M17.8
-  button on a Mac (M17.5).
+- **The owner's Mac (M17.5), 2026-11-26:** the Actions build of this branch (run 45667947147) on
+  macOS 26.5.2, over the owner's 0.3.2 data. The Keychain asked once for the new signature, and logins
+  opened. macOS mapped `com.headlessos.app` to the new UUIDs (arm64 `7B72F4EE…`), kept the existing
+  Local Network Allow, and the backend helper (`FE0F7188…`) reached the dev SSH container on the PC
+  at once. With HeadlessOS switched off, sign-in failed with `EHOSTUNREACH`. The M17.7 note showed
+  before that sign-in and not on the next one. The M17.8 card and button appeared, and the button
+  opens Privacy & Security, not the Local Network list. Switched back on, it connected. The card's
+  detail called the server local, which M17.9 fixes.
+- **Not shown on that Mac:** the first Local Network prompt, because the existing Allow carried over,
+  and whether macOS 27 judges the helper (`com.headlessos.app.helper`, which LaunchServices can't
+  find) on its own. Only the reporter's Mac can show that.
+- **Not run yet:** the installer under `/S` on a real account (M17.6).
 
 ## Tasks
 
@@ -190,10 +211,11 @@ decision.
 | M17.2 | The Mac app gets its own UUIDs and an ad hoc signature, checked in the release build | ✅ |
 | M17.3 | One command to install, on macOS and Windows | ✅ |
 | M17.4 | The README, the website, the release notes and the changelog | ✅ |
-| M17.5 | The owner's Mac reaches a device on the local network with the new build | ⬜ |
+| M17.5 | The owner's Mac reaches a device on the local network with the new build | ✅ |
 | M17.6 | Version 0.3.3, tag it and check the release | ⬜ |
 | M17.7 | The app explains the Local Network prompt before macOS shows it | ✅ |
 | M17.8 | A blocked connection on a Mac opens the setting | ✅ |
+| M17.9 | The card names only the server, not this computer's address | ✅ |
 
 ## Checks
 

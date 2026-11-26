@@ -25,6 +25,8 @@ All notable changes to HeadlessOS. Task IDs (M14, EX11, …) point to the phase 
   Network permission by both, so a device on your network could stay out of reach with the switch on.
   The app now has its own UUIDs and is signed ad hoc under its own name, which should also stop macOS
   calling a downloaded copy "damaged" (M17.2, issue #9).
+- When a connection failed at once, the card named the server as this computer's own address
+  (`- Local (…)`). It now shows the server only where the error names it (M17.9).
 
 ## 0.3.2 — 2026-11-08
 
