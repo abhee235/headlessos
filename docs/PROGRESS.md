@@ -60,7 +60,7 @@
 | M17.1 | Checksums and provenance on every release | ✅ | Workflow tests; first runs at the next tag |
 | M17.2 | The Mac app gets its own UUIDs and an ad hoc signature, checked in the release build | ✅ | Mach-O and hook tests; the macOS runner's checks first run at the next build |
 | M17.3 | One command to install, on macOS and Windows | ✅ | Guard tests; copies with the install step removed found v0.3.2 and refused it for having no `SHA256SUMS`; both read either `sha256sum` line style |
-| M17.4 | The README, the website, the release notes and the changelog | ✅ | Docs only; the website waits for a deploy, and the README for the merge |
+| M17.4 | The README, the website, the release notes and the changelog | ✅ | Docs only; the README went out with v0.3.3, and the website was deployed for it on 2026-11-27 |
 | M17.5 | The owner's Mac reaches a device on the local network with the new build | ✅ | macOS 26.5.2, Actions build: new UUIDs mapped, Allow kept, LAN connect at once; off gave EHOSTUNREACH, the note and the button; the button opens Privacy & Security |
 | M17.6 | Version 0.3.3, tag it and check the release | ✅ | Draft: SHA256SUMS and attestation checked, Mac app identity checked and run; published with main fast-forwarded; the Mac command installed it |
 | M17.7 | The app explains the Local Network prompt before macOS shows it | ✅ | Client and main-process tests; the dialog not yet seen on a Mac |
@@ -685,6 +685,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-11-27 | **M17.10 🔄, M17.12 ✅, M17.4 live** The Windows command ran on the owner's PC: it checked the installer's SHA-256 and attestation, installed 0.3.3 for the account in 38 s with no SmartScreen warning, and a second run stopped as already installed. The app then quit at once, because the shell, started by VS Code, passed on `ELECTRON_RUN_AS_NODE=1`; `install.ps1` now clears it for the app. headlessos.com is deployed with the one-command install, 0.3.3 and its changelog. An account that never had HeadlessOS is left. |
 | 2026-11-26 | **M17.11 ✅** A reinstall of the same 0.3.3 made macOS ask for the Keychain password again, with no note. The install scripts now stop when the latest version is already there (`HEADLESSOS_REINSTALL=1` overrides), and the Keychain note, README, release notes and `SECURITY.md` say a reinstall can ask too. |
 | 2026-11-26 | **M17.6 ✅** v0.3.3 is published, the first release with `SHA256SUMS` and attestations. `main` was fast-forwarded to the tag as it went out, so the README's one command works. On the owner's Mac the command refused a running copy, then installed and opened 0.3.3 with no first-launch block. Issue #9 has a reply asking the reporter to try it. |
 | 2026-11-26 | **M17.6 started** Version 0.3.3 and its changelog. The tag goes on the branch, because the README's one command only works with a release that has `SHA256SUMS`: the branch merges into `main` when the draft is published. |

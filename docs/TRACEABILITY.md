@@ -1709,11 +1709,11 @@ None (all changes to existing files).
 - **Verification:** guard tests (the macOS script stops in Git Bash; the PowerShell script parses); copies with the install step removed found v0.3.2 through GitHub's redirect and refused it for having no `SHA256SUMS`; both read either `sha256sum` line style. The GitHub API's 60-an-hour limit was hit while testing, so neither script uses the API
 
 ### M17.4: The README, the website, the release notes and the changelog
-- **Status:** ✅ Complete; goes live with the release that has `SHA256SUMS`
+- **Status:** ✅ Complete; live with v0.3.3, and the website deployed on 2026-11-27
 - **Date:** 2026-11-25
-- **Files modified:** `README.md`, `CHANGELOG.md`, `.github/workflows/release.yml` (release notes); in `headlessos-web`: `src/content/docs/docs/installation.md`, `src/content/docs/docs/troubleshooting.md`
+- **Files modified:** `README.md`, `CHANGELOG.md`, `.github/workflows/release.yml` (release notes); in `headlessos-web`: `src/content/docs/docs/installation.md`, `src/content/docs/docs/troubleshooting.md`, the version lines across the docs, and the synced `changelog.md`
 - **Docs:** `docs/phases/phase-17.md` ("M17.4")
-- **Verification:** docs only
+- **Verification:** docs only; the live pages checked after the deploy
 
 ### M16: Saved Secrets in the OS Keychain
 - **Status:** ✅ Complete on Windows and macOS, published in v0.3.0; Linux still to run
