@@ -144,7 +144,7 @@ describe('explaining the Keychain prompt', () => {
   it('says why, what to click, and when to refuse', () => {
     const { detail } = keychainNotice('HeadlessOS');
     expect(detail).toContain('Always Allow');
-    expect(detail).toContain('after each update');
+    expect(detail).toContain('after each update or reinstall');
     expect(detail).toContain('"HeadlessOS Safe Storage", click Deny');
   });
 });

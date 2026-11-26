@@ -1658,6 +1658,13 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-17.md` ("M17.9")
 - **Verification:** regression test with issue #9's message, failing before the fix
 
+### M17.11: Running the command again doesn't reinstall the same version, and the docs say a reinstall asks too
+- **Status:** ✅ Complete
+- **Date:** 2026-11-26
+- **Files modified:** `install.sh`, `install.ps1`, `electron/keychain.js`, `README.md`, `SECURITY.md`, `.github/workflows/release.yml`, `CHANGELOG.md`, `server/tests/install/install-scripts.test.ts`, `server/tests/electron/keychain.test.ts`
+- **Docs:** `docs/phases/phase-17.md` ("M17.11")
+- **Verification:** script and Keychain-note tests failing before the change; both new install.sh paths run on the owner's Mac; install.ps1 parse test in CI
+
 ### M17.6: Version 0.3.3, tag it and check the release
 - **Status:** ✅ Complete
 - **Date:** 2026-11-26

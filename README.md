@@ -148,7 +148,7 @@ macOS remembers this for the copy you installed, so you won't be asked again. A 
 
 If macOS says the app "is damaged", run `xattr -cr /Applications/HeadlessOS.app` in Terminal and open it again.
 
-HeadlessOS keeps the key to your saved logins in the macOS Keychain, so other apps can't read it. When macOS asks, enter your Mac password and click **Always Allow**. Because the app isn't signed by Apple, this can happen once after each update. If any other app ever asks for "HeadlessOS Safe Storage", click **Deny**.
+HeadlessOS keeps the key to your saved logins in the macOS Keychain, so other apps can't read it. When macOS asks, enter your Mac password and click **Always Allow**. Because the app isn't signed by Apple, this can happen again after each update or reinstall. If any other app ever asks for "HeadlessOS Safe Storage", click **Deny**.
 
 To reach a device on your local network, such as a Raspberry Pi, click **Allow** when macOS asks to let HeadlessOS find devices on your local network. macOS can ask again after an update. If HeadlessOS is switched on under **System Settings → Privacy & Security → Local Network** and still can't connect, see [Local network access on macOS](https://headlessos.com/docs/troubleshooting#local-network-access-on-macos).
 

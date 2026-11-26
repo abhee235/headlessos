@@ -3,6 +3,15 @@
 All notable changes to HeadlessOS. Task IDs (M14, EX11, …) point to the phase specs in
 [docs/phases/](docs/phases/); [docs/PROGRESS.md](docs/PROGRESS.md) has the full log.
 
+## Unreleased
+
+### Changed
+- **Running the install command again doesn't reinstall the version you have.** It says the latest
+  release is already installed and stops. A reinstall makes macOS ask for your Keychain password again,
+  even of the same version. `HEADLESSOS_REINSTALL=1` installs it anyway (M17.11).
+- The Keychain note, the README, the release notes and `SECURITY.md` say macOS can ask again after a
+  reinstall, not only after an update (M17.11).
+
 ## 0.3.3 — 2026-11-26
 
 ### Added

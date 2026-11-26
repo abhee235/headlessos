@@ -24,7 +24,6 @@ function Install-HeadlessOS {
     if ($env:OS -ne 'Windows_NT') { throw "this script is for Windows. For macOS and Linux, see $docs" }
     if (-not [Environment]::Is64BitOperatingSystem) { throw 'HeadlessOS needs 64-bit Windows.' }
     $running = 'HeadlessOS is running. Close its window, then run this again.'
-    if (Get-Process -Name 'HeadlessOS' -ErrorAction SilentlyContinue) { throw $running }
 
     # The latest release, from where GitHub sends /releases/latest. Not the API: it allows 60 calls an
     # hour per address, which a shared office or mobile network can use up.
@@ -34,6 +33,23 @@ function Install-HeadlessOS {
     $tag = ([string]$final).TrimEnd('/').Split('/')[-1]
     if ($tag -notmatch '^v\d+\.\d+\.\d+$') { throw 'the latest release could not be found.' }
     $asset = "HeadlessOS.Setup.$($tag.Substring(1)).exe"
+
+    # M17.11: the same version isn't installed twice. HEADLESSOS_REINSTALL=1 does it anyway, for a broken copy.
+    $latest = $tag.Substring(1)
+    $current = $null
+    $entry = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue |
+        Where-Object { $_.DisplayName -like 'HeadlessOS*' -and $_.DisplayVersion } | Select-Object -First 1
+    if ($entry) { $current = [string]$entry.DisplayVersion }
+    else {
+        $exe = Join-Path $env:LOCALAPPDATA 'Programs\headlessos-desktop\HeadlessOS.exe'
+        if (Test-Path $exe) { $current = [string](Get-Item $exe).VersionInfo.ProductVersion }
+    }
+    if (($current -eq $latest -or $current -eq "$latest.0") -and $env:HEADLESSOS_REINSTALL -ne '1') {
+        Write-Host "HeadlessOS $latest is already installed, and it's the latest release. Nothing to do."
+        Write-Host 'To install it again anyway, run this first: $env:HEADLESSOS_REINSTALL = ''1'''
+        return
+    }
+    if (Get-Process -Name 'HeadlessOS' -ErrorAction SilentlyContinue) { throw $running }
 
     $work = Join-Path ([IO.Path]::GetTempPath()) ('headlessos-' + [Guid]::NewGuid())
     New-Item -ItemType Directory -Path $work | Out-Null

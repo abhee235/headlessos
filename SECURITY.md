@@ -41,7 +41,7 @@ that. If you install something malicious, it can also read your `~/.ssh` keys an
 type, whatever HeadlessOS does. Only run software you trust.
 
 On a Mac, if any app other than HeadlessOS asks for "HeadlessOS Safe Storage", click **Deny**. The
-build isn't signed yet, so macOS asks HeadlessOS itself again after each update.
+build isn't signed yet, so macOS asks HeadlessOS itself again after each update or reinstall.
 
 HeadlessOS installs no agent on your servers; it runs commands over SSH. (The Docker app
 can install Docker on a server, but only when you ask it to.)

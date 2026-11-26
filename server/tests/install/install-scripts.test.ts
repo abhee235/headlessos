@@ -57,6 +57,23 @@ describe('install.sh (macOS)', () => {
     expect(refuse).toBeLessThan(sh.indexOf('rm -rf "$app"'));
   });
 
+  // M17.11: a reinstall asks for the Keychain password again, even of the same build
+  it('M17.11: stops before downloading when the latest version is already installed', () => {
+    const body = sh.slice(sh.indexOf('main() {'));
+    const check = body.indexOf('$(installed_version)');
+    expect(check).toBeGreaterThan(-1);
+    expect(check).toBeLessThan(body.indexOf('say "Downloading'));
+    expect(sh).toContain('CFBundleShortVersionString');
+    expect(sh).toContain('HEADLESSOS_REINSTALL');
+  });
+
+  it('M17.11: lets an up-to-date copy stay open, and still guards before downloading', () => {
+    const body = sh.slice(sh.indexOf('main() {'));
+    const guard = body.indexOf('refuse_if_running');
+    expect(guard).toBeGreaterThan(body.indexOf('$(installed_version)'));
+    expect(guard).toBeLessThan(body.indexOf('say "Downloading'));
+  });
+
   it.skipIf(!shAvailable || process.platform === 'darwin')('stops on a system that is not macOS', () => {
     const r = spawnSync('sh', [join(root, 'install.sh')], { encoding: 'utf8' });
     expect(r.status).toBe(1);
@@ -98,6 +115,19 @@ describe('install.ps1 (Windows)', () => {
 
   it('refuses to replace a running copy', () => {
     expect(ps1.lastIndexOf("Get-Process -Name 'HeadlessOS'")).toBeLessThan(ps1.indexOf('Start-Process -FilePath $setup'));
+  });
+
+  it('M17.11: stops before downloading when the latest version is already installed', () => {
+    const check = ps1.indexOf('DisplayVersion');
+    expect(check).toBeGreaterThan(-1);
+    expect(check).toBeLessThan(ps1.indexOf('Write-Host "Downloading'));
+    expect(ps1).toContain('HEADLESSOS_REINSTALL');
+  });
+
+  it('M17.11: lets an up-to-date copy stay open, and still guards before downloading', () => {
+    const guard = ps1.indexOf("Get-Process -Name 'HeadlessOS'");
+    expect(guard).toBeGreaterThan(ps1.indexOf('DisplayVersion'));
+    expect(guard).toBeLessThan(ps1.indexOf('Write-Host "Downloading'));
   });
 
   it.skipIf(!powershell)('parses without errors', () => {
