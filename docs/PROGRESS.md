@@ -36,7 +36,7 @@
 | M14: Public Release | Beta | ✅ | 12/12 tasks | [phase-14](phases/phase-14.md) |
 | M15: Desktop Diagnostics | Beta | ✅ | 21/21 tasks | [phase-15](phases/phase-15.md) |
 | M16: Saved Secrets in the OS Keychain | Beta | 🔄 | 14/16 tasks (M16.11 skipped), v0.3.0 published, v0.3.2 to check; Linux not run | [phase-16](phases/phase-16.md) |
-| M17: One Command to Install, and a Mac App With Its Own Identity | Beta | 🔄 | 9/10 tasks; v0.3.3 published, the Windows command to run | [phase-17](phases/phase-17.md) |
+| M17: One Command to Install, and a Mac App With Its Own Identity | Beta | 🔄 | 10/11 tasks; v0.3.3 published, the Windows command to run | [phase-17](phases/phase-17.md) |
 | **EX1: Dynamic UI Engine** | **Experimental** | **✅** | **15/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
 | **EX2: UI Generation Agent** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
 | **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **✅** | **26/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
@@ -67,6 +67,7 @@
 | M17.8 | A blocked connection on a Mac opens the setting | ✅ | Client and main-process tests; where System Settings lands is checked in M17.5 |
 | M17.9 | The card names only the server, not this computer's address | ✅ | Regression test with issue #9's message |
 | M17.10 | The install commands on Windows and on an account that never had HeadlessOS | ⬜ | |
+| M17.11 | Running the command again doesn't reinstall the same version, and the docs say a reinstall asks too | ✅ | Script tests; on the Mac, already-installed stopped in 2 s and the override reached the running-copy guard; the PowerShell parse test runs in CI |
 
 ## M15: Desktop Diagnostics
 
@@ -683,6 +684,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-11-26 | **M17.11 ✅** A reinstall of the same 0.3.3 made macOS ask for the Keychain password again, with no note. The install scripts now stop when the latest version is already there (`HEADLESSOS_REINSTALL=1` overrides), and the Keychain note, README, release notes and `SECURITY.md` say a reinstall can ask too. |
 | 2026-11-26 | **M17.6 ✅** v0.3.3 is published, the first release with `SHA256SUMS` and attestations. `main` was fast-forwarded to the tag as it went out, so the README's one command works. On the owner's Mac the command refused a running copy, then installed and opened 0.3.3 with no first-launch block. Issue #9 has a reply asking the reporter to try it. |
 | 2026-11-26 | **M17.6 started** Version 0.3.3 and its changelog. The tag goes on the branch, because the README's one command only works with a release that has `SHA256SUMS`: the branch merges into `main` when the draft is published. |
 | 2026-11-26 | **M17.5 ✅, M17.9 ✅** The Actions build reached the dev SSH container from the owner's Mac under its own UUIDs, with the existing Local Network Allow kept. Switched off, it failed with EHOSTUNREACH and showed the M17.7 note and the M17.8 button, which opens Privacy & Security. The card called the server this computer's address, and now names only the server. |

@@ -336,7 +336,8 @@ jobs:
             > again. When macOS asks for your password so HeadlessOS can open its Keychain item, enter it and
             > click **Always Allow**. If any other app asks for "HeadlessOS Safe Storage", click **Deny**.
             > When you connect to a device on your local network, allow HeadlessOS to find devices on it.
-            > macOS can ask for the Keychain and the local network again after each update.
+            > macOS can ask for the Keychain again after each update or reinstall, and about the local
+            > network after an update.
             >
             > **Windows note:** The installer is not signed. If SmartScreen shows "Windows protected your PC",
             > click **More info → Run anyway**.

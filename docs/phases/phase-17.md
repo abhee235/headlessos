@@ -176,6 +176,23 @@ had the new README while 0.3.2 is Latest, the command it shows would fail. So:
    README and the release go live together.
 4. After that, each install command runs against the published release (the Checks below).
 
+### M17.11 — Running the command again doesn't reinstall, and a reinstall is named
+
+The owner's Mac showed it after M17.6. `install.sh` replaced 0.3.3 with the same 0.3.3, with the same
+signature hash, and macOS asked for the Keychain password again. The M16.3 note shows once per
+version, so that prompt came with no word of warning. The Keychain note, the README, the release notes
+and `SECURITY.md` all said the prompt comes once after each update.
+
+- **The scripts stop when the latest version is already there.** Before anything is downloaded,
+  `install.sh` reads the installed app's `CFBundleShortVersionString`, and `install.ps1` the uninstall
+  entry's `DisplayVersion` (or the program's own version). If it matches the latest release, they say
+  so and stop. `HEADLESSOS_REINSTALL=1` installs it anyway, for a copy that's broken.
+- **That check comes before the running-copy guard,** so an up-to-date copy that's open isn't asked to
+  quit for nothing. The guard still runs before anything is downloaded or replaced.
+- **The words say a reinstall too:** "after each update or reinstall", in the Keychain note, the
+  README, the release notes and `SECURITY.md`. The Local Network note doesn't change: the reinstall
+  kept the same UUIDs, and macOS didn't ask about the local network again.
+
 ## What this can't promise
 
 Only a run on a Mac against a device on the local network can show whether M17.2 fixes issue #9.
@@ -230,6 +247,10 @@ decision.
   the signature, replaced the copy in `/Applications` and opened it, in 172 s. The app had no
   quarantine flag, macOS showed no Gatekeeper prompt, and logins opened from the Keychain. The zip's
   app and the DMG's have the same signature hash.
+- **M17.11 on the owner's Mac, 2026-11-26:** with 0.3.3 installed and open, the script said it was
+  already installed and stopped in 2 s, downloading nothing and without asking to quit. With
+  `HEADLESSOS_REINSTALL=1` it went past that check and refused the open copy before downloading.
+  `install.ps1` wasn't run: the Mac has no PowerShell, so its parse test runs in CI on the pull request.
 - **Not run yet:** the Windows command, the installer under `/S` on a real account, and either command
   on an account that has never had HeadlessOS (M17.10).
 
@@ -247,6 +268,7 @@ decision.
 | M17.8 | A blocked connection on a Mac opens the setting | ✅ |
 | M17.9 | The card names only the server, not this computer's address | ✅ |
 | M17.10 | The install commands on Windows and on an account that never had HeadlessOS | ⬜ |
+| M17.11 | Running the command again doesn't reinstall the same version, and the docs say a reinstall asks too | ✅ |
 
 ## Checks
 

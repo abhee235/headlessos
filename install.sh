@@ -27,10 +27,24 @@ refuse_if_running() {
     fi
 }
 
+# M17.11: the copy that's already here, if any, and its version
+existing_app() {
+    for found in /Applications/HeadlessOS.app "$HOME/Applications/HeadlessOS.app"; do
+        if [ -d "$found" ]; then
+            printf '%s\n' "$found"
+            return 0
+        fi
+    done
+    return 1
+}
+installed_version() {
+    found=$(existing_app) || return 0
+    /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$found/Contents/Info.plist" 2>/dev/null || true
+}
+
 # All in one function, called on the last line: a script cut short on its way here runs nothing.
 main() {
     [ "$(uname -s)" = Darwin ] || fail "this script is for macOS. For Windows and Linux, see $DOCS"
-    refuse_if_running
 
     # The latest release, from where GitHub sends /releases/latest: no API call, so no rate limit.
     latest=$(curl -fsSLI -o /dev/null -w '%{url_effective}' "$REPO/releases/latest") ||
@@ -41,6 +55,16 @@ main() {
         *) fail "the latest release could not be found." ;;
     esac
     asset="HeadlessOS-${tag#v}-universal-mac.zip"
+
+    # M17.11: macOS asks for the Keychain password after a reinstall, even of the same build, so the
+    # same version isn't installed twice. HEADLESSOS_REINSTALL=1 does it anyway, for a broken copy.
+    current=$(installed_version)
+    if [ "$current" = "${tag#v}" ] && [ "${HEADLESSOS_REINSTALL:-}" != 1 ]; then
+        say "HeadlessOS $current is already installed, and it's the latest release. Nothing to do."
+        say "To install it again anyway: curl -fsSL https://raw.githubusercontent.com/abhee235/headlessos/main/install.sh | HEADLESSOS_REINSTALL=1 sh"
+        return 0
+    fi
+    refuse_if_running
 
     work=$(mktemp -d)
     trap 'rm -rf "$work"' EXIT

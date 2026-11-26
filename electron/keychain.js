@@ -113,7 +113,7 @@ function keychainNotice(appName) {
     detail:
       `${appName} keeps the key to your saved logins in the macOS Keychain, so other apps can't read it.\n\n` +
       `If macOS asks, enter your password and click Always Allow. Because ${appName} isn't signed yet, ` +
-      'this can happen once after each update.\n\n' +
+      'this can happen again after each update or reinstall.\n\n' +
       `If any other app ever asks for "${appName} Safe Storage", click Deny.`,
     buttons: ['Continue'],
   };
