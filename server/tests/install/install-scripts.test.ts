@@ -130,6 +130,14 @@ describe('install.ps1 (Windows)', () => {
     expect(guard).toBeLessThan(ps1.indexOf('Write-Host "Downloading'));
   });
 
+  it('M17.12: starts the app without ELECTRON_RUN_AS_NODE, and puts it back for the shell', () => {
+    const start = ps1.indexOf('Start-Process -FilePath $app');
+    const clear = ps1.indexOf('Remove-Item Env:ELECTRON_RUN_AS_NODE');
+    expect(clear).toBeGreaterThan(-1);
+    expect(clear).toBeLessThan(start);
+    expect(ps1.indexOf('$env:ELECTRON_RUN_AS_NODE = $asNode')).toBeGreaterThan(start);
+  });
+
   it.skipIf(!powershell)('parses without errors', () => {
     const file = join(root, 'install.ps1').replace(/'/g, "''");
     const r = spawnSync(

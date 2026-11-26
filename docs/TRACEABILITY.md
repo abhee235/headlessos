@@ -1665,6 +1665,20 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-17.md` ("M17.11")
 - **Verification:** script and Keychain-note tests failing before the change; both new install.sh paths run on the owner's Mac; install.ps1 parse test in CI
 
+### M17.12: The Windows command starts the app from a shell that VS Code started
+- **Status:** ✅ Complete
+- **Date:** 2026-11-27
+- **Files modified:** `install.ps1`, `server/tests/install/install-scripts.test.ts`, `CHANGELOG.md`
+- **Docs:** `docs/phases/phase-17.md` ("M17.12")
+- **Verification:** script test failing before the change; the new lines run on Windows with a stand-in program from a shell that had `ELECTRON_RUN_AS_NODE=1`
+
+### M17.10: The install commands on Windows and on an account that never had HeadlessOS
+- **Status:** 🔄 Windows done; an account that never had HeadlessOS is left
+- **Date:** 2026-11-26
+- **Files modified:** none
+- **Docs:** `docs/phases/phase-17.md` ("As built")
+- **Verification:** `irm … | iex` on the owner's PC installed 0.3.3 after the SHA-256 and attestation checks, with no SmartScreen warning; a second run stopped as already installed
+
 ### M17.6: Version 0.3.3, tag it and check the release
 - **Status:** ✅ Complete
 - **Date:** 2026-11-26

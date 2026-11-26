@@ -36,7 +36,7 @@
 | M14: Public Release | Beta | ✅ | 12/12 tasks | [phase-14](phases/phase-14.md) |
 | M15: Desktop Diagnostics | Beta | ✅ | 21/21 tasks | [phase-15](phases/phase-15.md) |
 | M16: Saved Secrets in the OS Keychain | Beta | 🔄 | 14/16 tasks (M16.11 skipped), v0.3.0 published, v0.3.2 to check; Linux not run | [phase-16](phases/phase-16.md) |
-| M17: One Command to Install, and a Mac App With Its Own Identity | Beta | 🔄 | 10/11 tasks; v0.3.3 published, the Windows command to run | [phase-17](phases/phase-17.md) |
+| M17: One Command to Install, and a Mac App With Its Own Identity | Beta | 🔄 | 11/12 tasks; v0.3.3 published, the Windows command ran; an account that never had HeadlessOS is left | [phase-17](phases/phase-17.md) |
 | **EX1: Dynamic UI Engine** | **Experimental** | **✅** | **15/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
 | **EX2: UI Generation Agent** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
 | **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **✅** | **26/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
@@ -66,8 +66,9 @@
 | M17.7 | The app explains the Local Network prompt before macOS shows it | ✅ | Client and main-process tests; the dialog not yet seen on a Mac |
 | M17.8 | A blocked connection on a Mac opens the setting | ✅ | Client and main-process tests; where System Settings lands is checked in M17.5 |
 | M17.9 | The card names only the server, not this computer's address | ✅ | Regression test with issue #9's message |
-| M17.10 | The install commands on Windows and on an account that never had HeadlessOS | ⬜ | |
+| M17.10 | The install commands on Windows and on an account that never had HeadlessOS | 🔄 | Windows: SHA-256 and attestation checked, installed in 38 s with no SmartScreen warning, a second run stopped; the app then quit, fixed in M17.12. A never-used account is left |
 | M17.11 | Running the command again doesn't reinstall the same version, and the docs say a reinstall asks too | ✅ | Script tests; on the Mac, already-installed stopped in 2 s and the override reached the running-copy guard; the PowerShell parse test runs in CI |
+| M17.12 | The Windows command starts the app from a shell that VS Code started | ✅ | Script test; the new lines run on Windows with a stand-in program |
 
 ## M15: Desktop Diagnostics
 
