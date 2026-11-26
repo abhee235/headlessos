@@ -218,7 +218,20 @@ decision.
 - **Not shown on that Mac:** the first Local Network prompt, because the existing Allow carried over,
   and whether macOS 27 judges the helper (`com.headlessos.app.helper`, which LaunchServices can't
   find) on its own. Only the reporter's Mac can show that.
-- **Not run yet:** the installer under `/S` on a real account (M17.6).
+- **The release (M17.6), 2026-11-26:** `v0.3.3` was tagged on the branch. The draft had all six files
+  in `SHA256SUMS`, each matching GitHub's digest, and `gh attestation verify` tied the DMG to
+  `release.yml` at the tag (`3b7293e`) on a GitHub-hosted runner, while a file not built there was
+  refused. The Mac app was `com.headlessos.app`, ad hoc, verified with `--deep --strict`, and had new
+  UUIDs for the new version (arm64 `A0379134…`). On the owner's Mac, macOS mapped them as the app was
+  installed, the M16.3 Keychain note and the M17.7 note each showed once, and it connected to the dev
+  SSH container. The owner published it, and `main` was fast-forwarded to the tag in the same step.
+- **The Mac command, after publishing:** with HeadlessOS running it refused and changed nothing. With
+  it quit, it found v0.3.3 from the redirect, checked the zip's SHA-256 and its attestation, verified
+  the signature, replaced the copy in `/Applications` and opened it, in 172 s. The app had no
+  quarantine flag, macOS showed no Gatekeeper prompt, and logins opened from the Keychain. The zip's
+  app and the DMG's have the same signature hash.
+- **Not run yet:** the Windows command, the installer under `/S` on a real account, and either command
+  on an account that has never had HeadlessOS (M17.10).
 
 ## Tasks
 
@@ -229,10 +242,11 @@ decision.
 | M17.3 | One command to install, on macOS and Windows | ✅ |
 | M17.4 | The README, the website, the release notes and the changelog | ✅ |
 | M17.5 | The owner's Mac reaches a device on the local network with the new build | ✅ |
-| M17.6 | Version 0.3.3, tag it and check the release | ⬜ |
+| M17.6 | Version 0.3.3, tag it and check the release | ✅ |
 | M17.7 | The app explains the Local Network prompt before macOS shows it | ✅ |
 | M17.8 | A blocked connection on a Mac opens the setting | ✅ |
 | M17.9 | The card names only the server, not this computer's address | ✅ |
+| M17.10 | The install commands on Windows and on an account that never had HeadlessOS | ⬜ |
 
 ## Checks
 

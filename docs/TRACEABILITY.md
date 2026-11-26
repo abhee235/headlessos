@@ -1658,6 +1658,13 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-17.md` ("M17.9")
 - **Verification:** regression test with issue #9's message, failing before the fix
 
+### M17.6: Version 0.3.3, tag it and check the release
+- **Status:** ✅ Complete
+- **Date:** 2026-11-26
+- **Files modified:** every `package.json`, both lockfiles, `server/src/index.ts`, `client/src/components/Desktop/Desktop.tsx`, `client/src/components/Desktop/SettingsView.tsx`, `CHANGELOG.md`
+- **Docs:** `docs/phases/phase-17.md` ("M17.6")
+- **Verification:** release run 45832243941; SHA256SUMS and attestation checked; the draft run on the owner's Mac; `install.sh` from `main` after publishing
+
 ### M17.1: Checksums and provenance on every release
 - **Status:** ✅ Complete
 - **Date:** 2026-11-25

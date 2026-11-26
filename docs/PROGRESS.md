@@ -36,7 +36,7 @@
 | M14: Public Release | Beta | ✅ | 12/12 tasks | [phase-14](phases/phase-14.md) |
 | M15: Desktop Diagnostics | Beta | ✅ | 21/21 tasks | [phase-15](phases/phase-15.md) |
 | M16: Saved Secrets in the OS Keychain | Beta | 🔄 | 14/16 tasks (M16.11 skipped), v0.3.0 published, v0.3.2 to check; Linux not run | [phase-16](phases/phase-16.md) |
-| M17: One Command to Install, and a Mac App With Its Own Identity | Beta | 🔄 | 8/9 tasks; v0.3.3 draft to check | [phase-17](phases/phase-17.md) |
+| M17: One Command to Install, and a Mac App With Its Own Identity | Beta | 🔄 | 9/10 tasks; v0.3.3 published, the Windows command to run | [phase-17](phases/phase-17.md) |
 | **EX1: Dynamic UI Engine** | **Experimental** | **✅** | **15/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
 | **EX2: UI Generation Agent** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
 | **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **✅** | **26/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
@@ -62,10 +62,11 @@
 | M17.3 | One command to install, on macOS and Windows | ✅ | Guard tests; copies with the install step removed found v0.3.2 and refused it for having no `SHA256SUMS`; both read either `sha256sum` line style |
 | M17.4 | The README, the website, the release notes and the changelog | ✅ | Docs only; the website waits for a deploy, and the README for the merge |
 | M17.5 | The owner's Mac reaches a device on the local network with the new build | ✅ | macOS 26.5.2, Actions build: new UUIDs mapped, Allow kept, LAN connect at once; off gave EHOSTUNREACH, the note and the button; the button opens Privacy & Security |
-| M17.6 | Version 0.3.3, tag it and check the release | ⬜ | Version set; tagged on the branch, draft to check, then merge and publish together |
+| M17.6 | Version 0.3.3, tag it and check the release | ✅ | Draft: SHA256SUMS and attestation checked, Mac app identity checked and run; published with main fast-forwarded; the Mac command installed it |
 | M17.7 | The app explains the Local Network prompt before macOS shows it | ✅ | Client and main-process tests; the dialog not yet seen on a Mac |
 | M17.8 | A blocked connection on a Mac opens the setting | ✅ | Client and main-process tests; where System Settings lands is checked in M17.5 |
 | M17.9 | The card names only the server, not this computer's address | ✅ | Regression test with issue #9's message |
+| M17.10 | The install commands on Windows and on an account that never had HeadlessOS | ⬜ | |
 
 ## M15: Desktop Diagnostics
 
@@ -682,6 +683,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-11-26 | **M17.6 ✅** v0.3.3 is published, the first release with `SHA256SUMS` and attestations. `main` was fast-forwarded to the tag as it went out, so the README's one command works. On the owner's Mac the command refused a running copy, then installed and opened 0.3.3 with no first-launch block. Issue #9 has a reply asking the reporter to try it. |
 | 2026-11-26 | **M17.6 started** Version 0.3.3 and its changelog. The tag goes on the branch, because the README's one command only works with a release that has `SHA256SUMS`: the branch merges into `main` when the draft is published. |
 | 2026-11-26 | **M17.5 ✅, M17.9 ✅** The Actions build reached the dev SSH container from the owner's Mac under its own UUIDs, with the existing Local Network Allow kept. Switched off, it failed with EHOSTUNREACH and showed the M17.7 note and the M17.8 button, which opens Privacy & Security. The card called the server this computer's address, and now names only the server. |
 | 2026-11-25 | **M17.7, M17.8 ✅** On a Mac, the first sign-in of each version to a local address explains the Local Network prompt first, and a connection kept off the local network gets an **Open Privacy & Security** button on the sign-in card and the Server disconnected panel. The owner's Mac on macOS 26.5.2 reached the dev SSH container over the local network with 0.3.2, so issue #9 depends on the Mac. |
