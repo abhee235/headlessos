@@ -3,7 +3,7 @@
 All notable changes to HeadlessOS. Task IDs (M14, EX11, …) point to the phase specs in
 [docs/phases/](docs/phases/); [docs/PROGRESS.md](docs/PROGRESS.md) has the full log.
 
-## Unreleased
+## 0.3.3 — 2026-11-26
 
 ### Added
 - **Install with one command.** `curl -fsSL https://raw.githubusercontent.com/abhee235/headlessos/main/install.sh | sh`

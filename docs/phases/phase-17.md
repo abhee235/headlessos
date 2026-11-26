@@ -159,6 +159,23 @@ The website goes live only when the owner deploys it, and the README changes whe
 Both should wait for the release that carries `SHA256SUMS`, or the commands would fail on the
 current one.
 
+### M17.6 — Version 0.3.3, and the release
+
+The version goes in every `package.json`, `server/src/index.ts`, the About page, `Desktop.tsx` and
+both lockfiles' own entries, and `CHANGELOG.md` gets a dated entry.
+
+The tag goes on this branch, not on `main`. The README and the website lead with the one command, and
+the scripts refuse any release without `SHA256SUMS`, which is every release before this one. If `main`
+had the new README while 0.3.2 is Latest, the command it shows would fail. So:
+
+1. `v0.3.3` is tagged on this branch, and the release workflow builds the draft, with `SHA256SUMS`
+   and attestations for the first time.
+2. The draft is checked: every file is in `SHA256SUMS`, the Mac app is `com.headlessos.app`, ad hoc
+   signed with its own UUIDs, and it runs on the owner's Mac.
+3. The owner publishes. The branch is merged into `main` at the same moment, a fast-forward, so the
+   README and the release go live together.
+4. After that, each install command runs against the published release (the Checks below).
+
 ## What this can't promise
 
 Only a run on a Mac against a device on the local network can show whether M17.2 fixes issue #9.
