@@ -1665,6 +1665,20 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-17.md` ("M17.11")
 - **Verification:** script and Keychain-note tests failing before the change; both new install.sh paths run on the owner's Mac; install.ps1 parse test in CI
 
+### M17.12: The Windows command starts the app from a shell that VS Code started
+- **Status:** ✅ Complete
+- **Date:** 2026-11-27
+- **Files modified:** `install.ps1`, `server/tests/install/install-scripts.test.ts`, `CHANGELOG.md`
+- **Docs:** `docs/phases/phase-17.md` ("M17.12")
+- **Verification:** script test failing before the change; the new lines run on Windows with a stand-in program from a shell that had `ELECTRON_RUN_AS_NODE=1`
+
+### M17.10: The install commands on Windows and on an account that never had HeadlessOS
+- **Status:** 🔄 Windows done; an account that never had HeadlessOS is left
+- **Date:** 2026-11-26
+- **Files modified:** none
+- **Docs:** `docs/phases/phase-17.md` ("As built")
+- **Verification:** `irm … | iex` on the owner's PC installed 0.3.3 after the SHA-256 and attestation checks, with no SmartScreen warning; a second run stopped as already installed
+
 ### M17.6: Version 0.3.3, tag it and check the release
 - **Status:** ✅ Complete
 - **Date:** 2026-11-26
@@ -1695,11 +1709,11 @@ None (all changes to existing files).
 - **Verification:** guard tests (the macOS script stops in Git Bash; the PowerShell script parses); copies with the install step removed found v0.3.2 through GitHub's redirect and refused it for having no `SHA256SUMS`; both read either `sha256sum` line style. The GitHub API's 60-an-hour limit was hit while testing, so neither script uses the API
 
 ### M17.4: The README, the website, the release notes and the changelog
-- **Status:** ✅ Complete; goes live with the release that has `SHA256SUMS`
+- **Status:** ✅ Complete; live with v0.3.3, and the website deployed on 2026-11-27
 - **Date:** 2026-11-25
-- **Files modified:** `README.md`, `CHANGELOG.md`, `.github/workflows/release.yml` (release notes); in `headlessos-web`: `src/content/docs/docs/installation.md`, `src/content/docs/docs/troubleshooting.md`
+- **Files modified:** `README.md`, `CHANGELOG.md`, `.github/workflows/release.yml` (release notes); in `headlessos-web`: `src/content/docs/docs/installation.md`, `src/content/docs/docs/troubleshooting.md`, the version lines across the docs, and the synced `changelog.md`
 - **Docs:** `docs/phases/phase-17.md` ("M17.4")
-- **Verification:** docs only
+- **Verification:** docs only; the live pages checked after the deploy
 
 ### M16: Saved Secrets in the OS Keychain
 - **Status:** ✅ Complete on Windows and macOS, published in v0.3.0; Linux still to run

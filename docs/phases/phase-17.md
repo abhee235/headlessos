@@ -193,6 +193,18 @@ and `SECURITY.md` all said the prompt comes once after each update.
   README, the release notes and `SECURITY.md`. The Local Network note doesn't change: the reinstall
   kept the same UUIDs, and macOS didn't ask about the local network again.
 
+### M17.12 — The Windows command starts the app from any shell
+
+The first run of `install.ps1` on Windows (M17.10) installed 0.3.3, and then the app didn't open. The
+shell was one that VS Code started, and VS Code passes `ELECTRON_RUN_AS_NODE=1` on to everything its
+extensions run. With it set, `HeadlessOS.exe` starts as plain Node, finds no script and quits: no
+window, no error, no log line. A PowerShell window of its own doesn't have it, but a VS Code task or an
+AI assistant running in VS Code does.
+
+`install.ps1` clears the variable just before it starts the app and puts it back afterwards, so only
+the app goes without it. `install.sh` needs nothing: `open` starts the app through Launch Services,
+which doesn't pass the shell's variables on.
+
 ## What this can't promise
 
 Only a run on a Mac against a device on the local network can show whether M17.2 fixes issue #9.
@@ -251,8 +263,18 @@ decision.
   already installed and stopped in 2 s, downloading nothing and without asking to quit. With
   `HEADLESSOS_REINSTALL=1` it went past that check and refused the open copy before downloading.
   `install.ps1` wasn't run: the Mac has no PowerShell, so its parse test runs in CI on the pull request.
-- **Not run yet:** the Windows command, the installer under `/S` on a real account, and either command
-  on an account that has never had HeadlessOS (M17.10).
+- **The Windows command (M17.10), 2026-11-26,** on the owner's PC, in Windows PowerShell 5.1 started
+  by VS Code, on an account with no HeadlessOS installed (an older one had been removed, and its
+  settings folder was still there). It found v0.3.3 from the redirect, checked the installer's SHA-256
+  and its attestation, and installed it with `/S` in 38 s, with no administrator prompt and no
+  SmartScreen warning. The uninstall entry says 0.3.3, the Start menu has a shortcut, the program has
+  no download mark, and nothing was left in the temp folder. Then the app quit at once, which M17.12
+  fixes. Started without the variable, it stayed open, moved the plain `enc-key` into the keychain,
+  removed the old log (M16.13) and opened the saved AI key. A second run said 0.3.3 was already
+  installed and stopped.
+- **M17.12's lines** ran on that PC with a stand-in program, from the same shell: the program started
+  without `ELECTRON_RUN_AS_NODE`, and the shell still had it afterwards.
+- **Not run yet:** either command on an account that has never had HeadlessOS (M17.10).
 
 ## Tasks
 
@@ -267,8 +289,9 @@ decision.
 | M17.7 | The app explains the Local Network prompt before macOS shows it | ✅ |
 | M17.8 | A blocked connection on a Mac opens the setting | ✅ |
 | M17.9 | The card names only the server, not this computer's address | ✅ |
-| M17.10 | The install commands on Windows and on an account that never had HeadlessOS | ⬜ |
+| M17.10 | The install commands on Windows and on an account that never had HeadlessOS | 🔄 |
 | M17.11 | Running the command again doesn't reinstall the same version, and the docs say a reinstall asks too | ✅ |
+| M17.12 | The Windows command starts the app from a shell that VS Code started | ✅ |
 
 ## Checks
 

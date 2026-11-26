@@ -94,7 +94,13 @@ function Install-HeadlessOS {
         }
         if (-not (Test-Path $app)) { throw "the installer finished, but HeadlessOS.exe wasn't found." }
         Write-Host "Installed: $app"
-        Start-Process -FilePath $app
+        # M17.12: a shell that VS Code started (one of its tasks, or an AI assistant running in it) passes
+        # on ELECTRON_RUN_AS_NODE=1, and HeadlessOS would start as plain Node and quit with no window.
+        # It's cleared for the app only, and put back for the shell.
+        $asNode = $env:ELECTRON_RUN_AS_NODE
+        Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue
+        try { Start-Process -FilePath $app }
+        finally { if ($null -ne $asNode) { $env:ELECTRON_RUN_AS_NODE = $asNode } }
     }
     finally {
         Remove-Item -Path $work -Recurse -Force -ErrorAction SilentlyContinue
