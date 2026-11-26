@@ -139,7 +139,7 @@ level up, and the hint names Local Network. The owner's Mac test (M17.5) checks 
 The M17.5 run found it, and issue #9's card shows the same thing. When `connect()` fails at once,
 Node adds ` - Local (<address>:<port>)`, and that address is this computer's. `describeConnectFailure`
 hides every address as `[ip]`, then put the typed host back into every `[ip]`, so the card read
-`connect EHOSTUNREACH 192.168.29.69:2222 - Local (192.168.29.69:54172)`: the server, called local.
+`connect EHOSTUNREACH 192.168.1.50:2222 - Local (192.168.1.50:54172)`: the server, called local.
 
 The typed host now goes back only before ` - Local (`, which is where the error names the server. The
 computer's own address stays `[ip]`. The ` - Local (…)` part stays: it's what shows the Mac refused
