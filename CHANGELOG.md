@@ -16,6 +16,10 @@ All notable changes to HeadlessOS. Task IDs (M14, EX11, …) point to the phase 
 - **The Windows install command opens HeadlessOS from any PowerShell.** Run from one that VS Code
   started, such as a task or an AI assistant in VS Code, it installed the app, but the app quit at once
   without a window (M17.12).
+- **The desktop app's Terminal connects.** Since 0.2.0 it showed `[Connection error]`. Everything
+  else in the desktop app that streams couldn't connect either: Docker's install output, the
+  Observatory's live view, the UI Agent, the AI Agent and Dynamic UI. The backend refused the address
+  the app's page reports for itself. The browser version wasn't affected (M17.13).
 
 ## 0.3.3 — 2026-11-26
 

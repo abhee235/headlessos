@@ -13,6 +13,7 @@ dotenvConfig({ path: resolve(import.meta.dirname, "../../.env") });
 
 import Fastify from "fastify";
 import { errorKind, logOptions } from "./security/log-serializers.js";
+import { registerRequestGuard } from "./security/request-guard.js";
 import cors from "@fastify/cors";
 import websocket from "@fastify/websocket";
 import multipart from "@fastify/multipart";
@@ -347,51 +348,10 @@ async function main(): Promise<void> {
   // -- Fastify --
   const app = Fastify(logOptions);
 
-  // ── Anti-DNS-rebinding: Host-header allowlist ───────────
-  // The server binds 127.0.0.1, but that alone does not stop DNS rebinding: an
-  // attacker page on evil.com (rebound to 127.0.0.1) would reach us with
-  // `Host: evil.com`. Legit clients (Electron → localhost:<port>, Vite dev proxy
-  // with changeOrigin) always send a loopback Host. Reject anything else, and do
-  // the same on the WebSocket upgrade (CORS does not apply to WS handshakes).
-  const isLoopbackHost = (hostHeader: string | undefined): boolean => {
-    if (!hostHeader) return false;
-    // Strip port; handle IPv6 "[::1]:3001" and "host:port".
-    const host = hostHeader.startsWith('[')
-      ? hostHeader.slice(1, hostHeader.indexOf(']'))
-      : hostHeader.split(':')[0];
-    return host === 'localhost' || host === '127.0.0.1' || host === '::1';
-  };
-
-  app.addHook('onRequest', async (req, reply) => {
-    // Anti-DNS-rebinding: only accept loopback Host headers.
-    if (!isLoopbackHost(req.headers.host)) {
-      return reply.code(403).send({ error: 'Forbidden: invalid Host header' });
-    }
-
-    // CORS does not apply to WS handshakes — enforce origin here.
-    if ((req.headers.upgrade ?? '').toLowerCase() === 'websocket') {
-      const origin = req.headers.origin;
-      const okOrigin = !origin || origin === 'null' || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
-      if (!okOrigin) {
-        return reply.code(403).send({ error: 'Forbidden: invalid WebSocket origin' });
-      }
-    }
-
-    // /health is the only unauthenticated endpoint (liveness probe).
-    if (req.url === '/health' || req.url.startsWith('/health?')) return;
-
-    // Require the API token via header OR ?token= query. The query form is needed
-    // for <img> and WebSocket, which cannot set headers in the browser. In dev the
-    // Vite proxy injects the header; in Electron the client attaches it.
-    const headerToken = req.headers['x-headlessos-token'];
-    const queryToken = (req.query as { token?: string } | undefined)?.token;
-    const provided = typeof headerToken === 'string' ? headerToken
-      : typeof queryToken === 'string' ? queryToken
-      : undefined;
-    if (provided !== apiToken) {
-      return reply.code(401).send({ error: 'Unauthorized: missing or invalid API token' });
-    }
-  });
+  // ── C3 + M17.13: Host, WebSocket Origin and API token ───
+  // Every request passes security/request-guard.ts before its route. In dev the Vite proxy
+  // injects the token header; in Electron the client attaches it.
+  registerRequestGuard(app, apiToken);
 
   await app.register(cors, {
     // Allow Vite dev server and Electron production mode (file:// sends origin: null)

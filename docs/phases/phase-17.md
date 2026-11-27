@@ -205,6 +205,26 @@ AI assistant running in VS Code does.
 the app goes without it. `install.sh` needs nothing: `open` starts the app through Launch Services,
 which doesn't pass the shell's variables on.
 
+### M17.13 — The desktop app's terminal and live views connect
+
+With 0.3.3, issue #9's reporter reached their Pi and Files worked, but the Terminal showed
+`[Connection error]`. Every WebSocket in the desktop app has been refused since 0.2.0. The backend
+accepts a WebSocket only with no Origin, `null`, or a `localhost` address (C3 in
+`docs/SECURITY_AUDIT.md`). That rule assumed the app's page, which is loaded from a file, sends
+`null`. Chromium sends no Origin on its requests, but on a WebSocket handshake it sends
+`Origin: file://` (measured in Electron 33, the version the app ships). So the backend answers 403,
+and the client shows the socket's error. It hits everything that streams: the Terminal, Docker's
+install output, the Observatory's live view, the UI Agent, the investigation agent and Dynamic UI.
+`npm run dev` isn't affected, because the page there is on `localhost`.
+
+- **The check accepts `file://` as well.** That opens nothing new. A page opened from a file in a
+  browser sends `file://` or `null`, and `null` was already accepted. The API token is still required
+  on every handshake, and a page can't read the token file.
+- **The check moves out of `main()`** into `security/request-guard.ts`, so tests cover the Host,
+  Origin and token rules. Until now nothing tested them.
+- **Each release's desktop checks open the Terminal.** The checks so far covered installing, signing
+  in and connecting, which only use requests.
+
 ## What this can't promise
 
 Only a run on a Mac against a device on the local network can show whether M17.2 fixes issue #9.
@@ -275,6 +295,18 @@ decision.
 - **M17.12's lines** ran on that PC with a stand-in program, from the same shell: the program started
   without `ELECTRON_RUN_AS_NODE`, and the shell still had it afterwards.
 - **Not run yet:** either command on an account that has never had HeadlessOS (M17.10).
+- **M17.13 on Windows, 2026-11-27:** the installed 0.3.3, run with its own home folder and window
+  profile, signed in to the dev SSH container. Opening the Terminal, the handshake got 403, and it
+  showed `[Connection error]` and then `[Disconnected]`, as on the reporter's Mac. A test page in
+  Electron 33 showed the cause: `Origin: file://` on the WebSocket, and no Origin on a request. An
+  unpacked build of this fix, run the same way, opened the Terminal and ran a command on the
+  container, and the Observatory's socket opened too. Without the `file://` line, the new tests fail,
+  including a real handshake through the hook.
+- **Why it wasn't caught before:** C3's live proof (M5) opened WebSockets through the dev proxy, where
+  the page is on `localhost`, and its note assumed the desktop app sends `null`, which is true only
+  for requests. The rules sat inside `main()`, so no test ran them. The release checks of the desktop
+  app covered installing, signing in and connecting, which only use requests, and none opened the
+  Terminal.
 
 ## Tasks
 
@@ -292,6 +324,7 @@ decision.
 | M17.10 | The install commands on Windows and on an account that never had HeadlessOS | 🔄 |
 | M17.11 | Running the command again doesn't reinstall the same version, and the docs say a reinstall asks too | ✅ |
 | M17.12 | The Windows command starts the app from a shell that VS Code started | ✅ |
+| M17.13 | The desktop app's WebSockets connect: the backend accepts `Origin: file://` | ✅ |
 
 ## Checks
 
@@ -305,3 +338,6 @@ decision.
   Network prompt, and a connection after **Allow**. Then turn HeadlessOS off under Local Network,
   connect again, and press M17.8's button: note whether it opens Local Network or Privacy & Security.
 - **After the release (M17.6):** each command on a clean account, then again over an installed copy.
+- **The desktop app's Terminal (M17.13):** in the packaged app, sign in to the dev SSH container and
+  open the Terminal. Expect a prompt, not `[Connection error]`. Run it on the release before this
+  fix too, to show the error comes back without it.

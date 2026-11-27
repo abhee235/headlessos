@@ -44,7 +44,7 @@ The POST body `command` was passed straight to `connectionManager.exec()` with n
 The `onRequest` hook now enforces three things:
 - **Auth token:** a random per-install secret (`~/.headlessos/api-token`, 0600, also printed on stdout for the Electron shell) is required on every request via the `x-headlessos-token` header **or** a `?token=` query param (the query form is needed for `<img>` and WebSocket, which can't set headers). `/health` is the only exemption. A sandboxed cross-origin iframe cannot read the token file, so it can no longer drive the API.
 - **Host-header allowlist** (loopback only) → blocks DNS rebinding.
-- **WebSocket origin check** (loopback or `null`) → CORS doesn't apply to WS handshakes.
+- **WebSocket origin check** (loopback or `null`) → CORS doesn't apply to WS handshakes. M17.13 adds `file://`: Chromium sends it on a WebSocket from the desktop app's page, so from 0.2.0 to 0.3.3 every desktop WebSocket got 403. The rules now live in `security/request-guard.ts`, with tests.
 - **Token delivery:** dev — the Vite proxy injects the header on `/api` and `/ws`; Electron prod — the client attaches it (fetch patch for REST/direct fetches, `?token=` for `<img>`/WS).
 - **Proof (live):** `/api/servers` no token → **401**; header or `?token=` → 200; wrong token → 401; `/health` → 200; `Host: evil.com` → 403; WS no token → handshake **rejected (401)**, WS with token/proxy → opens. Dev proxy and all four client WS endpoints updated and verified.
 
