@@ -225,6 +225,18 @@ install output, the Observatory's live view, the UI Agent, the investigation age
 - **Each release's desktop checks open the Terminal.** The checks so far covered installing, signing
   in and connecting, which only use requests.
 
+### M17.14 — Version 0.3.4, and the release
+
+0.3.4 ships M17.11, M17.12 and M17.13, so the Terminal works for issue #9's reporter. The version
+goes in the same places as M17.6's, and `CHANGELOG.md`'s Unreleased entry gets the date.
+
+1. `v0.3.4` is tagged on `release/0.3.4`, and the release workflow builds the draft.
+2. The draft is checked: every file is in `SHA256SUMS` and matches GitHub's digest, the attestation
+   ties it to `release.yml` at the tag, the Mac app is `com.headlessos.app` and ad hoc signed, and the
+   Windows app, run with its own home folder against the dev SSH container, opens the Terminal
+   (M17.13's check).
+3. The owner publishes, and `main` is fast-forwarded to the tag in the same step.
+
 ## What this can't promise
 
 Only a run on a Mac against a device on the local network can show whether M17.2 fixes issue #9.
@@ -325,6 +337,7 @@ decision.
 | M17.11 | Running the command again doesn't reinstall the same version, and the docs say a reinstall asks too | ✅ |
 | M17.12 | The Windows command starts the app from a shell that VS Code started | ✅ |
 | M17.13 | The desktop app's WebSockets connect: the backend accepts `Origin: file://` | ✅ |
+| M17.14 | Version 0.3.4, tag it and check the release | 🔄 |
 
 ## Checks
 

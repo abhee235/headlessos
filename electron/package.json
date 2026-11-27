@@ -1,7 +1,7 @@
 {
   "name": "headlessos-desktop",
   "productName": "HeadlessOS",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "HeadlessOS — Desktop App",
   "homepage": "https://headlessos.com",
   "main": "main.js",
