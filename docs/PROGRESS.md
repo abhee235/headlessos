@@ -36,7 +36,7 @@
 | M14: Public Release | Beta | ✅ | 12/12 tasks | [phase-14](phases/phase-14.md) |
 | M15: Desktop Diagnostics | Beta | ✅ | 21/21 tasks | [phase-15](phases/phase-15.md) |
 | M16: Saved Secrets in the OS Keychain | Beta | 🔄 | 14/16 tasks (M16.11 skipped), v0.3.0 published, v0.3.2 to check; Linux not run | [phase-16](phases/phase-16.md) |
-| M17: One Command to Install, and a Mac App With Its Own Identity | Beta | 🔄 | 11/12 tasks; v0.3.3 published, the Windows command ran; an account that never had HeadlessOS is left | [phase-17](phases/phase-17.md) |
+| M17: One Command to Install, and a Mac App With Its Own Identity | Beta | 🔄 | 12/13 tasks; v0.3.3 published, the Windows command ran, the desktop Terminal fixed for the next release; an account that never had HeadlessOS is left | [phase-17](phases/phase-17.md) |
 | **EX1: Dynamic UI Engine** | **Experimental** | **✅** | **15/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
 | **EX2: UI Generation Agent** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
 | **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **✅** | **26/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
@@ -69,6 +69,7 @@
 | M17.10 | The install commands on Windows and on an account that never had HeadlessOS | 🔄 | Windows: SHA-256 and attestation checked, installed in 38 s with no SmartScreen warning, a second run stopped; the app then quit, fixed in M17.12. A never-used account is left |
 | M17.11 | Running the command again doesn't reinstall the same version, and the docs say a reinstall asks too | ✅ | Script tests; on the Mac, already-installed stopped in 2 s and the override reached the running-copy guard; the PowerShell parse test runs in CI |
 | M17.12 | The Windows command starts the app from a shell that VS Code started | ✅ | Script test; the new lines run on Windows with a stand-in program |
+| M17.13 | The desktop app's WebSockets connect: the backend accepts `Origin: file://` | ✅ | Reproduced in the installed 0.3.3 on Windows (403, `[Connection error]`); guard tests with a real handshake fail without the fix; an unpacked build ran a command in the Terminal |
 
 ## M15: Desktop Diagnostics
 
@@ -685,6 +686,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-11-27 | **M17.13 ✅** Issue #9's reporter connected with 0.3.3, but the Terminal showed `[Connection error]`. Reproduced in the installed 0.3.3 on Windows: Chromium sends `Origin: file://` on a WebSocket from the desktop app's page, and the C3 check accepted only `null` or `localhost`, so every desktop WebSocket got 403 from 0.2.0 on. The check accepts `file://`, the token is still required, and the rules moved to `security/request-guard.ts` with tests. An unpacked build ran a command in the Terminal. |
 | 2026-11-27 | **M17.10 🔄, M17.12 ✅, M17.4 live** The Windows command ran on the owner's PC: it checked the installer's SHA-256 and attestation, installed 0.3.3 for the account in 38 s with no SmartScreen warning, and a second run stopped as already installed. The app then quit at once, because the shell, started by VS Code, passed on `ELECTRON_RUN_AS_NODE=1`; `install.ps1` now clears it for the app. headlessos.com is deployed with the one-command install, 0.3.3 and its changelog. An account that never had HeadlessOS is left. |
 | 2026-11-26 | **M17.11 ✅** A reinstall of the same 0.3.3 made macOS ask for the Keychain password again, with no note. The install scripts now stop when the latest version is already there (`HEADLESSOS_REINSTALL=1` overrides), and the Keychain note, README, release notes and `SECURITY.md` say a reinstall can ask too. |
 | 2026-11-26 | **M17.6 ✅** v0.3.3 is published, the first release with `SHA256SUMS` and attestations. `main` was fast-forwarded to the tag as it went out, so the README's one command works. On the owner's Mac the command refused a running copy, then installed and opened 0.3.3 with no first-launch block. Issue #9 has a reply asking the reporter to try it. |

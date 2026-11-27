@@ -1672,6 +1672,13 @@ None (all changes to existing files).
 - **Docs:** `docs/phases/phase-17.md` ("M17.12")
 - **Verification:** script test failing before the change; the new lines run on Windows with a stand-in program from a shell that had `ELECTRON_RUN_AS_NODE=1`
 
+### M17.13: The desktop app's WebSockets connect: the backend accepts `Origin: file://`
+- **Status:** ✅ Complete
+- **Date:** 2026-11-27
+- **Files modified:** `server/src/security/request-guard.ts` (new), `server/src/index.ts`, `server/tests/security/request-guard.test.ts` (new), `docs/SECURITY_AUDIT.md`, `CHANGELOG.md`
+- **Docs:** `docs/phases/phase-17.md` ("M17.13", "As built")
+- **Verification:** reproduced in the installed 0.3.3 on Windows (handshake 403, `[Connection error]`); guard tests, including a real handshake through the hook, fail without the `file://` line; an unpacked build of the fix ran a command in the Terminal on the dev container, and the Observatory's socket opened
+
 ### M17.10: The install commands on Windows and on an account that never had HeadlessOS
 - **Status:** 🔄 Windows done; an account that never had HeadlessOS is left
 - **Date:** 2026-11-26
