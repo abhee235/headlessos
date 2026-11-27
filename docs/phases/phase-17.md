@@ -343,7 +343,7 @@ decision.
 | M17.11 | Running the command again doesn't reinstall the same version, and the docs say a reinstall asks too | ✅ |
 | M17.12 | The Windows command starts the app from a shell that VS Code started | ✅ |
 | M17.13 | The desktop app's WebSockets connect: the backend accepts `Origin: file://` | ✅ |
-| M17.14 | Version 0.3.4, tag it and check the release | 🔄 |
+| M17.14 | Version 0.3.4, tag it and check the release | ✅ |
 
 ## Checks
 
