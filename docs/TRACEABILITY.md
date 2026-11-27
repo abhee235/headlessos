@@ -1680,7 +1680,7 @@ None (all changes to existing files).
 - **Verification:** reproduced in the installed 0.3.3 on Windows (handshake 403, `[Connection error]`); guard tests, including a real handshake through the hook, fail without the `file://` line; an unpacked build of the fix ran a command in the Terminal on the dev container, and the Observatory's socket opened
 
 ### M17.14: Version 0.3.4, tag it and check the release
-- **Status:** 🔄 Draft to check
+- **Status:** 🔄 Draft checked; the owner publishes
 - **Date:** 2026-11-27
 - **Files modified:** every `package.json`, both lockfiles' own entries, `server/src/index.ts`, `client/src/components/Desktop/Desktop.tsx`, `client/src/components/Desktop/SettingsView.tsx`, `CHANGELOG.md`
 - **Docs:** `docs/phases/phase-17.md` ("M17.14")

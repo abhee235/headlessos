@@ -314,6 +314,12 @@ decision.
   unpacked build of this fix, run the same way, opened the Terminal and ran a command on the
   container, and the Observatory's socket opened too. Without the `file://` line, the new tests fail,
   including a real handshake through the hook.
+- **The 0.3.4 draft (M17.14), 2026-11-28:** run 46028781856 passed CI and all three builds. All six
+  files are in `SHA256SUMS` and match GitHub's digests, and `gh attestation verify` tied the installer
+  and the Mac zip to `release.yml` at `v0.3.4` on a GitHub-hosted runner. The Mac app is
+  `com.headlessos.app` 0.3.4, and the runner's signature and UUID check passed. The portable Windows
+  app, run with its own home folder against the dev SSH container, opened the Terminal and ran a
+  command.
 - **Why it wasn't caught before:** C3's live proof (M5) opened WebSockets through the dev proxy, where
   the page is on `localhost`, and its note assumed the desktop app sends `null`, which is true only
   for requests. The rules sat inside `main()`, so no test ran them. The release checks of the desktop
