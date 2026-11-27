@@ -37,6 +37,14 @@
 | M15: Desktop Diagnostics | Beta | ✅ | 21/21 tasks | [phase-15](phases/phase-15.md) |
 | M16: Saved Secrets in the OS Keychain | Beta | 🔄 | 14/16 tasks (M16.11 skipped), v0.3.0 published, v0.3.2 to check; Linux not run | [phase-16](phases/phase-16.md) |
 | M17: One Command to Install, and a Mac App With Its Own Identity | Beta | 🔄 | 13/14 tasks; v0.3.4 published with the desktop Terminal fix, the Windows command ran; an account that never had HeadlessOS is left | [phase-17](phases/phase-17.md) |
+| M18: Updates You Can Trust | Roadmap (0.4.0) | ⬜ | 0/6 tasks | [phase-18](phases/phase-18.md) |
+| M19: Logs That Answer "What Happened?" | Roadmap (0.5.0) | ⬜ | 0/6 tasks | [phase-19](phases/phase-19.md) |
+| M20: Reach Anything Over SSH | Roadmap (0.6.0) | ⬜ | 0/5 tasks | [phase-20](phases/phase-20.md) |
+| M21: Raspberry Pi and Small Boards | Roadmap (0.7.0) | ⬜ | 0/7 tasks | [phase-21](phases/phase-21.md) |
+| M22: Health Over Time, and Warnings | Roadmap (0.8.0) | ⬜ | 0/6 tasks | [phase-22](phases/phase-22.md) |
+| M23: Files for Config Work | Roadmap (0.9.0) | ⬜ | 0/6 tasks | [phase-23](phases/phase-23.md) |
+| M24: Docker Compose Stacks | Roadmap (0.10.0) | ⬜ | 0/6 tasks | [phase-24](phases/phase-24.md) |
+| M25: Keys, Many Servers, and a Record | Roadmap (0.11.0) | ⬜ | 0/5 tasks | [phase-25](phases/phase-25.md) |
 | **EX1: Dynamic UI Engine** | **Experimental** | **✅** | **15/15 tasks** | [phase-ex1](phases/phase-ex1.md) |
 | **EX2: UI Generation Agent** | **Experimental** | **✅** | **13/13 tasks** | [phase-ex2](phases/phase-ex2.md) |
 | **EX3: Smart Layout Engine & Progressive UI** | **Experimental** | **✅** | **26/26 tasks** | [phase-ex3](phases/phase-ex3.md) |
@@ -687,6 +695,7 @@ Example:
 
 | Date | Change |
 |------|--------|
+| 2026-11-28 | **Roadmap M18–M25 planned** From research into what self-hosters, VPS owners and Raspberry Pi users ask for (`docs/ROADMAP.md`): updates, logs, tunnels and SSH config, Raspberry Pi health, history and warnings, root file editing, Compose stacks, keys and fleet actions. One phase per release, 0.4.0 to 0.11.0. |
 | 2026-11-28 | **M17.14 ✅** v0.3.4 is published as the latest release, and `main` is fast-forwarded to it. |
 | 2026-11-27 | **M17.14 started** Version 0.3.4 and its changelog, with M17.11, M17.12 and M17.13. Tagged on `release/0.3.4`; the draft is checked, including the Terminal in the Windows app, before the owner publishes. |
 | 2026-11-27 | **M17.13 ✅** Issue #9's reporter connected with 0.3.3, but the Terminal showed `[Connection error]`. Reproduced in the installed 0.3.3 on Windows: Chromium sends `Origin: file://` on a WebSocket from the desktop app's page, and the C3 check accepted only `null` or `localhost`, so every desktop WebSocket got 403 from 0.2.0 on. The check accepts `file://`, the token is still required, and the rules moved to `security/request-guard.ts` with tests. An unpacked build ran a command in the Terminal. |
